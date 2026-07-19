@@ -84,6 +84,163 @@ Cuando un bloque de temas madura lo suficiente, se propone pasarlo a spec con `/
   como resultado y se muestra el **link del lugar** para que el usuario siga la búsqueda ahí
   adentro. No se listan las obras/funciones individuales.
 
+## Taxonomía de filtros
+
+_Tanda 3 (2026-07-19). La modalidad ya estaba decidida en la tanda 1 (curada, opción C);
+acá se vuelca el árbol real. Los filtros son "el fuerte de la app" (Fer)._
+
+### Estructura — ✅ DECIDIDA (2026-07-19)
+
+- ✅ **Modelo de FACETAS combinables, no árbol único.** Los ejemplos que dio Fer mezclan
+  dimensiones distintas ("Stand Up + Bar" = qué se hace + qué es; "Restaurante + pakistaní"
+  = qué es + qué se come). Un árbol único obligaría a duplicar "Bar" bajo Gastronomía, bajo
+  Stand Up y bajo Juegos de mesa → inmantenible al tag 50.
+
+| # | Faceta | Responde | Ejemplo |
+|---|--------|----------|---------|
+| 1 | **Tipo de lugar** | ¿Qué *es*? | Bar, Restaurante, Café, Cervecería |
+| 2 | **Cocina** | ¿Qué se come? | Pakistaní, Parrilla, Sushi, Bodegón |
+| 3 | **Actividad** | ¿Qué se *hace*? | Stand up, Juegos de mesa, Karaoke |
+| 4 | **Ambiente** | ¿Cómo se siente? | Tranqui para charlar, Terraza, Grupos |
+| 5 | **Precio** | ¿Cuánto sale? | $ · $$ · $$$ · $$$$ |
+| 6 | **Momento** | ¿Cuándo? | Abierto ahora, Hasta tarde, Brunch |
+| 7 | **Zona** | ¿Dónde? | Selector propio, NO tag (ya decidido) |
+
+- ✅ **Regla que evita la duplicación**: *Tipo* = qué es el negocio; *Actividad* = qué podés
+  hacer ahí. Un bar con karaoke los martes es `Tipo: Bar` + `Actividad: Karaoke`, no un
+  "tipo karaoke". Las combinaciones que pidió Fer salen solas del cruce de facetas.
+- ✅ **Actividad + Ambiente son el diferencial real.** Google ya da tipo y cocina; nadie da
+  "bar tranqui con juegos de mesa en Villa Crespo". Ahí está el fuerte de la app.
+- ✅ **Faceta "Ocasión" SÍ, y en la home**: chips grandes ("Primera cita", "After office",
+  "Salida con amigos") que por debajo son **combinaciones prearmadas** de las otras facetas.
+  Es lo más cercano a "absurdamente intuitivo": el usuario no arma un filtro, toca lo que le
+  pasa. No es una faceta nueva de datos — es una capa de curaduría sobre las 6 primeras.
+- ✅ **Cocina va en DOS niveles** (Asiática → Japonesa/Coreana/China/India/Tailandesa).
+  Buscar el padre trae todos los hijos. Con ~40 cocinas en AMBA, una lista plana marea en
+  celular.
+- 💡 **UI propuesta (sin cerrar)**: la home muestra Zona + campo de texto + 3-4 chips de
+  Ocasión; las 6 facetas viven detrás de un botón "Filtros". Siete filtros a la vista en un
+  celular es lo opuesto a "absurdamente intuitivo".
+
+### Valores concretos por faceta
+
+#### Faceta 1 — Tipo de lugar ✅ VALIDADA (2026-07-19)
+
+- ✅ **Regla dura: Tipo = formato del local · Cocina = qué sirve.** Parrilla, Pizzería y
+  Bodegón van a **Cocina**, NO a Tipo. Motivo: si viven en Tipo existen dos veces y vuelve
+  el problema de duplicación que hizo descartar el árbol. **No hay costo de UX**: el campo
+  de texto matchea tags de cualquier faceta — escribís "parrilla" y te trae `Cocina:
+  Parrilla` igual. La distinción es interna, el usuario no la ve.
+
+Gastronómicos: **Restaurante · Bar · Cervecería · Café · Wine bar / vinoteca · Boliche ·
+Patio gastronómico / food hall**
+No gastronómicos: **Teatro / espacio cultural · Club de juegos · Centro de entretenimiento**
+(bowling, escape room, karaoke dedicado)
+
+- ✅ Diez valores, corto a propósito: Tipo es lo primero que toca el usuario y una lista de
+  22 en celular es fricción.
+- ✅ **Descartados**: *Pub* (se solapa 100% con Bar) · *Rooftop* (es Ambiente, no Tipo).
+- ❓ **Sin resolver — no bloquea**: si entran *Heladería* / *Panadería* (son más "compro y me
+  voy" que "salgo") y si entran los *Cines*.
+
+#### Faceta 3 — Actividad ✅ VALIDADA (2026-07-19)
+
+Es **el diferencial de la app** — Google no tiene esta dimensión. Los grupos ordenan la UI,
+no son filtrables.
+
+| Grupo | Tags |
+|-------|------|
+| **Escenario** | Stand up / comedia · Música en vivo · Open mic · Teatro · Peña folclórica |
+| **Baile** | DJ · Milonga / tango · Salsa y bachata · Fiesta temática |
+| **Juegos** | Juegos de mesa · Pool / metegol / dardos · Trivia / quiz night · Arcade · Bowling · Escape room |
+| **Participar** | Karaoke · Catas y degustaciones |
+| **Mirar** | Fútbol en pantalla · Proyecciones / cine |
+
+- ✅ **18 tags.** *Talleres* **descartado** (2026-07-19): le hizo ruido a Fer y roza el
+  "evento de día específico" ya excluido del alcance.
+- ✅ **"Fútbol en pantalla"** es un tag de capacidad ("acá se ve fútbol"), **no** de
+  programación ("hoy pasan Boca-River"). La app no maneja agenda de eventos.
+
+#### Faceta 2 — Cocina ✅ VALIDADA (2026-07-19)
+
+Dos niveles; **los padres son filtrables** (tocar "Asiática" trae todos los hijos).
+
+| Padre | Hijos |
+|-------|-------|
+| **Argentina** | Parrilla · Bodegón · Milanesas · Empanadas · Norteña / locro |
+| **Italiana** | Pizza · Pastas · Trattoria |
+| **Asiática** | Japonesa / sushi · Ramen · China · Coreana · Tailandesa · Vietnamita |
+| **India y Medio Oriente** | India · Pakistaní · Árabe · Armenia · Turca |
+| **Latinoamericana** | Peruana · Mexicana · Venezolana · Colombiana · Boliviana · Brasileña |
+| **Europea** | Española / tapas · Francesa · Alemana |
+| **Americana** | Hamburguesas · BBQ / costillas |
+| **Dulce y café** | Pastelería · Heladería · Café de especialidad |
+| **Dietas** | Vegetariana · Vegana · Sin TACC · Kosher · Halal |
+
+- ✅ **37 tags en 9 padres.**
+- ✅ **"Dietas" vive dentro de Cocina** aunque conceptualmente no sea una cocina: la gente
+  busca "vegano" con el mismo gesto con que busca "sushi", y crear una faceta aparte solo
+  para eso rompe el modelo de 7. Incoherente en el papel, correcto en la práctica.
+- ✅ **Pizza va bajo Italiana** (la porteña de molde y la napoletana juntas): separarlas
+  obliga a explicarle la diferencia al usuario.
+- ✅ **Las cocinas de nicho NO se adivinan ahora** (etíope, griega, húngara, nórdica). En
+  AMBA hay dos o tres lugares de cada una — **es exactamente el caso de uso del modelo
+  curado (opción C)**: el dueño la sugiere, Fer la aprueba.
+
+#### Faceta 4 — Ambiente ✅ VALIDADA (2026-07-19)
+
+Una sola faceta con dos grupos, porque el usuario los filtra en el mismo gesto aunque sean
+cosas distintas (**vibra** = subjetiva · **servicios** = hechos verificables).
+
+- **Vibra**: Tranqui para charlar · Movido · Romántico / para una cita · Para grupos grandes
+  · Al aire libre / patio · Terraza o rooftop · Con vista · Speakeasy / escondido · Temático
+  · Bar notable / histórico
+- **Servicios**: Pet friendly · Kids friendly · Accesible · Wifi para trabajar ·
+  Estacionamiento · Reserva necesaria · LGBTQ+ friendly
+
+- ✅ 17 tags.
+- ⚠️ **Riesgo conocido — nadie se autodefine como "movido".** Un dueño cargando su ficha
+  tilda "tranqui" + "romántico" + "para grupos" todo junto y el filtro deja de significar
+  algo. **Se controla en la aprobación manual de la ficha** (trabajo de Fer). Anotado como
+  riesgo operativo, no bloquea.
+
+#### Faceta 5 — Precio ✅ VALIDADA (2026-07-19)
+
+`$` hasta 15.000 · `$$` 15–30.000 · `$$$` 30–60.000 · `$$$$` 60.000+ (por persona).
+
+- ✅ **Los cortes viven en base de datos y se ajustan desde `/admin`** — mismo criterio ya
+  decidido para los precios de los planes. Con la inflación, un `$$` hardcodeado miente en
+  seis meses.
+
+#### Faceta 6 — Momento ✅ VALIDADA (2026-07-19)
+
+Abierto ahora · Hasta tarde (después de las 2) · Abre domingos · Desayuno · Almuerzo ·
+Merienda · Cena · Trasnoche · Happy hour
+
+#### Ocasión — chips de la home ✅ VALIDADA (2026-07-19)
+
+No es una faceta de datos: son **combinaciones prearmadas** de las otras seis.
+
+Primera cita · **Salida con chongo** · Salida con amigos · After office · Cumpleaños ·
+Cena familiar · Plan tranqui · Salir a bailar · Merienda
+
+- ✅ **"Salida con chongo" — pedido explícito de Fer** (2026-07-19). Humor rioplatense,
+  coherente con el tono "canchero y divertido, cero emojis" ya decidido. Es el chip que más
+  personalidad le da a la marca y el más compartible.
+- ✅ **Tiene que diferenciarse de "Primera cita" por debajo**, o son el mismo filtro con dos
+  nombres. Lectura acordada: *Primera cita* = se puede **hablar** (tranqui, no ruidoso,
+  mesa). *Salida con chongo* = luz baja, tragos, barra, ambiente, **cerca**; charlar no es
+  el objetivo.
+- 💡 **Nueve chips es mucho para una home mobile**: arrancar con ~4 y el resto detrás de
+  "ver más". Sin cerrar cuáles cuatro.
+- ⚠️ Nota de marca: "Salida con chongo" es una decisión de identidad, no solo un tag — un
+  dueño conservador puede mirarlo torcido. Fer lo pidió sabiendo el registro.
+
+### Resumen — tamaño de la taxonomía v1
+
+Tipo 10 · Cocina 37 · Actividad 18 · Ambiente 17 · Precio 4 · Momento 9 = **95 tags**,
+más 9 chips de Ocasión. Zona va aparte (selector propio, no tag).
+
 ## Fuentes de lugares (3 orígenes)
 
 1. ✅ **Google** (lo más fiable) — ✅ **Places API (New)**. Investigación **COMPLETA** en
@@ -129,13 +286,73 @@ para horarios y rating. Google deja de ser el catálogo y pasa a ser el enriquec
   **Motivo — la cuenta a 5.000 búsquedas/mes**: foto en cada card ≈ **$693/mes** vs foto
   solo en ficha ≈ **$3,50/mes**. Doscientas veces más caro por una decisión visual.
   Bonus: coincide con el "minimalismo con carácter" ya elegido.
-- ❓ **BLOQUEANTE — cobertura de Overture/FSQ en AMBA sin verificar.** Ninguna publica
-  desglose por país. Referencia medida: OSM tiene **5.938 gastronómicos en CABA**, pero
-  con solo 17% de horarios y 12% de teléfonos. **Tarea concreta**: bajar el extract de
-  Overture para el bbox de AMBA con DuckDB y contar (una tarde de trabajo).
-- ❓ **Leer a mano el ToS §3.2.3(b) y §3.2.4** — las páginas del contrato se truncaron en
-  la investigación; lo verificado viene de páginas de Google que las citan, no del
-  contrato. Hacerlo antes de comprometer la arquitectura de datos.
+#### ✅ DESBLOQUEADO — Overture MEDIDO en AMBA (2026-07-19)
+
+Medición propia con DuckDB sobre `s3://overturemaps-us-west-2/release/**2026-06-17.0**/theme=places/type=place`.
+Bbox AMBA `lon -59.10/-58.10 · lat -35.05/-34.28`. **282.865 POIs totales** en el bbox.
+
+| Métrica (gastronómicos) | AMBA | CABA sola |
+|---|---|---|
+| **Total** | **27.683** | **13.835** |
+| Con nombre | 100% | 100% |
+| Con dirección | 98% | 99% |
+| Con teléfono | **86%** | 87% |
+| Con redes sociales | **98%** | 97% |
+| Con website | 41% | 48% |
+| `confidence` ≥ 0.5 | 71% | 72% |
+
+- ✅ **VEREDICTO: el catálogo propio se sostiene. Overture alcanza y sobra.** CABA tiene
+  **13.835 vs los 5.938 de OSM** — más del doble. Y la calidad es otra liga: **86% de
+  teléfonos vs el 12% de OSM**.
+- ✅ **Hallazgo grande — 98% trae redes sociales.** Ya estaba decidido mostrar las redes del
+  lugar en la ficha: **vienen gratis en Overture**, no hay que pedirlas a Google.
+- 🔴 **Overture NO tiene horarios.** El schema (verificado) es: `id · geometry · categories ·
+  confidence · websites · emails · socials · phones · brand · addresses · names · sources ·
+  operating_status · basic_category · taxonomy · version · bbox`. **No existe campo de
+  horarios.** → Los horarios salen sí o sí de Google, en vivo, al abrir la ficha. Confirma
+  la arquitectura híbrida ya decidida.
+- ⚠️ **`confidence` promedio 0.644; 29% por debajo de 0.5.** Al importar hay que definir un
+  umbral de corte — dato de calidad, no bloqueante.
+- ⚠️ **Overture deprecó `categories`**, reemplazado por `basic_category` + `taxonomy`
+  (struct con `primary` / `hierarchy` / `alternates`). **`categories` se elimina en la
+  release de septiembre 2026** → construir contra `taxonomy` desde el día 1.
+- 💡 La taxonomía de Overture mapea razonable contra la nuestra: `argentine_restaurant` (435),
+  `pizza_restaurant` (4.043), `sushi_restaurant` (512), `peruvian_restaurant` (206),
+  `wine_bar` (121), `cocktail_bar` (89), `tapas_bar` (82) — sirve como **semilla** del
+  import, no como reemplazo de la taxonomía propia.
+- 📁 Scripts de la medición en el scratchpad de la sesión (`ov_final.py`, `ov_cats.py`).
+
+#### ✅ RESUELTO — ToS de Google leído textualmente (2026-07-19)
+
+La cita que traía la investigación previa estaba **a medias**:
+
+- ✅ **§3.2.3(b) "No Caching" existe**, pero vive en los **Google Maps Platform Terms of
+  Service** (`https://cloud.google.com/maps-platform/terms/`, últ. mod. 2026-06-23), **NO**
+  en los Service Specific Terms. Por eso no se encontraba.
+  > *"Customer will not cache Google Maps Content except as expressly permitted under the
+  > Maps Service Specific Terms."*
+- 🔴 **§3.2.4 "Retention" NO EXISTE** — §3.2.4 es "Benchmarking". **Esa cita se descarta.**
+- ✅ **La excepción real para Places** está en Service Specific Terms, Sección B §14
+  (últ. mod. 2026-06-10). **§14.3 Caching**:
+  > *"Customer may temporarily cache latitude and longitude values from the Places API for
+  > up to 30 consecutive calendar days, after which Customer must delete the cached
+  > latitude and longitude values."*
+  
+  **Ese es el texto completo de §14. Solo lat/lng, nada más.**
+- ✅ **§3 Sección A "Google ID Caching"**: `place_id` se puede cachear sin límite temporal.
+- 🔴 **CONFIRMADO: los horarios NO se pueden cachear.** El régimen es *prohibición por
+  defecto + excepciones tasadas*; Places solo tiene excepción para lat/lng. Contraste que
+  lo confirma: cuando Google permite cachear contenido sustantivo lo dice con tabla
+  explícita (Pollen API §16.2 con 365 días; Solar API §20.2). Places no la tiene.
+- ⚠️ **Es inferencia por omisión, no una frase literal de Google.** Google nunca escribe "no
+  podés cachear horarios" — se deduce de aplicar §3.2.3(b) a la ausencia de excepción. Es
+  sólido, pero si alguna vez pesa legalmente, confirmar con Google.
+- ⚠️ **Territorialidad**: estos ToS aplican a cuentas **fuera del EEA** (cuenta argentina =
+  aplican). Si alguna vez se factura desde la UE, rige otro documento.
+- ✅ **Impacto neto: NINGÚN cambio a la arquitectura ya decidida.** `place_id` persistido +
+  catálogo propio de Overture + Google en vivo solo en la ficha. Lo que sí cambia es que
+  **se cierra la puerta** a la idea de "cachear horarios 30 días" que se creía disponible.
+- 📁 Contratos en texto plano en el scratchpad (`gmp_tos.txt`, `gmp_service.txt`).
 - ✅ **Atribución obligatoria**: logo de Google al mostrar datos sin mapa; crédito al autor
   en fotos/reviews. ("Powered by Google" NO es el wording correcto.)
 
@@ -346,7 +563,29 @@ precio fijo se licúa con la inflación en meses.
 _Actualizado durante la tanda 2 (2026-07-19). Esta sección es lo primero que lee la
 sesión siguiente._
 
-### Tanda 2 — en curso
+### Tanda 3 — en curso (2026-07-19)
+
+- ✅ **Taxonomía de filtros VOLCADA Y VALIDADA** — era la pregunta abierta principal de la
+  tanda 2. Ver sección "Taxonomía de filtros" arriba: modelo de **7 facetas combinables**
+  (no árbol único), **95 tags** + 9 chips de Ocasión, validados ítem por ítem con Fer.
+- ✅ **Decisión estructural clave**: *Tipo = formato del local · Cocina = qué sirve.* Parrilla
+  y Pizzería viven en Cocina, no en Tipo. Sin costo de UX porque el texto libre matchea tags
+  de cualquier faceta.
+- ✅ **Actividad + Ambiente = el diferencial competitivo.** Google da tipo y cocina; no da
+  "bar tranqui con juegos de mesa en Villa Crespo".
+- ⚠️ **Riesgos anotados**: dueños que se auto-tildan todas las vibras (se controla en la
+  aprobación manual); "Salida con chongo" es decisión de marca, no solo un tag.
+- ✅ **LOS DOS BLOQUEANTES DEL PROYECTO SE CERRARON** (ver "Arquitectura de datos" arriba):
+  1. **Overture medido**: 27.683 gastronómicos en AMBA / 13.835 en CABA, 86% con teléfono,
+     98% con redes. **El catálogo propio se sostiene.** Overture NO tiene horarios → salen
+     de Google en vivo, como ya estaba diseñado.
+  2. **ToS leído textualmente**: §3.2.4 no existe (cita descartada); §14.3 permite cachear
+     **solo lat/lng** 30 días; `place_id` sin límite. **Horarios NO cacheables.**
+- ✅ **La arquitectura híbrida queda CONFIRMADA**, sin cambios. Ya no está en revisión.
+- ❓ **Queda sin volcar la faceta 7 — ZONAS de AMBA**, que es el default de la búsqueda y
+  Fer marcó como "fundamental". Es el siguiente tema natural.
+
+### Tanda 2 — cerrada
 
 - ✅ **Investigación de Google Places COMPLETA** (era la primera tarea pendiente). Los
   cinco hallazgos están arriba en "Arquitectura de datos"; el detalle con citas en
