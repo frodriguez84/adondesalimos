@@ -236,10 +236,87 @@ Cena familiar · Plan tranqui · Salir a bailar · Merienda
 - ⚠️ Nota de marca: "Salida con chongo" es una decisión de identidad, no solo un tag — un
   dueño conservador puede mirarlo torcido. Fer lo pidió sabiendo el registro.
 
+#### Faceta 7 — Zona ✅ VALIDADA (2026-07-19)
+
+Es el **default de la búsqueda** (Fer: "fundamental"; primero elegís zona). No es un tag:
+es un selector propio, resuelto por **geometría** sobre el lat/lng de Overture (dato propio,
+sin problema de ToS).
+
+- ✅ **Principio rector: GRANULARIDAD ASIMÉTRICA.** La grilla sigue la densidad de salidas,
+  no la geografía administrativa. Motivo medido: CABA tiene ~13.835 gastronómicos y el
+  conurbano ~13.848 repartidos en 40 partidos — **Palermo solo tiene más lugares que Zona
+  Sur entera**. Un sistema de 48 barrios + 40 partidos trata igual a Palermo (miles) que a
+  Villa Riachuelo (casi nada), y ninguna de las dos resulta una zona útil. Más fina donde
+  hay salida, más gruesa donde no la hay.
+- ✅ **Dos niveles: Región (4) → Zona de salida (~44).** Región: CABA · Zona Norte · Zona
+  Oeste · Zona Sur. Nunca se ven las 44 juntas: elegís región y ves 7-19.
+
+##### CABA — ~19 zonas agrupadas (NO los 48 barrios oficiales)
+
+| Zonas | Nota |
+|---|---|
+| Palermo Soho · Palermo Hollywood · Botánico / Alto Palermo · Las Cañitas | **Palermo SÍ se subdivide** (4 zonas) |
+| Villa Crespo · Chacarita y Colegiales · Villa Urquiza y Coghlan | Chacarita absorbe Villa Ortúzar |
+| Belgrano · Núñez · Saavedra | |
+| Recoleta · Retiro y Microcentro · Puerto Madero | |
+| San Telmo · Monserrat y Congreso · La Boca y Barracas | |
+| Almagro y Boedo · Once y Abasto · Caballito | Balvanera cae en Once/Abasto |
+| Devoto y Villa del Parque · Flores y Floresta | Todo el oeste de CABA en 2 |
+
+- ✅ **Se descartaron los 48 barrios oficiales**: nadie dice "voy a Villa Ortúzar" pero sí
+  "voy a Chacarita". El criterio es cómo habla la gente, no el decreto.
+- ⚠️ **Costo conocido**: Soho / Hollywood / Botánico **no tienen polígono oficial** — hay que
+  dibujarlos a mano (límites por avenida). Las otras ~15 salen del GeoJSON oficial de barrios
+  de CABA (`data.buenosaires.gob.ar`), gratis y descargable.
+- ✅ El buscador del selector matchea **nombres viejos y alias**: escribís "Villa Ortúzar" y
+  te lleva a Chacarita. La agrupación no le esconde nada al usuario.
+
+##### Conurbano — corredor + localidad (los DOS niveles)
+
+- **Norte**: Olivos y Vicente López · Martínez y Acassuso · San Isidro · Tigre y Nordelta ·
+  San Fernando · San Miguel y Bella Vista · Pilar · Escobar · San Martín y Villa Ballester
+- **Oeste**: Ramos Mejía y Haedo · Morón y Castelar · Ituzaingó · Caseros y Tres de Febrero ·
+  San Justo · Moreno · Merlo
+- **Sur**: Avellaneda · Quilmes · Lomas de Zamora y Banfield · Temperley · Lanús · Adrogué y
+  Burzaco · Monte Grande · Berazategui · Florencio Varela
+
+- ✅ **Por LOCALIDAD, no por partido.** La data lo exige: Ramos Mejía (348 lugares) y San
+  Justo (234) son el mismo partido (La Matanza) y no son la misma salida ni de lejos.
+- ✅ **Solo corredor descartado**: "Zona Sur" abarca de Avellaneda a Florencio Varela, 40 km.
+  Inútil para decidir a dónde ir un viernes.
+
+##### Bordes y multiselección
+
+- ✅ **Lugar en el límite — zona primaria + buffer de ~400 m en la búsqueda.** Cada lugar
+  tiene **una** zona primaria (asignada por polígono), que es la que se muestra en la card;
+  el filtro por zona usa el polígono **expandido 400 m**. Resultado: el bar de Córdoba y
+  Dorrego aparece buscando Villa Crespo **y** buscando Palermo Soho. *Una zona en la card,
+  dos en la búsqueda* — sin ambigüedad visual y sin perder lugares por 50 metros.
+- ✅ **Multiselección libre, sin límite de cantidad.** Es el filtro más natural de combinar
+  ("Palermo o Villa Crespo, me da igual"). No contradice el "GPS reemplaza la zona" ya
+  decidido: el toggle sigue siendo excluyente contra el conjunto entero de zonas elegidas.
+
+##### Alcance, default y UI del selector
+
+- ✅ **La Plata queda FUERA de v1.** Está a 60 km del centro y es un ecosistema de salida
+  propio — nadie combina "Palermo o La Plata". Confirma el bbox ya medido (`lon -59.10/-58.10`
+  la deja afuera): **no hay que re-correr la medición de Overture.** Si algún día entra, lo
+  hace como **región nueva** (la 5ª) sin tocar nada de lo decidido.
+- ✅ **Zona default = la última usada; en la primera visita, ninguna.** El selector arranca
+  vacío diciendo "Elegí zona" y no hay resultados hasta elegir. Se descartó "CABA entera por
+  default" (13.835 lugares sin filtrar no ayudan a decidir, y el usuario de Quilmes ve
+  Palermo) y "detectar por GPS al entrar" (pide permiso apenas abrís la app = fricción en el
+  peor momento, y contradice el "GPS como opción secundaria" ya decidido).
+- ✅ **UI: buscador con autocompletar + lista de regiones desplegables abajo.** Escribís "pal"
+  y aparecen las 4 zonas de Palermo; si no escribís nada, ves las 4 regiones para explorar.
+  Sirve al que ya sabe y al que no. El **mapa con zonas tocables se descartó** para v1: caro,
+  malo en pantalla chica y las zonas chicas son imposibles de tocar con el dedo.
+
 ### Resumen — tamaño de la taxonomía v1
 
 Tipo 10 · Cocina 37 · Actividad 18 · Ambiente 17 · Precio 4 · Momento 9 = **95 tags**,
-más 9 chips de Ocasión. Zona va aparte (selector propio, no tag).
+más 9 chips de Ocasión. **Zona va aparte**: selector propio de 2 niveles, 4 regiones y
+~44 zonas de salida, resuelto por geometría (no es tag).
 
 ## Fuentes de lugares (3 orígenes)
 
@@ -321,6 +398,43 @@ Bbox AMBA `lon -59.10/-58.10 · lat -35.05/-34.28`. **282.865 POIs totales** en 
   `wine_bar` (121), `cocktail_bar` (89), `tapas_bar` (82) — sirve como **semilla** del
   import, no como reemplazo de la taxonomía propia.
 - 📁 Scripts de la medición en el scratchpad de la sesión (`ov_final.py`, `ov_cats.py`).
+
+#### ✅ RESUELTO — Licencia de Overture places (2026-07-19, tanda 4)
+
+Era el **último pendiente estructural**: si Overture places no permitía uso comercial, se
+caía el catálogo propio y con él la arquitectura híbrida entera. **No es el caso.**
+
+- ✅ **Places NO es ODbL.** Ese era el riesgo real y no existe. La ODbL (share-alike — te
+  obligaría a liberar tu base derivada) aplica **solo** a los themes Base, Buildings,
+  Division y Transportation. **Places está explícitamente fuera.**
+- ✅ **La licencia de places es POR REGISTRO**, según el campo `sources` de cada lugar. Las
+  tres posibles son permisivas y **todas admiten uso comercial**:
+
+| Fuente | Licencia | Obligación |
+|---|---|---|
+| Meta · Microsoft · PinMeTo · Krick · RenderSEO · DAC · BrightQuery | **CDLA-Permissive 2.0** | Incluir el texto de la licencia |
+| Foursquare | **Apache 2.0** | Copyright de Foursquare + referencia a su `NOTICE.txt` (`https://opensource.foursquare.com/places-notice-txt/`) |
+| AllThePlaces | **CC0 1.0** | Ninguna |
+
+- ✅ **CDLA-Permissive 2.0 NO es viral.** Solo pide acompañar el texto de la licencia al
+  compartir *los datos*; no se aplica al producto ni a los resultados derivados del análisis.
+  Se puede **persistir, modificar, filtrar y monetizar** — exactamente lo que hace la
+  arquitectura híbrida.
+- ✅ **VEREDICTO: la licencia NO bloquea nada.** El catálogo propio se sostiene también por
+  el lado legal. Costo de cumplimiento: una línea de atribución en `/legales` o en la ficha,
+  al lado de la atribución a Google que ya estaba decidida.
+- ✅ **Atribución: se usa el string COMPLETO de las 9 fuentes que publica Overture**, sin
+  medir la mezcla real de AMBA. Se intentó medir con DuckDB qué proporción viene de
+  Foursquare (la única fuente que pide algo más que el texto de la licencia), pero
+  **la medición se abortó por costo/beneficio**: el `unnest(sources)` obliga a leer una
+  columna anidada del dataset global antes de filtrar por bbox y pasó de 10 minutos sin
+  terminar. El dato solo servía para *acortar* el texto de atribución — poner el completo
+  es correcto siempre. Ningún impacto en decisiones.
+- 📌 **Para la implementación**: pegar la atribución completa en `/legales` (Meta ·
+  Microsoft · PinMeTo · Krick · RenderSEO · DAC · BrightQuery bajo CDLA-Permissive 2.0 ·
+  Foursquare bajo Apache 2.0 con su copyright y NOTICE · AllThePlaces bajo CC0 1.0), junto
+  con la atribución a Google ya decidida. Texto exacto en la fuente.
+- 📁 Fuente: `https://docs.overturemaps.org/attribution/`.
 
 #### ✅ RESUELTO — ToS de Google leído textualmente (2026-07-19)
 
@@ -563,7 +677,30 @@ precio fijo se licúa con la inflación en meses.
 _Actualizado durante la tanda 2 (2026-07-19). Esta sección es lo primero que lee la
 sesión siguiente._
 
-### Tanda 3 — en curso (2026-07-19)
+### Tanda 4 — en curso (2026-07-19)
+
+- ✅ **FACETA 7 — ZONAS DE AMBA VOLCADA Y VALIDADA.** Era la única faceta sin volcar y el
+  default de la búsqueda. **La taxonomía de filtros queda COMPLETA: las 7 facetas cerradas.**
+  Ver "Faceta 7 — Zona" arriba.
+- ✅ **Principio rector: granularidad asimétrica** — la grilla sigue la densidad de salidas,
+  no la geografía administrativa. Palermo solo tiene más lugares que Zona Sur entera.
+- ✅ **Estructura: 2 niveles — 4 regiones → ~44 zonas de salida.** CABA en ~19 zonas
+  agrupadas (Palermo subdividido en 4; los 48 barrios oficiales descartados); conurbano por
+  **corredor + localidad** (no por partido: Ramos Mejía y San Justo son La Matanza y no son
+  la misma salida).
+- ✅ **Bordes resueltos**: zona primaria por polígono (la que se ve en la card) + buffer de
+  ~400 m en la búsqueda. Una zona en la card, dos en la búsqueda.
+- ✅ **Multiselección libre**; **La Plata fuera de v1**; **default = última zona usada**;
+  **UI = buscador con autocompletar** (mapa tocable descartado para v1).
+- ⚠️ **Único costo nuevo de implementación**: los polígonos de Palermo Soho / Hollywood /
+  Botánico **no existen oficialmente** — hay que dibujarlos a mano. El resto sale del GeoJSON
+  oficial de CABA.
+- ✅ **LICENCIA DE OVERTURE VERIFICADA — no bloquea nada** (ver "Arquitectura de datos"
+  arriba). Places **no es ODbL**; las tres licencias posibles (CDLA-Permissive 2.0 /
+  Apache 2.0 / CC0) permiten persistir, modificar y **monetizar**. Era el último pendiente
+  estructural del proyecto: **ya no queda ninguno**.
+
+### Tanda 3 — cerrada (2026-07-19)
 
 - ✅ **Taxonomía de filtros VOLCADA Y VALIDADA** — era la pregunta abierta principal de la
   tanda 2. Ver sección "Taxonomía de filtros" arriba: modelo de **7 facetas combinables**
@@ -582,8 +719,7 @@ sesión siguiente._
   2. **ToS leído textualmente**: §3.2.4 no existe (cita descartada); §14.3 permite cachear
      **solo lat/lng** 30 días; `place_id` sin límite. **Horarios NO cacheables.**
 - ✅ **La arquitectura híbrida queda CONFIRMADA**, sin cambios. Ya no está en revisión.
-- ❓ **Queda sin volcar la faceta 7 — ZONAS de AMBA**, que es el default de la búsqueda y
-  Fer marcó como "fundamental". Es el siguiente tema natural.
+- ~~❓ Queda sin volcar la faceta 7 — ZONAS de AMBA~~ → ✅ **HECHA en la tanda 4**.
 
 ### Tanda 2 — cerrada
 
