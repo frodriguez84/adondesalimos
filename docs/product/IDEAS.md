@@ -278,8 +278,48 @@ dirección, detalles sin cerrar:_
   Si hace falta, a futuro se agrega un tier superior con más mensajes.
 - ✅ Resumen del modelo: **B2B** = suscripción mensual dueño (destaque + estadísticas +
   ficha enriquecida) · **B2C** = premium único.
-- ❓ **Precios**: postergado a propósito hasta tener el análisis de costos de APIs y el
-  producto más cerca del lanzamiento.
+### Precios — ✅ DECIDIDO (2026-07-19)
+
+Precios de lanzamiento, **revisables** ("luego se puede ir ajustando", Fer).
+
+| Plan | Precio | Fundamento |
+|------|--------|------------|
+| **B2B — dueño** | **ARS 15.000/mes** | Medio del rango que Fer estimó (10-20k); por debajo del umbral de 20k donde el dueño empieza a dudar. Referencia: StressPlan Starter = 22.500 |
+| **B2C — premium** | **ARS 7.000/mes** | Muy por debajo de Spotify/Netflix (30-40k), que es la comparación que hace el usuario |
+
+**Objetivo declarado**: que la app se pague sola (infra + APIs); si además es negocio, mejor.
+
+#### Estructura de costos verificada (escala de arranque)
+
+Supuestos: 3.000 fichas abiertas/mes, 100 usuarios premium.
+
+| Concepto | USD/mes |
+|----------|---------|
+| Google Places (fichas Enterprise + fotos) | ~$54 |
+| Infra (Vercel + Neon + Resend) | ~$60 |
+| Claude API | ~$50 |
+| **Total** | **~$165 ≈ ARS 236.000** (TC 1.430) |
+
+- ✅ **Punto de equilibrio: ~16 locales pagando.** A 4 altas/mes (proyección de Fer),
+  se alcanza cerca del **mes 4**. Los 50 locales del año 1 no son necesarios para
+  cubrir costos — de ahí en adelante es ganancia.
+- ✅ **La IA no es un costo relevante**: un premium con 50 mensajes/mes cuesta ~ARS 250
+  con Haiku 4.5 o ~ARS 715 con Sonnet 5 (con prompt caching, que lee el system prompt
+  a ~0,1x). Precios verificados 2026-07-19: Haiku 4.5 $1/$5 por MTok · Sonnet 5 $3/$15
+  ($2/$10 promo hasta 2026-08-31) · Opus 4.8 $5/$25.
+- ⚠️ **Expectativa realista del B2C**: app de nicho que se usa ~2 veces por mes → la
+  conversión a premium va a ser baja (1-2%). **El negocio del año 1 es el B2B**; el
+  premium es upside, no el sostén.
+
+#### 🔴 Riesgo estructural — costos dolarizados, ingresos en pesos
+
+Google, Neon, Vercel y Anthropic cobran en **USD**; los planes se cobran en **ARS**. Un
+precio fijo se licúa con la inflación en meses.
+
+- ✅ **Decisión de diseño**: el precio vive en **base de datos y se ajusta desde `/admin`
+  desde el día 1** — no en un env var, no como deuda técnica. StressPlan ya tiene este
+  problema identificado en el spec `MP_INFLATION_PRICING` (en `planned`): acá nace igual,
+  así que se resuelve de entrada.
 
 ## Feature: votación en grupo ("¿a dónde salimos?")
 
@@ -316,9 +356,13 @@ sesión siguiente._
   multiplicativo. → Se decidió la **arquitectura híbrida** (ver "Arquitectura de datos").
 - ✅ **Decidido en la tanda 2**: arquitectura híbrida (catálogo propio + Google solo en
   ficha); listado sin foto de Google; carga de lugares por consumidores **fuera de v1**;
-  lista de pantallas de v1 validada.
-- ⏸️ **Precios de planes**: sigue sin abrirse. Ahora sí hay números de costo de API para
-  fundamentarlo.
+  lista de pantallas de v1 validada; **precios de planes** (B2B 15.000 / B2C 7.000 ARS)
+  con estructura de costos y punto de equilibrio calculados.
+- ✅ **Repo creado y primer commit**: https://github.com/frodriguez84/adondesalimos
+  (rama `main`). Incluye la modalidad de trabajo, los docs y la investigación.
+- ✅ **Regla nueva en `CLAUDE.md` § Convenciones**: el código acumulado de specs previos
+  es contexto obligatorio del siguiente spec (buscar lo existente antes de escribir).
+- ⏸️ **Monetización queda cerrada** salvo el detalle fino de qué incluye cada plan.
 
 - **Temas cerrados (tanda 1)**: modalidad de trabajo sembrada (`/bootstrap-project`);
   concepto general (descubrimiento sin reservas, mobile-first, búsqueda clásica primero);
@@ -337,10 +381,9 @@ sesión siguiente._
   checkout, legales, 404) **sin validación explícita del usuario ítem por ítem**.
 - ~~**PRIMERA TAREA**: completar la investigación de Google Places~~ → ✅ **HECHA en la
   tanda 2** (2026-07-19).
-- **Preguntas abiertas**: fotos en el listado (decisión de costo más grande del proyecto);
-  cobertura de Overture/FSQ en AMBA (bloqueante, requiere bajar el extract y contar);
-  leer a mano el ToS §3.2.3(b)/§3.2.4; validar la propuesta de arquitectura híbrida;
-  validar lista de pantallas faltantes; precios de planes; verificación automatizada de
-  dueños (no bloquea).
+- **Preguntas abiertas**: cobertura de Overture/FSQ en AMBA (**bloqueante** — requiere
+  bajar el extract con DuckDB y contar); leer a mano el ToS §3.2.3(b)/§3.2.4 (tarea de
+  Fer, las páginas se truncan al fetchear); taxonomía concreta de filtros (nunca se
+  volcó el árbol real); verificación automatizada de dueños (no bloquea).
 - **NO hacer todavía**: specs (`/new-spec`), scaffold, código. Seguimos en volcado.
   No commitear sin preguntar (hay cambios sin commitear del bootstrap + docs).
