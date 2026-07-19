@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+
+# Build
+.next/
+out/
+dist/
+
+# Entorno
+.env
+.env.local
+.env*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / SO
+.DS_Store
+Thumbs.db
+
+# Claude Code — config local del usuario
+.claude/settings.local.json

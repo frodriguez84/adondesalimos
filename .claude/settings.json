@@ -1,0 +1,29 @@
+{
+  "model": "opus",
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "PowerShell(npx tsc --noEmit)",
+      "PowerShell(npx vitest run*)",
+      "PowerShell(npm run build*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre-commit-gate.sh\"",
+            "shell": "bash",
+            "timeout": 180,
+            "statusMessage": "Eval-gate: typecheck + tests…"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+# Specs — manifiesto
+
+Contratos de implementación. **No mezclar** con referencia (`../reference/`), ops
+(`../operations/`) ni backlog (`../product/BACKLOG.md`).
+
+**Regla de trabajo al implementar o cerrar un spec:** checklist en [`CLAUDE.md`](../../CLAUDE.md)
+§ *Ciclo de vida de specs*. Formato del spec: [`../AGENTES.md`](../AGENTES.md).
+
+| Estado | Significado |
+|--------|-------------|
+| 🟢 **Activo** | Normativo hoy — leer antes de tocar el código |
+| 🔵 **Planned** | Decisiones cerradas — en cola de implementación |
+| ⚫ **Done** | Implementado — resumen en [`../archive/SPECS_ARCHIVO.md`](../archive/SPECS_ARCHIVO.md) |
+
+Un spec nuevo nace en `planned/` (usar [`/new-spec`](../../.claude/skills/new-spec/SKILL.md)).
+Paths viejos tras un `git mv` llevan un stub con redirect.
+
+---
+
+## 🟢 Activos (`active/`)
+
+| Spec | Cuándo leerlo |
+|------|----------------|
+| _(vacío — el primer spec activo va acá)_ | |
+
+## 🔵 Planned (`planned/`)
+
+| Spec | Gate / nota |
+|------|----------------|
+| _(vacío)_ | |
+
+## ⚫ Done (`done/`)
+
+| Spec | Resumen en SPECS_ARCHIVO |
+|------|---------------------------|
+| _(vacío)_ | |
