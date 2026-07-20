@@ -156,6 +156,18 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       permiso: esos 20 lugares suman impresión habiéndose visto un instante. Caso de borde de
       una métrica agregada; se arregla no registrando en el server cuando `params.gps` está
       prendido y todavía no hay coordenadas.
+- [ ] **[QA — sin verificar] El filtro de zona no restringe el resultado al cruzarlo con una
+      actividad** (BUSQUEDA, observado 2026-07-20). Repro: `/?z=almagro-boedo&t=escape-room`
+      (los dos filtros aplicados y visibles como chips activos) devuelve **3** escape rooms, no 1:
+      *Escape Games Almagro* (zona primaria Almagro y Boedo ✓), *Club del Escape Palermo*
+      (Palermo Soho ✗) y *Escape Juniors Caballito* (Caballito ✗). El motor dice hacer **AND
+      entre facetas** (`construirWhere`, `lib/search/query.ts`), así que debería dar solo los de
+      la zona. Palermo Soho y Caballito están a mucho más de 400 m de Almagro/Boedo, así que el
+      buffer de búsqueda no lo explica. **Causa sin diagnosticar** — candidatos: el filtro de zona
+      se cae al combinarse con tag, `filtroDeZonas` matchea filas de `place_zones` que no debería,
+      o esos lugares tienen una asignación de zona incorrecta. **NO tocar hasta la sesión de QA
+      de BÚSQUEDA** (decisión de Fer, 2026-07-20: no adelantarse). Encontrado de paso durante la
+      QA en vivo de FICHA F2.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.
