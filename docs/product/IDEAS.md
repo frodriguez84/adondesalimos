@@ -80,6 +80,22 @@ Cuando un bloque de temas madura lo suficiente, se propone pasarlo a spec con `/
 - ✅ Entran: gastronomía (restaurantes, bares, cafés) y actividades (stand up, teatro,
   juegos de mesa, bares temáticos, etc.).
 - ✅ Quedan **afuera**: ferias itinerantes / eventos de días específicos (tipo BA Market).
+- ✅ **PRINCIPIO RECTOR — "salida" vs "compra" (2026-07-19, tanda 5).** Entra el lugar donde
+  **te quedás**; no entra el lugar donde **comprás y te vas**. Fer lo fijó al decidir que
+  heladerías y panaderías quedan afuera. Resuelve solo los casos futuros (rotiserías,
+  vinotecas de venta, kioscos gourmet) sin volver a discutir uno por uno.
+- ✅ **Heladerías y panaderías — AFUERA** (2026-07-19). Se había propuesto incorporarlas vía
+  Cocina; Fer se corrigió y las dejó fuera del alcance. **Consecuencia ejecutada**: se
+  eliminó el tag `Heladería` de Cocina § Dulce y café, donde había quedado de la tanda 3.
+  **Consecuencia para el import de Overture**: excluir `ice_cream_shop`, `bakery` y
+  `dessert_shop` del import.
+- ✅ **Cines — AFUERA, "siempre"** (Fer, 2026-07-19). No es un aplazamiento: es exclusión de
+  alcance. Motivo: un cine sin cartelera es inútil (nadie busca "un cine en Belgrano", busca
+  *qué dan y a qué hora*) y la cartelera es **agenda de eventos**, justo lo que la app
+  decidió no manejar — misma regla por la que "Fútbol en pantalla" es capacidad y no
+  programación, y por la que las ferias itinerantes quedaron afuera. La dimensión sí está
+  cubierta donde importa: `Proyecciones / cine` existe en **Actividad**, para el bar que
+  proyecta películas.
 - 💡 Complejos de salas (ej. Complejo La Plaza para teatro/stand up): aparece el complejo
   como resultado y se muestra el **link del lugar** para que el usuario siga la búsqueda ahí
   adentro. No se listan las obras/funciones individuales.
@@ -140,8 +156,9 @@ No gastronómicos: **Teatro / espacio cultural · Club de juegos · Centro de en
 - ✅ Diez valores, corto a propósito: Tipo es lo primero que toca el usuario y una lista de
   22 en celular es fricción.
 - ✅ **Descartados**: *Pub* (se solapa 100% con Bar) · *Rooftop* (es Ambiente, no Tipo).
-- ❓ **Sin resolver — no bloquea**: si entran *Heladería* / *Panadería* (son más "compro y me
-  voy" que "salgo") y si entran los *Cines*.
+- ✅ **RESUELTO (2026-07-19, tanda 5): NO entran Heladería, Panadería ni Cine** — ni en Tipo
+  ni en ninguna otra faceta. Ver el principio "salida vs compra" en § Alcance de tipos de
+  negocio. **Los diez valores de Tipo quedan firmes.**
 
 #### Faceta 3 — Actividad ✅ VALIDADA (2026-07-19)
 
@@ -174,10 +191,25 @@ Dos niveles; **los padres son filtrables** (tocar "Asiática" trae todos los hij
 | **Latinoamericana** | Peruana · Mexicana · Venezolana · Colombiana · Boliviana · Brasileña |
 | **Europea** | Española / tapas · Francesa · Alemana |
 | **Americana** | Hamburguesas · BBQ / costillas |
-| **Dulce y café** | Pastelería · Heladería · Café de especialidad |
+| **Dulce y café** | Pastelería · Café de especialidad |
 | **Dietas** | Vegetariana · Vegana · Sin TACC · Kosher · Halal |
 
-- ✅ **37 tags en 9 padres.**
+- ✅ **36 tags en 9 padres** (eran 37; `Heladería` se eliminó en la tanda 5 al quedar las
+  heladerías fuera del alcance).
+- ✅ **`Pastelería` SÍ sobrevive** (revisado y confirmado por Fer, 2026-07-19). Razón fuerte:
+  **la app ya decidió que la merienda es una salida** — `Merienda` es chip de Ocasión *y* tag
+  de Momento. Ese chip es, por definición, una combinación de facetas: `Tipo: Café` +
+  `Momento: Merienda` + **`Cocina: Pastelería`**. Sin Pastelería el chip devuelve "todos los
+  cafés", el mismo fallo ya anotado para "Salida con amigos".
+- ✅ **TEST PARA ADMITIR UN TAG DE COCINA**: se justifica si **existe algún lugar del catálogo
+  que lo llevaría**. `Heladería` no lo pasa (sin heladerías en el catálogo, tag muerto);
+  `Pastelería` sí (lo llevan los cafés y las confiterías notables, y `Tipo: Café` está firme).
+- ✅ **Corolario que ordena las dos reglas**: el principio *salida vs compra* aplica al **Tipo
+  de local** — decide qué lugares entran al catálogo. Los tags de **Cocina no filtran
+  lugares**, describen qué sirve un lugar que ya entró. Por eso ninguna heladería entra (no
+  hay Tipo que la contenga) pero el café con buena pastelería sí, y necesita cómo decirlo.
+- 📌 **Nota**: `Panadería` nunca existió como tag. Se propuso en la tanda 5 y Fer la rechazó
+  junto con las heladerías.
 - ✅ **"Dietas" vive dentro de Cocina** aunque conceptualmente no sea una cocina: la gente
   busca "vegano" con el mismo gesto con que busca "sushi", y crear una faceta aparte solo
   para eso rompe el modelo de 7. Incoherente en el papel, correcto en la práctica.
@@ -338,7 +370,7 @@ sin problema de ToS).
 
 ### Resumen — tamaño de la taxonomía v1
 
-Tipo 10 · Cocina 37 · Actividad 18 · Ambiente 17 · Precio 4 · Momento 9 = **95 tags**,
+Tipo 10 · Cocina 36 · Actividad 18 · Ambiente 17 · Precio 4 · Momento 9 = **94 tags**,
 más 9 chips de Ocasión. **Zona va aparte**: selector propio de 2 niveles, 4 regiones y
 ~44 zonas de salida, resuelto por geometría (no es tag).
 
@@ -412,8 +444,27 @@ Bbox AMBA `lon -59.10/-58.10 · lat -35.05/-34.28`. **282.865 POIs totales** en 
   operating_status · basic_category · taxonomy · version · bbox`. **No existe campo de
   horarios.** → Los horarios salen sí o sí de Google, en vivo, al abrir la ficha. Confirma
   la arquitectura híbrida ya decidida.
-- ⚠️ **`confidence` promedio 0.644; 29% por debajo de 0.5.** Al importar hay que definir un
-  umbral de corte — dato de calidad, no bloqueante.
+- ✅ **UMBRAL DE `confidence` — DECIDIDO (2026-07-19, tanda 5).** `confidence` promedio
+  0.644; 29% por debajo de 0.5. **La decisión clave no es el número sino dónde vive el
+  corte**: se importa **TODO** lo que da Overture, `confidence` se guarda **como columna**, y
+  el filtro se aplica **en la query**, con el umbral **configurable desde `/admin`** — mismo
+  patrón ya elegido dos veces (precios y cupo de mensajes IA).
+  - ✅ **Umbral inicial: 0.5.** Deja ~19.650 gastronómicos en AMBA — todavía **más del triple**
+    de los 5.938 que tenía OSM en CABA — y descarta la cola larga donde vive la basura.
+  - ✅ **Por qué NO cortar en el import**: parece más limpio y es peor. Si en dos meses el
+    umbral resulta mal calibrado, cortar en el import obliga a **re-correr todo contra S3**;
+    cortar en la query es un `UPDATE` con efecto instantáneo. Los 27.683 registros no pesan
+    nada en Postgres.
+  - ✅ **`operating_status` se filtra SIEMPRE, aparte del confidence.** Un lugar marcado como
+    cerrado no entra ni con confidence 0.9 — no es cuestión de confianza, está cerrado.
+  - ✅ **Los que no pasan el umbral NO se borran: quedan invisibles.** Están en la tabla, sin
+    publicar. Bajar el umbral después los revive sin costo.
+  - ✅ **El reclamo de un dueño sobrescribe el umbral.** Ficha reclamada y aprobada
+    manualmente por Fer se publica aunque Overture le haya dado 0.3: la aprobación manual es
+    mejor señal que el score.
+  - 💡 **Sin decidir**: regla compuesta que rescate lugares de la cola — confidence bajo
+    **pero** con teléfono + redes + dirección casi seguro es real (86% tiene teléfono, 98%
+    redes). Con el corte en la query, probarlo después es gratis.
 - ⚠️ **Overture deprecó `categories`**, reemplazado por `basic_category` + `taxonomy`
   (struct con `primary` / `hierarchy` / `alternates`). **`categories` se elimina en la
   release de septiembre 2026** → construir contra `taxonomy` desde el día 1.
@@ -551,6 +602,21 @@ La cita que traía la investigación previa estaba **a medias**:
 
 ❌ **FUERA de v1**: **cargar lugar nuevo (consumidor)** — ver "Fuentes de lugares" §3.
 
+### Diseño de las pantallas — ⏳ PENDIENTE, es trabajo de spec (2026-07-19, tanda 5)
+
+Lo de arriba es **inventario** (qué pantallas existen), no diseño. Falta layout, jerarquía,
+componentes y flujos. Fer lo señaló al cerrar el volcado. **Dónde vive ese trabajo:**
+
+- ✅ **El diseño de cada pantalla vive en el spec de SU feature**, no en un spec de diseño
+  global. La pantalla de resultados se diseña en el spec de Búsqueda; la ficha, en el de
+  Ficha. Un spec de "todas las pantallas" se desactualiza apenas cambia la primera feature y
+  obliga a decidir en el vacío, sin el modelo de datos que la pantalla va a mostrar.
+- ✅ **Excepción — el SISTEMA DE DISEÑO BASE sí se hace UNA vez, temprano**: design tokens
+  (ya decididos: `#0F0F0F` / `#1A1A1A` / `#F59E0B` / `#F5F5F5`) + los componentes compartidos
+  que aparecen en toda la app (card de lugar, chip de filtro, botón, input de búsqueda,
+  bottom sheet). Va **dentro del scaffold (paso 0)**, no como spec aparte. Motivo: es lo que
+  hace que "cambiar la paleta = tocar 6 variables", que es una decisión ya tomada.
+
 ## Usuarios y roles
 
 - ✅ Tres roles:
@@ -666,6 +732,66 @@ Supuestos: 3.000 fichas abiertas/mes, 100 usuarios premium.
   conversión a premium va a ser baja (1-2%). **El negocio del año 1 es el B2B**; el
   premium es upside, no el sostén.
 
+#### Qué incluye cada plan — ✅ DECIDIDO (2026-07-19, tanda 5)
+
+Era el último tema abierto de monetización.
+
+##### B2B — dueño ✅ VALIDADO
+
+**El free del dueño es generoso a propósito.** Razón de negocio: cada dueño que reclama su
+ficha y la completa **mejora el catálogo gratis**. Si se le cobra por existir bien, no
+reclama, y se pierde el dato — que vale más que la suscripción marginal.
+
+| | Free (reclamó su ficha) | Pago — ARS 15.000/mes |
+|---|---|---|
+| **Ficha** | Editar datos, tags de las 7 facetas, hasta **3 fotos**, horarios propios | Hasta **15 fotos**, descripción larga, link a carta/menú, campo "novedad" (ej. "happy hour 18-20") |
+| **Destaque** | No | Sí, con etiqueta visible |
+| **Estadísticas** | Teaser: "tu ficha tuvo **N** visitas este mes", sin desglose | Vistas · taps en teléfono / cómo llegar / redes · **qué filtros lo encontraron** · comparación vs mes anterior · histórico |
+
+- ✅ **El teaser de estadísticas es el motor de conversión**: el dueño ve el número, no ve el
+  desglose. El dato "qué búsquedas te encontraron" es el que ningún dueño tiene hoy por
+  ningún otro medio.
+
+##### B2C — premium ✅ VALIDADO
+
+| | Free | Premium — ARS 7.000/mes |
+|---|---|---|
+| Búsqueda + filtros completos | ✅ todo, sin login | ✅ |
+| Votaciones | 1 activa a la vez | Ilimitadas + historial + IA arma la shortlist |
+| Chat IA / wizard | Probadita 2-3 mensajes (una vez) | **30 mensajes/mes** |
+
+- ✅ **30 mensajes/mes** (decidido por Fer, 2026-07-19). Se propuso 100 y Fer bajó a 30 con
+  el criterio correcto: **"no regalemos, para dar más hay tiempo"**. Subir un cupo es un
+  regalo; bajarlo es una traición al que ya pagó. Costo verificado: 30 mensajes con Haiku
+  4.5 ≈ **ARS 150** sobre un plan de 7.000 (**2% del ingreso**) — margen de sobra.
+- 💡 **Bonus estacionales** (idea de Fer, sin cerrar): regalar mensajes extra a todos los
+  premium en fechas puntuales — mes del amigo, Navidad. Buen gancho de retención y
+  perfectamente coherente con arrancar bajo.
+- 📌 **Consecuencia técnica — el modelo de datos debe separar `cupo_del_plan` de
+  `mensajes_otorgados_este_mes`.** Si el cupo se lee directo del plan, un bonus obliga a
+  tocar el plan de todos (y a acordarse de revertirlo). Con un contador de otorgados por
+  usuario y por mes, un bonus es un `INSERT`. Mismo criterio ya decidido para los precios:
+  **el cupo vive en base de datos y se ajusta desde `/admin`**, no en el código.
+- ❌ **Favoritos / listas guardadas — FUERA de v1** (2026-07-19). Se propusieron como
+  agregado de retención (free = 1 lista, premium = listas múltiples con nombre) y Fer los
+  mandó a mejoras futuras para no agrandar el alcance. Anotado en `BACKLOG.md`.
+
+##### Regla de destacados — ✅ DECIDIDA (2026-07-19)
+
+- ✅ **Máximo 3 destacados por resultado de búsqueda** (Fer: "me gustan los impares"),
+  arriba, con etiqueta visible, y solo si matchean los filtros (esto último ya estaba
+  decidido desde la tanda 1).
+- ✅ **La posición destacada ROTA** entre todos los suscriptos que matchean esa búsqueda.
+- ✅ **Por qué hay cupo**: sin límite, el día que se vendan 30 suscripciones en Palermo el
+  usuario scrollea 30 resultados con etiqueta "Destacado" antes de ver algo orgánico — la
+  etiqueta deja de significar nada y se pierde la confianza en la app. Es la tensión que Fer
+  marcó desde la tanda 1. Fijarlo ahora cuesta cero; fijarlo con 30 dueños ya acostumbrados
+  a salir siempre destacados es una pelea.
+- ⚠️ **Fricción comercial asumida**: un dueño que paga puede no verse destacado en una
+  búsqueda concreta. Se compensa con transparencia en el panel — *"tu ficha estuvo destacada
+  en X de las Y búsquedas donde apareció"*, que además alimenta las estadísticas ya
+  decididas.
+
 #### 🔴 Riesgo estructural — costos dolarizados, ingresos en pesos
 
 Google, Neon, Vercel y Anthropic cobran en **USD**; los planes se cobran en **ARS**. Un
@@ -698,10 +824,69 @@ precio fijo se licúa con la inflación en meses.
 
 ## Estado de la conversación
 
-_Actualizado durante la tanda 2 (2026-07-19). Esta sección es lo primero que lee la
+_Actualizado durante la tanda 5 (2026-07-19). Esta sección es lo primero que lee la
 sesión siguiente._
 
-### Tanda 4 — en curso (2026-07-19)
+### 🏁 Tanda 5 — cerrada (2026-07-19) · EL VOLCADO DE PRODUCTO ESTÁ COMPLETO
+
+Los tres temas que quedaban se cerraron. **No hay temas abiertos ni bloqueantes.**
+
+- ✅ **Detalle fino de los planes** (era el último tema de monetización). **B2B**: free del
+  dueño generoso a propósito (3 fotos + tags + estadística teaser) porque cada ficha
+  reclamada mejora el catálogo gratis; el pago suma 15 fotos, descripción, carta, novedad,
+  destaque y el desglose completo de estadísticas. **B2C**: **30 mensajes IA/mes** (Fer bajó
+  de los 100 propuestos: *"no regalemos, para dar más hay tiempo"*), con idea de **bonus
+  estacionales** sin cerrar. Ver § Monetización.
+- ✅ **Destacados: cupo de 3 por búsqueda, con rotación** (Fer: "me gustan los impares").
+  Fijarlo ahora cuesta cero; fijarlo con 30 dueños acostumbrados a salir siempre destacados
+  es una pelea.
+- ❌ **Favoritos / listas guardadas fuera de v1** → `BACKLOG.md`.
+- ✅ **Heladerías, panaderías y cines NO entran** (Fer se corrigió sobre la propuesta de
+  incorporarlas). Nació el **principio "salida vs compra"**: entra el lugar donde te quedás,
+  no donde comprás y te vas. **Cines afuera "siempre"** — no es aplazamiento sino exclusión
+  de alcance, porque un cine sin cartelera es inútil y la cartelera es agenda de eventos.
+- ✅ **Consecuencia ejecutada**: se eliminó el tag `Heladería` de Cocina. **La taxonomía pasa
+  de 95 a 94 tags** (Cocina 36). `Pastelería` se revisó y **se mantiene** — el chip de Ocasión
+  "Merienda" la necesita. Nació el **test para admitir un tag de Cocina**: se justifica si
+  existe algún lugar del catálogo que lo llevaría.
+- ✅ **Umbral de `confidence`: 0.5, configurable desde `/admin`.** La decisión clave no fue el
+  número sino **dónde vive el corte**: se importa todo, `confidence` se guarda como columna y
+  el filtro va en la query. Más `operating_status` siempre filtrado, los descartados
+  invisibles (no borrados) y el reclamo de dueño sobrescribiendo el umbral.
+
+### ▶️ Próximo paso — empezar a escribir specs
+
+El volcado terminó. La sesión siguiente **ya no es de volcado**: es de autoría de specs
+(`/new-spec`), que por regla global es trabajo **manual y no automatizable**.
+
+⚠️ **Paso 0, que no es un spec: no existe el scaffold de Next.js.** No hay `package.json`.
+Antes (o dentro) del primer spec hay que crear el proyecto: Next.js + TS, Tailwind **con los
+design tokens ya decididos**, `drizzle.config`, `docker-compose` de Postgres, estructura de
+carpetas y los **componentes base compartidos** (card, chip, botón, input, bottom sheet).
+Se evaluó hacerlo al cierre de la tanda 5 y **se descartó**: son varias decisiones y armarlo
+apurado obliga a la sesión siguiente a corregir algo que no vio nacer.
+
+📌 **El diseño de las pantallas NO es un spec aparte** — vive en el spec de cada feature.
+Ver § Pantallas → "Diseño de las pantallas".
+
+📌 **El modelo de datos NO está decidido todavía** — están decididas las cosas de producto que
+lo condicionan (94 tags, `confidence` como columna, `place_id` persistible, zonas por
+geometría, precios y cupos en tablas editables). Las tablas, campos y relaciones son el
+**contenido del spec 1**.
+
+Orden recomendado — el catálogo primero porque **todo lo demás lee de él**:
+
+| # | Spec | Por qué en ese orden |
+|---|------|---------------------|
+| 1 | **Catálogo + import de Overture** | Schema Drizzle, las 94 tags como datos semilla, import con `confidence`/`operating_status`, atribución. Sin catálogo no hay búsqueda, ni ficha, ni nada que un dueño reclame |
+| 2 | **Zonas** | Los ~44 polígonos (incluidos los 3 de Palermo a mano), zona primaria + buffer 400 m. Separable del 1 y con trabajo manual propio |
+| 3 | **Búsqueda + filtros** | Es el producto. Necesita 1 y 2 |
+| 4 | **Ficha** | Primer punto donde entra Google en vivo |
+| 5 | **Auth + roles + reclamo de negocio** | Habilita al dueño |
+| 6 | **Votación en grupo** | El loop viral; necesita 3 |
+| 7 | **Monetización (MP)** | Necesita 5. Mucho reuso de StressPlan |
+
+### Tanda 4 — cerrada (2026-07-19)
 
 - ✅ **FACETA 7 — ZONAS DE AMBA VOLCADA Y VALIDADA.** Era la única faceta sin volcar y el
   default de la búsqueda. **La taxonomía de filtros queda COMPLETA: las 7 facetas cerradas.**
@@ -727,17 +912,8 @@ sesión siguiente._
   Salir a bailar · After office (fijos en v1). Criterio: cobertura de ejes distintos, no
   popularidad. Ver "Ocasión — chips de la home" arriba.
 
-### Qué queda para la tanda 5
-
-Ninguno bloquea; el volcado está casi completo.
-
-1. **Detalle fino de qué incluye cada plan** — único tema abierto de monetización.
-2. **Si entran heladerías / panaderías / cines** al alcance (faceta 1).
-3. **Umbral de corte de `confidence`** al importar (29% está bajo 0.5) — más de
-   implementación que de producto.
-
-Cuando estos cierren, **el volcado termina y el paso siguiente es escribir specs**
-con `/new-spec`.
+~~### Qué queda para la tanda 5~~ → ✅ **los tres temas se cerraron en la tanda 5** (ver
+arriba): detalle de los planes · heladerías/panaderías/cines · umbral de `confidence`.
 
 ### Tanda 3 — cerrada (2026-07-19)
 
