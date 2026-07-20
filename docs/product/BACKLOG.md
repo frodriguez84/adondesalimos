@@ -82,7 +82,9 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       `price_level`, pero es dato de Google — mostrable en vivo en la ficha, **no persistible
       ni filtrable** (ToS). Se llena solo con curaduría o con dueños (spec 5). Hasta entonces
       el filtro de Precio se muestra pero cualquier combinación que lo use da cero.
-      Decidir si en v1 se oculta la faceta o se deja visible y vacía.
+      **Decidido en F2 (2026-07-20): se oculta** — decisión 27 del spec, un tag con cero
+      lugares no se lista y una faceta que queda vacía tampoco. Reaparece sola cuando haya
+      datos, sin deploy. Lo que sigue abierto es **cargar los precios**, que es curaduría.
 - [ ] **Actividad está pegada a un solo Tipo: cruzar las dos facetas da casi siempre cero**
       (BUSQUEDA, 2026-07-20). 12 de 13 tags de Actividad conviven con exactamente un Tipo
       (`musica-en-vivo` solo con `teatro-espacio-cultural`, `dj` solo con `boliche`…), porque
@@ -94,6 +96,17 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       de Overture casi no las llena — la decisión 20 del spec lo anticipaba, la magnitud no.
       Son el diferencial del producto y hoy están casi vacías: es la carga de curaduría más
       grande pendiente. Ver la medición en el spec BUSQUEDA § *Medición de cobertura*.
+- [ ] **`zone_aliases` tiene 4 filas: el autocompletar por alias casi no tiene con qué**
+      (BUSQUEDA, 2026-07-20). Villa Ortúzar, Balvanera, San Nicolás y Villa Devoto son todos
+      los alias de las 46 zonas. El mecanismo funciona (verificado en F2), pero cubre 4
+      barrios. Cargar alias es curaduría barata y de alto impacto en la búsqueda: los barrios
+      absorbidos por un merge de zona son los que la gente tipea. Ver la nota de BUSQ-05 en el
+      spec.
+- [ ] **Sugerencias del campo de texto sin trgm** (BUSQUEDA, 2026-07-20). F2 matchea tags y
+      zonas con substring sin acentos sobre el catálogo en memoria (~150 items), en vez del
+      trgm que pedía la decisión 14 — evita un fetch por tecla y a esa escala el trigrama no
+      cambia lo que el usuario ve. Si el catálogo de tags crece un orden de magnitud, mover a
+      un endpoint con `word_similarity`, que es lo que ya usa la búsqueda por nombre de lugar.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.

@@ -110,6 +110,25 @@ export function serializeSearchParams(params: SearchParams): string {
 }
 
 /**
+ * Query string para `/api/search` y `/api/search/count`, donde las coordenadas
+ * **sí** viajan — a diferencia de la URL compartible (ver `SearchParams.gps`).
+ *
+ * Existe para que "cómo llegan las coordenadas a la API" esté escrito una sola
+ * vez: lo usan el infinite scroll y el contador en vivo de los dos sheets.
+ */
+export function serializeApiParams(
+  params: SearchParams,
+  coords: { lat: number; lng: number } | null,
+): string {
+  const qs = new URLSearchParams(serializeSearchParams(params))
+  if (params.gps && coords) {
+    qs.set('lat', String(coords.lat))
+    qs.set('lng', String(coords.lng))
+  }
+  return qs.toString()
+}
+
+/**
  * ¿Hay algo que buscar? Primera visita = selector vacío y CERO resultados hasta
  * elegir zona (decisión 2). Sin esto la home arrancaría listando los 18.993
  * publicados de AMBA, que es exactamente la pantalla que el producto no quiere.

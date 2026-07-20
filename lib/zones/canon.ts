@@ -91,6 +91,24 @@ export function sortDe(slug: string): number {
 export const SLUGS = new Set(ZONAS.map((z) => z.slug))
 
 /**
+ * Cómo se llaman y en qué orden se despliegan las 4 regiones en el selector de
+ * Búsqueda (decisión 9).
+ *
+ * Viven acá y no junto al catálogo de la DB porque el sheet de zona es un
+ * componente cliente: importarlas desde un módulo que toca Postgres arrastraría
+ * el driver al bundle del browser. Este archivo solo importa un *tipo*, así que
+ * es seguro para las dos mitades.
+ */
+export const REGION_LABELS: Record<Region, string> = {
+  caba: 'CABA',
+  norte: 'Zona Norte',
+  oeste: 'Zona Oeste',
+  sur: 'Zona Sur',
+}
+
+export const REGION_ORDER: readonly Region[] = ['caba', 'norte', 'oeste', 'sur']
+
+/**
  * Alias seed — nombres viejos y barrios absorbidos por un merge. Se amplía por
  * curaduría (INSERT) cuando aparezcan búsquedas que no matchean (decisión 19).
  * El matching por partes del nombre compuesto ("Banfield" → "Lomas de Zamora y

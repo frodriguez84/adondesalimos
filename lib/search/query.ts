@@ -187,10 +187,18 @@ function filtroGps(lat: number, lng: number): SQL {
 // Motor
 // ---------------------------------------------------------------------------
 
-export async function searchPlaces(params: SearchParams): Promise<SearchResult> {
-  const umbral = await getConfidenceThreshold()
-  const cursor = decodeCursor(params.cursor)
-
+/**
+ * Las condiciones de una búsqueda, sin orden ni paginación.
+ *
+ * Vive aparte porque el contador de "Ver N lugares" del sheet de filtros (F2)
+ * tiene que contar EXACTAMENTE lo que la lista va a mostrar. Si el `where` se
+ * escribiera dos veces, el número del botón y el resultado divergirían en
+ * cuanto una de las dos copias cambiara.
+ */
+async function construirWhere(
+  params: SearchParams,
+  umbral: number,
+): Promise<{ where: SQL[]; usaGps: boolean }> {
   const where: SQL[] = [publishedWhere(umbral)]
 
   // Decisión 3: GPS REEMPLAZA a las zonas, no se suma. Si está encendido y hay
@@ -207,6 +215,33 @@ export async function searchPlaces(params: SearchParams): Promise<SearchResult> 
   if (params.q) {
     where.push(sql`${normalizado(sql`${params.q}`)} <% ${normalizado(places.name)}`)
   }
+
+  return { where, usaGps }
+}
+
+/**
+ * Cuántos lugares devolvería esta búsqueda. Es el número del botón "Ver N
+ * lugares" (decisión 20): se muestra ANTES de aplicar, para que el usuario no
+ * se coma un "0 resultados" sorpresa — frecuente con Ambiente y Momento, que el
+ * import casi no llenó.
+ */
+export async function countPlaces(params: SearchParams): Promise<number> {
+  const umbral = await getConfidenceThreshold()
+  const { where } = await construirWhere(params, umbral)
+
+  const [fila] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(places)
+    .where(and(...where))
+
+  return fila?.n ?? 0
+}
+
+export async function searchPlaces(params: SearchParams): Promise<SearchResult> {
+  const umbral = await getConfidenceThreshold()
+  const cursor = decodeCursor(params.cursor)
+
+  const { where, usaGps } = await construirWhere(params, umbral)
 
   // --- Orden (decisión 16) + cursor sobre las mismas expresiones -------------
   const claves: { nombre: string; expr: SQL; desc: boolean }[] = []

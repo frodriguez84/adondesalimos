@@ -1,6 +1,6 @@
 # Spec: Búsqueda + filtros
 
-**Estado:** 🟡 En curso — F1 en implementación (2026-07-20). F2 y F3 pendientes
+**Estado:** 🟡 En curso — F1 ✅ y F2 ✅ (2026-07-20). F3 pendiente
 **Prioridad:** Alta — spec 3: es el producto. "La app sirve para decidir a dónde ir según lo que escriba el usuario + una tanda de filtros"
 **Gate:** Ninguno
 **Bloquea:** Ficha (spec 4, se llega desde los resultados) · Votación (spec 6, arma shortlist desde búsquedas) · Monetización (spec 7, los destacados se insertan en estos resultados)
@@ -46,7 +46,8 @@ vive acá.
 
 ## Decisiones cerradas
 
-Las 1-11 vienen de `IDEAS.md`; las 12-24 son diseño de este spec.
+Las 1-11 vienen de `IDEAS.md`; las 12-26 son diseño de este spec; las 27-29 se cerraron **con
+el usuario al implementar F2**, sobre huecos que el diseño había dejado abiertos.
 
 | # | Decisión |
 |---|----------|
@@ -73,9 +74,12 @@ Las 1-11 vienen de `IDEAS.md`; las 12-24 son diseño de este spec.
 | 21 | **Mapa: MapLibre GL JS + tiles de OpenFreeMap** (gratis, sin API key, uso comercial permitido). Pins de lat/lng propios (Overture — cero costo). Atribución OSM visible en el mapa + línea en `/legales`. Clustering nativo si el resultado supera ~200 pins. **Los polígonos de zona no se dibujan** (el mapa responde "qué hay acá", no "dónde está la zona") |
 | 22 | **Impresiones agregadas por día** (`place_impressions_daily`: place_id, fecha, contador): se registra en batch al servir resultados. Es lo mínimo que no se puede reconstruir después y habilita el teaser B2B ya decidido. Sin datos por usuario, sin cookies — solo conteo |
 | 23 | **0 resultados con filtros activos**: mensaje canchero + los chips activos a mano para sacar + sugerencia de aflojar el que más restringe. Nunca una pantalla muerta |
-| 24 | **Faceta Momento visible en v1 sin "Abierto ahora"** (ver Qué NO es); Actividad y Ambiente visibles completas — son el diferencial y crecen con la curaduría |
+| 24 | **Faceta Momento visible en v1 sin "Abierto ahora"** (ver Qué NO es); Actividad y Ambiente visibles completas — son el diferencial y crecen con la curaduría. ⚠️ **La decisión 27 pisa el "completas"**: se listan solo los tags con lugares. La intención (que las facetas del diferencial estén a la vista y crezcan con la curaduría) se mantiene; lo que cambia es que no se muestran los tags vacíos |
 | 25 | **Un chip que hoy devuelve 0 no se muestra.** El seed siembra los 9 tal cual; la home y el "ver más" listan solo los que tienen resultados con el catálogo actual. No es `active` (eso es curaduría manual): es un conteo. Un chip apagado se prende solo cuando la curaduría o los dueños llenan sus tags — sin deploy, que es lo que la decisión 18 buscaba |
 | 26 | **Los 4 chips de la home se recuran contra datos reales antes de sembrarse** (ver § *Medición de cobertura*). El seed de la tabla de abajo es la curaduría *objetivo*, no la que entra en v1: con el catálogo de hoy, 8 de los 9 chips dan cero. La recuración concreta se define al implementar F3, con el usuario, y queda registrada acá |
+| 27 | **Un tag con cero lugares publicados no se lista en el sheet de filtros, y una faceta que queda vacía tampoco.** Es la decisión 25 (un chip que da 0 no se muestra) aplicada a las facetas, y por el mismo motivo: ofrecer un filtro que devuelve 0 siempre es mentir. Con el catálogo de hoy borra **Precio entera** (0 filas en `place_tags`) y deja Ambiente en 5 tags y Momento en 2. No es `active` —eso es curaduría manual— sino un conteo: se prende solo cuando la curaduría o los dueños llenen tags, sin deploy. Decidido al implementar F2 (2026-07-20) |
+| 28 | **Un deep link con `gps=1` no dispara el permiso al entrar.** Las coordenadas no viajan en la URL (son del dispositivo que mira, no del que compartió el link), así que el primer render no tiene ubicación. Se muestra el toggle **prendido** y un estado que invita a tocarlo. Sostiene la decisión 17 al pie de la letra: el permiso se pide al TOCAR, nunca al entrar — la intención del link es de quien lo compartió, no de quien lo abre. Decidido al implementar F2 (2026-07-20) |
+| 29 | **Historial híbrido.** Tocar chips dentro de un sheet no navega; quitar un chip activo o aceptar una sugerencia hace `replace`; **confirmar un sheet con "Ver N lugares" hace `push`**. Resuelve la tensión entre la decisión 12 ("el back del browser funciona solo") y el DoD ("replace, sin romper el back"): el back deshace la última tanda deliberada de filtros en vez de cada toque suelto, y el historial no se inunda. Decidido al implementar F2 (2026-07-20) |
 
 ### Diseño de la pantalla (mobile-first)
 
@@ -203,7 +207,7 @@ misma semántica OR-dentro / AND-entre facetas.
 | Fase | Alcance | Cierre verificable | Estado |
 |------|---------|--------------------|--------|
 | **F1 — Motor + lista** | Migración (chips, impresiones, extensiones) + query + `/` con searchParams + cards + paginación + rate limit | Buscar por URL directa funciona end-to-end con datos reales del import | ✅ 2026-07-20 |
-| **F2 — Selectores** | Bottom sheet de zona (autocompletar + regiones + GPS) + sheet de filtros con "Ver N" + chips removibles + sugerencias del campo de texto | Toda búsqueda se puede armar sin tocar la URL | ⬜ |
+| **F2 — Selectores** | Bottom sheet de zona (autocompletar + regiones + GPS) + sheet de filtros con "Ver N" + chips removibles + sugerencias del campo de texto | Toda búsqueda se puede armar sin tocar la URL | ✅ 2026-07-20 |
 | **F3 — Chips + mapa + impresiones** | Seed de los 9 chips + home con 4 + "ver más" + vista mapa MapLibre + logging de impresiones | Home completa como el diseño de arriba | ⬜ |
 
 ### F1 — qué quedó construido (2026-07-20)
@@ -232,6 +236,43 @@ misma semántica OR-dentro / AND-entre facetas.
 **Pendiente de F1 que se completa en F2** (no son huecos, son la fase siguiente): el selector de
 zona y el sheet de filtros; las sugerencias del campo de texto; el infinite scroll (hoy hay un
 "Ver más" sin JS que ejerce el mismo cursor); los chips removibles del estado de 0 resultados.
+
+### F2 — qué quedó construido (2026-07-20)
+
+- **`lib/search/catalog.ts`** — lo que dibujan los selectores: la taxonomía con **conteo de
+  lugares publicados por tag** y las 46 zonas con sus alias. No es una copia de
+  `lib/db/taxonomy.ts`: ese archivo es la semilla (qué tags existen), esto es el estado de la
+  DB (cuáles están activos y cuáles tienen datos hoy).
+- **La regla de la decisión 27 vive en una sola función** (`getFacetCatalog`), no en el
+  componente. Medido con el catálogo de hoy, lo que queda visible es: Tipo 10 · Cocina 37 ·
+  Actividad 13 · Ambiente 5 · Momento 2 · **Precio no aparece**.
+- **"Abierto ahora" desaparece solo**, sin caso especial: tiene 0 lugares asignados porque la
+  app no persiste horarios, así que la regla de la decisión 27 lo saca por el mismo camino que
+  a cualquier otro tag vacío. El ítem del DoD queda satisfecho estructuralmente.
+- **`countPlaces`** reusa el constructor de `where` de `searchPlaces` (extraído a
+  `construirWhere`). Es deliberado: si el `where` se escribiera dos veces, el N del botón y la
+  lista divergirían en cuanto una de las copias cambiara. Los tests comparan el conteo contra
+  el resultado real de la misma búsqueda, que es el invariante que hace útil al botón.
+- **`GET /api/search/count`** con el mismo rate limit que `/api/search` — se llama en cada
+  toque de chip.
+- **Los sheets editan un borrador**, no el estado aplicado: nada cambia hasta "Ver N lugares".
+  Es lo que permite que el contador anticipe una selección que todavía no pasó (decisión 20).
+- **Sugerencias sin roundtrip**: el dropdown matchea contra el catálogo que el server ya mandó
+  (105 tags + 46 zonas en memoria). **Divergencia deliberada de la decisión 14**, que pedía
+  trgm también para tags y zonas: sobre una lista de ~150 items un trigrama no compra nada que
+  el usuario note, y costaría un fetch por tecla. La tolerancia a typos sigue viva donde
+  importa —los 26.057 nombres de lugar— con `word_similarity` en `query.ts`. Anotado en
+  `BACKLOG.md` por si el catálogo de tags crece un orden de magnitud.
+- **`REGION_LABELS`/`REGION_ORDER` viven en `lib/zones/canon.ts`**, no en `catalog.ts`: el
+  sheet de zona es un componente cliente e importarlas desde un módulo que toca Postgres
+  arrastraba el driver al bundle del browser. Lo cazó `npm run build`, no el typecheck — un
+  `import type` se borra, un import de valor no.
+- **El modo GPS busca desde el cliente.** Es la única búsqueda que el server component no
+  puede hacer: las coordenadas no están en la URL. `ResultsList` tiene por eso dos orígenes
+  (sembrado por el server / pedido por API), y no es complejidad de más.
+
+**Pendiente de F2 que se completa en F3**: los chips de Ocasión, la vista mapa y el logging de
+impresiones. El "ver más" sin JS de F1 ya no existe: lo reemplazó el infinite scroll.
 
 ## Criterios de done (DoD)
 
@@ -269,6 +310,19 @@ zona y el sheet de filtros; las sugerencias del campo de texto; el infinite scro
 | BUSQ-03 | Semántica | Bar + Cerveceria (OR) amplía; agregar Juegos de mesa (AND) achica; quitar chips restaura |
 | BUSQ-04 | Cocina padre | "Asiática" ⊇ resultados de "Japonesa / sushi" |
 | BUSQ-05 | Texto | "parrila" (typo) y "cafe" sin tilde matchean; "Villa Ortúzar" lleva a Chacarita |
+
+> **Medición para BUSQ-05 (2026-07-20, F2).** El caso "Villa Ortúzar → Chacarita y Colegiales"
+> **existe y pasa**: está en `zone_aliases`. Pero `zone_aliases` tiene **4 filas en toda la
+> DB** — Villa Ortúzar, Balvanera (→ Once y Abasto), San Nicolás (→ Retiro y Microcentro) y
+> Villa Devoto (→ Villa Devoto y Villa del Parque). Verificarlo, entonces, prueba que el
+> mecanismo de alias funciona, **no** que el autocompletar por alias sea útil en general: hoy
+> cubre 4 barrios de 46 zonas.
+>
+> Queda a decisión del usuario si BUSQ-05 se reformula como invariante ("el autocompletar
+> matchea nombre de zona siempre, y alias cuando existe; los 4 que existen se verifican uno por
+> uno") o si se deja como está y el hueco de cobertura se ataca cargando alias por curaduría.
+> **No se reescribió el criterio al implementar**: la lección de ZONAS dice que quien
+> implementó no ajusta el DoD para que su implementación apruebe.
 | BUSQ-06 | Borde de zona | El lugar del test ZON-02 aparece buscando Villa Crespo y buscando Palermo Soho |
 | BUSQ-07 | GPS | Activar "cerca de mí" con zonas elegidas: las zonas se apagan; resultados a ≤2 km |
 | BUSQ-08 | Chips | Tocar un chip listado aplica sus tags como chips removibles visibles; "ver más" muestra los chips no-home que tengan resultados. Un chip con 0 no aparece (decisión 25) |

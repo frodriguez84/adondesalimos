@@ -4,7 +4,7 @@ import { eq, inArray, like, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { EMPTY_SEARCH, type SearchParams } from '../params'
-import { searchPlaces } from '../query'
+import { countPlaces, searchPlaces } from '../query'
 
 /**
  * Semántica del motor contra el Postgres real (DoD de BUSQUEDA).
@@ -357,6 +357,56 @@ describe.runIf(process.env.DATABASE_URL)('motor de búsqueda', () => {
       expect(encontrado!.zone).toBeNull()
 
       await db.delete(places).where(eq(places.id, huerfano.id))
+    })
+  })
+
+  /**
+   * El contador de "Ver N lugares" (decisión 20). Lo que se verifica no es que
+   * cuente bien en abstracto, sino el invariante que hace útil al botón:
+   * **el N que anuncia el sheet es el N que después se ve** (BUSQ-11). Por eso
+   * cada caso compara contra el resultado real de la misma búsqueda.
+   */
+  describe('contador del sheet (decisión 20)', () => {
+    const contar = (parcial: Partial<SearchParams>) =>
+      countPlaces({ ...EMPTY_SEARCH, ...parcial })
+
+    it('anuncia exactamente lo que la lista devuelve', async () => {
+      const filtro = { zones: [ZONA_A], tags: ['bar'] }
+      const [n, r] = await Promise.all([contar(filtro), buscar(filtro)])
+      expect(n).toBe(r.places.length)
+    })
+
+    it('cuenta el total, no la página: 25 lugares con página de 20', async () => {
+      const filtro = { zones: [ZONA_PAGINA] }
+      const [n, r] = await Promise.all([contar(filtro), buscar(filtro)])
+      expect(n).toBe(25)
+      expect(r.places.length).toBe(20)
+      expect(r.nextCursor).not.toBeNull()
+    })
+
+    it('respeta la visibilidad igual que la lista', async () => {
+      // Zona A tiene dos lugares invisibles sembrados: si el contador no usara
+      // `publishedWhere`, el botón prometería más de lo que hay.
+      const [n, r] = await Promise.all([contar({ zones: [ZONA_A] }), buscar({ zones: [ZONA_A] })])
+      expect(n).toBe(r.places.length)
+    })
+
+    it('cuenta cero cuando la combinación no existe, que es el caso que el botón evita', async () => {
+      // "Bar + juegos de mesa" existe; "sushi + juegos de mesa" no. Es la forma
+      // real del problema: cruzar facetas ralas da 0 seguido.
+      expect(await contar({ zones: [ZONA_A], tags: ['japonesa-sushi', 'juegos-de-mesa'] })).toBe(0)
+    })
+
+    it('sigue al GPS, que reemplaza a las zonas', async () => {
+      const filtro = {
+        gps: true,
+        coords: { lat: BASE_LAT, lng: BASE_LNG },
+        zones: [ZONA_PAGINA],
+      }
+      const [n, r] = await Promise.all([contar(filtro), buscar(filtro)])
+      expect(n).toBe(r.places.length)
+      // Los 25 del paginado están a 5 grados: si contaran, el GPS no reemplazó.
+      expect(n).toBeLessThan(25)
     })
   })
 })
