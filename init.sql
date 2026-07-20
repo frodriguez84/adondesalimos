@@ -1,0 +1,7 @@
+-- ============================================================
+-- A Dónde Salimos — init de Postgres (Docker)
+-- Puerto: 5439:5432
+-- ============================================================
+-- El schema real (Catálogo de lugares) llega con las migraciones de
+-- Drizzle en el spec 1. El scaffold NO define tablas: este archivo
+-- queda como punto de extensión para setup a nivel base de datos.

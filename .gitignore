@@ -5,6 +5,14 @@ node_modules/
 .next/
 out/
 dist/
+build/
+
+# TypeScript / Next
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
+coverage/
 
 # Entorno
 .env

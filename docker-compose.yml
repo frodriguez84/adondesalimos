@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: adondesalimos_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: adondesalimos
+      POSTGRES_PASSWORD: adondesalimos_dev_2026
+      POSTGRES_DB: adondesalimos
+    ports:
+      - "5439:5432"
+    volumes:
+      - adondesalimos_pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adondesalimos -d adondesalimos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  adondesalimos_pgdata:
+    driver: local
