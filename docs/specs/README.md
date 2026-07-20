@@ -23,7 +23,9 @@ _(ninguno — el próximo a implementar sale del BACKLOG o de `planned/`)_
 
 ## 🔵 Planned (`planned/`)
 
-_(ninguno — el próximo a diseñar sale del BACKLOG)_
+| Spec | Qué cubre |
+|------|-----------|
+| [AUTH](planned/AUTH.md) | Spec 5 — auth (better-auth, patrón StressPlan), reclamo/alta de negocio con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser de stats. Escrito 2026-07-20 |
 
 ## ⚫ Done (`done/`)
 

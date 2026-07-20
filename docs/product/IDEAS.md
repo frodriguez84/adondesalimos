@@ -827,8 +827,46 @@ precio fijo se licúa con la inflación en meses.
 
 ## Estado de la conversación
 
-_Actualizado durante la tanda 5 (2026-07-19). Esta sección es lo primero que lee la
+_Actualizado en la sesión de specs 3 (2026-07-20). Esta sección es lo primero que lee la
 sesión siguiente._
+
+### 🏁 Sesión de specs 3 — cerrada (2026-07-20) · SPEC 5 AUTH ESCRITO
+
+Sesión de autoría manual (Fable). Una sola entrega: **`docs/specs/planned/AUTH.md`** —
+auth + roles + reclamo de negocio, en 4 fases. Nada implementado. Base: lo ya decidido acá
+(§ Usuarios y roles, § planes) + relevamiento del patrón real de StressPlan. Lo que se
+decidió nuevo:
+
+- ✅ **Fotos de dueño en Cloudflare R2** (decisión de Fer, 2026-07-20). StressPlan **no
+  tiene** upload de archivos — no había patrón para replicar. Cloudflare ya está en el
+  stack (DNS/proxy); R2 es S3-compatible, 10 GB gratis y egress sin costo. Un solo módulo
+  server-only (`lib/storage/r2.ts`), mismo criterio que `lib/google/places.ts`.
+- ✅ **Los horarios propios del dueño entran en el spec 5** (decisión de Fer), como última
+  fase: el free ya los prometía (§ planes) y son la masa que destraba "Abierto ahora"
+  (BACKLOG). La ficha los prioriza sobre Google — mismo patrón que las fotos.
+- ✅ **Los límites free se aplican desde el día 1** (3 fotos; descripción/carta/novedad
+  bloqueados), aunque el cobro llegue con el spec 7. Corolario del principio ya decidido
+  *"subir un cupo es un regalo; bajarlo es una traición"*. `places.owner_plan`
+  (`free`/`paid`) se cambia a mano hasta que el spec 7 lo automatice con MP.
+- ✅ **Sin sistema de roles en DB** (patrón StressPlan relevado): admin = `ADMIN_EMAIL`,
+  dueño = derivado de tener reclamo aprobado (`place_claims`). El registro único queda
+  garantizado por construcción. Divergencia explícita con StressPlan: acá
+  `requireEmailVerification: true` (allá quedó en `false` — acá la verificación es el
+  anti-abuso ya decidido).
+- ✅ **"Registrá tu negocio" arranca buscando en el catálogo COMPLETO** (visible e
+  invisible): evita duplicados y resuelve cómo reclama el dueño de un lugar bajo el umbral,
+  cuya ficha pública no existe (sin esto, el caso de negocio del override era inalcanzable).
+- ✅ **Lo que edita el dueño nunca va a las columnas base de `places`** (el re-import las
+  pisa): tabla 1-a-1 `place_owner_content`, la ficha hace COALESCE dueño → base. Y el
+  re-import **no toca las tags de lugares reclamados** — el dueño aprobado es mejor fuente
+  que Overture para su lugar.
+- ✅ **Nombre, dirección y ubicación NO editables por el dueño en v1** (correcciones vía
+  admin): son la identidad del lugar publicado y mover el pin obliga a re-asignar zonas.
+- ⏭️ **Próximo paso**: implementar AUTH (sesión Opus, 4 fases) o escribir el spec 6
+  (Votación) — uno por vez. Las filas de CATALOGO/ZONAS/BUSQUEDA del BACKLOG habían
+  quedado `[ ]` → `planned/` al cierre de sus specs: **corregidas en esta misma sesión**
+  (commit `docs:` aparte). Pendiente menor que queda: el huérfano
+  `docs/specs/planned/ZONAS.md` sin stub.
 
 ### 🏁 Sesión de specs 2 — cerrada (2026-07-19) · SPEC 4 FICHA ESCRITO
 
