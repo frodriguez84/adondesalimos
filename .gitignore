@@ -33,3 +33,9 @@ Thumbs.db
 
 # Claude Code — config local del usuario
 .claude/settings.local.json
+
+# Playwright MCP — snapshots/screenshots de QA en vivo (se regeneran por corrida)
+.playwright-mcp/
+
+# MCP local del proyecto (tooling de dev/QA; cada quien decide si lo activa)
+.mcp.json

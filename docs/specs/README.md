@@ -19,9 +19,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-| Spec | Cuándo leerlo |
-|------|----------------|
-| [BUSQUEDA](active/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). Leer antes de tocar `/`, `/api/search` o la query de catálogo. Depende de CATALOGO y ZONAS; bloquea Ficha, Votación y Monetización |
+_(ninguno — el próximo en implementarse es FICHA, hoy en `planned/`)_
 
 ## 🔵 Planned (`planned/`)
 
@@ -35,3 +33,4 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 |------|---------------------------|
 | [CATALOGO](done/CATALOGO.md) | Spec 1 — catálogo, taxonomía e import de Overture. [Resumen](../archive/SPECS_ARCHIVO.md#catalogo) · ✅ 2026-07-20 |
 | [ZONAS](done/ZONAS.md) | Spec 2 — 46 zonas de AMBA (GeoJSON versionados, sin PostGIS), primaria + buffer 400 m. [Resumen](../archive/SPECS_ARCHIVO.md#zonas) · ✅ 2026-07-20 |
+| [BUSQUEDA](done/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). [Resumen](../archive/SPECS_ARCHIVO.md#busqueda) · ✅ 2026-07-20 |

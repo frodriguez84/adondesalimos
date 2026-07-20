@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { publishedWhere } from '@/lib/db/visibility'
-import { GPS_RADIUS_KM, PAGE_SIZE, type SearchParams } from './params'
+import { GPS_RADIUS_KM, MAP_PIN_LIMIT, PAGE_SIZE, type SearchParams } from './params'
 
 /**
  * Motor de búsqueda (F1 de BUSQUEDA). Una query sobre el catálogo publicado.
@@ -45,6 +45,12 @@ export type SearchResult = {
   places: SearchedPlace[]
   /** Null = no hay más páginas. */
   nextCursor: string | null
+}
+
+export type PinsResult = {
+  places: SearchedPlace[]
+  /** El resultado excede `MAP_PIN_LIMIT` y el mapa muestra solo los primeros. */
+  truncated: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -237,13 +243,18 @@ export async function countPlaces(params: SearchParams): Promise<number> {
   return fila?.n ?? 0
 }
 
-export async function searchPlaces(params: SearchParams): Promise<SearchResult> {
-  const umbral = await getConfidenceThreshold()
-  const cursor = decodeCursor(params.cursor)
-
-  const { where, usaGps } = await construirWhere(params, umbral)
-
-  // --- Orden (decisión 16) + cursor sobre las mismas expresiones -------------
+/**
+ * Las claves de orden de la decisión 16, en orden de precedencia.
+ *
+ * Vive aparte por el mismo motivo que `construirWhere`: la vista mapa
+ * (`searchPins`) tiene que quedarse con **los mismos** lugares que encabezan la
+ * lista cuando el resultado excede el tope de pins. Si el orden se escribiera
+ * dos veces, el mapa mostraría otros 200.
+ */
+function clavesDeOrden(
+  params: SearchParams,
+  usaGps: boolean,
+): { nombre: string; expr: SQL; desc: boolean }[] {
   const claves: { nombre: string; expr: SQL; desc: boolean }[] = []
   if (usaGps) {
     claves.push({ nombre: 'd', expr: distKey(params.coords!.lat, params.coords!.lng), desc: false })
@@ -258,6 +269,17 @@ export async function searchPlaces(params: SearchParams): Promise<SearchResult> 
   // `id` último siempre: garantiza que el orden sea total y por lo tanto que la
   // paginación no repita ni saltee filas cuando hay empates.
   claves.push({ nombre: 'i', expr: sql`${places.id}::text`, desc: false })
+  return claves
+}
+
+export async function searchPlaces(params: SearchParams): Promise<SearchResult> {
+  const umbral = await getConfidenceThreshold()
+  const cursor = decodeCursor(params.cursor)
+
+  const { where, usaGps } = await construirWhere(params, umbral)
+
+  // --- Orden (decisión 16) + cursor sobre las mismas expresiones -------------
+  const claves = clavesDeOrden(params, usaGps)
 
   if (cursor) {
     const conValor = claves
@@ -329,6 +351,76 @@ export async function searchPlaces(params: SearchParams): Promise<SearchResult> 
         : null,
     })),
     nextCursor,
+  }
+}
+
+/**
+ * Los pins de la vista mapa (decisión 21).
+ *
+ * **Por qué no son "la página actual".** El mapa promete los pins *del
+ * resultado*, y la lista sirve de a 20: un mapa de AMBA con 20 puntos se ve
+ * vacío y el clustering que pide la decisión 21 no se activaría nunca. Pero
+ * traer el resultado entero tampoco va — "Cenar afuera" son 11.438 lugares, o
+ * 572 requests contra un endpoint con rate limit.
+ *
+ * Se trae entonces un tope de `MAP_PIN_LIMIT`, **con el mismo orden que la
+ * lista**, así los pins son los mismos lugares que encabezan los resultados y
+ * no una muestra arbitraria. Cuando el resultado excede el tope, `truncated`
+ * queda en true y el mapa lo dice — un mapa que oculta que hay más miente.
+ */
+export async function searchPins(params: SearchParams): Promise<PinsResult> {
+  const umbral = await getConfidenceThreshold()
+  const { where, usaGps } = await construirWhere(params, umbral)
+  const claves = clavesDeOrden(params, usaGps)
+
+  const orderBy = sql.join(
+    claves.map((k) => sql`${k.expr} ${sql.raw(k.desc ? 'DESC' : 'ASC')}`),
+    sql`, `,
+  )
+
+  const filas = await db
+    .select({
+      id: places.id,
+      name: places.name,
+      lat: places.lat,
+      lng: places.lng,
+      address: places.address,
+      locality: places.locality,
+      ...(usaGps
+        ? { k_d: distKey(params.coords!.lat, params.coords!.lng) }
+        : {}),
+    })
+    .from(places)
+    .where(and(...where))
+    .orderBy(orderBy)
+    // Uno de más, igual que la paginación: si vuelve, hay más que el tope.
+    .limit(MAP_PIN_LIMIT + 1)
+
+  const truncated = filas.length > MAP_PIN_LIMIT
+  const pagina = truncated ? filas.slice(0, MAP_PIN_LIMIT) : filas
+
+  // La mini-card del pin muestra lo mismo que la card de la lista (nombre, tags,
+  // zona), así que se arma con los mismos helpers: un solo par de queries para
+  // los 200, no una por pin.
+  const ids = pagina.map((f) => f.id)
+  const [tagsPorLugar, zonaPorLugar] = await Promise.all([
+    tagsDeLugares(ids),
+    zonaPrimariaDeLugares(ids),
+  ])
+
+  return {
+    places: pagina.map((f) => ({
+      id: f.id,
+      name: f.name,
+      lat: f.lat,
+      lng: f.lng,
+      address: f.address,
+      locality: f.locality,
+      zone: zonaPorLugar.get(f.id) ?? null,
+      tags: tagsPorLugar.get(f.id) ?? [],
+      distanceKm: usaGps ? Number((f as Record<string, unknown>).k_d as number) : null,
+    })),
+    truncated,
   }
 }
 

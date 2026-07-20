@@ -153,6 +153,29 @@ export default function LegalesPage() {
         </ul>
       </Seccion>
 
+      <Seccion titulo="Mapa — OpenStreetMap y OpenFreeMap">
+        <p>
+          La vista de mapa se dibuja con{' '}
+          <Externo href="https://maplibre.org/">MapLibre GL JS</Externo> sobre teselas servidas
+          por <Externo href="https://openfreemap.org/">OpenFreeMap</Externo>.
+        </p>
+        <p>
+          Los datos cartográficos de esas teselas son ©{' '}
+          <Externo href="https://www.openstreetmap.org/copyright">
+            colaboradores de OpenStreetMap
+          </Externo>
+          , disponibles bajo la{' '}
+          <Externo href="https://opendatacommons.org/licenses/odbl/">
+            Open Database License (ODbL)
+          </Externo>
+          . La atribución también se muestra sobre el mapa, como exige la licencia.
+        </p>
+        <p>
+          Los puntos que se ven sobre el mapa son coordenadas propias del catálogo (Overture), no
+          de OpenStreetMap.
+        </p>
+      </Seccion>
+
       <Seccion titulo="Google">
         <p>
           Algunos datos de la ficha de cada lugar —como horarios, calificaciones y fotos— se

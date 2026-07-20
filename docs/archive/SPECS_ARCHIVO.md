@@ -95,3 +95,52 @@ datos semilla, y la regla de publicación con umbral editable en caliente.
   el próximo `zones:assign`. No agregar columnas con estado propio ahí.
 - **`places.locality` no es confiable fila por fila** (3 lugares de La Matanza vienen
   etiquetados "Ciudad de Buenos Aires"). Sirve como señal agregada, no como verdad puntual.
+
+---
+
+## Búsqueda + filtros {#busqueda}
+
+**Spec:** [`docs/specs/done/BUSQUEDA.md`](../specs/done/BUSQUEDA.md) · ✅ Implementado (2026-07-20)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — BUSQUEDA* — APROBADO, 12 criterios PASS (BUSQ-QA-09 cerrado con QA en vivo por Playwright)
+
+**Qué hace:** es la app para el consumidor. Home = Search (`/`): selector de zona + campo de
+texto + chips de Ocasión + filtros + resultados en lista o mapa, todo público y sin login.
+Motor de búsqueda en Postgres sobre el catálogo publicado, con la URL como estado compartible.
+
+**Alcance implementado (3 fases, todas cerradas):**
+
+- **F1 — Motor + lista.** Migración `drizzle/0002_last_christian_walker.sql`: `occasion_chips` ·
+  `chip_tags` · `place_impressions_daily` + extensiones `unaccent`/`pg_trgm` + índice GIN trgm.
+  `lib/search/params.ts` (URL ↔ estado, coords **fuera** de la URL) · `lib/search/query.ts`
+  (el motor: `EXISTS` por faceta, `zone_id IN` vía `place_zones` o Haversine si GPS,
+  `word_similarity` con `immutable_unaccent` para pegarle al índice, cursor keyset con `id`
+  como desempate). `/` como server component que lee searchParams. Rate limit por IP en memoria
+  del proceso (`lib/middleware/`).
+- **F2 — Selectores.** `lib/search/catalog.ts` (taxonomía con **conteo de publicados por tag**
+  + 46 zonas con alias). Bottom sheet de zona (autocompletar + regiones + GPS) y sheet de
+  filtros que editan un **borrador**; contador "Ver N lugares" en vivo vía `GET /api/search/count`
+  (`countPlaces` reusa `construirWhere` de `searchPlaces`). Sugerencias del campo de texto sin
+  roundtrip. **Decisión 27**: un tag con 0 publicados no se lista, y la faceta que queda vacía
+  tampoco — así "Abierto ahora" y toda la faceta Precio desaparecen sin caso especial.
+- **F3 — Chips + mapa + impresiones.** `lib/db/chips.ts` (17 chips: 9 objetivo + 8 V1,
+  decisión 30) sembrados idempotentemente. Vista mapa `components/search/map-view.tsx`
+  (MapLibre GL + tiles de OpenFreeMap, `next/dynamic ssr:false`) con clustering nativo, tope de
+  **200 pins** (`GET /api/search/pins`, `searchPins`, mismo `where` y `clavesDeOrden` que la
+  lista, test que compara pins vs lista elemento por elemento). Impresiones en `after()`
+  (`lib/search/impressions.ts`, upsert que **suma**; los pins no cuentan). `/legales` con la
+  línea de OSM/OpenFreeMap.
+
+**Lo que hay que saber para el próximo spec (Ficha):**
+
+- **Card y mini-card navegan a `/lugar/[id]`** — ahí termina Búsqueda y empieza Ficha. La card
+  perdió el prop `rating` (no hay fuente legal); `location` es nullable (los ~390 sin primaria).
+- **Los tags derivados vienen pegados a su Tipo por construcción del import** (`tag-map.ts`):
+  cruzar Tipo con una Actividad/Ambiente/Momento que no sea su socio da casi siempre 0. No es
+  bug del motor — la semántica AND funciona, los datos no la acompañan. Por eso los chips V1 son
+  gruesos y 8 de los 9 objetivo nacen apagados (se prenden solos con curaduría, sin deploy).
+- **La faceta Precio está vacía (0 filas en `place_tags`)** y Ambiente/Momento son ralas
+  (0,9% / 0,6%): es la carga de curaduría más grande pendiente. Todo en `BACKLOG.md`.
+- **Impresiones son agregado puro por día** (`place_id, date, impressions`), sin datos por
+  usuario ni cookies: habilita el teaser B2B, y Monetización (spec 7) le cuelga el desglose.
+- **`GET /api/search`, `/count` y `/pins`** comparten rate limit (60 req/IP/60 s) y la misma
+  función de query — no reimplementar el `where` ni el orden en otro lado.

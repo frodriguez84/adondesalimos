@@ -153,3 +153,71 @@ Re-verificado por un checker independiente nuevo contra los criterios ya corregi
 **Ningún cambio de código entre el QA bloqueado y el aprobado.** Los 46 polígonos, los
 scripts y los 53 tests son idénticos: lo único que se movió fueron dos criterios mal
 formulados del spec y una verificación mejor hecha.
+
+---
+
+## QA /qa-spec — BUSQUEDA (2026-07-20)
+
+**Veredicto:** APROBADO — 12/12 criterios PASS (BUSQ-QA-09 cerrado con QA en vivo)
+**Verificación técnica:** typecheck ✅ · tests 144/144 ✅ · build ✅
+**Método:** checker independiente (Explore/haiku, read-only) contra el DoD de
+`docs/specs/active/BUSQUEDA.md`. Se verificó el DoD **completo de las 3 fases**, que es el
+alcance del spec: F1 y F2 se cerraron sin QA formal porque el DoD nunca fue por fase.
+**QA en vivo (2026-07-20):** BUSQ-QA-09 (vista mapa) no se puede cerrar leyendo código —
+MapLibre solo se comporta en un browser real. Se verificó con Playwright contra
+`https://adondesalimos.ngrok.app`, zona Palermo Soho, los 5 pasos del spec (ver detalle abajo).
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| BUSQ-QA-01 | Migración: `occasion_chips`, `chip_tags`, `place_impressions_daily`, extensiones `unaccent` + `pg_trgm`, índice trgm en `places.name` | ✅ PASS | `drizzle/0002_last_christian_walker.sql:3-42` (extensiones 3-4, `immutable_unaccent` 11-14, índice GIN 18-19, las 3 tablas 21-42) · `lib/db/schema.ts:228,240,260` |
+| BUSQ-QA-02 | Primera visita: selector "Elegí zona", cero resultados, NO pide GPS al entrar; elegir zona dispara la búsqueda | ✅ PASS | `search-shell.tsx:110-116` (label) · `app/page.tsx:29-40` + `params.ts:143-150` (`tieneBusqueda` ⇒ `resultado` null) · `navigator.geolocation` aparece **solo** dentro de `pedirUbicacion()`, nunca en un efecto de montaje; con `gps=1` en la URL muestra estado que invita a tocar (`search-shell.tsx:118-121,235-239`) |
+| BUSQ-QA-03 | Semántica **por tests**: OR intra-faceta, AND entre facetas, padre de Cocina expande hijos, multiselección de zonas, GPS reemplaza zonas (Haversine 2 km), visibilidad de CATALOGO siempre | ✅ PASS | Las 6 sub-reglas con test propio en `busqueda.integration.test.ts:196-275` · implementación en `query.ts:159-177,204-226` · `publishedWhere` es **siempre** la primera condición del `where` |
+| BUSQ-QA-04 | Texto: "parrilla" sugiere y aplica el tag; "cafe" sin tilde matchea "Café"; el autocompletar matchea nombre de zona siempre y alias cuando existe (**los 4 alias, uno por uno**); Enter busca por nombre | ✅ PASS | `suggest.ts:24-30,58-83` · `suggest.test.ts:97-113` (`it.each` con los 4 alias) · typo y acentos en `busqueda.integration.test.ts:300-307` · Enter en `search-shell.tsx:147-153`. **Hallazgo:** *Villa Devoto* matchea por **nombre** de zona, no por alias — su fila en `zone_aliases` es redundante; los alias que agregan capacidad real son **3, no 4**. Registrado en el spec y en BACKLOG |
+| BUSQ-QA-05 | URL ↔ estado bidireccional; cambiar filtros actualiza la URL sin romper el back | ✅ PASS | `params.ts:85-117` · test de ida y vuelta `params.test.ts:56-77` (`parse(serialize(x)) === x`, con `coords` fuera de la URL a propósito) · historial híbrido de la decisión 29 en `search-shell.tsx` (replace en gestos incrementales, push al confirmar un sheet) |
+| BUSQ-QA-06 | Orden de la decisión 16 **con test**: dueño > confidence > nombre; con `q`, similitud primero | ✅ PASS | `query.ts:254-273` (`clavesDeOrden`) · test sin `q` en `busqueda.integration.test.ts:314-323` · **test con `q`** en 331-340: el lugar de dueño tiene *menor* similitud a propósito y queda segundo, que es lo que prueba la precedencia. Fixture diseñado midiendo `word_similarity` real (1.000 vs 0.615; umbral de `<%` = 0.6) |
+| BUSQ-QA-07 | Los 9 chips sembrados en DB con sus tags; tocar uno aplica sus filtros como chips removibles; editarlo en DB cambia el comportamiento sin deploy; **un chip que da 0 no se lista** | ✅ PASS | `lib/db/chips.ts:64-119` (9 objetivo) + 127-160 (8 V1) · siembra idempotente `seed.ts:104-140` con validación de cantidad (87-89) · test directo contra la tabla `chips.integration.test.ts:74-95` · **la ocultación es conteo en runtime**, no `active`: `chips.ts:85-91`. El filtro adicional por `active` es el interruptor **manual** de curaduría — mismo patrón que `catalog.ts:87` con los tags, no contradice la decisión 25 |
+| BUSQ-QA-08 | "Abierto ahora" NO aparece en el sheet de filtros y quedó en BACKLOG | ✅ PASS | Ausencia **estructural**, sin caso especial: `catalog.ts:90` descarta todo tag con `count === 0` y `:104` la faceta que queda vacía · `BACKLOG.md:26-28` |
+| BUSQ-QA-09 | Vista mapa: pins del resultado (tope 200, orden de la lista), atribución OSM visible, mini-card al tocar; `/legales` con la línea de OSM/OpenFreeMap | ✅ PASS | **Código y datos:** tope en `params.ts:24` + `query.ts:397-400`; **test que compara pins contra lista elemento por elemento** en `pins.integration.test.ts:36-43`; el endpoint devuelve 200 pins con `truncated:true` en Palermo Soho (corrida real); mini-card en `map-view.tsx:139-141,219-239`; `attributionControl: { compact: false }` en `:89-91` y la atribución viene del TileJSON de OpenFreeMap; `/legales:156-177`. **QA en vivo (Playwright, ngrok, Palermo Soho):** teselas y pins renderizan; atribución `OpenFreeMap · © OpenMapTiles · Data from OpenStreetMap` se lee desplegada al pie del mapa (no detrás del botón "i"); tap de un pin abre la mini-card (*La Amistad Resto · Restaurante · Botánico y Alto Palermo*) y la X la cierra; los 200 pins se ven como clusters (64, 23, 18, 17, 15…) y tocar el cluster "64" hace zoom expandiéndolo; el aviso "Te mostramos los primeros 200. Achicá la zona o sumá filtros para verlos todos." aparece sobre el mapa. **No bloqueante:** OpenFreeMap devuelve 404 en un font stack de glyphs; MapLibre lo resuelve con fallback local — números de cluster y labels de calle se leen sin problema |
+| BUSQ-QA-10 | Impresiones: los lugares mostrados suman +1 en su fila del día; agregado puro | ✅ PASS | `impressions.ts` (upsert que **suma**, `+ excluded.impressions`, no SET) · `after()` en `app/page.tsx:42-47` y `api/search/route.ts:34-39`; los pins **no** cuentan · **verificado contra la DB**: una búsqueda real pasó de 20 a 40 impresiones, 13 filas nuevas + 7 incrementadas · test de esquema: la tabla tiene exactamente `date`, `impressions`, `place_id` — cero identificadores de usuario |
+| BUSQ-QA-11 | Rate limit activo en `/api/search` con test | ✅ PASS | `lib/middleware/rate-limit.ts:80-103` (60 req/IP/60 s, 429 + `Retry-After`) aplicado en los **tres** endpoints públicos (`search`, `count`, `pins`, línea 19 de cada uno) · test de bloqueo en `rate-limit.test.ts:48-59` |
+| BUSQ-QA-12 | `npx tsc --noEmit` · `npm test` · `npm run build` verdes | ✅ PASS | typecheck sin errores · 144 tests en 17 archivos · build OK, rutas `/`, `/api/search`, `/api/search/count`, `/api/search/pins`, `/legales` |
+
+### Correcciones aplicadas durante este QA
+
+Tres criterios volvieron PARCIAL en la primera pasada y se arreglaron con **código y tests
+nuevos**, no reformulando el criterio:
+
+| ID | Gap del checker | Qué se hizo |
+|----|-----------------|-------------|
+| BUSQ-QA-04 | Solo 1 de los 4 alias tenía test | `it.each` con los 4 (`suggest.test.ts:97-113`). Ahí apareció el hallazgo de *Villa Devoto* |
+| BUSQ-QA-06 | El DoD pedía "con `q`, similitud primero" **con test** y no existía | Fixture nuevo + test (`busqueda.integration.test.ts:331-340`), diseñado midiendo `word_similarity` contra la base en vez de estimar el umbral |
+| BUSQ-QA-07 | El seed no validaba la cantidad sembrada; no había test contra la tabla | Validación en `seed.ts:87-89` + test directo en `chips.integration.test.ts:74-95` |
+
+**Un hallazgo del checker se descartó como falso positivo:** que filtrar por
+`occasion_chips.active` contradijera la decisión 25. No lo hace — la decisión dice que la
+ocultación **por cero resultados** no debe ser `active`, y no lo es (es un conteo en runtime);
+`active` es el interruptor manual de curaduría, exactamente como `tags.active` en
+`catalog.ts:87`. Un segundo checker independiente, con el patrón de `catalog.ts` a la vista,
+confirmó que son mecanismos ortogonales.
+
+### QA en vivo de BUSQ-QA-09 — ejecutado (2026-07-20)
+
+Verificado con Playwright contra `https://adondesalimos.ngrok.app` (dev server en 5178),
+zona Palermo Soho. Los 5 pasos del spec, todos ✅:
+
+1. ✅ Tocar **Mapa** — las teselas cargan y se ven los pins y clusters.
+2. ✅ La atribución "OpenFreeMap · © OpenMapTiles · Data from OpenStreetMap" se lee sobre el
+   mapa, desplegada y no detrás del botón "i".
+3. ✅ Tocar un pin abre la mini-card (*La Amistad Resto · Restaurante · Botánico y Alto
+   Palermo*); el botón X la cierra.
+4. ✅ En Palermo Soho (200 pins) se ven los clusters (64, 23, 18, 17, 15…) y tocar el
+   cluster "64" hace zoom expandiéndolo.
+5. ✅ Aparece el aviso "Te mostramos los primeros 200. Achicá la zona o sumá filtros para
+   verlos todos.".
+
+**Hallazgo no bloqueante:** OpenFreeMap devuelve 404 en un font stack de glyphs
+(`fonts/Open Sans Regular,Arial Unicode MS Regular/0-255.pbf`); MapLibre lo resuelve con
+fallback de renderizado local, así que números de cluster y labels de calle se leen sin
+problema. No afecta ningún criterio del DoD.
+
+Con BUSQ-QA-09 en PASS, los 12 criterios están verdes y el veredicto pasa a **APROBADO**.

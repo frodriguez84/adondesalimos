@@ -1,7 +1,10 @@
 import Link from 'next/link'
+import { after } from 'next/server'
 
 import { SearchShell } from '@/components/search/search-shell'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
+import { getOccasionChips } from '@/lib/search/chips'
+import { registrarImpresiones } from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda, type RawParams } from '@/lib/search/params'
 import { searchPlaces } from '@/lib/search/query'
 
@@ -12,10 +15,8 @@ import { searchPlaces } from '@/lib/search/query'
  *
  * F2 movió la interacción a `SearchShell`, que arma los params y los escribe en
  * la URL. Esto sigue siendo el único lugar que toca la base en el primer render:
- * el cliente no consulta salvo para paginar, contar y el modo GPS —los tres
- * casos donde el server no puede (ver `ResultsList`).
- *
- * Falta F3: chips de Ocasión, vista mapa y logging de impresiones.
+ * el cliente no consulta salvo para paginar, contar, mapear y el modo GPS —los
+ * casos donde el server no puede (ver `ResultsList` y `MapView`).
  */
 
 export default async function Home({
@@ -31,11 +32,19 @@ export default async function Home({
   //
   // Los catálogos van siempre: los sheets tienen que poder abrirse y ofrecer
   // zonas aunque todavía no haya búsqueda — es justamente la primera visita.
-  const [facetas, zonas, resultado] = await Promise.all([
+  const [facetas, zonas, chips, resultado] = await Promise.all([
     getFacetCatalog(),
     getZoneCatalog(),
+    getOccasionChips(),
     tieneBusqueda(params) ? searchPlaces(params) : null,
   ])
+
+  // Decisión 22. Va en `after` para que el contador no meta latencia en la
+  // pantalla: la respuesta sale y la escritura ocurre después. Solo los lugares
+  // de esta página — los que el usuario efectivamente vio.
+  if (resultado && resultado.places.length > 0) {
+    after(() => registrarImpresiones(resultado.places.map((p) => p.id)))
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
@@ -44,7 +53,13 @@ export default async function Home({
         <p className="text-sm text-muted-foreground">Decidilo rápido, sin dar mil vueltas.</p>
       </header>
 
-      <SearchShell params={params} facetas={facetas} zonas={zonas} resultado={resultado} />
+      <SearchShell
+        params={params}
+        facetas={facetas}
+        zonas={zonas}
+        chips={chips}
+        resultado={resultado}
+      />
 
       <footer className="mt-auto pt-4 text-xs text-muted-foreground">
         Datos de{' '}

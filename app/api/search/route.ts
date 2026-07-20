@@ -1,4 +1,7 @@
+import { after } from 'next/server'
+
 import { checkSearchRateLimit } from '@/lib/middleware/rate-limit'
+import { registrarImpresiones } from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda } from '@/lib/search/params'
 import { searchPlaces } from '@/lib/search/query'
 
@@ -27,6 +30,14 @@ export async function GET(request: Request) {
 
   try {
     const resultado = await searchPlaces(params)
+
+    // Decisión 22: cada página que se sirve cuenta, no solo la primera. El
+    // scroll infinito muestra lugares nuevos y esos también fueron vistos. El
+    // mapa (`/api/search/pins`) NO cuenta: un pin no es una impresión de ficha.
+    if (resultado.places.length > 0) {
+      after(() => registrarImpresiones(resultado.places.map((p) => p.id)))
+    }
+
     return Response.json({ data: resultado, error: null })
   } catch (error) {
     // No se filtra el detalle al cliente: puede traer nombres de tablas o del

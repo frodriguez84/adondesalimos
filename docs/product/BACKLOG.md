@@ -101,18 +101,45 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       los alias de las 46 zonas. El mecanismo funciona (verificado en F2), pero cubre 4
       barrios. Cargar alias es curaduría barata y de alto impacto en la búsqueda: los barrios
       absorbidos por un merge de zona son los que la gente tipea. Ver la nota de BUSQ-05 en el
-      spec.
+      spec. **Son 3, no 4** (BUSQUEDA F3, 2026-07-20): al verificarlos uno por uno se vio que
+      *Villa Devoto* matchea por nombre de zona ("Villa Devoto y Villa del Parque"), así que su
+      fila de alias es redundante. Los que agregan capacidad son Villa Ortúzar, Balvanera y
+      San Nicolás.
 - [ ] **Sugerencias del campo de texto sin trgm** (BUSQUEDA, 2026-07-20). F2 matchea tags y
       zonas con substring sin acentos sobre el catálogo en memoria (~150 items), en vez del
       trgm que pedía la decisión 14 — evita un fetch por tecla y a esa escala el trigrama no
       cambia lo que el usuario ve. Si el catálogo de tags crece un orden de magnitud, mover a
       un endpoint con `word_similarity`, que es lo que ya usa la búsqueda por nombre de lugar.
+- [ ] **Los 8 chips de Ocasión objetivo siguen apagados** (BUSQUEDA F3, 2026-07-20). Están
+      sembrados en `occasion_chips` y se prenden **solos** en cuanto sus tags tengan lugares
+      (decisión 25: es un conteo, no `active`). Dependen de la carga de Ambiente/Momento/Precio
+      — es el mismo trabajo de curaduría que ya está anotado arriba, y este es su primer
+      beneficiario visible. Ver spec BUSQUEDA § *Curaduría V1 de chips*.
+- [ ] **"Cenar afuera" devuelve 11.438 lugares en AMBA** (BUSQUEDA F3, 2026-07-20). Es el
+      riesgo "devuelve 8.000 lugares" que IDEAS ya anotaba. En una zona concreta da 262-527,
+      que es como se usa de verdad (la home pide zona primero), así que no bloquea. Se afina
+      partiéndolo por Cocina cuando esa faceta tenga curaduría (hoy 37,7%).
+- [ ] **Tocar un chip sin zona elegida busca en AMBA entera** (BUSQUEDA F3, 2026-07-20).
+      `tieneBusqueda` se satisface con tags solos, así que un chip sin zona dispara una
+      búsqueda de 18.993 paginada de a 20. No rompe nada y el resultado es honesto, pero
+      contradice el espíritu de la decisión 2 ("zona es el gesto default"). Decidir si el chip
+      abre el selector de zona en vez de buscar.
+- [ ] **Sobreconteo de impresiones con `gps=1` + zonas en la URL** (BUSQUEDA F3, 2026-07-20).
+      El server renderiza por zona (no tiene coordenadas) y el cliente reemplaza al obtener
+      permiso: esos 20 lugares suman impresión habiéndose visto un instante. Caso de borde de
+      una métrica agregada; se arregla no registrando en el server cuando `params.gps` está
+      prendido y todavía no hay coordenadas.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.
 
 ## Hecho
 
+- [x] **Spec 3 — BUSQUEDA** (2026-07-20): home/search en 3 fases — motor en Postgres
+      (`unaccent`+`pg_trgm`, cursor keyset), selectores de zona y filtros con contador en vivo,
+      chips de Ocasión en DB (17 sembrados), vista mapa MapLibre con tope de 200 pins e
+      impresiones agregadas por día. QA APROBADO 12/12 (BUSQ-QA-09 verificado en vivo con
+      Playwright) — ver [SPECS_ARCHIVO](../archive/SPECS_ARCHIVO.md#busqueda).
 - [x] **Spec 2 — ZONAS** (2026-07-20): 46 zonas de AMBA como GeoJSON versionados (CABA de
       BA Data, conurbano del IGN, cero OSM), `zones`/`zone_aliases`/`place_zones`, y la
       asignación precomputada con turf sin PostGIS. 23.857 lugares con zona (91,6%).

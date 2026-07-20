@@ -84,6 +84,22 @@ const FIXTURES: Fixture[] = [
   { nombre: 'Orden B Empate', tags: ['wine-bar'], zona: ZONA_A, confidence: 0.7 },
   { nombre: 'Orden C Empate', tags: ['wine-bar'], zona: ZONA_A, confidence: 0.7 },
 
+  // --- Orden CON texto: la similitud tiene que ganarle al orden orgánico ---
+  // Medido con `word_similarity` contra la base: "petunia roja" da 1.000 contra
+  // "Petunia Roja" y 0.615 contra "Petunia Azul Marino", y las dos pasan el
+  // umbral de `<%` (0.6). El de dueño es el de MENOR similitud a propósito: sin
+  // texto encabezaría por la decisión 16, así que si igual queda segundo, lo que
+  // manda es la similitud.
+  {
+    nombre: 'Petunia Azul Marino',
+    tags: ['wine-bar'],
+    zona: ZONA_B,
+    owner: true,
+    confidence: null,
+    override: true,
+  },
+  { nombre: 'Petunia Roja', tags: ['wine-bar'], zona: ZONA_B, confidence: 0.6 },
+
   // --- GPS: uno adentro del radio de 2 km, otro afuera ---------------------
   { nombre: 'GPS Cerca', tags: ['bar'], zona: ZONA_B, lat: BASE_LAT + 0.005, lng: BASE_LNG },
   { nombre: 'GPS Lejos', tags: ['bar'], zona: ZONA_B, lat: BASE_LAT + 0.5, lng: BASE_LNG },
@@ -310,6 +326,17 @@ describe.runIf(process.env.DATABASE_URL)('motor de búsqueda', () => {
       const a = await buscar({ zones: [ZONA_A], tags: ['wine-bar'] })
       const b = await buscar({ zones: [ZONA_A], tags: ['wine-bar'] })
       expect(nombres(a)).toEqual(nombres(b))
+    })
+
+    it('con texto manda la similitud, incluso por encima del lugar de dueño', async () => {
+      // Sin `q`, el de dueño va primero (es lo que verifica el test de arriba).
+      const sinTexto = await buscar({ zones: [ZONA_B], tags: ['wine-bar'] })
+      expect(nombres(sinTexto)[0]).toBe('Petunia Azul Marino')
+
+      // Con `q`, el que más se parece encabeza aunque no sea de dueño ni tenga
+      // mejor confidence. Es la segunda mitad de la decisión 16.
+      const conTexto = await buscar({ zones: [ZONA_B], tags: ['wine-bar'], q: 'petunia roja' })
+      expect(nombres(conTexto).slice(0, 2)).toEqual(['Petunia Roja', 'Petunia Azul Marino'])
     })
   })
 

@@ -94,3 +94,38 @@ verdad **fila por fila**. Antes de aceptar un FAIL basado en una etiqueta, verif
 geometría, que es el dato duro. Aplica también al revés: el bbox aproximado que se le pasó al
 checker se extendía al sur del Riachuelo, así que "está en el bbox de CABA" tampoco probaba
 nada. **La verificación buena fue la cara: 2.200 puntos contra 48 polígonos — 0 adentro.**
+
+---
+
+## Un criterio que solo un browser puede ver no lo cierra `/qa-spec`, y re-correrlo lo regresa (2026-07-20 · BUSQUEDA)
+
+**Qué pasó.** El QA de BUSQUEDA cerró en PARCIAL con 11 de 12 criterios PASS. El único abierto
+—BUSQ-QA-09, la vista mapa— no es verificable leyendo código: MapLibre carga teselas, dibuja
+pins y clusters y abre mini-cards **solo en un browser real**. El checker de `/qa-spec` es
+read-only sobre el código, así que estructuralmente no lo puede cerrar. Se verificó en una
+sesión aparte con Playwright contra el ngrok del proyecto (los 5 pasos del spec), y recién ahí
+el veredicto pasó a APROBADO.
+
+**La trampa.** El checklist de `/close-spec` dice "corré `/qa-spec` una vez". Si se lo hubiera
+corrido de nuevo al cerrar, el checker habría vuelto a marcar BUSQ-QA-09 como PARCIAL —porque
+sigue sin poder ver el browser— **pisando la verificación en vivo** que ya estaba hecha. El
+veredicto habría regresado solo por re-verificar.
+
+**Qué hacer distinto:**
+
+1. **Un criterio de rendering (mapa, animación, layout, permiso de dispositivo) se marca en el
+   spec como "requiere QA en vivo" desde el vamos.** No es una falla del checker: es que ese
+   criterio vive fuera de su alcance. El DoD puede decirlo explícitamente.
+2. **La QA en vivo se corre una vez, se documenta con evidencia (screenshots + el detalle de
+   cada paso en `AnalisisQA.md`), y ese registro es la fuente de verdad.** No se re-corre
+   `/qa-spec` después: el gate técnico (typecheck + tests) sí se reconfirma, pero el veredicto
+   de un criterio in-vivo ya cerrado no se somete de nuevo a un checker que no lo puede ver.
+3. **Ojo con re-correr `next build` con el `npm run dev` levantado:** comparten `.next` y el
+   build puede romper. Si el código no cambió desde el último gate verde (solo se tocó `docs/`),
+   reconfirmar typecheck + tests alcanza; el build se re-corre con el server parado si hace falta.
+
+**Corolario de herramienta.** El MCP de Playwright (`.mcp.json` con `@playwright/mcp`) es lo
+que hizo verificable en vivo lo que el checker no alcanza. Para specs con UI —FICHA y Votación
+lo van a necesitar— es la pieza que cierra los criterios de rendering. Los pins/clusters son
+capas GL (no DOM), así que el tap se dispara con un click por coordenadas
+(`page.mouse.click`), no por selector.

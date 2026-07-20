@@ -27,6 +27,17 @@ const ZONAS: CatalogZone[] = [
   { slug: 'chacarita-colegiales', name: 'Chacarita y Colegiales', region: 'caba', aliases: ['Villa Ortúzar'] },
   { slug: 'palermo-soho', name: 'Palermo Soho', region: 'caba', aliases: [] },
   { slug: 'villa-crespo', name: 'Villa Crespo', region: 'caba', aliases: [] },
+  // Los otros 3 alias que existen en la DB. BUSQ-05 quedó reformulado como
+  // invariante ("los 4 alias cargados se verifican uno por uno"), así que los
+  // cuatro tienen que estar acá y no solo el de Villa Ortúzar.
+  { slug: 'once-abasto', name: 'Once y Abasto', region: 'caba', aliases: ['Balvanera'] },
+  { slug: 'retiro-microcentro', name: 'Retiro y Microcentro', region: 'caba', aliases: ['San Nicolás'] },
+  {
+    slug: 'devoto-villa-del-parque',
+    name: 'Villa Devoto y Villa del Parque',
+    region: 'caba',
+    aliases: ['Villa Devoto'],
+  },
 ]
 
 describe('normalizar', () => {
@@ -81,6 +92,24 @@ describe('sugerir', () => {
   it('el alias también matchea sin acentos', () => {
     const { zonas } = sugerir('ortuzar', FACETAS, ZONAS)
     expect(zonas[0]?.slug).toBe('chacarita-colegiales')
+  })
+
+  it.each([
+    ['Villa Ortúzar', 'chacarita-colegiales', 'alias'],
+    ['Balvanera', 'once-abasto', 'alias'],
+    ['San Nicolás', 'retiro-microcentro', 'alias'],
+    // "Villa Devoto" matchea por NOMBRE: la zona se llama "Villa Devoto y Villa
+    // del Parque". El alias existe en la DB pero es redundante — llega igual sin
+    // él. De los 4 alias cargados, sólo 3 agregan capacidad de verdad.
+    ['Villa Devoto', 'devoto-villa-del-parque', 'nombre'],
+  ])('BUSQ-05: "%s" lleva a la zona %s (por %s)', (termino, slug, via) => {
+    // El invariante de BUSQ-05: los 4 alias cargados se verifican uno por uno.
+    // Lo que se exige es que el término LLEGUE a la zona; por nombre o por
+    // alias es indistinto para el usuario. Son 4 de 46 zonas — el hueco de
+    // cobertura está en BACKLOG y no es un defecto de Búsqueda.
+    const { zonas } = sugerir(termino, FACETAS, ZONAS)
+    expect(zonas.map((z) => z.slug)).toContain(slug)
+    expect(zonas.find((z) => z.slug === slug)?.via).toBe(via === 'alias' ? termino : null)
   })
 
   it('una zona no aparece dos veces si el nombre y el alias matchean', () => {

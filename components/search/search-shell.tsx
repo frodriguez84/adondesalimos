@@ -1,12 +1,14 @@
 'use client'
 
 import * as React from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, MapPin, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronDown, List, Map as MapIcon, MapPin, SlidersHorizontal, X } from 'lucide-react'
 
 import { SearchInput } from '@/components/ui/search-input'
 import { cn } from '@/lib/utils'
 import type { CatalogFacet, CatalogZone } from '@/lib/search/catalog'
+import type { OccasionChips } from '@/lib/search/chips'
 import {
   serializeSearchParams,
   tieneBusqueda,
@@ -15,8 +17,18 @@ import {
 import { etiquetaDeTag, etiquetaDeZona, sugerir } from '@/lib/search/suggest'
 import type { SearchResult } from '@/lib/search/query'
 import { FiltersSheet } from './filters-sheet'
+import { OccasionChipsRow } from './occasion-chips'
 import { ResultsList } from './results-list'
 import { ZoneSheet } from './zone-sheet'
+
+/**
+ * MapLibre son ~200 KB gzip y la home es una lista: el mapa se carga recién al
+ * tocar "Mapa". `ssr: false` porque MapLibre toca `window` al construirse.
+ */
+const MapView = dynamic(() => import('./map-view').then((m) => m.MapView), {
+  ssr: false,
+  loading: () => <div className="h-[70vh] animate-pulse rounded-xl border border-border bg-card" />,
+})
 
 /**
  * La home interactiva (F2). Arma `SearchParams` desde la UI y los escribe en la
@@ -34,14 +46,18 @@ type Props = {
   params: SearchParams
   facetas: CatalogFacet[]
   zonas: CatalogZone[]
+  chips: OccasionChips
   /** Null cuando no hay búsqueda todavía (primera visita, decisión 2). */
   resultado: SearchResult | null
 }
 
-export function SearchShell({ params, facetas, zonas, resultado }: Props) {
+export function SearchShell({ params, facetas, zonas, chips, resultado }: Props) {
   const router = useRouter()
   const [zonaAbierta, setZonaAbierta] = React.useState(false)
   const [filtrosAbiertos, setFiltrosAbiertos] = React.useState(false)
+  // La vista es estado de UI, no de búsqueda: no va a la URL. Un link compartido
+  // abre en lista, que es el default de la decisión 7.
+  const [vista, setVista] = React.useState<'lista' | 'mapa'>('lista')
   const [texto, setTexto] = React.useState(params.q ?? '')
   const [enfocado, setEnfocado] = React.useState(false)
   const [coords, setCoords] = React.useState<{ lat: number; lng: number } | null>(null)
@@ -171,19 +187,45 @@ export function SearchShell({ params, facetas, zonas, resultado }: Props) {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setFiltrosAbiertos(true)}
-          className="flex items-center gap-2 self-start rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground"
-        >
-          <SlidersHorizontal className="size-4 text-muted-foreground" />
-          Filtros
-          {params.tags.length > 0 && (
-            <span className="rounded-full bg-primary px-2 text-xs text-primary-foreground">
-              {params.tags.length}
-            </span>
+        <OccasionChipsRow chips={chips} params={params} onNavegar={navegar} />
+
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltrosAbiertos(true)}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground"
+          >
+            <SlidersHorizontal className="size-4 text-muted-foreground" />
+            Filtros
+            {params.tags.length > 0 && (
+              <span className="rounded-full bg-primary px-2 text-xs text-primary-foreground">
+                {params.tags.length}
+              </span>
+            )}
+          </button>
+
+          {/* Decisión 7: la lista es el default y el mapa un botón al lado. Solo
+              tiene sentido cuando hay algo que mapear. */}
+          {resultado && (
+            <button
+              type="button"
+              onClick={() => setVista((v) => (v === 'lista' ? 'mapa' : 'lista'))}
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm text-foreground"
+            >
+              {vista === 'lista' ? (
+                <>
+                  <MapIcon className="size-4 text-muted-foreground" />
+                  Mapa
+                </>
+              ) : (
+                <>
+                  <List className="size-4 text-muted-foreground" />
+                  Lista
+                </>
+              )}
+            </button>
           )}
-        </button>
+        </div>
 
         <ChipsActivos params={params} facetas={facetas} zonas={zonas} onNavegar={navegar} />
 
@@ -200,6 +242,8 @@ export function SearchShell({ params, facetas, zonas, resultado }: Props) {
           titulo="Elegí zona para arrancar"
           detalle="Decinos por dónde andás y te tiramos la posta."
         />
+      ) : vista === 'mapa' ? (
+        <MapView params={params} coords={coords} />
       ) : (
         <ResultsList
           initialPlaces={resultado.places}

@@ -16,6 +16,13 @@ export const PAGE_SIZE = 20
 /** Radio fijo de "cerca de mí", sin slider (decisión 17). */
 export const GPS_RADIUS_KM = 2
 
+/**
+ * Tope de pins de la vista mapa (decisión 21). El mismo número a partir del cual
+ * el spec pide clustering: por debajo, los pins se dibujan sueltos. Ver
+ * `searchPins` para por qué el mapa no trae el resultado entero.
+ */
+export const MAP_PIN_LIMIT = 200
+
 export type SearchParams = {
   /** Slugs de zona, OR entre sí. Vacío = sin filtro de zona. */
   zones: string[]

@@ -1,7 +1,8 @@
 import 'dotenv/config'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { appSettings, tags } from '@/lib/db/schema'
+import { appSettings, chipTags, occasionChips, tags } from '@/lib/db/schema'
+import { CHIPS, TOTAL_CHIPS } from '@/lib/db/chips'
 import { TAXONOMIA, TOTAL_TAGS } from '@/lib/db/taxonomy'
 import {
   BAND_LIMITS_KEY,
@@ -11,7 +12,8 @@ import {
 } from '@/lib/db/visibility'
 
 /**
- * Seed idempotente de la taxonomía (105 filas) + los 2 settings iniciales.
+ * Seed idempotente de la taxonomía (105 filas) + los chips de Ocasión + los 2
+ * settings iniciales.
  *
  * Idempotencia: upsert por `slug`. Al re-correr se actualizan name/facet/orden
  * (para poder corregir un label) pero NUNCA `active`: ese campo es curaduría
@@ -59,6 +61,8 @@ async function main() {
     }
   }
 
+  const chipsSembrados = await sembrarChips()
+
   // Settings iniciales: solo se insertan si no existen. Un re-run NO pisa un
   // umbral que el admin haya cambiado a mano — ese es justamente el mecanismo.
   await db
@@ -73,11 +77,71 @@ async function main() {
 
   console.log(`Tags sembradas: ${count} (esperadas ${TOTAL_TAGS})`)
   console.log(`Total en la tabla: ${total}`)
+  console.log(`Chips de Ocasión: ${chipsSembrados} (esperados ${TOTAL_CHIPS})`)
   console.log(`Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}`)
 
   if (total !== TOTAL_TAGS) {
     throw new Error(`Se esperaban ${TOTAL_TAGS} tags en la tabla y hay ${total}`)
   }
+
+  if (chipsSembrados !== TOTAL_CHIPS) {
+    throw new Error(`Se esperaban ${TOTAL_CHIPS} chips en la tabla y hay ${chipsSembrados}`)
+  }
+}
+
+/**
+ * Chips de Ocasión (decisión 18). El `sort` sale del orden de `CHIPS`, así que
+ * los objetivo quedan antes que los V1: el día que la curaduría los reviva, se
+ * ganan solos el lugar en la home (ver `ChipSeed.inHome`).
+ *
+ * **Los `chip_tags` se escriben solo al crear el chip.** Un re-run actualiza el
+ * nombre, el orden y `in_home`, pero no toca los tags de un chip que ya existe
+ * — igual que no toca `active`. Son las dos cosas que la curaduría edita a mano
+ * en la base, y el sentido entero de la decisión 18 es que ese ajuste sobreviva
+ * sin deploy. Para reescribir un chip desde la semilla hay que borrarlo primero.
+ */
+async function sembrarChips(): Promise<number> {
+  const filasTags = await db.select({ id: tags.id, slug: tags.slug }).from(tags)
+  const idPorSlug = new Map(filasTags.map((t) => [t.slug, t.id]))
+
+  let sort = 0
+  for (const chip of CHIPS) {
+    // Un slug inventado es un error de la semilla, no un dato faltante: se corta
+    // acá en vez de sembrar un chip que nunca podría devolver nada.
+    const tagIds = chip.tags.map((slug) => {
+      const id = idPorSlug.get(slug)
+      if (id === undefined) {
+        throw new Error(`El chip "${chip.slug}" referencia un tag inexistente: "${slug}"`)
+      }
+      return id
+    })
+
+    const [fila] = await db
+      .insert(occasionChips)
+      .values({ slug: chip.slug, name: chip.name, inHome: chip.inHome, sort: sort++ })
+      .onConflictDoUpdate({
+        target: occasionChips.slug,
+        set: {
+          name: sql`excluded.name`,
+          inHome: sql`excluded.in_home`,
+          sort: sql`excluded.sort`,
+          // `active` deliberadamente ausente: es curaduría, no semilla.
+        },
+      })
+      .returning({ id: occasionChips.id })
+
+    const [{ n }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(chipTags)
+      .where(eq(chipTags.chipId, fila.id))
+
+    if (n === 0) {
+      await db.insert(chipTags).values(tagIds.map((tagId) => ({ chipId: fila.id, tagId })))
+    }
+  }
+
+  const [{ total }] = await db.select({ total: sql<number>`count(*)::int` }).from(occasionChips)
+  return total
 }
 
 main()
