@@ -16,7 +16,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **Catálogo + import de Overture** — schema, tags semilla, `confidence`/`operating_status`, atribución → spec: `docs/specs/planned/CATALOGO.md` (escrito 2026-07-19; siembra 96 tags — suma corregida y confirmada por Fer)
 - [ ] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/planned/ZONAS.md` (escrito 2026-07-19)
 - [ ] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/planned/BUSQUEDA.md` (escrito 2026-07-19; 3 fases)
-- [ ] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/planned/FICHA.md` (escrito 2026-07-19; 3 fases, presupuesto acotado a ~$54/mes con topes en DB)
+- [~] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/active/FICHA.md`. **F1 (ficha propia) ✅ 2026-07-20**; F2 (Google en vivo) y F3 (foto/atribución) pendientes — requieren `GOOGLE_PLACES_API_KEY` (ya cargada en `.env`)
 - [ ] **Auth + roles + reclamo de negocio**
 - [ ] **Votación en grupo**
 - [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
@@ -45,6 +45,11 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Un `/lugar/nombre-zona-xxxx` ayuda al descubrimiento orgánico.
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
+- [ ] **Íconos de marca en las redes de la ficha** (FICHA F1, 2026-07-20). Las redes se
+      muestran como chips de texto ("Instagram", "Facebook", "X", "TikTok") porque
+      `lucide-react` removió los íconos de marca. Cuando se quiera el ícono, traerlos como
+      SVG propios o de otra librería. `clasificarRed` ya devuelve la plataforma; solo falta
+      el mapeo a ícono. Cosmético, no bloquea.
 
 - [ ] **`operating_status` no filtra nada todavía** — Overture entrega el campo NULL en el
       100% de los 26.057 lugares de AMBA, y el import los persiste como `'open'`. El filtro
@@ -135,6 +140,14 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 4 — FICHA · Fase 1** (2026-07-20): `/lugar/[id]` renderiza la ficha completa
+      con datos propios (Overture + ZONAS), **sin ninguna llamada a Google** — cierra el 404
+      al tocar una card. Migración 0003 con el modelo de datos completo del spec
+      (`google_match_status`/`matched_at`, `place_photos`, `google_api_usage`, `detail_views`,
+      3 claves `google.*`), `getPlaceDetail` con gate de visibilidad, helpers puros
+      (`lib/lugar/ficha.ts`), `generateMetadata` con OG solo-propio y `detail_views` en
+      `after()`. QA de fase: typecheck + 165 tests + smoke en vivo — ver `docs/qa/AnalisisQA.md`
+      § FICHA F1. **F2 y F3 pendientes** (spec sigue en `active/`).
 - [x] **Spec 3 — BUSQUEDA** (2026-07-20): home/search en 3 fases — motor en Postgres
       (`unaccent`+`pg_trgm`, cursor keyset), selectores de zona y filtros con contador en vivo,
       chips de Ocasión en DB (17 sembrados), vista mapa MapLibre con tope de 200 pins e

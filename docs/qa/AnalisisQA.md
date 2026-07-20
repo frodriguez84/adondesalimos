@@ -225,3 +225,39 @@ no queda ningún warning de glyphs. No bloqueaba ningún criterio del DoD; el fi
 ruido de consola (que también pasaba en producción, no solo en dev).
 
 Con BUSQ-QA-09 en PASS, los 12 criterios están verdes y el veredicto pasa a **APROBADO**.
+
+---
+
+## QA de fase — FICHA F1 (2026-07-20)
+
+**Alcance:** solo **Fase 1** (ficha propia, sin Google). F2 (Google en vivo) y F3
+(foto/atribución) se verifican cuando se implementen. **No es un `/qa-spec` de cierre**
+(ese corre con las 3 fases y un checker independiente) — es la QA de fase: gate técnico +
+tests + smoke en vivo. Los IDs son los del spec (`FICHA-NN`) y se reusan al cerrar.
+
+**Veredicto de F1:** PASA (alcance F1)
+**Verificación técnica:** typecheck ✅ · tests ✅ **165/165** (14 nuevos de F1) · build ⏳
+pendiente de correr con el dev server parado (comparten `.next` — lección BUSQUEDA).
+**Método:** unit tests (`lib/lugar/__tests__/ficha.test.ts`), integración contra el Postgres
+local (`detail-view.integration.test.ts`, `query.integration.test.ts`) y smoke en vivo con
+Playwright/MCP contra `https://adondesalimos.ngrok.app` sobre un lugar publicado real
+("Futbol Club ROMAN", Merlo).
+
+| ID | Caso | Resultado | Evidencia / Nota |
+|----|------|-----------|------------------|
+| FICHA-01 | Ficha sin Google | ✅ PASS | Smoke en vivo: nombre, tipo ("Teatro / espacio cultural"), ubicación (Merlo, fallback a `locality`), dirección, teléfono (`tel:`), Facebook (clasificado por dominio), "Qué vas a encontrar → Música en vivo". Sin bloque de horarios/rating (F1 no lo renderiza). Único error de consola: `favicon.ico` 404, preexistente y ajeno |
+| FICHA-02 | Visibilidad | ✅ PASS (F1) | UUID inexistente ⇒ **HTTP 404** en vivo. `getPlaceDetail` gatea por `isPlacePublished` de CATALOGO: bajo umbral sin override ⇒ `null` ⇒ `notFound()` (test de integración `query.integration.test.ts`). El sub-caso `operating_status='closed'` lo cubre el unit test de `visibility.ts` (hoy todo AMBA es `'open'`, ver H-2 de CATALOGO) |
+| FICHA-10 | Prioridad de foto | ✅ PASS (unit) | `fotoPrincipal` testea el orden completo dueño → Google → placeholder. En vivo, sin filas en `place_photos`, se dibuja el placeholder de marca (nunca imagen rota). El "no pide foto a Google si hay de dueño" se cierra end-to-end en F3 |
+| FICHA-14 | Cómo llegar | ✅ PASS | Deep link en vivo: `https://www.google.com/maps/dir/?api=1&destination=-34.7178597,-58.8005623` (lat/lng propio, sin `destination_place_id` porque aún no hay match). `comoLlegarUrl` testeado con y sin match |
+| FICHA-15 | Crawler no gasta (parte OG) | ◑ PARCIAL | El `<title>`/OG salen con **solo datos propios** (nombre · zona · tags), verificado en vivo. La parte "los contadores de `google_api_usage` quedan iguales" es de F2 (no hay llamada a Google en F1) |
+| FICHA-16 | Key no expuesta | ⏳ F2 | En F1 no se usa la key en ningún lado (no hay módulo de Google todavía). Se verifica sobre el bundle cuando exista `lib/google/places.ts` |
+| FICHA-03..09, 11-13 | Matching, SKUs, cuotas, atribución, degradación | ⏳ F2/F3 | Requieren el enriquecimiento en vivo; fuera del alcance de F1 |
+
+**Extra verificado (DoD F1):** `detail_views` incrementa una vez por apertura de ficha
+publicada — en vivo quedó en `1` tras abrir la ficha una vez (el `after()` corre post-respuesta
+y escribe el contador). El modelo de datos completo del spec quedó migrado (0003) y sembrado.
+
+**Nota de método (lección BUSQUEDA aplicada):** el render de la ficha es HTML de server
+component, no una vista browser-only como el mapa; aun así el smoke en vivo cazó que el
+título/OG y el deep link salen bien, cosa que el checker read-only de `/qa-spec` no ve. Al
+cerrar el spec (3 fases), la QA en vivo de F1 ya documentada **no se re-somete** a `/qa-spec`.

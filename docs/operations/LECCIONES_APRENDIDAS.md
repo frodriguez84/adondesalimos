@@ -129,3 +129,28 @@ que hizo verificable en vivo lo que el checker no alcanza. Para specs con UI —
 lo van a necesitar— es la pieza que cierra los criterios de rendering. Los pins/clusters son
 capas GL (no DOM), así que el tap se dispara con un click por coordenadas
 (`page.mouse.click`), no por selector.
+
+---
+
+## Un test que fija el set EXACTO de columnas se rompe con toda migración aditiva (2026-07-20 · FICHA)
+
+**Qué pasó.** F1 agregó la columna `detail_views` a `place_impressions_daily`. Un test de
+integración de BUSQUEDA afirmaba que esa tabla tenía **exactamente** `['date','impressions',
+'place_id']` — como guardián de "acá no hay datos por usuario". La columna nueva, que no
+identifica a nadie, hizo fallar el test sin que hubiera nada mal.
+
+**La distinción.** El invariante que el test quería proteger era "**ninguna** columna
+identifica a un usuario" — eso es un **denylist** (que ninguna columna matchee
+`user|ip|session|cookie|email`). Lo que estaba escrito era un **allowlist** ("exactamente
+estas tres"), que además de cazar un `user_id` nuevo se rompe con cualquier columna benigna.
+El allowlist confunde "no hay dato personal" con "el schema está congelado".
+
+**Qué se hizo.** Se actualizó la aserción para incluir `detail_views` (sigue siendo un
+allowlist, porque la tabla es chica y estable y el set explícito se lee bien). Pero la regla
+general para el próximo:
+
+**Cuándo cada uno.** Si el test protege una **propiedad** ("no hay PII", "no hay secretos"),
+escribilo como denylist: sobrevive a columnas nuevas legítimas y sigue cazando la regresión
+real. Reservá el allowlist exacto para cuando **el set completo es el contrato** y querés que
+agregar cualquier cosa obligue a mirar el test — pero entonces sabé que toda migración aditiva
+lo va a tocar, y eso es a propósito, no una molestia.

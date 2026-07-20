@@ -32,34 +32,93 @@ Next.js + TypeScript + Drizzle ORM + **Postgres en Docker Desktop** (decidido) +
 
 ## Estructura de carpetas
 
-<!-- TODO: pegar el árbol real cuando exista el scaffold. Anotar al lado de cada carpeta
-     clave qué vive ahí, para que un agente ubique sin explorar. -->
+Next.js App Router. Cada carpeta clave, qué vive ahí:
 
 ```
-(sin scaffold todavía — TODO: pegar el árbol real cuando se cree el proyecto Next.js)
+app/
+  page.tsx            home = búsqueda (server component, lee searchParams)
+  layout.tsx          root layout (tema ámbar único, sin toggle)
+  legales/            atribución de fuentes (Overture + Google)
+  lugar/[id]/         ficha del lugar (FICHA) — server component + generateMetadata
+  api/
+    search/           motor de búsqueda, count, pins (BUSQUEDA)
+    lugar/[id]/google endpoint de Google en vivo (FICHA F2 — pendiente)
+components/
+  ui/                 primitivos (button, bottom-sheet, filter-chip, search-input)
+  shared/             place-card (card del listado)
+  search/             shell de búsqueda, sheets, mapa MapLibre, chips
+  lugar/              acciones de la ficha (volver/compartir — cliente)
+lib/
+  db/                 schema Drizzle, index (pool), visibility (única puerta al
+                      catálogo publicado), settings (app_settings en runtime),
+                      taxonomy, chips
+  search/             motor (query), params, card helpers, impresiones, catálogo
+  lugar/              ficha: query (getPlaceDetail) + ficha.ts (helpers puros)
+  google/             settings.ts (claves de cuota); places.ts server-only → F2
+  zones/              geometría (turf, sin PostGIS)
+  middleware/         rate-limit por IP (memoria de proceso)
+drizzle/              migraciones generadas + snapshots (0000..0003)
+scripts/              seed, import-overture, zones:build/load/assign
+data/zones/           46 GeoJSON versionados (fuente de verdad de las zonas)
+docs/                 specs/, qa/, product/, operations/, archive/ (ver docs/README.md)
 ```
 
 ---
 
 ## Variables de entorno
 
-<!-- TODO: documentar cada var con un comentario de para qué es. Nunca pegar valores reales
-     de secrets — solo el nombre y el propósito. -->
+El valor real vive en `.env` (gitignoreado). `.env.example` lleva solo el nombre y el
+propósito, nunca un secret real.
 
 ```env
-# (completar a medida que se agreguen)
+# Postgres en Docker Desktop. Puerto 5439 (no el 5432 default) para no chocar con otros.
+DATABASE_URL=postgresql://...@localhost:5439/adondesalimos
+
+# Google Places API (New) — la usa la Ficha (spec 4, F2/F3) para horarios/rating/foto en
+# vivo. Key SERVER-ONLY: solo la lee lib/google/places.ts, nunca llega al bundle del
+# browser. Restringida a "Places API (New)" en Google Cloud Console.
+GOOGLE_PLACES_API_KEY=
+
+# Opcionales de operación:
+# DISABLE_RATE_LIMIT=true      apaga el rate limit (dev)
+# TRUSTED_IP_HEADER=...         header del que sale la IP real detrás de proxy
 ```
 
 ---
 
 ## Lógica de negocio crítica
 
-<!-- TODO — SE LLENA CON EL PRIMER FEATURE REAL, NO AHORA.
-     Acá va la lógica que un agente DEBE conocer y que no es obvia del código: reglas de
-     negocio, límites por plan, invariantes del dominio, funciones puras centrales. Cada
-     entrada trazable a un spec en docs/specs/. Vacío hasta que exista el primer feature. -->
+Reglas que un agente **debe** conocer y que no son obvias del código. El detalle vive en
+el spec citado — acá va el invariante, no la explicación entera.
 
-_(vacío — se llena con el primer feature)_
+### Visibilidad del catálogo (CATALOGO)
+`publicado ⇔ operating_status='open' AND (confidence >= umbral OR publish_override)`. Fuente
+**única**: `lib/db/visibility.ts` (`isPlacePublished` / `publishedWhere`). El umbral se lee de
+`app_settings` en runtime — un UPDATE cambia el catálogo sin redeploy. Nadie reimplementa la
+regla. `operating_status` hoy no filtra nada (Overture lo entrega NULL en todo AMBA → default
+`'open'`); no asumir que oculta cerrados. Ver `docs/qa/AnalisisQA.md` § CATALOGO H-2.
+
+### Disciplina de costos de Google (FICHA) — donde $0 se vuelve $32/1.000
+- **Solo se persiste `google_place_id`.** Horarios, rating, nombre y fotos de Google:
+  **prohibido guardarlos y cachearlos** (ToS, no performance). Cero caché en todo nivel
+  (`cache:'no-store'`, ruta dinámica); único dedupe permitido: `React.cache` dentro de un render.
+- **Matching gratis**: Text Search *IDs-Only*, `fieldMask: places.id` y **nada más** (un campo
+  de más ⇒ $32/1.000). **Place Details Enterprise**, nunca *Atmosphere* (sin `reviews`/
+  `editorialSummary`). **Una sola foto** por ficha.
+- **Un solo módulo habla con Google**: `lib/google/places.ts` (server-only, F2). La key vive
+  solo ahí. El bloque de Google se pide **desde el cliente**, no en el render (los crawlers no
+  deben gastar); `robots.txt` bloquea `/api/`.
+- **Topes por SKU** en `app_settings` (`google.details_monthly_cap`/`photos_monthly_cap`,
+  contados en `google_api_usage`): superado el tope, la ficha **degrada** al modo sin Google
+  en vez de disparar la factura. Bajar un tope a 0 apaga el SKU sin deploy.
+- Presupuesto validado: ~3.000 fichas/mes × 1 foto ⇒ **~$54/mes**. Decisiones 7-22 del spec
+  FICHA son la línea entre gratis y pago — hay tests que fallan si el field mask trae un campo
+  de más. No relajarlos.
+
+### Métricas agregadas (BUSQUEDA + FICHA)
+`place_impressions_daily` cuenta `impressions` (búsqueda) y `detail_views` (aperturas de ficha)
+por lugar y día. **Agregado puro**: sin `user_id`, sin cookies, sin IP. Es el histórico que
+vende el B2B (spec 7) y no se puede reconstruir después.
 
 ---
 
@@ -100,12 +159,24 @@ exista el scaffold.)_
 
 ## Notas importantes para Claude Code
 
-<!-- TODO — SE LLENA CON CICATRICES REALES, NO AHORA.
-     Acá van los gotchas que sorprenden: puertos no estándar, código muerto que no hay que
-     tocar, config de infra contraintuitiva, "esto se hace así por X razón". Se gana con el
-     uso; sembrarlo vacío lo envenena. -->
+Cicatrices reales — gotchas que sorprenden:
 
-_(vacío — se llena con el uso)_
+- **El dev server lo levanta el usuario**, nunca Claude: `npm run dev` en el **puerto 5178**.
+  Se accede por `https://adondesalimos.ngrok.app`, no `localhost`. El MCP de Playwright
+  (`.mcp.json`, gitignoreado) verifica el render en vivo que el checker read-only no ve.
+- **`next build` con el dev server levantado comparten `.next` y el build puede romper**
+  (lección BUSQUEDA). Si solo se tocó `docs/`, reconfirmar typecheck + tests alcanza; el build
+  se corre con el server parado. Por eso el build suele quedar pendiente al cerrar una fase.
+- **Postgres en el puerto 5439** (no el 5432 default), en Docker Desktop. Las migraciones se
+  aplican con `npm run db:migrate` (aditivo, seguro) y `npm run db:seed` es idempotente.
+- **Las listas de Overture (`phones`/`websites`/`socials`) son `jsonb`**, no columnas array:
+  cruzan el driver de DuckDB serializadas a JSON (lección CATALOGO). En la ficha llegan como
+  `string[] | null` — coercionar a `[]`.
+- **`lucide-react` (v1.16) NO tiene íconos de marca** (Instagram/Facebook/Twitter): se
+  removieron. Las redes de la ficha se rotulan con texto vía `clasificarRed`. Ver BACKLOG.
+- **`operating_status` viene `'open'` para todos**: no filtra lugares cerrados todavía (H-2).
+- **Commits que solo tocan `docs/` usan `spec(...)`/`docs:`, nunca `feat`** (ver arriba
+  § Prefijos de commit). Un `feat` implica que hay código.
 
 ---
 
