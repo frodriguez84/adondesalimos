@@ -3,6 +3,7 @@ import {
   buildTextSearchBody,
   mapPriceLevel,
   parseDetails,
+  parseFotoCandidata,
   rectanguloAlrededor,
   PLACE_DETAILS_FIELD_MASK,
   TEXT_SEARCH_FIELD_MASK,
@@ -143,5 +144,53 @@ describe('parseDetails — respuesta cruda → DTO (degrada campo por campo)', (
       abierto: false,
       semana: [],
     })
+  })
+
+  it('la foto no la resuelve parseDetails (queda null; la trae parseFotoCandidata)', () => {
+    expect(parseDetails({}).foto).toBeNull()
+  })
+})
+
+describe('parseFotoCandidata — una sola foto por ficha (decisión 14)', () => {
+  it('toma SOLO la primera de N fotos (10 fotos ⇒ 1 candidata ⇒ 1 media call)', () => {
+    const raw = {
+      photos: Array.from({ length: 10 }, (_, i) => ({
+        name: `places/ChIJx/photos/foto-${i}`,
+        authorAttributions: [{ displayName: `Autor ${i}`, uri: `https://maps.google.com/autor-${i}` }],
+      })),
+    }
+    const c = parseFotoCandidata(raw)
+    expect(c).toEqual({
+      name: 'places/ChIJx/photos/foto-0',
+      autorNombre: 'Autor 0',
+      autorUri: 'https://maps.google.com/autor-0',
+    })
+  })
+
+  it('parsea el crédito al autor (displayName + uri)', () => {
+    const c = parseFotoCandidata({
+      photos: [
+        {
+          name: 'places/ChIJx/photos/abc',
+          authorAttributions: [{ displayName: 'Juana Pérez', uri: 'https://maps.google.com/juana' }],
+        },
+      ],
+    })
+    expect(c?.autorNombre).toBe('Juana Pérez')
+    expect(c?.autorUri).toBe('https://maps.google.com/juana')
+  })
+
+  it('sin fotos ⇒ null (no hay nada que pedir, el contador no se mueve)', () => {
+    expect(parseFotoCandidata({})).toBeNull()
+    expect(parseFotoCandidata({ photos: [] })).toBeNull()
+  })
+
+  it('una foto sin name ⇒ null (sin name el media endpoint no sirve)', () => {
+    expect(parseFotoCandidata({ photos: [{ authorAttributions: [] }] })).toBeNull()
+  })
+
+  it('foto sin atribución de autor ⇒ candidata con autor null, no rompe', () => {
+    const c = parseFotoCandidata({ photos: [{ name: 'places/ChIJx/photos/abc' }] })
+    expect(c).toEqual({ name: 'places/ChIJx/photos/abc', autorNombre: null, autorUri: null })
   })
 })

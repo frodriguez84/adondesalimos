@@ -194,3 +194,31 @@ Milanesa", no "El Club de la Milanesa") **sale de Overture, nunca de Google** �
 por diseño (decisión 13: el dato propio funciona con Google caído). Un nombre abreviado o
 imperfecto es calidad del dato de origen; se corrige con curaduría o con el reclamo del dueño
 (spec 5), **no** trayendo el nombre de Google.
+
+---
+
+## Dos componentes que muestran datos de la misma request paga = doble factura (2026-07-20 · FICHA F3)
+
+**Qué pasó (evitado a tiempo, no sufrido).** El mockup de la ficha pone la **foto** de Google
+arriba (en su slot) y el **rating/horarios** más abajo, separados por el encabezado. La forma
+"natural" de implementarlo —un componente cliente para la foto y otro para los datos, cada uno
+con su `fetch`— habría disparado **dos** llamadas Place Details Enterprise ($20/1.000) por cada
+apertura de ficha: el doble del costo, sobre el SKU más caro después de Photos.
+
+**Causa.** La foto y los datos vienen de la **misma** respuesta de Place Details (el field mask
+ya trae `photos`). Dos componentes que la piden por separado no comparten esa respuesta: son dos
+requests lógicas y dos eventos facturables, aunque muestren pedazos del mismo lugar.
+
+**Qué se hizo.** Un **shell cliente de un solo fetch**: `components/lugar/ficha-google.tsx`
+envuelve el slot de foto (arriba), el encabezado **server-rendered pasado como `children`** y el
+bloque de datos (abajo). Hace **un** `fetch` y reparte el resultado a las dos regiones. El
+patrón RSC de pasar un server component como `children` a un client component es justo lo que
+permite intercalar el header (server, con datos propios) entre dos regiones cliente sin duplicar
+la request. Verificado en vivo: el panel de red muestra **una** llamada a
+`/api/lugar/[id]/google` por apertura, y `google_api_usage.details` sube de a 1, no de a 2.
+
+**La regla para el próximo (Auth/reclamo, Votación).** Cuando **una** request paga alimenta
+**varias** zonas de la UI separadas en el DOM, el fetch va **una vez arriba** y se reparte
+—shell con `children`, contexto, o props—, nunca un fetch por zona. "Componentes chicos y
+autónomos, cada uno con su fetch" es buen default para datos gratis; sobre una API que factura
+por request, es multiplicar la factura por la cantidad de componentes.

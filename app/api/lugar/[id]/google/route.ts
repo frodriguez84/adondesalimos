@@ -1,7 +1,7 @@
 import { checkGoogleRateLimit } from '@/lib/middleware/rate-limit'
-import { getDetailsMonthlyCap, getMatchRetryDays } from '@/lib/google/settings'
+import { getDetailsMonthlyCap, getMatchRetryDays, getPhotosMonthlyCap } from '@/lib/google/settings'
 import { contarUsoMensual, incrementarUsoMensual } from '@/lib/google/usage'
-import { fetchPlaceDetails, resolvePlaceId } from '@/lib/google/places'
+import { fetchFotoUri, fetchPlaceDetails, resolvePlaceId } from '@/lib/google/places'
 import {
   getPlaceForEnrichment,
   persistirMatchEncontrado,
@@ -37,19 +37,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const place = await getPlaceForEnrichment(id)
     if (!place) return new Response(null, { status: 404 })
 
-    // Pasos 3-5: estados de match, resolver, tope de cuota y Place Details.
-    const [retryDays, detailsCap] = await Promise.all([
+    // Pasos 3-6: estados de match, resolver, topes de cuota, Place Details y foto.
+    const [retryDays, detailsCap, photosCap] = await Promise.all([
       getMatchRetryDays(),
       getDetailsMonthlyCap(),
+      getPhotosMonthlyCap(),
     ])
 
     const resultado = await resolverEnriquecimiento({
       place,
       retryDays,
       detailsCap,
+      photosCap,
       ahora: new Date(),
       resolvePlaceId,
       fetchDetails: fetchPlaceDetails,
+      fetchFoto: fetchFotoUri,
       contarUso: contarUsoMensual,
       incrementarUso: incrementarUsoMensual,
       persistMatch: persistirMatchEncontrado,

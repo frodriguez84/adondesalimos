@@ -144,3 +144,72 @@ Motor de búsqueda en Postgres sobre el catálogo publicado, con la URL como est
   usuario ni cookies: habilita el teaser B2B, y Monetización (spec 7) le cuelga el desglose.
 - **`GET /api/search`, `/count` y `/pins`** comparten rate limit (60 req/IP/60 s) y la misma
   función de query — no reimplementar el `where` ni el orden en otro lado.
+
+---
+
+## Ficha del lugar + Google en vivo {#ficha}
+
+**Spec:** [`docs/specs/done/FICHA.md`](../specs/done/FICHA.md) · ✅ Implementado (2026-07-20)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA de fase — FICHA F1/F2/F3* — las 3 fases PASA. F3 con QA en vivo por Playwright (FICHA-10/11). F2 dejó un miss de matching documentado (FICHA-03, riesgo aceptado por Fer)
+
+**Qué hace:** `/lugar/[id]` — la pantalla donde el usuario decide si va. Datos propios
+(Overture + ZONAS) que se ven **enteros sin Google**, más enriquecimiento **en vivo** de
+Google (horarios, rating, foto) con **cero persistencia** salvo el `place_id`. Es el primer y
+único punto donde la app toca la API paga de Google, y donde se materializa la disciplina de
+costos: catálogo propio gratis, Google solo acá, topes por SKU editables sin deploy.
+
+**Alcance implementado (3 fases, todas cerradas):**
+
+- **F1 — Ficha propia.** Migración `drizzle/0003_adorable_nightshade.sql` (modelo **completo**
+  del spec de una vez, DDL aditivo): enum `google_match_status` + `google_matched_at` en
+  `places`, tablas `place_photos` (vacía) y `google_api_usage` (contador por SKU),
+  `detail_views` en `place_impressions_daily`, 3 claves de `app_settings` (topes + retry).
+  `lib/lugar/query.ts` (`getPlaceDetail`, dedupe `React.cache`, gate por `isPlacePublished`) ·
+  `lib/lugar/ficha.ts` (helpers puros: `precioDeTags`, `queEncontras`, `comoLlegarUrl` deep
+  link, `fotoPrincipal` prioridad dueño→Google→placeholder, `clasificarRed`) ·
+  `app/lugar/[id]/page.tsx` (server component, OG con **solo datos propios**, `detail_views`
+  en `after()`).
+- **F2 — Google en vivo.** `lib/google/places.ts` (**único** módulo que habla con Google,
+  server-only + guard de runtime): field masks exactos (`TEXT_SEARCH_FIELD_MASK = places.id`
+  $0 · `PLACE_DETAILS_FIELD_MASK` Enterprise sin Atmosphere), `resolvePlaceId` (matching a
+  ciegas con `locationRestriction` ±300 m, decisión 8), `fetchPlaceDetails` (no-store, timeout
+  2,5 s). `lib/google/usage.ts` (contadores por SKU) + `lib/google/settings.ts` (topes de
+  runtime). `lib/lugar/enrichment.ts` (`resolverEnriquecimiento` **puro e inyectable**: estados
+  de match, reintento, tope — ningún camino sin datos gasta) + `lib/lugar/matching.ts` (capa de
+  datos, revalida visibilidad). `GET /api/lugar/[id]/google` (adaptador fino, rate limit,
+  204 sin datos). `app/robots.ts` bloquea `/api/`. Cliente `components/lugar/ficha-google.tsx`.
+- **F3 — Foto y atribución.** `parseFotoCandidata` (una sola foto, decisión 14) + `fetchFotoUri`
+  (media endpoint con `skipHttpRedirect=true` ⇒ `photoUri` efímero, la key nunca sale al
+  browser, decisión 15) en `places.ts`; `fetchPlaceDetails` devuelve `DetailsResult` (DTO +
+  candidata) de **una sola** request paga. `enrichment.ts` agrega el paso de foto: **cuota
+  `photos` contada antes del media call**, y **foto de dueño presente ⇒ cero request a Google**
+  (`getPlaceForEnrichment` chequea `place_photos` en el server, autoritativo). `ficha-google.tsx`
+  reescrito como **shell de un solo fetch**: envuelve foto (arriba) + header (`children`,
+  server-rendered) + bloque de datos (abajo) ⇒ un único Place Details por apertura. Crédito al
+  autor sobre la foto + link al original + **logo oficial de Google** (SVG inline) sobre los
+  datos en vivo.
+
+**Disciplina de costos (la línea entre $0 y la factura):**
+
+- **Matching gratis:** Text Search *IDs-Only* (`places.id`); Details *Enterprise* nunca
+  *Atmosphere*; **una** foto por ficha. Hay tests que fallan si el field mask trae un campo de
+  más — no relajarlos.
+- **Cero persistencia/caché** de datos de Google salvo `place_id` (ToS): `cache:'no-store'`,
+  ruta dinámica, sin `revalidate`. El `photo name` no se guarda **ni se expone al cliente**
+  (`FotoCandidata` es server-only).
+- **El gasto se dispara desde el cliente**, no en el render (los crawlers no pagan); `robots.txt`
+  bloquea `/api/`. **Un solo fetch** por apertura (el shell), nunca dos Place Details.
+- **Topes por SKU** en `app_settings` contados en `google_api_usage`: superado el tope, la
+  ficha **degrada** al modo sin Google. Bajar un tope a 0 apaga el SKU sin deploy.
+
+**Lo que hay que saber para el próximo spec (Auth/reclamo, spec 5):**
+
+- **`place_photos` ya existe y la ficha ya prioriza sus fotos** sobre Google (FICHA-10, con
+  test + QA en vivo): el spec 5 solo tiene que **llenarla**; el camino dueño→Google no se toca.
+- **`detail_views` cuenta aperturas** (agregado por día, sin datos por usuario): el panel del
+  dueño y Monetización (spec 7) le cuelgan el desglose.
+- **Los huecos de descripción/carta/novedad** están previstos en el layout; el botón "¿Sos el
+  dueño?" quedó fuera de v1 a propósito (sin flujo detrás sería promesa vacía).
+- **Riesgo abierto (FICHA-03):** el matching a ciegas puede pegarle a un local vecino de la
+  misma marca dentro de los 300 m. Riesgo aceptado; medir la tasa con un spot-check de ~10
+  fichas antes de tocar el radio. Ver BACKLOG y LECCIONES.

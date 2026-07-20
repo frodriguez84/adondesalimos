@@ -22,9 +22,24 @@ export type GoogleHorarios = {
 }
 
 /**
- * El bloque de Google que el endpoint devuelve al cliente (decisión 11). La foto
- * es F3 y no está acá todavía. Todo campo es opcional a nivel semántico: Google
- * puede no traer rating o horarios de un lugar, y la ficha degrada campo por campo.
+ * La foto de Google **ya resuelta** que viaja al cliente (F3, decisiones 5 y 15).
+ * Lleva la `uri` efímera de `googleusercontent` (no la API key ni el `photo name`,
+ * que quedan en el server) y el crédito obligatorio al autor. El acceso al
+ * original va por `googleMapsUri` del enriquecimiento, no acá.
+ */
+export type GoogleFoto = {
+  /** URL efímera de la imagen (googleusercontent). NO se persiste (ToS). */
+  uri: string
+  /** `authorAttributions[0].displayName`, o `null` si Google no lo trae. */
+  autorNombre: string | null
+  /** `authorAttributions[0].uri`: perfil del autor, para linkear el crédito. */
+  autorUri: string | null
+}
+
+/**
+ * El bloque de Google que el endpoint devuelve al cliente (decisiones 11 y 5).
+ * Todo campo es opcional a nivel semántico: Google puede no traer rating, horarios
+ * o foto de un lugar, y la ficha degrada campo por campo.
  */
 export type GoogleEnriquecimiento = {
   horarios: GoogleHorarios | null
@@ -33,4 +48,6 @@ export type GoogleEnriquecimiento = {
   /** Ya mapeado a `$..$$$$` (o `null`), no el enum crudo de Google. */
   priceLevel: string | null
   googleMapsUri: string | null
+  /** Foto de Google ya resuelta (F3), o `null` si no hay, no hubo cuota o falló. */
+  foto: GoogleFoto | null
 }

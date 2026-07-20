@@ -307,3 +307,42 @@ real `not_found` (la lógica ya la cubren los unit tests) y el spot-check de FIC
 así que —como el mapa de BUSQUEDA— vive fuera del alcance del checker read-only de `/qa-spec`.
 Esta QA en vivo es la fuente de verdad de esos criterios y **no se re-somete** a `/qa-spec` al
 cerrar el spec; el gate técnico (typecheck + tests) sí se reconfirma.
+
+## QA de fase — FICHA F3 (2026-07-20)
+
+**Alcance:** **Fase 3** — foto de Google (`skipHttpRedirect`), crédito al autor, link al
+original, logo de Google sobre los datos en vivo, y la prioridad dueño → Google
+end-to-end. F3 es la **última** fase ⇒ con su cierre se cierra el spec entero.
+
+**Veredicto de F3:** PASA (alcance F3).
+
+**Verificación técnica:** typecheck ✅ · tests ✅ **217/217** (13 nuevos de F3, casi todos
+sobre el camino del gasto de la foto) · **build ✅** (con el dev server parado; `/lugar/[id]` y
+`/api/lugar/[id]/google` salen dinámicos `ƒ`, `/robots.txt` estático). **Key con 0 ocurrencias
+en `.next/static` y `.next/server`** (se lee de `process.env` en runtime, nunca se inlinea) —
+FICHA-16 confirmado sobre el build.
+
+**QA en vivo (Playwright sobre ngrok, lugar real "Hard Rock Cafe" — Puerto Madero):**
+
+| ID | Caso | Resultado | Evidencia / Nota |
+|----|------|-----------|------------------|
+| FICHA-10 | Prioridad de foto (dueño → Google) | ✅ PASS | **Sin fotos de dueño**: se muestra la de Google y `google_api_usage.photos` sube (0→1). **Insertadas 2 filas en `place_photos`** + recarga: gana la foto de dueño, **desaparece** el overlay "foto: … · Google", y `photos` **NO se movió** (siguió en 1) — `details` sí subió (rating/horarios se siguen pidiendo). **Borradas las filas** + recarga: vuelve la de Google y `photos` **1→2**. Contador server-authoritative: el chequeo de foto de dueño es un `EXISTS` en `getPlaceForEnrichment`, no confía en el cliente |
+| FICHA-11 | Atribución (autor + original + logo) | ✅ PASS | Sobre la foto: **"foto: Átila"** (link al perfil del autor, `maps.google.com/maps/contrib/103341714860531924810`) **· "Google"** (link al original vía `googleMapsUri`, `?cid=2757154682678125256`). Junto a rating/horarios: el **logo "G" de Google** (SVG inline, 4 colores) linkeado a `/legales`. La línea de Google en `/legales` ya menciona horarios, calificaciones **y fotos** |
+| Costo — una sola foto | Decisión 14 | ✅ PASS | Un lugar con múltiples fotos en la respuesta de Details genera **exactamente 1** request de media (`parseFotoCandidata` toma `photos[0]`): tras la apertura `photos` subió de a **1**, no de a N. `maxWidthPx=1200` observado en la URL de `googleusercontent` (`…w1200`) |
+| Costo — un solo fetch | Decisión 16 | ✅ PASS | Panel de red: **una** llamada `GET /api/lugar/[id]/google` → 200 por apertura, y la imagen desde `lh3.googleusercontent.com/place-photos/…`. El shell cliente (foto + header como `children` + datos) hace **un** fetch, no dos Place Details |
+| Key no expuesta (foto) | Decisión 15 | ✅ PASS | La foto se sirve con `skipHttpRedirect=true`: el server recibe el `photoUri` efímero y lo pone en el `<img src>`. En el browser **no** hay request a `places.googleapis.com` (solo al endpoint propio y a `googleusercontent`); la key nunca sale. El `photo name` no viaja al cliente (`FotoCandidata` es server-only en `places.ts`) |
+
+**Cobertura por unit test (no en vivo, para no gastar de más):** tope de `photos` agotado ⇒
+sin foto pero ficha entera (200); tope en 0 apaga la foto sin tocar Google; media call que
+falla (null) ⇒ foto null y la ficha igual se muestra; se cuenta `photos` **antes** del media
+call (contar de más, no de menos) — todos en `enrichment.test.ts`. El field mask de Details
+sigue **exacto** (`places.test.ts`): `photos` ya estaba, F3 no suma campos.
+
+**Efectos colaterales de la QA (dejados a propósito):** Hard Rock quedó `matched` con
+`ChIJQZyCPP41o5URyKLVa5NhQyY` (match correcto y permanente) y los contadores del mes reflejan
+el uso real de la QA (`details: 7`, `photos: 2`). Las 2 filas de prueba en `place_photos` se
+**borraron**. Único error de consola: `favicon.ico` 404, preexistente y ajeno.
+
+**Nota de método (igual que F1/F2):** foto y datos son browser-only ⇒ fuera del alcance del
+checker read-only de `/qa-spec`. Esta QA en vivo es la fuente de verdad y **no se re-somete**
+a `/qa-spec` al cerrar; el gate técnico (typecheck + tests + build) sí se reconfirma.

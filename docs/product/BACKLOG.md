@@ -16,7 +16,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **Catálogo + import de Overture** — schema, tags semilla, `confidence`/`operating_status`, atribución → spec: `docs/specs/planned/CATALOGO.md` (escrito 2026-07-19; siembra 96 tags — suma corregida y confirmada por Fer)
 - [ ] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/planned/ZONAS.md` (escrito 2026-07-19)
 - [ ] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/planned/BUSQUEDA.md` (escrito 2026-07-19; 3 fases)
-- [~] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/active/FICHA.md`. **F1 (ficha propia) ✅ 2026-07-20 · F2 (Google en vivo) ✅ 2026-07-20**; F3 (foto/atribución) pendiente — la key ya está en `.env`; F3 necesita además una fila manual en `place_photos` para el camino dueño→Google
+- [x] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/done/FICHA.md`. **Las 3 fases cerradas ✅ 2026-07-20** (F1 ficha propia · F2 Google en vivo · F3 foto/atribución). [Resumen](../archive/SPECS_ARCHIVO.md#ficha)
 - [ ] **Auth + roles + reclamo de negocio**
 - [ ] **Votación en grupo**
 - [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
@@ -174,6 +174,17 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 4 — FICHA · Fase 3 + cierre del spec** (2026-07-20): foto de Google y atribución.
+      `parseFotoCandidata` (una sola foto) + `fetchFotoUri` (media endpoint con
+      `skipHttpRedirect=true` ⇒ `photoUri` efímero, la key nunca sale al browser) en
+      `lib/google/places.ts`; `enrichment.ts` con el paso de foto (**cuota `photos` antes del
+      media call**, y **foto de dueño ⇒ cero request a Google** vía `EXISTS` server-side en
+      `getPlaceForEnrichment`); `ficha-google.tsx` reescrito como **shell de un solo fetch**
+      (foto + header como `children` + datos ⇒ un único Place Details por apertura); crédito al
+      autor sobre la foto + link al original + **logo de Google** sobre los datos. QA de fase:
+      typecheck + **217 tests** + QA en vivo con Playwright (FICHA-10 prioridad de foto y
+      FICHA-11 atribución) — ver `docs/qa/AnalisisQA.md` § FICHA F3. **Las 3 fases cerradas ⇒
+      spec movido a `done/`.** Build final pendiente de correr con el dev server parado.
 - [x] **Spec 4 — FICHA · Fase 2** (2026-07-20): enriquecimiento en vivo de Google.
       `lib/google/places.ts` (módulo único, server-only, key solo ahí) con los field masks
       testeados (`places.id` en el resolver = $0; Enterprise sin Atmosphere en Details),

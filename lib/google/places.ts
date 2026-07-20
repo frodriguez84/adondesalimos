@@ -1,4 +1,4 @@
-import type { GoogleEnriquecimiento } from './types'
+import type { GoogleEnriquecimiento, GoogleFoto } from './types'
 
 /**
  * **El único módulo que habla con Google** (FICHA, decisión 18). La API key vive
@@ -21,6 +21,11 @@ if (typeof window !== 'undefined') {
 
 const TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText'
 const PLACE_DETAILS_BASE = 'https://places.googleapis.com/v1/places/'
+/** Base del media endpoint de Place Photos; se le pega el `photo name` completo. */
+const PLACE_PHOTO_BASE = 'https://places.googleapis.com/v1/'
+
+/** Ancho pedido de la foto: suficiente para el slot 4:3 de la ficha, sin excederse. */
+const PHOTO_MAX_WIDTH = 1200
 
 /** Timeout duro de las llamadas a Google (decisión 20): la ficha no espera más. */
 const TIMEOUT_MS = 2500
@@ -115,6 +120,8 @@ export function mapPriceLevel(priceLevel: unknown): string | null {
 
 /** Lo que la ficha usa de la respuesta de Place Details; el resto se ignora. */
 type RawOpeningHours = { openNow?: unknown; weekdayDescriptions?: unknown }
+type RawAuthorAttribution = { displayName?: unknown; uri?: unknown }
+type RawPhoto = { name?: unknown; authorAttributions?: unknown }
 type RawPlaceDetails = {
   regularOpeningHours?: RawOpeningHours
   currentOpeningHours?: RawOpeningHours
@@ -122,6 +129,29 @@ type RawPlaceDetails = {
   userRatingCount?: unknown
   priceLevel?: unknown
   googleMapsUri?: unknown
+  photos?: unknown
+}
+
+/**
+ * La foto que Place Details ofrece, **antes** de resolver la uri efímera (F3). Lleva
+ * el `photo name` de Google, que es server-only: nunca se persiste ni se expone al
+ * cliente (decisión 15). Vive acá, no en `types.ts`, justamente por eso.
+ */
+export type FotoCandidata = {
+  name: string
+  autorNombre: string | null
+  autorUri: string | null
+}
+
+/**
+ * Lo que `fetchPlaceDetails` devuelve de una sola request Enterprise: el DTO en vivo
+ * y —aparte— la foto candidata con su `name`. Se separan porque la foto exige un
+ * segundo call (el media endpoint) que decide `enrichment` según cuota y foto de
+ * dueño; y porque el `name` no debe filtrarse al cliente.
+ */
+export type DetailsResult = {
+  enriquecimiento: GoogleEnriquecimiento
+  fotoCandidata: FotoCandidata | null
 }
 
 function stringArray(value: unknown): string[] {
@@ -131,7 +161,8 @@ function stringArray(value: unknown): string[] {
 /**
  * Respuesta cruda de Place Details → DTO propio (decisión 11). Puro: se testea con
  * un JSON de ejemplo, sin red. Degrada campo por campo — un lugar sin rating o sin
- * horarios devuelve esos campos en `null`/vacío, nunca rompe.
+ * horarios devuelve esos campos en `null`/vacío, nunca rompe. La foto queda en
+ * `null`: la resuelve `enrichment` con un call aparte (ver `parseFotoCandidata`).
  */
 export function parseDetails(raw: RawPlaceDetails): GoogleEnriquecimiento {
   const cur = raw.currentOpeningHours
@@ -153,6 +184,26 @@ export function parseDetails(raw: RawPlaceDetails): GoogleEnriquecimiento {
     userRatingCount: typeof raw.userRatingCount === 'number' ? raw.userRatingCount : null,
     priceLevel: mapPriceLevel(raw.priceLevel),
     googleMapsUri: typeof raw.googleMapsUri === 'string' ? raw.googleMapsUri : null,
+    foto: null,
+  }
+}
+
+/**
+ * De la respuesta de Details saca **la primera** foto y su crédito (decisión 14: una
+ * sola foto por ficha). Puro. `null` si el lugar no trae fotos. El `name` que
+ * devuelve es el que consume el media endpoint; no sale de acá hacia el cliente.
+ */
+export function parseFotoCandidata(raw: RawPlaceDetails): FotoCandidata | null {
+  const photos = raw.photos
+  if (!Array.isArray(photos) || photos.length === 0) return null
+  const first = photos[0] as RawPhoto | undefined
+  if (!first || typeof first.name !== 'string' || first.name.length === 0) return null
+  const attrs = first.authorAttributions
+  const attr = (Array.isArray(attrs) ? attrs[0] : undefined) as RawAuthorAttribution | undefined
+  return {
+    name: first.name,
+    autorNombre: typeof attr?.displayName === 'string' ? attr.displayName : null,
+    autorUri: typeof attr?.uri === 'string' ? attr.uri : null,
   }
 }
 
@@ -205,10 +256,12 @@ export async function resolvePlaceId(input: MatchInput): Promise<string | null> 
 
 /**
  * Trae el bloque en vivo de un lugar por Place Details Enterprise (decisión 11).
- * `null` si falla, tarda o no hay key: el endpoint lo traduce a "sin datos" (204) y
- * la ficha muestra el mensaje honesto. La foto es F3 (no se pide acá todavía).
+ * Una sola request paga por ficha: de ella salen tanto el DTO como la foto candidata
+ * (su `name` viene gratis en el mismo `photos` del field mask). `null` si falla,
+ * tarda o no hay key: el endpoint lo traduce a "sin datos" (204) y la ficha muestra
+ * el mensaje honesto. La uri de la foto se resuelve aparte con `fetchFotoUri`.
  */
-export async function fetchPlaceDetails(placeId: string): Promise<GoogleEnriquecimiento | null> {
+export async function fetchPlaceDetails(placeId: string): Promise<DetailsResult | null> {
   const key = apiKey()
   if (!key) return null
 
@@ -224,5 +277,36 @@ export async function fetchPlaceDetails(placeId: string): Promise<GoogleEnriquec
 
   const json = (await res.json().catch(() => null)) as RawPlaceDetails | null
   if (!json) return null
-  return parseDetails(json)
+  return { enriquecimiento: parseDetails(json), fotoCandidata: parseFotoCandidata(json) }
+}
+
+/**
+ * Resuelve la uri efímera de una foto de Google por el media endpoint (F3,
+ * decisiones 14 y 15). Con `skipHttpRedirect=true` Google devuelve un JSON con el
+ * `photoUri` de `googleusercontent` en vez de redirigir a los bytes: así la API key
+ * **nunca** llega al browser (la pide el server) y no hace falta un proxy de
+ * imágenes propio. Cada llamada es **un evento facturable** del SKU Photos, el mayor
+ * multiplicador de costo de la app — por eso `enrichment` la protege con cuota y solo
+ * la dispara si no hay foto de dueño. `null` si falla o no hay key: la ficha degrada.
+ */
+export async function fetchFotoUri(candidata: FotoCandidata): Promise<GoogleFoto | null> {
+  const key = apiKey()
+  if (!key) return null
+
+  // El `name` (`places/.../photos/...`) son segmentos de ruta: se pega tal cual, sin
+  // encodear las barras. Viene de la respuesta de Google, no del usuario.
+  const url =
+    `${PLACE_PHOTO_BASE}${candidata.name}/media` +
+    `?maxWidthPx=${PHOTO_MAX_WIDTH}&skipHttpRedirect=true`
+  const res = await fetchConTimeout(url, {
+    method: 'GET',
+    headers: { 'X-Goog-Api-Key': key },
+  })
+  if (!res || !res.ok) return null
+
+  const json = (await res.json().catch(() => null)) as { photoUri?: unknown } | null
+  const uri = json?.photoUri
+  if (typeof uri !== 'string' || uri.length === 0) return null
+
+  return { uri, autorNombre: candidata.autorNombre, autorUri: candidata.autorUri }
 }

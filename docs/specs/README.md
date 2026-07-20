@@ -19,9 +19,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-| Spec | Gate / nota |
-|------|----------------|
-| [FICHA](active/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; **primer uso de Google en vivo** (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). Depende de CATALOGO, ZONAS y BUSQUEDA; bloquea Auth/reclamo. F1 (ficha propia) en implementación |
+_(ninguno — el próximo a implementar sale del BACKLOG o de `planned/`)_
 
 ## 🔵 Planned (`planned/`)
 
@@ -34,3 +32,4 @@ _(ninguno — el próximo a diseñar sale del BACKLOG)_
 | [CATALOGO](done/CATALOGO.md) | Spec 1 — catálogo, taxonomía e import de Overture. [Resumen](../archive/SPECS_ARCHIVO.md#catalogo) · ✅ 2026-07-20 |
 | [ZONAS](done/ZONAS.md) | Spec 2 — 46 zonas de AMBA (GeoJSON versionados, sin PostGIS), primaria + buffer 400 m. [Resumen](../archive/SPECS_ARCHIVO.md#zonas) · ✅ 2026-07-20 |
 | [BUSQUEDA](done/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). [Resumen](../archive/SPECS_ARCHIVO.md#busqueda) · ✅ 2026-07-20 |
+| [FICHA](done/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; primer uso de Google en vivo (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). [Resumen](../archive/SPECS_ARCHIVO.md#ficha) · ✅ 2026-07-20 |

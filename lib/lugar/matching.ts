@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
-import { places } from '@/lib/db/schema'
+import { placePhotos, places } from '@/lib/db/schema'
 import { isPlacePublished } from '@/lib/db/visibility'
 import type { GoogleMatchStatus } from '@/lib/db/schema'
 import type { PlaceEnrichment } from './enrichment'
@@ -60,6 +60,16 @@ export async function getPlaceForEnrichment(id: string): Promise<PlaceEnrichment
   )
   if (!publicado) return null
 
+  // ¿Hay al menos una foto de dueño? Decide la prioridad de la foto (decisión 3):
+  // si la hay, el enriquecimiento NO pide foto a Google (FICHA-10). Se resuelve en
+  // el server —no se confía en el cliente— y recién después de la visibilidad, para
+  // no consultar en un lugar oculto. Existencia, no las fotos: `limit(1)`.
+  const [fotoDueno] = await db
+    .select({ id: placePhotos.id })
+    .from(placePhotos)
+    .where(eq(placePhotos.placeId, id))
+    .limit(1)
+
   return {
     id: place.id,
     name: place.name,
@@ -70,6 +80,7 @@ export async function getPlaceForEnrichment(id: string): Promise<PlaceEnrichment
     googlePlaceId: place.googlePlaceId,
     googleMatchStatus: place.googleMatchStatus,
     googleMatchedAt: place.googleMatchedAt,
+    tieneFotoDueno: Boolean(fotoDueno),
   }
 }
 

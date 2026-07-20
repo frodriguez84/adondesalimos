@@ -6,13 +6,14 @@ import {
   type EnrichmentDeps,
   type PlaceEnrichment,
 } from '../enrichment'
-import type { GoogleEnriquecimiento } from '@/lib/google/types'
+import type { GoogleEnriquecimiento, GoogleFoto } from '@/lib/google/types'
+import type { DetailsResult, FotoCandidata } from '@/lib/google/places'
 
 /**
  * El camino del gasto (FICHA, § Camino de la request). Puro e inyectable: se
- * verifica sin red ni DB que **ningún camino sin datos llama a Google** y que el
- * tope de cuota corta ANTES de disparar Place Details. Es la prueba de que $0 no
- * se vuelve factura.
+ * verifica sin red ni DB que **ningún camino sin datos llama a Google** y que los
+ * topes de cuota cortan ANTES de disparar Place Details y la foto. Es la prueba de
+ * que $0 no se vuelve factura.
  */
 
 const DETALLE: GoogleEnriquecimiento = {
@@ -21,6 +22,24 @@ const DETALLE: GoogleEnriquecimiento = {
   userRatingCount: 128,
   priceLevel: '$$',
   googleMapsUri: 'https://maps.google.com/?cid=1',
+  foto: null,
+}
+
+const CANDIDATA: FotoCandidata = {
+  name: 'places/ChIJx/photos/abc',
+  autorNombre: 'Juana Pérez',
+  autorUri: 'https://maps.google.com/juana',
+}
+
+const FOTO: GoogleFoto = {
+  uri: 'https://lh3.googleusercontent.com/efimera',
+  autorNombre: 'Juana Pérez',
+  autorUri: 'https://maps.google.com/juana',
+}
+
+/** Resultado de Details con foto candidata (o sin, con `null`). */
+function detalle(fotoCandidata: FotoCandidata | null = null): DetailsResult {
+  return { enriquecimiento: DETALLE, fotoCandidata }
 }
 
 function lugar(over: Partial<PlaceEnrichment> = {}): PlaceEnrichment {
@@ -34,6 +53,7 @@ function lugar(over: Partial<PlaceEnrichment> = {}): PlaceEnrichment {
     googlePlaceId: null,
     googleMatchStatus: 'pending',
     googleMatchedAt: null,
+    tieneFotoDueno: false,
     ...over,
   }
 }
@@ -44,9 +64,11 @@ function deps(over: Partial<EnrichmentDeps> = {}): EnrichmentDeps {
     place: lugar(),
     retryDays: 30,
     detailsCap: 5000,
+    photosCap: 5000,
     ahora: new Date('2026-07-20T12:00:00Z'),
     resolvePlaceId: vi.fn(async () => 'ChIJnuevo'),
-    fetchDetails: vi.fn(async () => DETALLE),
+    fetchDetails: vi.fn(async () => detalle()),
+    fetchFoto: vi.fn(async () => FOTO),
     contarUso: vi.fn(async () => 0),
     incrementarUso: vi.fn(async () => {}),
     persistMatch: vi.fn(async () => {}),
@@ -182,7 +204,7 @@ describe('resolverEnriquecimiento — ningún camino sin datos gasta', () => {
       }),
       fetchDetails: vi.fn(async () => {
         orden.push('fetch')
-        return DETALLE
+        return detalle()
       }),
     })
     const res = await resolverEnriquecimiento(d)
@@ -198,5 +220,90 @@ describe('resolverEnriquecimiento — ningún camino sin datos gasta', () => {
     const res = await resolverEnriquecimiento(d)
     expect(res.status).toBe(204)
     expect(d.incrementarUso).toHaveBeenCalledOnce()
+  })
+})
+
+describe('resolverEnriquecimiento — foto de Google (F3, el SKU más caro)', () => {
+  /** Un lugar ya matcheado con foto candidata en la respuesta de Details. */
+  function conFoto(over: Partial<EnrichmentDeps> = {}): EnrichmentDeps {
+    return deps({
+      place: lugar({ googleMatchStatus: 'matched', googlePlaceId: 'ChIJx' }),
+      fetchDetails: vi.fn(async () => detalle(CANDIDATA)),
+      ...over,
+    })
+  }
+
+  it('sin foto de dueño + candidata + cuota ⇒ 1 sola media call y la foto en el DTO', async () => {
+    const d = conFoto()
+    const res = await resolverEnriquecimiento(d)
+    expect(res.status).toBe(200)
+    if (res.status !== 200) return
+    expect(res.data.foto).toEqual(FOTO)
+    expect(d.fetchFoto).toHaveBeenCalledOnce()
+    expect(d.fetchFoto).toHaveBeenCalledWith(CANDIDATA)
+    expect(d.incrementarUso).toHaveBeenCalledWith('photos')
+  })
+
+  it('foto de dueño presente ⇒ NI se cuenta NI se pide foto a Google (FICHA-10)', async () => {
+    const d = conFoto({ place: lugar({ googleMatchStatus: 'matched', googlePlaceId: 'ChIJx', tieneFotoDueno: true }) })
+    const res = await resolverEnriquecimiento(d)
+    expect(res.status).toBe(200)
+    if (res.status !== 200) return
+    expect(res.data.foto).toBeNull()
+    expect(d.fetchFoto).not.toHaveBeenCalled()
+    expect(d.contarUso).not.toHaveBeenCalledWith('photos')
+    expect(d.incrementarUso).not.toHaveBeenCalledWith('photos')
+  })
+
+  it('Details sin fotos (candidata null) ⇒ sin media call, el contador no se mueve', async () => {
+    const d = conFoto({ fetchDetails: vi.fn(async () => detalle(null)) })
+    const res = await resolverEnriquecimiento(d)
+    expect(res.status).toBe(200)
+    if (res.status !== 200) return
+    expect(res.data.foto).toBeNull()
+    expect(d.fetchFoto).not.toHaveBeenCalled()
+    expect(d.incrementarUso).not.toHaveBeenCalledWith('photos')
+  })
+
+  it('tope de photos agotado ⇒ sin foto, PERO la ficha sigue con rating/horarios (200)', async () => {
+    const d = conFoto({ photosCap: 100, contarUso: vi.fn(async (sku) => (sku === 'photos' ? 100 : 0)) })
+    const res = await resolverEnriquecimiento(d)
+    expect(res.status).toBe(200)
+    if (res.status !== 200) return
+    expect(res.data.foto).toBeNull()
+    expect(res.data.rating).toBe(4.3) // el resto del enriquecimiento intacto
+    expect(d.fetchFoto).not.toHaveBeenCalled()
+    expect(d.incrementarUso).not.toHaveBeenCalledWith('photos')
+  })
+
+  it('tope de photos en 0 apaga la foto sin tocar Google (decisión 19)', async () => {
+    const d = conFoto({ photosCap: 0, contarUso: vi.fn(async () => 0) })
+    const res = await resolverEnriquecimiento(d)
+    expect(res.status).toBe(200)
+    expect(d.fetchFoto).not.toHaveBeenCalled()
+  })
+
+  it('cuenta photos ANTES del media call (contar de más, no de menos)', async () => {
+    const orden: string[] = []
+    const d = conFoto({
+      incrementarUso: vi.fn(async (sku) => {
+        if (sku === 'photos') orden.push('incrementar-photos')
+      }),
+      fetchFoto: vi.fn(async () => {
+        orden.push('media-call')
+        return FOTO
+      }),
+    })
+    await resolverEnriquecimiento(d)
+    expect(orden).toEqual(['incrementar-photos', 'media-call'])
+  })
+
+  it('media call que falla (null) ⇒ foto null, la ficha igual se muestra (200)', async () => {
+    const d = conFoto({ fetchFoto: vi.fn(async () => null) })
+    const res = await resolverEnriquecimiento(d)
+    expect(res.status).toBe(200)
+    if (res.status !== 200) return
+    expect(res.data.foto).toBeNull()
+    expect(d.incrementarUso).toHaveBeenCalledWith('photos') // ya se contó (dec. 19)
   })
 })

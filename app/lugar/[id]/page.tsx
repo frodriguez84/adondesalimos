@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { after } from 'next/server'
-import { Clock, Globe, Image as ImageIcon, MapPin, Navigation, Phone } from 'lucide-react'
+import { Clock, Globe, MapPin, Navigation, Phone } from 'lucide-react'
 
 import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils'
 import {
   clasificarRed,
   comoLlegarUrl,
-  fotoPrincipal,
   precioDeTags,
   queEncontras,
   type FichaTag,
@@ -88,7 +87,6 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
   const precio = precioDeTags(place.tags)
   const ubicacion = ubicacionDeCard(place)
   const encontras = queEncontras(place.tags)
-  const foto = fotoPrincipal({ ownerPhotos: place.ownerPhotos })
   const comoLlegar = comoLlegarUrl(place)
   const telefono = place.phones[0] ?? null
   const web = place.websites[0] ?? null
@@ -97,50 +95,43 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 pb-28 pt-4">
       <FichaActions nombre={place.name} />
 
-      {/* Foto: dueño → placeholder (Google se suma en F3). Nunca un hueco roto. */}
-      <div className="overflow-hidden rounded-xl border border-border bg-secondary">
-        {foto ? (
-          // eslint-disable-next-line @next/next/no-img-element -- foto de dueño servida por URL propia; el proxy/optimización es del spec de reclamo
-          <img
-            src={foto.url}
-            alt={place.name}
-            className="aspect-[4/3] w-full object-cover"
-          />
-        ) : (
-          <div className="flex aspect-[4/3] w-full items-center justify-center text-muted-foreground">
-            <ImageIcon className="size-10" />
-          </div>
-        )}
-      </div>
+      {/* Google en vivo (F2/F3): el shell cliente envuelve la foto (arriba), el
+          encabezado (acá como children, server-rendered) y el bloque de rating/
+          horarios (abajo). Un solo fetch a /api/lugar/[id]/google para los tres
+          (decisión 16): la foto y los datos vienen de la misma request paga. La foto
+          respeta la prioridad dueño → Google → placeholder (decisión 3); el bloque de
+          datos colapsa al mensaje honesto si Google no llega. Si el lugar no tiene
+          precio propio, muestra el priceLevel de Google (decisión 21). */}
+      <FichaGoogle
+        placeId={place.id}
+        tienePrecioPropio={precio !== null}
+        fotoDueno={place.ownerPhotos[0] ?? null}
+        nombre={place.name}
+      >
+        {/* Encabezado: nombre, tipo/cocina, zona · precio */}
+        <header className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold leading-tight text-foreground">{place.name}</h1>
 
-      {/* Encabezado: nombre, tipo/cocina, zona · precio */}
-      <header className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold leading-tight text-foreground">{place.name}</h1>
+          {encabezado.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {encabezado.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-secondary-foreground"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
 
-        {encabezado.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {encabezado.map((t) => (
-              <span
-                key={t}
-                className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-secondary-foreground"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {(ubicacion || precio) && (
-          <p className="text-sm text-muted-foreground">
-            {[ubicacion, precio].filter(Boolean).join(' · ')}
-          </p>
-        )}
-      </header>
-
-      {/* Google en vivo (F2): rating, abierto/cerrado, horarios. Se monta desde el
-          cliente (decisión 16) y colapsa al mensaje honesto si no llega. Si el lugar
-          no tiene precio propio, el bloque muestra el priceLevel de Google (dec. 21). */}
-      <FichaGoogle placeId={place.id} tienePrecioPropio={precio !== null} />
+          {(ubicacion || precio) && (
+            <p className="text-sm text-muted-foreground">
+              {[ubicacion, precio].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </header>
+      </FichaGoogle>
 
       {/* Contacto propio (Overture): dirección, teléfono, sitio, redes */}
       <section className="flex flex-col gap-2 text-sm">

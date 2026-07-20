@@ -1,6 +1,6 @@
 import type { GoogleMatchStatus } from '@/lib/db/schema'
-import type { GoogleEnriquecimiento, GoogleSku } from '@/lib/google/types'
-import type { MatchInput } from '@/lib/google/places'
+import type { GoogleEnriquecimiento, GoogleFoto, GoogleSku } from '@/lib/google/types'
+import type { DetailsResult, FotoCandidata, MatchInput } from '@/lib/google/places'
 
 /**
  * Orquestación del enriquecimiento en vivo (FICHA, § Camino de la request). **Pura
@@ -25,6 +25,8 @@ export type PlaceEnrichment = {
   googlePlaceId: string | null
   googleMatchStatus: GoogleMatchStatus
   googleMatchedAt: Date | null
+  /** ¿El lugar ya tiene fotos de dueño? Si sí, NO se pide foto a Google (dec. 3). */
+  tieneFotoDueno: boolean
 }
 
 /** `204` = no hay enriquecimiento (el cliente no distingue falla de ausencia). */
@@ -86,9 +88,11 @@ export type EnrichmentDeps = {
   place: PlaceEnrichment
   retryDays: number
   detailsCap: number
+  photosCap: number
   ahora: Date
   resolvePlaceId: (input: MatchInput) => Promise<string | null>
-  fetchDetails: (placeId: string) => Promise<GoogleEnriquecimiento | null>
+  fetchDetails: (placeId: string) => Promise<DetailsResult | null>
+  fetchFoto: (candidata: FotoCandidata) => Promise<GoogleFoto | null>
   contarUso: (sku: GoogleSku) => Promise<number>
   incrementarUso: (sku: GoogleSku) => Promise<void>
   persistMatch: (id: string, googlePlaceId: string) => Promise<void>
@@ -141,8 +145,37 @@ export async function resolverEnriquecimiento(
   // facturarse aunque después falle. Contar de más es más seguro que de menos.
   await deps.incrementarUso('details')
 
-  const data = await deps.fetchDetails(placeId)
-  if (!data) return SIN_DATOS // timeout, red caída o key inválida (decisión 20).
+  const detalle = await deps.fetchDetails(placeId)
+  if (!detalle) return SIN_DATOS // timeout, red caída o key inválida (decisión 20).
+
+  const foto = await resolverFoto(deps, detalle.fotoCandidata)
+  const data: GoogleEnriquecimiento = foto
+    ? { ...detalle.enriquecimiento, foto }
+    : detalle.enriquecimiento
 
   return { status: 200, data }
+}
+
+/**
+ * Paso de foto de Google (F3, decisiones 3, 14 y 19). El más caro de la app: cada
+ * media call es un evento del SKU Photos ($7/1.000, solo 1.000 gratis). Por eso:
+ * - **Foto de dueño presente ⇒ ni se mira Google** (dec. 3): el contador `photos`
+ *   no se mueve y no hay request (FICHA-10).
+ * - Sin candidata (el lugar no tiene fotos en Google) ⇒ nada que pedir.
+ * - **Tope de `photos` superado ⇒ sin foto** (dec. 19), la ficha sigue con el resto.
+ * - Se cuenta ANTES del media call, mismo criterio que Details.
+ * `null` en cualquier corte: la ficha degrada sin foto, nunca rompe.
+ */
+async function resolverFoto(
+  deps: EnrichmentDeps,
+  candidata: FotoCandidata | null,
+): Promise<GoogleFoto | null> {
+  if (deps.place.tieneFotoDueno) return null
+  if (!candidata) return null
+
+  const usados = await deps.contarUso('photos')
+  if (usados >= deps.photosCap) return null
+
+  await deps.incrementarUso('photos')
+  return deps.fetchFoto(candidata)
 }
