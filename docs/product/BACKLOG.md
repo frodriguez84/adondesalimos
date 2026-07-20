@@ -15,7 +15,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **Paso 0 — scaffold de Next.js** (no es un spec; hoy no hay `package.json`)
 - [ ] **Catálogo + import de Overture** — schema, tags semilla, `confidence`/`operating_status`, atribución → spec: `docs/specs/planned/CATALOGO.md` (escrito 2026-07-19; siembra 96 tags — suma corregida y confirmada por Fer)
 - [ ] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/planned/ZONAS.md` (escrito 2026-07-19)
-- [ ] **Búsqueda + filtros**
+- [ ] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/planned/BUSQUEDA.md` (escrito 2026-07-19; 3 fases)
 - [ ] **Ficha** — primer uso de Google en vivo
 - [ ] **Auth + roles + reclamo de negocio**
 - [ ] **Votación en grupo**
@@ -23,6 +23,9 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
+      el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
+      cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).
 - [ ] **Favoritos / listas guardadas** — free: 1 lista ("Mis lugares") · premium: listas
       múltiples con nombre. Decidido fuera de v1 el 2026-07-19 (tanda 5) para no agrandar
       el alcance. Ver `docs/product/IDEAS.md` § Monetización.

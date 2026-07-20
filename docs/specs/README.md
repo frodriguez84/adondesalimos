@@ -29,6 +29,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 |------|----------------|
 | [CATALOGO](planned/CATALOGO.md) | Spec 1 — catálogo + import de Overture. Diseño completo; bloquea Zonas, Búsqueda, Ficha y Auth/reclamo |
 | [ZONAS](planned/ZONAS.md) | Spec 2 — 46 zonas de AMBA (GeoJSON versionados, sin PostGIS), primaria + buffer 400 m. Depende de CATALOGO; bloquea Búsqueda |
+| [BUSQUEDA](planned/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). Depende de CATALOGO y ZONAS; bloquea Ficha, Votación y Monetización |
 
 ## ⚫ Done (`done/`)
 

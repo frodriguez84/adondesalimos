@@ -855,8 +855,15 @@ Primera sesión post-volcado (Fable). Dos entregas:
   S 9; los "~19/~44" de este archivo eran aproximados), GeoJSON versionados en
   `data/zones/`, **sin PostGIS en v1** (asignación precomputada con turf.js, buffer 400 m
   materializado), fuente del conurbano estatal o dibujo manual — **nunca OSM** (ODbL).
-- 📌 Paso 0 y spec 1 commiteados (`73e103c`, `fd7b882`). Próximo paso: implementar
-  CATALOGO (sesión Opus) o escribir el spec 3 (Búsqueda) — uno por vez.
+- ✅ **Spec 3 escrito en la misma sesión**: `docs/specs/planned/BUSQUEDA.md` — home=search
+  con URL como estado (deep links compartibles), semántica OR-dentro/AND-entre facetas,
+  texto con `unaccent`+`pg_trgm`, GPS radio fijo 2 km sin PostGIS, **chips de Ocasión en
+  DB** con seed de los 9 (curaduría editable sin deploy), mapa MapLibre+OpenFreeMap,
+  impresiones agregadas por día desde el día 1 (el histórico vende el B2B), y **"Abierto
+  ahora" fuera de v1** (sin horarios en el catálogo sería mentir — a BACKLOG). En 3 fases.
+  Cierra además el diseño de la home (era el 💡 "UI propuesta sin cerrar" de la tanda 3).
+- 📌 Paso 0 y specs 1-2 commiteados (`73e103c`, `fd7b882`, `f44e7e1`). Próximo paso:
+  implementar CATALOGO (sesión Opus) o escribir el spec 4 (Ficha) — uno por vez.
 
 ### Tanda 5 — cerrada (2026-07-19) · EL VOLCADO DE PRODUCTO ESTÁ COMPLETO
 
