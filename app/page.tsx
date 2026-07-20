@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { SearchInput } from '@/components/ui/search-input'
 import { FilterChip } from '@/components/ui/filter-chip'
 import { PlaceCard } from '@/components/shared/place-card'
@@ -28,6 +29,13 @@ export default function Home() {
         zone="Palermo, CABA"
         rating={4.6}
       />
+
+      <footer className="mt-auto pt-4 text-xs text-muted-foreground">
+        Datos de{' '}
+        <Link href="/legales" className="underline underline-offset-4">
+          Overture Maps y Google
+        </Link>
+      </footer>
     </main>
   )
 }

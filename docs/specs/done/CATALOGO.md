@@ -1,6 +1,6 @@
 # Spec: Catálogo + import de Overture
 
-**Estado:** 🔵 Planned — diseño completo, listo para implementar
+**Estado:** ✅ Implementado (2026-07-20)
 **Prioridad:** Alta — es el spec 1: búsqueda, zonas, ficha y reclamo de dueño leen todos de acá
 **Gate:** Ninguno (requiere el scaffold del paso 0 ya creado)
 **Bloquea:** Zonas · Búsqueda + filtros · Ficha · Auth/reclamo de negocio

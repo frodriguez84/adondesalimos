@@ -46,6 +46,17 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
 
+- [ ] **`operating_status` no filtra nada todavía** — Overture entrega el campo NULL en el
+      100% de los 26.057 lugares de AMBA, y el import los persiste como `'open'`. El filtro
+      está implementado y testeado, pero hoy no descarta a nadie. Búsqueda **no debe asumir**
+      que ya oculta lugares cerrados; revisar cuando Overture empiece a poblarlo o cuando
+      entren lugares de dueño (spec 5). Ver `docs/qa/AnalisisQA.md` § CATALOGO, hallazgo H-2.
+- [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
+      quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
+      query, probarla es gratis.
+
 ## Hecho
 
-_(vacío)_
+- [x] **Spec 1 — CATALOGO** (2026-07-20): schema del catálogo, taxonomía de 105 tags,
+      import de Overture (26.057 lugares), helper de visibilidad y `/legales`.
+      QA APROBADO — ver [SPECS_ARCHIVO](../archive/SPECS_ARCHIVO.md#catalogo).

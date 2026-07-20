@@ -22,3 +22,9 @@ export const db = drizzle(client, { schema })
 
 // Tipo compartido para funciones que aceptan tanto db como el argumento de transacción de Drizzle.
 export type DbOrTx = typeof db | Parameters<Parameters<typeof db['transaction']>[0]>[0]
+
+// Superficie pública del catálogo: la regla de visibilidad y los settings que la
+// alimentan se consumen desde `@/lib/db`, no reimplementando la regla en cada query.
+export * from './schema'
+export * from './visibility'
+export * from './settings'
