@@ -16,7 +16,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **Catálogo + import de Overture** — schema, tags semilla, `confidence`/`operating_status`, atribución → spec: `docs/specs/planned/CATALOGO.md` (escrito 2026-07-19; siembra 96 tags — suma corregida y confirmada por Fer)
 - [ ] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/planned/ZONAS.md` (escrito 2026-07-19)
 - [ ] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/planned/BUSQUEDA.md` (escrito 2026-07-19; 3 fases)
-- [~] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/active/FICHA.md`. **F1 (ficha propia) ✅ 2026-07-20**; F2 (Google en vivo) y F3 (foto/atribución) pendientes — requieren `GOOGLE_PLACES_API_KEY` (ya cargada en `.env`)
+- [~] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/active/FICHA.md`. **F1 (ficha propia) ✅ 2026-07-20 · F2 (Google en vivo) ✅ 2026-07-20**; F3 (foto/atribución) pendiente — la key ya está en `.env`; F3 necesita además una fila manual en `place_photos` para el camino dueño→Google
 - [ ] **Auth + roles + reclamo de negocio**
 - [ ] **Votación en grupo**
 - [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
@@ -45,6 +45,28 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Un `/lugar/nombre-zona-xxxx` ayuda al descubrimiento orgánico.
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
+- [ ] **Medir la tasa de falsos positivos del matching a ciegas** (FICHA F2, 2026-07-20).
+      Primer caso real: "Club Milanesa @ Av. Libertador 3883" matcheó a "El Club de la Milanesa
+      – Paseo de la Infanta" (~160 m, misma marca), mientras esa dirección exacta en Google es
+      "Williamsburg Infanta". Es el riesgo que la **decisión 8** aceptó (IDs-Only $0 ⇒ sin nombre
+      ni distancia para comparar; salvaguardas solo de entrada, ±300 m). **Riesgo aceptado por
+      Fer (2026-07-20): no se toca nada del código por ahora.** Antes de decidir si se achica el
+      radio, hacer el spot-check de FICHA-03 (10 fichas) para saber si la tasa es 1% o 20%.
+      Opciones si molesta: radio menor (pierde matches con pin corrido), Text Search Pro para
+      verificar nombre/distancia (rompe el modelo $0, $32/1.000), o corrección manual
+      (`google_match_status='blocked'|'manual'`, la red actual). Ver `docs/qa/AnalisisQA.md`
+      § FICHA F2 (FICHA-03) y `docs/operations/LECCIONES_APRENDIDAS.md`.
+- [ ] **Nombres imperfectos de Overture en la ficha** (FICHA F2, 2026-07-20). La ficha muestra
+      "Club Milanesa" y el nombre real es "El Club de la Milanesa". El nombre sale **siempre de
+      Overture, nunca de Google** — por ToS (no se persiste el nombre de Google), costo
+      (`displayName` es tier Pro, ni se pide) y diseño (decisión 13). Se corrige con curaduría
+      o con el reclamo del dueño (spec 5), no trayendo el nombre de Google. Calidad de dato de
+      origen, no bug.
+- [ ] **Horario de cierre del día en la ficha ("cierra 0:30")** (FICHA F2, 2026-07-20). El
+      bloque de Google muestra abierto/cerrado (`openNow`) + la semana completa
+      (`weekdayDescriptions`), no la hora de cierre de hoy que dibuja el mockup. Derivarla
+      exige la zona horaria del lugar y parsear `periods`/`nextCloseTime` — no entró en F2
+      porque `openNow` + la semana ya cumplen el criterio FICHA-07. Cosmético.
 - [ ] **Íconos de marca en las redes de la ficha** (FICHA F1, 2026-07-20). Las redes se
       muestran como chips de texto ("Instagram", "Facebook", "X", "TikTok") porque
       `lucide-react` removió los íconos de marca. Cuando se quiera el ícono, traerlos como
@@ -140,6 +162,17 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 4 — FICHA · Fase 2** (2026-07-20): enriquecimiento en vivo de Google.
+      `lib/google/places.ts` (módulo único, server-only, key solo ahí) con los field masks
+      testeados (`places.id` en el resolver = $0; Enterprise sin Atmosphere en Details),
+      `lib/google/usage.ts` (contadores por SKU con tope editable en `app_settings`),
+      `lib/lugar/enrichment.ts` (orquestación **pura** del gasto: estados de match, reintento,
+      corte por cuota antes de llamar), `GET /api/lugar/[id]/google` (rate limit propio, 204
+      en todo camino sin datos, se pide desde el cliente) y `app/robots.ts` bloqueando `/api/`.
+      QA de fase: typecheck + 204 tests + `npm run build` verde (key con 0 ocurrencias en
+      `.next/static`) + QA en vivo con Playwright — ver `docs/qa/AnalisisQA.md` § FICHA F2.
+      **F3 pendiente** (spec sigue en `active/`). La QA en vivo dejó un miss de matching
+      documentado (FICHA-03, riesgo aceptado por Fer).
 - [x] **Spec 4 — FICHA · Fase 1** (2026-07-20): `/lugar/[id]` renderiza la ficha completa
       con datos propios (Overture + ZONAS), **sin ninguna llamada a Google** — cierra el 404
       al tocar una card. Migración 0003 con el modelo de datos completo del spec

@@ -5,6 +5,7 @@ import { after } from 'next/server'
 import { Clock, Globe, Image as ImageIcon, MapPin, Navigation, Phone } from 'lucide-react'
 
 import { FichaActions } from '@/components/lugar/ficha-actions'
+import { FichaGoogle } from '@/components/lugar/ficha-google'
 import { buttonVariants } from '@/components/ui/button'
 import { ubicacionDeCard } from '@/lib/search/card'
 import { registrarDetailView } from '@/lib/search/impressions'
@@ -135,6 +136,11 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
           </p>
         )}
       </header>
+
+      {/* Google en vivo (F2): rating, abierto/cerrado, horarios. Se monta desde el
+          cliente (decisión 16) y colapsa al mensaje honesto si no llega. Si el lugar
+          no tiene precio propio, el bloque muestra el priceLevel de Google (dec. 21). */}
+      <FichaGoogle placeId={place.id} tienePrecioPropio={precio !== null} />
 
       {/* Contacto propio (Overture): dirección, teléfono, sitio, redes */}
       <section className="flex flex-col gap-2 text-sm">

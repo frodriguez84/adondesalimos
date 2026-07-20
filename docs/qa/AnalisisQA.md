@@ -261,3 +261,49 @@ y escribe el contador). El modelo de datos completo del spec quedó migrado (000
 component, no una vista browser-only como el mapa; aun así el smoke en vivo cazó que el
 título/OG y el deep link salen bien, cosa que el checker read-only de `/qa-spec` no ve. Al
 cerrar el spec (3 fases), la QA en vivo de F1 ya documentada **no se re-somete** a `/qa-spec`.
+
+## QA de fase — FICHA F2 (2026-07-20)
+
+**Alcance:** **Fase 2** (Google en vivo: matching, `/api/lugar/[id]/google`, cuotas,
+horarios/rating/priceLevel, degradación). F3 (foto/atribución) queda pendiente. No es el
+`/qa-spec` de cierre — es la QA de fase.
+
+**Veredicto de F2:** PASA (alcance F2) — con **una salvedad documentada y de riesgo
+aceptado**: FICHA-03 (calidad del matching a ciegas) tuvo un miss en el primer caso real
+(ver la fila). No bloquea la fase: el matching persiste y degrada bien, y decisión 8 ya
+aceptó ese riesgo con corrección manual como red. Falta medir la *tasa* de fallos.
+**Verificación técnica:** typecheck ✅ · tests ✅ **204/204** (39 nuevos de F2) · build ✅
+(con el dev server parado; `/api/lugar/[id]/google` y `/lugar/[id]` salen como rutas
+dinámicas `ƒ`, `/robots.txt` estático).
+**Método:** unit tests del camino del gasto (`lib/lugar/__tests__/enrichment.test.ts`,
+`lib/google/__tests__/places.test.ts`), integración contra Postgres local
+(`usage.integration.test.ts`, `matching.integration.test.ts`) y **QA en vivo con
+Playwright/MCP** contra `https://adondesalimos.ngrok.app` sobre un lugar publicado real
+(**"Club Milanesa"**, `3fab0080…`, Botánico y Alto Palermo), incluyendo un lugar que nunca
+se había matcheado (`pending`).
+
+| ID | Caso | Resultado | Evidencia / Nota |
+|----|------|-----------|------------------|
+| FICHA-01 | Ficha con bloque Google | ✅ PASS | En vivo: la ficha se ve entera y el bloque cliente resuelve el enriquecimiento. Único error de consola: `favicon.ico` 404, preexistente y ajeno |
+| FICHA-03 | Matching correcto | ⚠️ MISS DOCUMENTADO | El resolver persiste bien (`pending → matched`, `matched_at` seteado, la 2da apertura no vuelve a llamar). **Pero el lugar matcheado es incorrecto/dudoso**: `ChIJ25d96J21vJURkGgqgdHC7Cw` = **"El Club de la Milanesa – Paseo de la Infanta"**, a **~160 m** del pin. Nuestro registro es "Club Milanesa @ Av. Libertador 3883"; en esa dirección exacta Google muestra **"Williamsburg Infanta"**. Es el riesgo del matching a ciegas (decisión 8): misma marca dentro de los 300 m, indistinguible sin pagar Text Search Pro. **Riesgo aceptado por Fer (2026-07-20)**: no se toca el radio hasta medir la tasa con un spot-check de ~10 fichas. **Mi PASS previo fue prematuro** — verifiqué que el rating coincidía con *un* "Club Milanesa", no que fuera el local de esa dirección (lección "un campo puede mentir fila por fila") |
+| FICHA-05 | Sin match / persistencia | ✅ PASS (parcial) | La persistencia del resultado del resolver está verificada (matched arriba); el caso `not_found` que no reintenta el mismo día lo cubren los unit tests de `planDeMatching`/`dentroDeVentanaReintento`. Falta un lugar real sin match para el smoke |
+| FICHA-07 | Horarios en vivo | ✅ PASS | En vivo: **rating 4,8 (4025)** y **"Abierto ahora"** coinciden con lo que muestra Google Maps para Club Milanesa en ese momento. Acordeón "Ver horarios de la semana" presente |
+| FICHA-08/09 | Un solo SKU pago / costo por ficha | ✅ PASS (contador) | Tras la apertura, `google_api_usage` del mes tiene **exactamente `{details: 1}`** y **cero `photos`**. El resolver (Text Search IDs-Only) **no se cuenta** (es $0). La verificación contra la consola de facturación de Google (SKU 635D-A9DD-C520 vs Pro) queda para Fer — el contador es el proxy |
+| FICHA-12 | Tope de cuota | ✅ PASS | `UPDATE google.details_monthly_cap = 0` ⇒ recargar la ficha: sigue abriendo, el bloque muestra **"No tenemos los horarios en este momento."** y `google_api_usage` **no se movió** (siguió en `details: 1`) — 204 sin llamar ni incrementar. Restaurar el tope a 5000 revive el bloque |
+| FICHA-13 | Degradación | ✅ PASS (parcial) | El camino "sin cuota" degrada honesto (verificado en FICHA-12): ficha completa, mensaje honesto, sin spinner colgado ni error. El sub-caso "red caída / key inválida" lo cubren los unit tests (`fetchDetails` → `null` ⇒ 204) + el timeout de 2,5 s; no se probó en vivo con una key inválida |
+| FICHA-14 | Cómo llegar + match | ✅ PASS | Tras el match, el deep link en vivo pasó a `...&destination_place_id=ChIJ25d96J21vJURkGgqgdHC7Cw` (el `place_id` persistido enriquece la ruta, decisión 22). Funciona con el enriquecimiento caído (verificado con tope=0) |
+| FICHA-16 | Key no expuesta | ✅ PASS | Grep de la key (39 chars) sobre el build: **0 ocurrencias en `.next/static`** (cliente) — y 0 en `.next/server`, porque se lee de `process.env` en runtime y no se inlinea en ningún chunk. Por arquitectura tampoco puede filtrarse: `lib/google/places.ts` es server-only (guard de runtime) y el cliente importa **solo el tipo** del DTO (`lib/google/types.ts`), nunca el módulo |
+| FICHA-04/08 (facturación real) | Consola de billing | ⏳ Fer | Requiere la consola de Google Cloud; no verificable desde acá. El contador `google_api_usage` es el sustituto (arriba) |
+| FICHA-10/11 | Foto / atribución con logo | ⏳ F3 | Foto (`skipHttpRedirect`), crédito al autor y logo de Google son de F3. En F2 la atribución es texto "Horarios y calificación: Google" + link a `/legales` |
+
+**Endpoint verificado (red):** `GET /api/lugar/[id]/google` respondió **200** en la apertura
+normal y **204** con el tope en 0 (observado en el panel de red de Playwright).
+
+**Pendiente de cierre de F2 (no bloqueante del veredicto de fase):** el smoke de un lugar
+real `not_found` (la lógica ya la cubren los unit tests) y el spot-check de FICHA-03 sobre
+~10 fichas para medir la tasa de falsos positivos del matching a ciegas (ver esa fila).
+
+**Nota de método:** el bloque de Google es browser-only (fetch en `useEffect`, decisión 16),
+así que —como el mapa de BUSQUEDA— vive fuera del alcance del checker read-only de `/qa-spec`.
+Esta QA en vivo es la fuente de verdad de esos criterios y **no se re-somete** a `/qa-spec` al
+cerrar el spec; el gate técnico (typecheck + tests) sí se reconfirma.

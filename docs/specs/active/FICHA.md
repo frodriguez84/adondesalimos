@@ -1,6 +1,6 @@
 # Spec: Ficha del lugar (`/lugar/[id]`) + Google en vivo
 
-**Estado:** 🟢 Parcial — F1 (ficha propia) ✅ Implementado (2026-07-20); F2 (Google en vivo) y F3 (foto y atribución) pendientes (requieren `GOOGLE_PLACES_API_KEY`)
+**Estado:** 🟢 Parcial — F1 (ficha propia) ✅ (2026-07-20); F2 (Google en vivo) ✅ (2026-07-20); F3 (foto y atribución) pendiente (requiere fila manual en `place_photos` para el camino dueño→Google)
 **Prioridad:** Alta — es el destino de toda búsqueda: sin ficha, la app encuentra lugares y no te deja decidir
 **Gate:** Ninguno de negocio. Requisito operativo: cuenta de Google Cloud con Places API (New) habilitada y `GOOGLE_PLACES_API_KEY` (las fases 1 y 3-parcial se pueden verificar sin ella)
 **Bloquea:** Auth/reclamo de negocio (spec 5) monta sus fotos y su descripción sobre esta pantalla
@@ -240,6 +240,72 @@ bloqueando `/api/`. La línea de Google en `/legales` **ya existe** (la puso CAT
 **Gate técnico F1:** `npx tsc --noEmit` limpio · `npm test` 165/165 · `npm run build`
 verde (corrido con el dev server parado). En el build, `/lugar/[id]` sale como
 `ƒ (Dynamic)` — ruta dinámica, lista para el enriquecimiento en vivo de F2 (decisión 17).
+
+## F2 — qué quedó construido (2026-07-20)
+
+Enriquecimiento en vivo de Google end-to-end, con la disciplina de costos de las
+decisiones 7-12 y 16-20 materializada y testeada. **Sin nueva migración** (el modelo
+de datos completo ya lo dejó F1). Gate: `npx tsc --noEmit` limpio · `npm test`
+204/204 (F1 dejó 165 → +39 nuevos, casi todos sobre el camino del gasto) · `npm run build`
+verde (server parado; rutas del enriquecimiento dinámicas `ƒ`, `/robots.txt` estático, y la
+API key con **0 ocurrencias en `.next/static`**). QA en vivo con Playwright — ver
+`docs/qa/AnalisisQA.md` § FICHA F2 (incluye el miss de matching FICHA-03, riesgo aceptado).
+
+**Módulo único que habla con Google** — `lib/google/places.ts` (server-only por
+construcción + guard de runtime; la API key se lee de `process.env` recién en la
+llamada, nunca en el tope del módulo). Builders **puros y testeados**:
+- `TEXT_SEARCH_FIELD_MASK = 'places.id'` y `PLACE_DETAILS_FIELD_MASK` = exactamente
+  la decisión 11 — hay tests que fallan si aparece un campo de más (la línea $0/$32
+  del resolver) o cualquier campo de Atmosphere en Details ($25/1.000).
+- `buildTextSearchBody` (decisión 8: `textQuery` = nombre·dirección·localidad +
+  `locationRestriction` de ±300 m + `maxResultCount: 1`), `rectanguloAlrededor`
+  (WGS84 con coseno de la latitud), `mapPriceLevel` (enum Google → `$..$$$$`),
+  `parseDetails` (respuesta cruda → DTO, degrada campo por campo).
+- `resolvePlaceId` (Text Search IDs-Only, $0) y `fetchPlaceDetails` (Enterprise),
+  ambas con `cache: 'no-store'` y timeout duro de 2,5 s (`AbortController`); ante
+  timeout/red/key inválida devuelven `null` ⇒ el endpoint degrada a 204.
+
+**Cuotas y settings** — `lib/google/usage.ts` (`contarUsoMensual`/`incrementarUsoMensual`
+por SKU con el mes puesto por Postgres `to_char(current_date,'YYYY-MM')`, upsert que
+suma 1; `hayCuota` puro) y los getters de runtime en `lib/google/settings.ts`
+(`getDetailsMonthlyCap`/`getPhotosMonthlyCap`/`getMatchRetryDays`, leídos por request,
+fallback al default del seed). Solo se cuentan los SKUs **pagos** (`details`/`photos`);
+el resolver IDs-Only es $0 y no tiene tope.
+
+**Orquestación del gasto** — `lib/lugar/enrichment.ts`: `resolverEnriquecimiento(deps)`
+**puro e inyectable** (mismo patrón que `consumirCupo` vs `checkSearchRateLimit`). Aísla
+todo el camino del dinero para testearlo sin red ni DB: `planDeMatching` (estados de la
+decisión 10: `blocked`/`manual` no disparan resolver; `not_found` reintenta pasada la
+ventana), `dentroDeVentanaReintento`, y el flujo resolver→persistir→tope→incrementar→
+Details. Invariante testeado: **ningún camino sin datos llama a Google**, y el tope
+corta (204) **antes** de pedir Details y de incrementar. La capa de datos
+(`lib/lugar/matching.ts`) revalida la visibilidad (decisión 23) y persiste el match.
+
+**Endpoint** — `GET /api/lugar/[id]/google` (`app/api/lugar/[id]/google/route.ts`):
+adaptador fino que arma las deps reales y delega en `resolverEnriquecimiento`. Ruta
+dinámica; rate limit por IP propio (`checkGoogleRateLimit`, cupo separado del de
+búsqueda); `404` para lugar oculto/inexistente, `204` en todo camino sin datos, JSON
+`{ horarios, rating, userRatingCount, priceLevel, googleMapsUri }` cuando hay. Cualquier
+excepción inesperada cae a 204 (degradación honesta, decisión 20). `app/robots.ts`
+bloquea `/api/` (decisión 16).
+
+**Cliente** — `components/lugar/ficha-google.tsx` (`'use client'`): monta y hace `fetch`
+al endpoint (decisión 16: el gasto se dispara desde el browser, no en el render, así los
+crawlers no pagan). Importa **solo el tipo** del DTO (`lib/google/types.ts`), nunca
+`places.ts` ⇒ la key jamás entra al bundle. Tres estados (decisión 20): esqueleto de dos
+líneas, datos (rating con coma decimal + logo estrella, abierto/cerrado, acordeón nativo
+de la semana, `priceLevel` de fallback si no hay precio propio), o el mensaje honesto
+"No tenemos los horarios en este momento". Montado en `app/lugar/[id]/page.tsx` tras el
+encabezado.
+
+**Pendiente para F3:** la foto (`skipHttpRedirect`, cuota `photos`, prioridad dueño→Google
+end-to-end), el crédito al autor + link al original, y el **logo de Google** formal (en F2
+la atribución es texto + link a `/legales`, que ya tiene la sección de Google). El
+`google_api_usage` de `photos` y su getter ya están listos, sin usar todavía.
+
+**Nota de alcance (BACKLOG):** los horarios muestran abierto/cerrado (`openNow`) + la
+semana (`weekdayDescriptions`), no el "cierra 0:30" del mockup — derivarlo exige la zona
+horaria del lugar y campos extra; `openNow` + la semana ya cumplen FICHA-07.
 
 ## Criterios de done (DoD)
 

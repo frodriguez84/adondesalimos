@@ -74,10 +74,11 @@ function deshabilitado(): boolean {
 }
 
 /**
- * Devuelve una `Response` 429 si hay que bloquear, o `null` si pasa — misma
- * firma que los checks de StressPlan, así el route handler se lee igual.
+ * Núcleo compartido: devuelve una `Response` 429 si hay que bloquear, o `null` si
+ * pasa. El `prefijo` separa los cupos por endpoint (una IP que scrollea la búsqueda
+ * no consume el cupo de abrir fichas). Misma firma que los checks de StressPlan.
  */
-export function checkSearchRateLimit(request: Request): Response | null {
+function checkIpRateLimit(request: Request, prefijo: string): Response | null {
   if (deshabilitado()) return null
 
   const ip = getClientIp(request)
@@ -85,7 +86,7 @@ export function checkSearchRateLimit(request: Request): Response | null {
   // (fail-closed de getClientIp). En dev eso haría inusable la app.
   if (ip === UNKNOWN_IP && process.env.NODE_ENV !== 'production') return null
 
-  const { allowed, remaining, resetAt } = consumirCupo(`search:${ip}`, Date.now())
+  const { allowed, remaining, resetAt } = consumirCupo(`${prefijo}:${ip}`, Date.now())
   if (allowed) return null
 
   return Response.json(
@@ -101,4 +102,18 @@ export function checkSearchRateLimit(request: Request): Response | null {
       },
     },
   )
+}
+
+/** Rate limit de `/api/search` (decisión 11 de BUSQUEDA). */
+export function checkSearchRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(request, 'search')
+}
+
+/**
+ * Rate limit de `/api/lugar/[id]/google` (FICHA, § Camino de la request, paso 1).
+ * Endpoint distinto, cupo distinto: acota el abuso de disparar el enriquecimiento
+ * pago en loop sin castigar al que solo busca.
+ */
+export function checkGoogleRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(request, 'ficha-google')
 }

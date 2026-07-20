@@ -154,3 +154,43 @@ escribilo como denylist: sobrevive a columnas nuevas legítimas y sigue cazando 
 real. Reservá el allowlist exacto para cuando **el set completo es el contrato** y querés que
 agregar cualquier cosa obligue a mirar el test — pero entonces sabé que toda migración aditiva
 lo va a tocar, y eso es a propósito, no una molestia.
+
+---
+
+## "El rating coincide" no prueba "es el mismo local": verificar el storefront, no el atributo (2026-07-20 · FICHA F2)
+
+**Qué pasó.** En la QA en vivo de F2 marqué FICHA-03 (matching Overture↔Google) como PASS
+porque el rating que devolvió Google (4,8 · 4025) coincidía con "un" Club Milanesa. Fer
+después chequeó la dirección real: Av. Libertador 3883 es **"Williamsburg Infanta"**, y el
+`place_id` que matcheamos es **"El Club de la Milanesa – Paseo de la Infanta"**, a **~160 m**.
+La app mostraba el rating de un local que no es el de esa dirección.
+
+**Causa raíz del miss (no es un bug).** Es el **matching a ciegas** que la decisión 8 aceptó
+a propósito: Text Search *IDs-Only* cuesta $0 pero **no devuelve nombre ni distancia**, así
+que no se puede comparar la respuesta — las salvaguardas son solo de entrada (`textQuery` +
+rectángulo de ±300 m). Una sucursal de la **misma marca** a 160 m entra en los 300 m y es
+indistinguible sin pagar Text Search Pro ($32/1.000), que rompería el modelo $0. El código
+hizo exactamente lo especificado. Riesgo **aceptado por Fer** (2026-07-20); la red es
+`google_match_status='blocked'|'manual'` por `UPDATE`.
+
+**El error de método, ese sí mío.** Aprobé un criterio de **correspondencia** verificando un
+**atributo** (el rating) en vez de la **identidad** (¿es el local de esa dirección?). Es la
+misma trampa de "un campo poblado al 99,5% igual puede mentir fila por fila" (ZONAS): un
+atributo que coincide no prueba que la fila sea la correcta.
+
+**Qué hacer distinto:**
+
+1. **Para verificar un match, comparar identidad contra el dato duro** —dirección/coordenada
+   del `place_id` devuelto contra las nuestras—, no un atributo lateral como el rating. Si el
+   criterio dice "corresponde al lugar", la evidencia es "está en la misma dirección", no
+   "tiene el mismo puntaje".
+2. **Un criterio de calidad de matching se mide sobre una muestra, no sobre un caso.** Un solo
+   acierto o un solo fallo no dice si la tasa es 1% o 20%. FICHA-03 pide 10 fichas a propósito;
+   cerrar el criterio con la primera es cerrar sin medir.
+
+**Corolario de producto (aparte del matching).** El nombre que muestra la ficha ("Club
+Milanesa", no "El Club de la Milanesa") **sale de Overture, nunca de Google** — por ToS
+(no se persiste el nombre de Google), por costo (`displayName` es tier Pro y ni se pide) y
+por diseño (decisión 13: el dato propio funciona con Google caído). Un nombre abreviado o
+imperfecto es calidad del dato de origen; se corrige con curaduría o con el reclamo del dueño
+(spec 5), **no** trayendo el nombre de Google.
