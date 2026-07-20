@@ -47,3 +47,51 @@ datos semilla, y la regla de publicación con umbral editable en caliente.
   **no debe asumir** que ya filtra lugares cerrados. Ver hallazgo H-2 del QA.
 - **Nada de Google se persiste** salvo `google_place_id` (hoy vacía). No hay columnas para
   nombre, horarios, rating ni fotos: es prohibición del ToS, no un olvido.
+
+---
+
+## Zonas de AMBA {#zonas}
+
+**Spec:** [`docs/specs/done/ZONAS.md`](../specs/done/ZONAS.md) · ✅ Implementado (2026-07-20)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — ZONAS* — APROBADO, 15 criterios PASS
+
+**Qué hace:** convierte "primero elegís zona" —el gesto default de la búsqueda— en datos. Las
+46 zonas de salida de AMBA como polígonos versionados, y la asignación lugar→zona
+**precomputada**, para que el runtime no haga geometría.
+
+**Alcance implementado:**
+
+- **Schema** (`lib/db/schema.ts`): `zones` (con `polygon` y `polygon_search`) · `zone_aliases` ·
+  `place_zones` + enum `region` (`caba · norte · oeste · sur`). Migración
+  `drizzle/0001_great_bloodstorm.sql`. No toca `places`.
+- **Canon** (`lib/zones/canon.ts`): las **46 zonas** (21 CABA · 9 Norte · 7 Oeste · 9 Sur) +
+  4 alias semilla. Los `slug` son **contrato** — Búsqueda filtra por ellos y viven en URLs.
+- **Polígonos** (`data/zones/`, 46 GeoJSON, 1,14 MB): CABA de BA Data (**CC BY 2.5 AR**),
+  conurbano del IGN vía WFS (**Ley 27.275**). **Nunca OSM** (ODbL). Composición y licencias
+  documentadas en `data/zones/README.md`.
+- **Build** (`scripts/zones/build.ts`, `npm run zones:build`): tres técnicas — *merge* de
+  polígonos oficiales, *recorte* de un anillo dibujado a mano, y **remanente** (la base menos
+  lo ya recortado). El remanente hace que las particiones sean exactas **por construcción**.
+  Falla si un centroide conocido cae en la zona equivocada.
+- **Carga** (`scripts/zones/load.ts`, `npm run zones:load`): idempotente por `slug`, nunca
+  pisa `active`. Materializa `polygon_search` con `turf.buffer` de **400 m**.
+- **Asignación** (`lib/zones/asignar.ts` + `scripts/zones/assign.ts`, `npm run zones:assign`):
+  point-in-polygon con turf, con descarte previo por bounding box. Regenera `place_zones`
+  entero en transacción. **El núcleo vive en `lib/` porque el spec 5 lo reusa** para asignar
+  un lugar de dueño al crearlo.
+
+**Lo que hay que saber para el próximo spec:**
+
+- **23.857 lugares (91,6%) tienen zona; 2.200 (8,4%) no.** Cero filas en `place_zones` es un
+  estado **válido** (decisión 17), no un bug: Búsqueda debe tolerarlo. Esos lugares no
+  aparecen filtrando por zona, sí por texto y GPS.
+- **El hueco no está donde el spec creía.** No son bordes del bbox: son partidos densos que el
+  canon de 46 no enumera (José C. Paz, Laferrere, Gral. Rodríguez, González Catán, Hurlingham,
+  Ezeiza). Decisión pendiente en `BACKLOG.md`.
+- **La primaria es única y puede no existir.** 390 lugares tienen zona de búsqueda pero no
+  primaria: están dentro del buffer de 400 m sin caer en ningún polígono exacto. La card debe
+  manejar "sin zona primaria".
+- **`place_zones` se regenera entero**, así que cualquier dato que se le cuelgue se pierde en
+  el próximo `zones:assign`. No agregar columnas con estado propio ahí.
+- **`places.locality` no es confiable fila por fila** (3 lugares de La Matanza vienen
+  etiquetados "Ciudad de Buenos Aires"). Sirve como señal agregada, no como verdad puntual.

@@ -27,7 +27,6 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Gate / nota |
 |------|----------------|
-| [ZONAS](planned/ZONAS.md) | Spec 2 — 46 zonas de AMBA (GeoJSON versionados, sin PostGIS), primaria + buffer 400 m. Depende de CATALOGO; bloquea Búsqueda |
 | [BUSQUEDA](planned/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). Depende de CATALOGO y ZONAS; bloquea Ficha, Votación y Monetización |
 | [FICHA](planned/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; **primer uso de Google en vivo** (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). Depende de CATALOGO, ZONAS y BUSQUEDA; bloquea Auth/reclamo |
 
@@ -36,3 +35,4 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 | Spec | Resumen en SPECS_ARCHIVO |
 |------|---------------------------|
 | [CATALOGO](done/CATALOGO.md) | Spec 1 — catálogo, taxonomía e import de Overture. [Resumen](../archive/SPECS_ARCHIVO.md#catalogo) · ✅ 2026-07-20 |
+| [ZONAS](done/ZONAS.md) | Spec 2 — 46 zonas de AMBA (GeoJSON versionados, sin PostGIS), primaria + buffer 400 m. [Resumen](../archive/SPECS_ARCHIVO.md#zonas) · ✅ 2026-07-20 |

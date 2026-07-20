@@ -124,6 +124,35 @@ export default function LegalesPage() {
         </p>
       </Seccion>
 
+      <Seccion titulo="Zonas — límites geográficos">
+        <p>
+          Las 46 zonas de salida se construyeron a partir de dos fuentes oficiales. Los
+          agrupamientos, las subdivisiones de Palermo y los cortes del conurbano son
+          elaboración propia.
+        </p>
+        <ul className="list-inside list-disc">
+          <li>
+            Barrios de la Ciudad de Buenos Aires —{' '}
+            <Externo href="https://data.buenosaires.gob.ar/dataset/barrios">
+              BA Data, Gobierno de la Ciudad de Buenos Aires
+            </Externo>
+            , bajo{' '}
+            <Externo href="https://creativecommons.org/licenses/by/2.5/ar/">
+              CC BY 2.5 Argentina
+            </Externo>
+            .
+          </li>
+          <li>
+            Límites de los partidos del conurbano — FUENTE:{' '}
+            <Externo href="https://www.ign.gob.ar/">
+              Instituto Geográfico Nacional de la República Argentina
+            </Externo>
+            , publicados según el Artículo 2 de la Ley 27.275 de acceso a la información
+            pública.
+          </li>
+        </ul>
+      </Seccion>
+
       <Seccion titulo="Google">
         <p>
           Algunos datos de la ficha de cada lugar —como horarios, calificaciones y fotos— se

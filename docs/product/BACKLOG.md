@@ -51,12 +51,37 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       está implementado y testeado, pero hoy no descarta a nadie. Búsqueda **no debe asumir**
       que ya oculta lugares cerrados; revisar cuando Overture empiece a poblarlo o cuando
       entren lugares de dueño (spec 5). Ver `docs/qa/AnalisisQA.md` § CATALOGO, hallazgo H-2.
+- [ ] **Zonas faltantes del conurbano — 2.200 lugares (8,4%) sin zona** (ZONAS, 2026-07-20).
+      El canon de 46 no incluye partidos densos y céntricos: José C. Paz (153 lugares),
+      Gregorio de Laferrere (147), General Rodríguez (131), González Catán (113),
+      Hurlingham (101), Ezeiza (84), Isidro Casanova (84), Longchamps (83), Guernica,
+      Grand Bourg, San Vicente, Marcos Paz. **El spec anticipaba que los sin zona serían
+      "minoría en los bordes del bbox"; no es así — están en el medio del conurbano.**
+      No es un bug de implementación: es un hueco del canon. Decidir si se agregan zonas
+      (deja de ser 46 y hay que actualizar el spec) o si se acepta que esos lugares solo
+      aparezcan por texto y GPS. Ver `data/zones/README.md` § Cobertura real.
+- [ ] **Villa Lugano, Villa Soldati y Villa Riachuelo cuelgan de `flores-floresta`**
+      (ZONAS, 2026-07-20). El canon no tiene una zona del sur de CABA, así que esos tres
+      barrios quedan en una zona cuyo nombre no los menciona. Es el reparto más discutible
+      del mapa de CABA; dejarlos sin zona hubiera sido peor. Candidato a zona propia.
+- [ ] **Afinar el polígono de Las Cañitas** (ZONAS, 2026-07-20). Es algo más ancho que la
+      franja gastronómica de Báez e incluye parte del Campo de Polo y los cuarteles: 52
+      lugares publicados por km² contra ~315 de Palermo Soho. Nombre y ubicación correctos,
+      precisión mejorable. Curaduría, no código.
+- [ ] **Volver a ARBA para los partidos si arreglan el servidor** (ZONAS, 2026-07-20).
+      `limite-partidos-pba.zip` es CC BY 4.0 —licencia estándar y trazable, mejor que los
+      TyC propios del IGN— pero hoy el servidor entrega 97.071 bytes de los 7.796.169
+      declarados, de forma determinística. Se usó IGN como fallback.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.
 
 ## Hecho
 
+- [x] **Spec 2 — ZONAS** (2026-07-20): 46 zonas de AMBA como GeoJSON versionados (CABA de
+      BA Data, conurbano del IGN, cero OSM), `zones`/`zone_aliases`/`place_zones`, y la
+      asignación precomputada con turf sin PostGIS. 23.857 lugares con zona (91,6%).
+      QA APROBADO — ver [SPECS_ARCHIVO](../archive/SPECS_ARCHIVO.md#zonas).
 - [x] **Spec 1 — CATALOGO** (2026-07-20): schema del catálogo, taxonomía de 105 tags,
       import de Overture (26.057 lugares), helper de visibilidad y `/legales`.
       QA APROBADO — ver [SPECS_ARCHIVO](../archive/SPECS_ARCHIVO.md#catalogo).

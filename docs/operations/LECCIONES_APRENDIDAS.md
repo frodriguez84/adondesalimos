@@ -49,3 +49,48 @@ De ahí salió también el hallazgo H-2 (`operating_status` viene NULL en todo A
 que el spec daba por disponible y que cambia lo que Búsqueda puede asumir. **Confirmar que
 un campo existe no es lo mismo que confirmar que trae datos** — conviene mirar las dos cosas
 en el mismo sondeo.
+
+---
+
+## Cuando el dato contradice al spec, el spec puede ser el que está mal (2026-07-20 · ZONAS)
+
+**Qué pasó.** El QA de ZONAS cerró BLOQUEADO con un FAIL y dos PARCIAL. Ninguno era un
+defecto de implementación: eran tres afirmaciones del spec desmentidas por los datos. El spec
+decía que las 4 zonas de Palermo sumaban más lugares publicados que toda la región Sur (da
+1.734 vs 2.598) y que los lugares sin zona estarían "en los bordes del bbox —
+Escobar/Pilar/Varela" (esos tres partidos tienen **cero** sin zona).
+
+**Qué se hizo.** Se corrigió el **spec**, no el código. ZON-05 pasó a medir densidad —que es
+lo que la decisión de producto siempre quiso decir— y ahí Palermo gana 35×. Pero la corrección
+se hizo **con el usuario**, no por decisión de quien implementó, y quedó registrada en el
+propio spec con qué decía antes y por qué cambió.
+
+**La regla:** el spec es el árbitro, así que quien implementó **no puede reescribirlo para que
+su implementación apruebe**. Cuando el DoD y los datos se contradicen, el QA se reporta
+BLOQUEADO con los números crudos y la corrección la decide el usuario. Un QA que se aprueba
+solo ajustando el criterio no verificó nada.
+
+**Corolario para escribir specs:** cuidado con meter en el DoD **predicciones** ("se espera que
+los sin zona estén en los bordes") en vez de **invariantes** ("cero lugares de CABA sin zona").
+Una predicción que falla bloquea un QA sin que haya nada roto. La versión corregida pide el
+dato ("listar en qué localidades están"), que es lo que de verdad servía para decidir.
+
+---
+
+## Un campo poblado al 99,5% igual puede mentir fila por fila (2026-07-20 · ZONAS)
+
+**Qué pasó (dos veces, en direcciones opuestas).** `places.locality` viene poblado en 25.926
+de 26.057 lugares y con la granularidad justa ("Ramos Mejía", "Banfield Este"). Se usó como
+oráculo de validación de los polígonos dibujados a mano, y funcionó: cazó en el primer build
+que Villa Adelina cae del lado de Vicente López, no de San Isidro.
+
+Pero en el QA, un checker marcó FAIL porque encontró 3 lugares sin zona con
+`locality = 'Ciudad de Buenos Aires'`. Verificados contra el polígono oficial de los 48
+barrios, **ninguno estaba en CABA**: los tres caen en La Matanza, cruzando la General Paz.
+
+**Qué hacer distinto:** un campo de texto de una fuente externa sirve como oráculo
+**agregado** (el centroide de 300 lugares de una localidad es robusto ante ruido) y no como
+verdad **fila por fila**. Antes de aceptar un FAIL basado en una etiqueta, verificar contra la
+geometría, que es el dato duro. Aplica también al revés: el bbox aproximado que se le pasó al
+checker se extendía al sur del Riachuelo, así que "está en el bbox de CABA" tampoco probaba
+nada. **La verificación buena fue la cara: 2.200 puntos contra 48 polígonos — 0 adentro.**

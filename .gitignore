@@ -14,6 +14,10 @@ next-env.d.ts
 # Testing
 coverage/
 
+# Fuentes oficiales de los polígonos (15 MB). Se rebajan cuando hacen falta:
+# los comandos están en data/zones/README.md. Lo versionado es data/zones/.
+data/sources/
+
 # Entorno
 .env
 .env.local

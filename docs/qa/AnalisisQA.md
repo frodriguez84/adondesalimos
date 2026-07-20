@@ -53,3 +53,103 @@ lugar** — su valor es para lugares de dueño (spec 5) y para cuando Overture e
 poblar el campo. No es un gap del DoD (el spec pide que el filtro exista y se aplique
 siempre, y así es), pero Búsqueda **no debe asumir** que este campo ya filtra lugares
 cerrados. Anotado en `docs/product/BACKLOG.md`.
+
+---
+
+## QA /qa-spec — ZONAS (2026-07-20)
+
+**Veredicto:** APROBADO — 15/15 criterios PASS tras corregir el spec (ver *Re-verificación*)
+**Verificación técnica:** typecheck ✅ · tests 53/53 ✅ · build ✅
+**Método:** 4 checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD
+de `docs/specs/active/ZONAS.md`. Los criterios de base de datos se verificaron con consultas
+directas al Postgres, no por lectura de código.
+
+### Criterios de done
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| ZONAS-QA-01 | Migración crea `zones`, `zone_aliases`, `place_zones` + enum `region` sobre la base de CATALOGO | ✅ PASS | `lib/db/schema.ts:50` (enum), `:143-167` (zones), `:173-186` (aliases, unique zone+alias), `:196-216` (pk compuesta, índice por zone_id, índice parcial is_primary). Migración `drizzle/0001_great_bloodstorm.sql`, aplicada |
+| ZONAS-QA-02 | `data/zones/` con los 46 GeoJSON (21·9·7·9) + README con fuente, composición y licencia del conurbano; NUNCA OSM | ✅ PASS | 46 archivos, slugs 1:1 con `lib/zones/canon.ts`. `data/zones/README.md:12-36` documenta BA Data (CC BY 2.5 AR) e IGN (Ley 27.275). OSM descartada explícitamente en `:24-26`. Cero referencias a OSM en el árbol |
+| ZONAS-QA-03 | Los 4 de Palermo particionan el barrio oficial: unión ≈ Palermo, sin huecos ni solapes (test con turf) | ✅ PASS | `lib/zones/__tests__/poligonos.test.ts:70-88`. Suma de áreas vs área de la base con 0,1% de tolerancia + intersección por pares < 1 m². Los 4 suman 15,92 km² = Palermo oficial. Test corriendo, no skipeado |
+| ZONAS-QA-04 | `zones:load` carga las 46 + aliases seed; re-correrlo no duplica | ✅ PASS | `scripts/zones/load.ts:76-96` upsert por slug (`active` deliberadamente ausente); `:110` alias con `onConflictDoNothing` sobre el índice único; `:131-133` falla si el total ≠ 46. Buffer 400 m en `:23` y `:73` |
+| ZONAS-QA-05 | `zones:assign` deja ≤1 primaria por lugar (test) y búsqueda ⊇ primaria; re-correrlo da lo mismo | ✅ PASS | `scripts/zones/assign.ts:71-76` regenera en transacción. Test en `lib/zones/__tests__/asignacion.integration.test.ts:81-92`. Base: **0** lugares con 2+ primarias y **0** primarias huérfanas |
+| ZONAS-QA-06 | Test del caso borde: punto a <400 m del límite Villa Crespo / Palermo Soho → 1 primaria y 2 zonas de búsqueda | ✅ PASS | `asignacion.integration.test.ts:106-120`. Av. Córdoba y Thames: primaria única `palermo-soho`, aparece también en `villa-crespo`. Usa el `polygon_search` real de la base, no el polígono exacto |
+| ZONAS-QA-07 | Lugares sin zona: reporte generado y revisado, con el detalle de en qué localidades están | ✅ PASS | El reporte lista las localidades de los 2.200 sin zona (8,4%), que es lo que permitió detectar H-1. Criterio reformulado: la predicción original del spec ("bordes del bbox — Escobar/Pilar/Varela") era falsa — esos tres partidos tienen **0** sin zona |
+| ZONAS-QA-08 | `npx tsc --noEmit` · `npm test` · `npm run build` verdes | ✅ PASS | typecheck limpio · 53/53 tests · build OK (rutas `/`, `/legales`) |
+
+### QA manual del spec
+
+| ID | Caso | Resultado | Números reales |
+|----|------|-----------|----------------|
+| ZONAS-QA-09 (ZON-01) | Carga completa por región | ✅ PASS | caba 21 · norte 9 · oeste 7 · sur 9 |
+| ZONAS-QA-10 (ZON-02) | Borde real cerca de Av. Córdoba y Dorrego | ✅ PASS | Lugares reales con 1 sola primaria y 2+ zonas en `place_zones` |
+| ZONAS-QA-11 (ZON-03) | Invariante de primaria única | ✅ PASS | 0 filas |
+| ZONAS-QA-12 (ZON-04) | Alias | ✅ PASS | `Villa Ortúzar` → `chacarita-colegiales`; `Balvanera` → `once-abasto` |
+| ZONAS-QA-13 (ZON-05) | Las 4 zonas de Palermo tienen mucha mayor **densidad** de publicados por km² que la región Sur | ✅ PASS | Palermo **108,9 lugares/km²** (1.734 en 15,92 km²) vs Sur **3,1** (2.598 en 837,98 km²) = **35,1×**. Criterio reformulado: en conteo absoluto Sur gana (2.598 vs 1.734), y esa era la métrica equivocada. Ver H-2 |
+| ZONAS-QA-14 (ZON-06) | Los sin zona son minoría y **ninguno** cae en el centro de CABA | ✅ PASS | 2.200 (8,4%). **0 de los 2.200 cae dentro del polígono oficial de CABA** — verificado punto por punto contra los 48 barrios, no por bbox ni por `locality`. Ver H-5 |
+| ZONAS-QA-15 (ZON-07) | Idempotencia de `load` + `assign` | ✅ PASS | Segunda corrida: mismos 46 · 4 alias · 35.589 filas · 2.200 sin zona |
+
+### Hallazgos
+
+**H-1 — El canon de 46 zonas deja 2.200 lugares (8,4%) sin zona, y no donde el spec creía.**
+El spec anticipaba "minoría en los bordes del bbox — Escobar/Pilar/Varela profundos". Los tres
+partidos nombrados tienen **0** lugares sin zona. Los que quedan afuera están en partidos
+densos y céntricos que el canon simplemente no enumera: José C. Paz (153), Gregorio de
+Laferrere (147), General Rodríguez (131), González Catán (113), Hurlingham (101), Ezeiza (84),
+Isidro Casanova (84), Longchamps (83), más Guernica, Grand Bourg, San Vicente y Marcos Paz.
+No es un defecto de implementación —la asignación hace exactamente lo que el spec pide— sino
+un hueco del canon. Anotado en `docs/product/BACKLOG.md`.
+
+**H-2 — ZON-05 es falso como está escrito, pero su razonamiento de fondo se sostiene.**
+El spec usa el conteo absoluto ("Palermo suma más lugares que toda la región Sur") como el
+dato que justificó la granularidad asimétrica. El conteo absoluto da lo contrario: 1.734 vs
+2.598. Lo que sí se sostiene, y por goleada, es la **densidad**: las 4 zonas de Palermo ocupan
+15,92 km² y la región Sur 838 km², así que Palermo tiene **109 lugares publicados por km²
+contra 3,1 de Sur — 35× más denso**. La decisión de producto (partir Palermo en 4 y no juntar
+9 partidos del sur en menos zonas) está bien tomada; la métrica elegida para verificarla,
+mal. El criterio necesita reformularse en términos de densidad.
+
+> Un checker especuló que `botanico-alto-palermo` podría tener "datos inflados o duplicados"
+> por sus 697 lugares. Descartado: es la zona más grande de Palermo (11,62 km², el 73% del
+> barrio, porque absorbe Bosques de Palermo, Hipódromo, Campo de Polo, Costanera y Aeroparque),
+> y con 60 lugares/km² es la **menos** densa de las cuatro. ZONAS-QA-11 descarta duplicados.
+
+**H-3 — Fuente del conurbano cambiada respecto de lo planificado.** ARBA (CC BY 4.0, la
+licencia más limpia) entrega su ZIP truncado: 97.071 bytes de los 7.796.169 declarados, de
+forma determinística y reproducible. Se usó el IGN vía WFS como fallback, con su licencia
+verificada verbatim en el `AccessConstraints` del servicio (Ley 27.275, sin share-alike).
+Documentado en `data/zones/README.md`. Anotado en el backlog para volver a ARBA si se arregla.
+
+**H-4 — No existe polígono de localidad del conurbano en ninguna fuente estatal.** Verificado:
+`ign:localidad_bahra` y la API Georef devuelven **puntos**; las localidades censales del INDEC
+sí son polígonos pero en el conurbano colapsan al aglomerado (La Matanza entera es una sola) y
+además están prohibidas comercialmente. La única fuente con polígonos de "Ramos Mejía" es OSM,
+descartada por ODbL. Por eso las 8 zonas sub-partido se dibujaron a mano.
+
+**H-5 — `places.locality` de Overture no es confiable en los bordes.** Durante la
+re-verificación, un checker marcó ZON-06 como FAIL porque encontró 3 lugares sin zona con
+`locality = 'Ciudad de Buenos Aires'`. Verificados punto por punto contra el polígono oficial
+de los 48 barrios, **ninguno de los 3 está en CABA**: los tres caen en La Matanza (zona Villa
+Madero, cruzando la General Paz), y Overture los etiqueta mal. El campo sirve como oráculo
+**agregado** (el centroide de 300 lugares de una localidad es robusto), pero no fila por fila.
+
+### Re-verificación (2026-07-20, mismo día)
+
+El QA cerró primero en **BLOQUEADO** (1 FAIL en ZON-05, 2 PARCIAL) porque dos afirmaciones del
+spec resultaron falsas contra los datos. No eran defectos de implementación, así que el fix
+fue **corregir el spec**, no el código: ZON-05 pasó a medir densidad (que es lo que la decisión
+2 siempre quiso decir) y la expectativa de cobertura del DoD se reemplazó por el detalle de
+localidades. Ambas correcciones quedan registradas en `docs/specs/active/ZONAS.md` §
+*Correcciones al spec durante la implementación*, con qué decía antes y por qué cambió.
+
+Re-verificado por un checker independiente nuevo contra los criterios ya corregidos:
+
+| ID | Antes | Ahora | Qué cambió |
+|----|-------|-------|------------|
+| ZONAS-QA-07 | ⚠️ PARCIAL | ✅ PASS | Criterio reformulado: pide el detalle de localidades, no una predicción de dónde estarían |
+| ZONAS-QA-13 | ❌ FAIL | ✅ PASS | Criterio reformulado a densidad: 35,1× a favor de Palermo |
+| ZONAS-QA-14 | ⚠️ PARCIAL | ✅ PASS | El FAIL del checker era falso positivo (H-5); verificado 0 agujeros en CABA |
+
+**Ningún cambio de código entre el QA bloqueado y el aprobado.** Los 46 polígonos, los
+scripts y los 53 tests son idénticos: lo único que se movió fueron dos criterios mal
+formulados del spec y una verificación mejor hecha.
