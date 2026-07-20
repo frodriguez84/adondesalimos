@@ -231,8 +231,32 @@ Cena familiar · Plan tranqui · Salir a bailar · Merienda
   nombres. Lectura acordada: *Primera cita* = se puede **hablar** (tranqui, no ruidoso,
   mesa). *Salida con chongo* = luz baja, tragos, barra, ambiente, **cerca**; charlar no es
   el objetivo.
-- 💡 **Nueve chips es mucho para una home mobile**: arrancar con ~4 y el resto detrás de
-  "ver más". Sin cerrar cuáles cuatro.
+- ✅ **LOS 4 DE LA HOME — DECIDIDO (2026-07-19, tanda 4)**: **Salida con amigos · Salida con
+  chongo · Salir a bailar · After office.** El resto (Primera cita · Cumpleaños · Cena
+  familiar · Plan tranqui · Merienda) queda detrás de "ver más".
+- ✅ **Criterio de selección: cobertura de EJES distintos, no popularidad.** Si los 4 se
+  pisan se desperdicia la home — "Primera cita" + "Salida con chongo" + "Plan tranqui"
+  devuelven por debajo casi lo mismo (tranqui, luz baja, no ruidoso). Los cuatro elegidos
+  cubren cuatro intenciones separadas:
+
+| Chip | Eje |
+|---|---|
+| Salida con amigos | Grupo / social — el caso más frecuente, el gesto default |
+| Salida con chongo | De a dos — cubre el eje romántico **y** fija el tono de marca |
+| Salir a bailar | Noche fuerte — cero solape con los otros tres |
+| After office | Día de semana — los otros tres son de finde |
+
+- ✅ **Chips FIJOS en v1**; la rotación por día/hora (martes 18h → "After office"; sábado 22h
+  → "Salir a bailar") queda como **mejora futura**, cuando haya datos de uso reales. Motivo:
+  predecible, el usuario aprende dónde está cada uno, y una home que cambia sola hace que no
+  encuentres lo que viste ayer.
+- ⚠️ **Riesgo anotado — "Salida con amigos" es el que menos filtra de los cuatro.** Si
+  devuelve 8.000 lugares no cumplió la promesa de "no armes un filtro, tocá lo que te pasa".
+  Por debajo tiene que ser específico (bares + cervecerías + `$$` + para grupos), no un cajón
+  de sastre.
+- ✅ **"Salida con chongo" va en la home**, riesgo de marca asumido explícitamente: es el chip
+  más compartible y el que fija el tono canchero ya decidido. El riesgo con dueños
+  conservadores es real pero acotado — **ellos entran por el panel B2B, no por la home**.
 - ⚠️ Nota de marca: "Salida con chongo" es una decisión de identidad, no solo un tag — un
   dueño conservador puede mirarlo torcido. Fer lo pidió sabiendo el registro.
 
@@ -699,6 +723,21 @@ sesión siguiente._
   arriba). Places **no es ODbL**; las tres licencias posibles (CDLA-Permissive 2.0 /
   Apache 2.0 / CC0) permiten persistir, modificar y **monetizar**. Era el último pendiente
   estructural del proyecto: **ya no queda ninguno**.
+- ✅ **Los 4 chips de Ocasión de la home decididos**: Salida con amigos · Salida con chongo ·
+  Salir a bailar · After office (fijos en v1). Criterio: cobertura de ejes distintos, no
+  popularidad. Ver "Ocasión — chips de la home" arriba.
+
+### Qué queda para la tanda 5
+
+Ninguno bloquea; el volcado está casi completo.
+
+1. **Detalle fino de qué incluye cada plan** — único tema abierto de monetización.
+2. **Si entran heladerías / panaderías / cines** al alcance (faceta 1).
+3. **Umbral de corte de `confidence`** al importar (29% está bajo 0.5) — más de
+   implementación que de producto.
+
+Cuando estos cierren, **el volcado termina y el paso siguiente es escribir specs**
+con `/new-spec`.
 
 ### Tanda 3 — cerrada (2026-07-19)
 
