@@ -1,6 +1,6 @@
 # Spec: Ficha del lugar (`/lugar/[id]`) + Google en vivo
 
-**Estado:** 🔵 Planned — diseño completo, listo para implementar
+**Estado:** 🟢 Parcial — F1 (ficha propia) ✅ Implementado (2026-07-20); F2 (Google en vivo) y F3 (foto y atribución) pendientes (requieren `GOOGLE_PLACES_API_KEY`)
 **Prioridad:** Alta — es el destino de toda búsqueda: sin ficha, la app encuentra lugares y no te deja decidir
 **Gate:** Ninguno de negocio. Requisito operativo: cuenta de Google Cloud con Places API (New) habilitada y `GOOGLE_PLACES_API_KEY` (las fases 1 y 3-parcial se pueden verificar sin ella)
 **Bloquea:** Auth/reclamo de negocio (spec 5) monta sus fotos y su descripción sobre esta pantalla
@@ -190,6 +190,57 @@ GET /lugar/[id]                       server component, datos propios
 | **1 — Ficha propia** | `/lugar/[id]` completa con datos de CATALOGO+ZONAS, 404 por visibilidad, deep link "cómo llegar", contacto/redes, tags, `detail_views`, metadata OG, `place_photos` vacía y prioridad de foto (dueño → placeholder) | Sin API key de Google |
 | **2 — Google en vivo** | Migración de match, `lib/google/places.ts`, resolver IDs-Only, `/api/lugar/[id]/google` con rate limit + cuotas, horarios + rating + `priceLevel`, degradación y timeout | API key + `google_api_usage` |
 | **3 — Foto y atribución** | Foto de Google (`skipHttpRedirect`), crédito al autor, link al original, logo de Google, prioridad dueño→Google end-to-end, línea en `/legales` | API key + fila manual en `place_photos` |
+
+## F1 — qué quedó construido (2026-07-20)
+
+Ficha propia end-to-end, **sin depender de Google**. Verificado con typecheck +
+165 tests verdes y smoke en vivo (ngrok) sobre un lugar publicado real.
+
+**Modelo de datos** — migración `drizzle/0003_adorable_nightshade.sql` (aplicada y
+sembrada en la DB local). Se hizo el modelo **completo** del spec de una vez, no
+solo lo de F1: es todo DDL aditivo y evita una segunda migración en F2.
+- `places`: enum `google_match_status` (`pending·matched·manual·not_found·blocked`,
+  default `pending`) + columna `google_matched_at` + índice parcial sobre el status
+  (excluye `pending`, que es la inmensa mayoría).
+- Tablas nuevas `place_photos` (vacía; la llena el spec de reclamo) y
+  `google_api_usage` (pk `month`+`sku`, contador por SKU; la consume F2).
+- `place_impressions_daily`: columna `detail_views` (decisión 24, misma tabla que
+  las impresiones de BUSQUEDA).
+- `app_settings`: 3 claves nuevas sembradas — `google.details_monthly_cap` = 5000,
+  `google.photos_monthly_cap` = 5000, `google.match_retry_days` = 30. Constantes en
+  `lib/google/settings.ts` (los getters de runtime y la lógica de cuotas son de F2).
+
+**Data layer** — `lib/lugar/query.ts`: `getPlaceDetail(id)` con dedupe `React.cache`
+(el único permitido, decisión 17). Guarda de UUID → `null` sin tocar la base; regla
+de visibilidad vía `isPlacePublished` de CATALOGO (decisión 23: no publicado ⇒ 404).
+Trae tags, zona primaria y fotos de dueño. **Cero llamadas a Google.**
+
+**Helpers puros** — `lib/lugar/ficha.ts`: `precioDeTags` (tag propio $..$$$$, con
+fallback a Google marcado para F2), `queEncontras` (Actividad/Ambiente/Momento — la
+sección no se renderiza si está vacía), `comoLlegarUrl` (deep link, decisión 22, con
+`destination_place_id` cuando el match exista), `fotoPrincipal` (prioridad dueño →
+Google → placeholder, decisión 3 — ya testea el orden completo) y `clasificarRed`
+(dominio → plataforma para el rótulo de redes; sin íconos de marca porque lucide los
+removió). Contador: `registrarDetailView` en `lib/search/impressions.ts`.
+
+**Pantalla** — `app/lugar/[id]/page.tsx` (server component): `generateMetadata` con
+**solo datos propios** en el OG (decisión 16), `notFound()` por visibilidad,
+`after(() => registrarDetailView)`, layout del mockup (foto dueño/placeholder,
+encabezado, contacto/redes de Overture, "Qué vas a encontrar", barra fija con "Cómo
+llegar"/teléfono/web). Acciones cliente en `components/lugar/ficha-actions.tsx`
+(volver + compartir con Web Share API y fallback a portapapeles). El hueco del bloque
+Google (horarios/rating/foto en vivo) queda para F2/F3 y hoy simplemente no se
+renderiza.
+
+**Fuera de F1, para F2/F3:** el resolver de matching (Text Search IDs-Only),
+`lib/google/places.ts`, `GET /api/lugar/[id]/google` con rate limit + cuotas, la foto
+con `skipHttpRedirect`, la atribución a Google sobre datos en vivo y `robots.txt`
+bloqueando `/api/`. La línea de Google en `/legales` **ya existe** (la puso CATALOGO).
+
+**Nota de gate:** `npm run build` quedó pendiente de correr con el dev server parado
+(comparten `.next`; lección de BUSQUEDA). El gate reconfirmable —typecheck + tests—
+está verde. El build se corre en el cierre (`/check` / `/close-spec`) con el server
+apagado.
 
 ## Criterios de done (DoD)
 

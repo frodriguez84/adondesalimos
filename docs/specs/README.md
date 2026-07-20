@@ -19,13 +19,13 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-_(ninguno — el próximo en implementarse es FICHA, hoy en `planned/`)_
+| Spec | Gate / nota |
+|------|----------------|
+| [FICHA](active/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; **primer uso de Google en vivo** (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). Depende de CATALOGO, ZONAS y BUSQUEDA; bloquea Auth/reclamo. F1 (ficha propia) en implementación |
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Gate / nota |
-|------|----------------|
-| [FICHA](planned/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; **primer uso de Google en vivo** (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). Depende de CATALOGO, ZONAS y BUSQUEDA; bloquea Auth/reclamo |
+_(ninguno — el próximo a diseñar sale del BACKLOG)_
 
 ## ⚫ Done (`done/`)
 

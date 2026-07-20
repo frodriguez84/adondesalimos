@@ -96,8 +96,9 @@ describe.runIf(process.env.DATABASE_URL)('impresiones agregadas', () => {
   })
 
   it('no guarda ningún dato por usuario', async () => {
-    // Decisión 22: agregado puro. La tabla tiene exactamente 3 columnas y
-    // ninguna identifica a nadie. Si alguien agrega user_id o ip, esto falla.
+    // Decisión 22 (+ FICHA decisión 24): agregado puro. La tabla suma contadores
+    // por lugar y día —impresiones y aperturas de ficha— y ninguna columna
+    // identifica a nadie. Si alguien agrega user_id o ip, esto falla.
     const columnas = await db.execute<{ column_name: string }>(sql`
       SELECT column_name FROM information_schema.columns
       WHERE table_name = 'place_impressions_daily'
@@ -106,6 +107,6 @@ describe.runIf(process.env.DATABASE_URL)('impresiones agregadas', () => {
       .map((c) => c.column_name)
       .sort()
 
-    expect(nombres).toEqual(['date', 'impressions', 'place_id'])
+    expect(nombres).toEqual(['date', 'detail_views', 'impressions', 'place_id'])
   })
 })

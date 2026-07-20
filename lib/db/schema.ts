@@ -50,6 +50,22 @@ export const placeTagSourceEnum = pgEnum('place_tag_source', ['import', 'owner',
  */
 export const regionEnum = pgEnum('region', ['caba', 'norte', 'oeste', 'sur'])
 
+/**
+ * Estado del matching Overture↔Google de un lugar (FICHA, decisión 10):
+ *  - `pending`   nunca se intentó
+ *  - `matched`   lo resolvió el matching automático (Text Search IDs-Only)
+ *  - `manual`    lo fijó un humano — el resolver NUNCA lo pisa
+ *  - `not_found` Google no devolvió nada; reintenta pasados `google.match_retry_days`
+ *  - `blocked`   match malo o el lugar no está en Google; no reintentar nunca
+ */
+export const googleMatchStatusEnum = pgEnum('google_match_status', [
+  'pending',
+  'matched',
+  'manual',
+  'not_found',
+  'blocked',
+])
+
 // ---------------------------------------------------------------------------
 // Tablas
 // ---------------------------------------------------------------------------
@@ -69,6 +85,16 @@ export const places = pgTable(
      * olvido, es prohibición.
      */
     googlePlaceId: text('google_place_id'),
+
+    /**
+     * Estado del matching con Google (FICHA, decisión 10). Nace `pending`: el
+     * resolver perezoso lo mueve la primera vez que alguien abre la ficha.
+     */
+    googleMatchStatus: googleMatchStatusEnum('google_match_status')
+      .notNull()
+      .default('pending'),
+    /** Último intento (éxito o `not_found`): base del reintento a 30 días. */
+    googleMatchedAt: timestamp('google_matched_at'),
 
     name: text('name').notNull(),
     lat: doublePrecision('lat').notNull(),
@@ -98,6 +124,13 @@ export const places = pgTable(
   (t) => [
     // La query de publicación filtra por confidence siempre.
     index('places_confidence_idx').on(t.confidence),
+    // Parcial: las consultas de estado del matching (reintentos de `not_found`,
+    // conteo de `pending`) miran los que no están resueltos. La inmensa mayoría
+    // queda `pending` hasta que alguien abre su ficha, así que el índice apunta
+    // a los pocos que ya se tocaron.
+    index('places_google_match_status_idx')
+      .on(t.googleMatchStatus)
+      .where(sql`${t.googleMatchStatus} <> 'pending'`),
   ],
 )
 
@@ -265,8 +298,48 @@ export const placeImpressionsDaily = pgTable(
       .references(() => places.id, { onDelete: 'cascade' }),
     date: date('date').notNull(),
     impressions: integer('impressions').notNull().default(0),
+    /**
+     * Aperturas de ficha del día (FICHA, decisión 24). Es la métrica que vende el
+     * B2B ("cuánta gente vio tu ficha") y no se puede reconstruir a posteriori.
+     * Misma tabla que las impresiones: agregado por día, sin datos por usuario.
+     */
+    detailViews: integer('detail_views').notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.placeId, t.date] })],
+)
+
+/**
+ * Fotos del dueño de un lugar (FICHA, decisión 3). Se crea **vacía**: la llena el
+ * spec de Auth/reclamo. Existe desde ya porque la prioridad de foto —dueño antes
+ * que Google— es lógica de la ficha y tiene que poder testearse insertando una
+ * fila a mano. Las fotos de Google NO viven acá: no se persisten (ToS).
+ */
+export const placePhotos = pgTable('place_photos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  placeId: uuid('place_id')
+    .notNull()
+    .references(() => places.id, { onDelete: 'cascade' }),
+  url: text('url').notNull(),
+  sort: integer('sort').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+/**
+ * Consumo mensual de la API de Google por SKU (FICHA, decisión 19). Alimenta los
+ * topes editables de `app_settings`: superado el cupo, la ficha degrada al modo
+ * sin Google en vez de disparar la factura. Se incrementa **antes** de llamar —
+ * contar de menos por una excepción es peor que contar de más.
+ */
+export const googleApiUsage = pgTable(
+  'google_api_usage',
+  {
+    /** `YYYY-MM`, en la zona horaria de facturación. */
+    month: text('month').notNull(),
+    /** `'details'` | `'photos'`. Texto, no enum: sumar un SKU no es una migración. */
+    sku: text('sku').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.month, t.sku] })],
 )
 
 /**
@@ -300,3 +373,7 @@ export type OccasionChip = typeof occasionChips.$inferSelect
 export type NewOccasionChip = typeof occasionChips.$inferInsert
 export type ChipTag = typeof chipTags.$inferSelect
 export type PlaceImpressionDaily = typeof placeImpressionsDaily.$inferSelect
+export type PlacePhoto = typeof placePhotos.$inferSelect
+export type NewPlacePhoto = typeof placePhotos.$inferInsert
+export type GoogleApiUsage = typeof googleApiUsage.$inferSelect
+export type GoogleMatchStatus = (typeof googleMatchStatusEnum.enumValues)[number]

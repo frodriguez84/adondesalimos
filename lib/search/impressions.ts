@@ -56,3 +56,32 @@ export async function registrarImpresiones(placeIds: string[]): Promise<void> {
     console.error('[impresiones]', error)
   }
 }
+
+/**
+ * Suma 1 a las aperturas de ficha de un lugar, en la fila de hoy (FICHA,
+ * decisión 24). Comparte tabla y semántica con `registrarImpresiones`: agregado
+ * por lugar y día, sin datos por usuario. Es el "cuánta gente vio tu ficha" del
+ * B2B (spec 7), que no se puede reconstruir a posteriori.
+ *
+ * Se llama una vez por apertura de ficha publicada. No tira nunca: un contador
+ * perdido no puede tumbar la pantalla que lo generó — se loguea y la ficha sigue.
+ */
+export async function registrarDetailView(placeId: string): Promise<void> {
+  try {
+    await db
+      .insert(placeImpressionsDaily)
+      .values({
+        placeId,
+        date: sql`current_date` as unknown as string,
+        detailViews: 1,
+      })
+      .onConflictDoUpdate({
+        target: [placeImpressionsDaily.placeId, placeImpressionsDaily.date],
+        set: {
+          detailViews: sql`${placeImpressionsDaily.detailViews} + excluded.detail_views`,
+        },
+      })
+  } catch (error) {
+    console.error('[detail-view]', error)
+  }
+}

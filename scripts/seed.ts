@@ -10,6 +10,14 @@ import {
   DEFAULT_BAND_LIMITS,
   DEFAULT_CONFIDENCE_THRESHOLD,
 } from '@/lib/db/visibility'
+import {
+  DEFAULT_DETAILS_MONTHLY_CAP,
+  DEFAULT_MATCH_RETRY_DAYS,
+  DEFAULT_PHOTOS_MONTHLY_CAP,
+  DETAILS_MONTHLY_CAP_KEY,
+  MATCH_RETRY_DAYS_KEY,
+  PHOTOS_MONTHLY_CAP_KEY,
+} from '@/lib/google/settings'
 
 /**
  * Seed idempotente de la taxonomía (105 filas) + los chips de Ocasión + los 2
@@ -70,6 +78,10 @@ async function main() {
     .values([
       { key: CONFIDENCE_THRESHOLD_KEY, value: DEFAULT_CONFIDENCE_THRESHOLD },
       { key: BAND_LIMITS_KEY, value: DEFAULT_BAND_LIMITS },
+      // FICHA (decisiones 10 y 19): topes de Google y reintento de match.
+      { key: DETAILS_MONTHLY_CAP_KEY, value: DEFAULT_DETAILS_MONTHLY_CAP },
+      { key: PHOTOS_MONTHLY_CAP_KEY, value: DEFAULT_PHOTOS_MONTHLY_CAP },
+      { key: MATCH_RETRY_DAYS_KEY, value: DEFAULT_MATCH_RETRY_DAYS },
     ])
     .onConflictDoNothing({ target: appSettings.key })
 
@@ -78,7 +90,9 @@ async function main() {
   console.log(`Tags sembradas: ${count} (esperadas ${TOTAL_TAGS})`)
   console.log(`Total en la tabla: ${total}`)
   console.log(`Chips de Ocasión: ${chipsSembrados} (esperados ${TOTAL_CHIPS})`)
-  console.log(`Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}`)
+  console.log(
+    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}`,
+  )
 
   if (total !== TOTAL_TAGS) {
     throw new Error(`Se esperaban ${TOTAL_TAGS} tags en la tabla y hay ${total}`)
