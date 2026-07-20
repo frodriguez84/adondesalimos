@@ -60,6 +60,10 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       No es un bug de implementación: es un hueco del canon. Decidir si se agregan zonas
       (deja de ser 46 y hay que actualizar el spec) o si se acepta que esos lugares solo
       aparezcan por texto y GPS. Ver `data/zones/README.md` § Cobertura real.
+      **No bloquea BÚSQUEDA** (spec 3): el selector lee la tabla `zones`, así que agregar
+      zonas después no toca código de Búsqueda — se re-corre `zones:build` + `load` +
+      `assign` y listo. Conviene decidirlo **con el buscador andando**, para saber si el
+      8,4% molesta en la práctica o es invisible.
 - [ ] **Villa Lugano, Villa Soldati y Villa Riachuelo cuelgan de `flores-floresta`**
       (ZONAS, 2026-07-20). El canon no tiene una zona del sur de CABA, así que esos tres
       barrios quedan en una zona cuyo nombre no los menciona. Es el reparto más discutible
