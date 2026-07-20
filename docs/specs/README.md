@@ -27,7 +27,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Gate / nota |
 |------|----------------|
-| _(vacío)_ | |
+| [CATALOGO](planned/CATALOGO.md) | Spec 1 — catálogo + import de Overture. Diseño completo; bloquea Zonas, Búsqueda, Ficha y Auth/reclamo |
 
 ## ⚫ Done (`done/`)
 

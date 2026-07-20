@@ -13,7 +13,7 @@ Volcado de producto **completo** (tanda 5, 2026-07-19). Cola de specs en orden �
 del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conversación.
 
 - [ ] **Paso 0 — scaffold de Next.js** (no es un spec; hoy no hay `package.json`)
-- [ ] **Catálogo + import de Overture** — schema, 94 tags semilla, `confidence`/`operating_status`, atribución
+- [ ] **Catálogo + import de Overture** — schema, tags semilla, `confidence`/`operating_status`, atribución → spec: `docs/specs/planned/CATALOGO.md` (escrito 2026-07-19; siembra 96 tags — suma corregida y confirmada por Fer)
 - [ ] **Zonas** — ~44 polígonos (3 de Palermo a mano), zona primaria + buffer 400 m
 - [ ] **Búsqueda + filtros**
 - [ ] **Ficha** — primer uso de Google en vivo

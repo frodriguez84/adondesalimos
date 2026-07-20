@@ -173,7 +173,8 @@ no son filtrables.
 | **Participar** | Karaoke · Catas y degustaciones |
 | **Mirar** | Fútbol en pantalla · Proyecciones / cine |
 
-- ✅ **18 tags.** *Talleres* **descartado** (2026-07-19): le hizo ruido a Fer y roza el
+- ✅ **19 tags** _(conteo corregido 2026-07-19: antes decía 18 por error de suma)_.
+  *Talleres* **descartado** (2026-07-19): le hizo ruido a Fer y roza el
   "evento de día específico" ya excluido del alcance.
 - ✅ **"Fútbol en pantalla"** es un tag de capacidad ("acá se ve fútbol"), **no** de
   programación ("hoy pasan Boca-River"). La app no maneja agenda de eventos.
@@ -194,8 +195,9 @@ Dos niveles; **los padres son filtrables** (tocar "Asiática" trae todos los hij
 | **Dulce y café** | Pastelería · Café de especialidad |
 | **Dietas** | Vegetariana · Vegana · Sin TACC · Kosher · Halal |
 
-- ✅ **36 tags en 9 padres** (eran 37; `Heladería` se eliminó en la tanda 5 al quedar las
-  heladerías fuera del alcance).
+- ✅ **37 tags en 9 padres** (eran 38 con `Heladería`, eliminada en la tanda 5 al quedar las
+  heladerías fuera del alcance). _Conteo corregido 2026-07-19: antes decía 36 por error de
+  suma; la lista enumerada siempre fue la válida._
 - ✅ **`Pastelería` SÍ sobrevive** (revisado y confirmado por Fer, 2026-07-19). Razón fuerte:
   **la app ya decidió que la merienda es una salida** — `Merienda` es chip de Ocasión *y* tag
   de Momento. Ese chip es, por definición, una combinación de facetas: `Tipo: Café` +
@@ -370,8 +372,9 @@ sin problema de ToS).
 
 ### Resumen — tamaño de la taxonomía v1
 
-Tipo 10 · Cocina 36 · Actividad 18 · Ambiente 17 · Precio 4 · Momento 9 = **94 tags**,
-más 9 chips de Ocasión. **Zona va aparte**: selector propio de 2 niveles, 4 regiones y
+Tipo 10 · Cocina 37 · Actividad 19 · Ambiente 17 · Precio 4 · Momento 9 = **96 tags**,
+más 9 chips de Ocasión. _(Conteos corregidos 2026-07-19 — la suma original decía 94; las
+listas enumeradas no cambiaron.)_ **Zona va aparte**: selector propio de 2 niveles, 4 regiones y
 ~44 zonas de salida, resuelto por geometría (no es tag).
 
 ## Fuentes de lugares (3 orígenes)
@@ -827,7 +830,30 @@ precio fijo se licúa con la inflación en meses.
 _Actualizado durante la tanda 5 (2026-07-19). Esta sección es lo primero que lee la
 sesión siguiente._
 
-### 🏁 Tanda 5 — cerrada (2026-07-19) · EL VOLCADO DE PRODUCTO ESTÁ COMPLETO
+### 🏁 Sesión de specs 1 — cerrada (2026-07-19) · PASO 0 + SPEC 1 HECHOS
+
+Primera sesión post-volcado (Fable). Dos entregas:
+
+- ✅ **Paso 0 — scaffold de Next.js CREADO** (subagente `implementador`; tsc + build + tests
+  verdes). Next 16.2.6 + Tailwind v4 con los tokens decididos en **un solo tema oscuro**
+  (`:root` directo, sin variante `.dark`), Drizzle con `schema.ts` vacío (el schema es del
+  spec 1), docker-compose de Postgres en puerto **5439**, dev en **5178**, y los 5
+  componentes base (Button · FilterChip · SearchInput · BottomSheet · PlaceCard sin foto).
+  Desvíos menores respecto de StressPlan documentados en el reporte del agente (sin
+  `@base-ui/react` ni `tw-animate-css`; `shared/` en kebab-case).
+- ✅ **Spec 1 escrito**: `docs/specs/planned/CATALOGO.md` — modelo de datos completo
+  (`places` única para overture+owner · `tags` con facet enum y padres de Cocina ·
+  `place_tags` con procedencia · `app_settings` con umbral 0.5 y cortes de precio),
+  helper de visibilidad, import DuckDB idempotente por `overture_id`, `/legales`.
+  Registrado en `docs/specs/README.md` y `BACKLOG.md`.
+- ✅ **RESUELTO — la suma estaba mal, no las listas** (Fer, 2026-07-19): las listas
+  enumeradas (lo validado ítem por ítem) son el canon y suman **96 tags** (Cocina 37 ·
+  Actividad 19); los resúmenes decían 94 por error de suma. Conteos corregidos en todo
+  este archivo. El spec CATALOGO siembra las 96 (105 filas contando los 9 padres de Cocina).
+- 📌 Nada commiteado (regla: no commitear sin preguntar). Próximo paso: implementar
+  CATALOGO o escribir el spec 2 (Zonas) — uno por vez.
+
+### Tanda 5 — cerrada (2026-07-19) · EL VOLCADO DE PRODUCTO ESTÁ COMPLETO
 
 Los tres temas que quedaban se cerraron. **No hay temas abiertos ni bloqueantes.**
 
@@ -846,7 +872,8 @@ Los tres temas que quedaban se cerraron. **No hay temas abiertos ni bloqueantes.
   no donde comprás y te vas. **Cines afuera "siempre"** — no es aplazamiento sino exclusión
   de alcance, porque un cine sin cartelera es inútil y la cartelera es agenda de eventos.
 - ✅ **Consecuencia ejecutada**: se eliminó el tag `Heladería` de Cocina. **La taxonomía pasa
-  de 95 a 94 tags** (Cocina 36). `Pastelería` se revisó y **se mantiene** — el chip de Ocasión
+  de 97 a 96 tags** (Cocina 37; conteos corregidos 2026-07-19 — originalmente se anotó
+  "de 95 a 94" por error de suma). `Pastelería` se revisó y **se mantiene** — el chip de Ocasión
   "Merienda" la necesita. Nació el **test para admitir un tag de Cocina**: se justifica si
   existe algún lugar del catálogo que lo llevaría.
 - ✅ **Umbral de `confidence`: 0.5, configurable desde `/admin`.** La decisión clave no fue el
@@ -919,7 +946,8 @@ arriba): detalle de los planes · heladerías/panaderías/cines · umbral de `co
 
 - ✅ **Taxonomía de filtros VOLCADA Y VALIDADA** — era la pregunta abierta principal de la
   tanda 2. Ver sección "Taxonomía de filtros" arriba: modelo de **7 facetas combinables**
-  (no árbol único), **95 tags** + 9 chips de Ocasión, validados ítem por ítem con Fer.
+  (no árbol único), **97 tags** (aún con `Heladería`; conteo corregido 2026-07-19, decía 95)
+  + 9 chips de Ocasión, validados ítem por ítem con Fer.
 - ✅ **Decisión estructural clave**: *Tipo = formato del local · Cocina = qué sirve.* Parrilla
   y Pizzería viven en Cocina, no en Tipo. Sin costo de UX porque el texto libre matchea tags
   de cualquier faceta.
