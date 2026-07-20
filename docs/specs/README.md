@@ -21,13 +21,12 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Cuándo leerlo |
 |------|----------------|
-| _(vacío)_ | |
+| [BUSQUEDA](active/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). Leer antes de tocar `/`, `/api/search` o la query de catálogo. Depende de CATALOGO y ZONAS; bloquea Ficha, Votación y Monetización |
 
 ## 🔵 Planned (`planned/`)
 
 | Spec | Gate / nota |
 |------|----------------|
-| [BUSQUEDA](planned/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). Depende de CATALOGO y ZONAS; bloquea Ficha, Votación y Monetización |
 | [FICHA](planned/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; **primer uso de Google en vivo** (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). Depende de CATALOGO, ZONAS y BUSQUEDA; bloquea Auth/reclamo |
 
 ## ⚫ Done (`done/`)

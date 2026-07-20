@@ -120,6 +120,22 @@ una sola carpeta según su estado.**
 | `docs/specs/active/` | **Normativo hoy** — leer antes de tocar el feature. Incluye specs parciales |
 | `docs/specs/done/` | **Cerrado** — resumen operativo en `docs/archive/SPECS_ARCHIVO.md` |
 
+### Prefijos de commit — escribir el spec ≠ implementarlo
+
+Los commits `5ddf904` ("Spec 3 BUSQUEDA: home/search en 3 fases…") y `6628757` ("Spec 4
+FICHA…") **solo tocan `docs/`**: son de autoría del spec. Leídos en `git log` parecen
+implementaciones, y una sesión que arranca mirando el log arranca creyendo que el feature ya
+existe. Pasó de verdad al empezar BÚSQUEDA. Desde 2026-07-20:
+
+| Prefijo | Qué es | Toca |
+|---------|--------|------|
+| `spec(NOMBRE):` | Se escribió o corrigió un spec. **No hay código** | solo `docs/` |
+| `feat(NOMBRE):` | Implementación. Si el spec tiene fases, nombrar la fase (`F1 —`) | `lib/`, `app/`, `drizzle/`… |
+| `docs:` | Documentación que no es un spec (backlog, lecciones, archivo) | solo `docs/` |
+| `fix(NOMBRE):` | Corrección sobre un feature ya implementado | código |
+
+**Regla:** si el commit no toca código, no puede empezar con `feat`.
+
 ### Al empezar a implementar
 1. Leer el spec. Si está en `planned/` y el trabajo toma más de una sesión, **moverlo a
    `active/`** (`git mv`) y actualizar `docs/specs/README.md`.

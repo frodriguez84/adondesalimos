@@ -76,6 +76,24 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       `limite-partidos-pba.zip` es CC BY 4.0 —licencia estándar y trazable, mejor que los
       TyC propios del IGN— pero hoy el servidor entrega 97.071 bytes de los 7.796.169
       declarados, de forma determinística. Se usó IGN como fallback.
+- [ ] **La faceta Precio está vacía: 0 filas en `place_tags`** (BUSQUEDA, 2026-07-20). Los 4
+      tags `precio-1..4` existen y no los usa ningún lugar. No es un bug del import: Overture
+      no trae precio y `places` no tiene columna de la que derivarlo. Google sí expone
+      `price_level`, pero es dato de Google — mostrable en vivo en la ficha, **no persistible
+      ni filtrable** (ToS). Se llena solo con curaduría o con dueños (spec 5). Hasta entonces
+      el filtro de Precio se muestra pero cualquier combinación que lo use da cero.
+      Decidir si en v1 se oculta la faceta o se deja visible y vacía.
+- [ ] **Actividad está pegada a un solo Tipo: cruzar las dos facetas da casi siempre cero**
+      (BUSQUEDA, 2026-07-20). 12 de 13 tags de Actividad conviven con exactamente un Tipo
+      (`musica-en-vivo` solo con `teatro-espacio-cultural`, `dj` solo con `boliche`…), porque
+      `scripts/overture/tag-map.ts` mapea cada categoría de Overture a un Tipo y una Actividad
+      a la vez. No es un bug del motor de búsqueda: la semántica AND funciona, los datos no la
+      acompañan. Se despega con curaduría o dueños, o revisando el tag-map para asignar
+      Actividad por otros criterios además de la categoría.
+- [ ] **Cobertura rala de Ambiente (0,9%) y Momento (0,6%)** (BUSQUEDA, 2026-07-20). El import
+      de Overture casi no las llena — la decisión 20 del spec lo anticipaba, la magnitud no.
+      Son el diferencial del producto y hoy están casi vacías: es la carga de curaduría más
+      grande pendiente. Ver la medición en el spec BUSQUEDA § *Medición de cobertura*.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.

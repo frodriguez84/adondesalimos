@@ -1,6 +1,6 @@
 # Spec: Búsqueda + filtros
 
-**Estado:** 🔵 Planned — diseño completo, listo para implementar
+**Estado:** 🟡 En curso — F1 en implementación (2026-07-20). F2 y F3 pendientes
 **Prioridad:** Alta — spec 3: es el producto. "La app sirve para decidir a dónde ir según lo que escriba el usuario + una tanda de filtros"
 **Gate:** Ninguno
 **Bloquea:** Ficha (spec 4, se llega desde los resultados) · Votación (spec 6, arma shortlist desde búsquedas) · Monetización (spec 7, los destacados se insertan en estos resultados)
@@ -74,6 +74,8 @@ Las 1-11 vienen de `IDEAS.md`; las 12-24 son diseño de este spec.
 | 22 | **Impresiones agregadas por día** (`place_impressions_daily`: place_id, fecha, contador): se registra en batch al servir resultados. Es lo mínimo que no se puede reconstruir después y habilita el teaser B2B ya decidido. Sin datos por usuario, sin cookies — solo conteo |
 | 23 | **0 resultados con filtros activos**: mensaje canchero + los chips activos a mano para sacar + sugerencia de aflojar el que más restringe. Nunca una pantalla muerta |
 | 24 | **Faceta Momento visible en v1 sin "Abierto ahora"** (ver Qué NO es); Actividad y Ambiente visibles completas — son el diferencial y crecen con la curaduría |
+| 25 | **Un chip que hoy devuelve 0 no se muestra.** El seed siembra los 9 tal cual; la home y el "ver más" listan solo los que tienen resultados con el catálogo actual. No es `active` (eso es curaduría manual): es un conteo. Un chip apagado se prende solo cuando la curaduría o los dueños llenan sus tags — sin deploy, que es lo que la decisión 18 buscaba |
+| 26 | **Los 4 chips de la home se recuran contra datos reales antes de sembrarse** (ver § *Medición de cobertura*). El seed de la tabla de abajo es la curaduría *objetivo*, no la que entra en v1: con el catálogo de hoy, 8 de los 9 chips dan cero. La recuración concreta se define al implementar F3, con el usuario, y queda registrada acá |
 
 ### Diseño de la pantalla (mobile-first)
 
@@ -132,6 +134,54 @@ sobre `places.name`; los de tags/zonas son tablas chicas, no hace falta.
 | Plan tranqui | `plan-tranqui` | | Tipo: cafe, bar · Ambiente: tranqui · Actividad: juegos-de-mesa |
 | Merienda | `merienda` | | Tipo: cafe · Momento: merienda · Cocina: pasteleria (la combinación ya decidida en IDEAS) |
 
+> ⚠️ **Esta tabla es la curaduría objetivo, no la de v1.** Ver decisión 26 y la medición de
+> abajo: con el catálogo de hoy, 8 de estos 9 chips devuelven cero resultados.
+
+### Medición de cobertura (2026-07-20, sondeo previo a implementar — 18.993 publicados)
+
+Cobertura de tags **sobre lugares publicados**, medida contra la base, no estimada:
+
+| Faceta | Publicados con algún tag | % |
+|--------|--------------------------|---|
+| Tipo | 18.993 | 100% |
+| Cocina | 7.156 | 37,7% |
+| Actividad | 2.390 | 12,6% |
+| Ambiente | 164 | 0,9% |
+| Momento | 111 | 0,6% |
+| **Precio** | **0** | **0%** |
+
+**`place_tags` no tiene ni una fila de faceta Precio.** Los 4 tags existen; no los usa nadie.
+No es un bug del import: Overture no trae precio y `places` no tiene columna de la que
+derivarlo. Google sí tiene `price_level`, pero es dato de Google — mostrable en vivo en la
+ficha (spec 4), **no persistible ni filtrable** (ToS). Precio se llena solo con curaduría o
+dueños (spec 5). Anotado en `BACKLOG.md`.
+
+Los 23 slugs del seed de chips **existen todos** en la taxonomía (ninguno inventado), pero 13
+tienen cero lugares publicados: `precio-2`, `grupos-grandes`, `romantico`, `tranqui`,
+`kids-friendly`, `reserva-necesaria`, `hasta-tarde`, `happy-hour`, `cena`, `bodegon`,
+`pasteleria`, `juegos-de-mesa`, `fiesta-tematica`. Con la semántica AND-entre-facetas de la
+decisión 13, eso apaga 8 de los 9 chips — incluidos 3 de los 4 de la home. El único vivo es
+*Salir a bailar* (boliche ∩ (dj 575 ∪ salsa-bachata 11)).
+
+**Los tags de Actividad están pegados a un solo Tipo.** 12 de los 13 tags de Actividad con
+datos conviven con **exactamente un** tag de Tipo: `musica-en-vivo`, `teatro`, `stand-up` y
+`proyecciones-cine` solo aparecen en `teatro-espacio-cultural`; `dj` y `salsa-bachata` solo en
+`boliche`; `arcade`, `bowling` y `karaoke` solo en `centro-entretenimiento`. La única excepción
+es `catas-degustaciones` (bar, cervecería, wine-bar).
+
+Es consecuencia estructural del import: `scripts/overture/tag-map.ts` mapea cada categoría de
+Overture a un Tipo **y** una Actividad, así que la correlación es perfecta por construcción.
+Consecuencia práctica: **cualquier filtro que cruce Tipo con una Actividad que no sea la del
+par original devuelve cero.** "Bar + música en vivo" en Palermo Soho da 0 y no es un bug del
+motor — verificado: hay 235 bares y 29 lugares con música en vivo en esa zona, y ningún lugar
+tiene los dos tags. Vale tanto para la recuración de chips (decisión 26) como para el sheet de
+filtros de F2.
+
+Tags **con** datos disponibles para recurar (publicados): Tipo — restaurante 11.438, bar
+2.671, cafe 2.058, boliche 586, cerveceria 548, wine-bar 135. Actividad — musica-en-vivo 882,
+dj 575, teatro 431, catas-degustaciones 181, proyecciones-cine 151, arcade 66. Ambiente —
+aire-libre 99, wifi-trabajar 26, tematico 20. Momento — desayuno 64, merienda 47.
+
 Notas de la curaduría: *Primera cita* vs *Chongo* implementa la lectura acordada (cita =
 tranqui + se puede hablar; chongo = hasta tarde, sin tranqui). *Salida con amigos* es
 específico a propósito (el riesgo "devuelve 8.000 lugares" está anotado en IDEAS) — el
@@ -150,11 +200,38 @@ misma semántica OR-dentro / AND-entre facetas.
 
 ## Fases
 
-| Fase | Alcance | Cierre verificable |
-|------|---------|--------------------|
-| **F1 — Motor + lista** | Migración (chips, impresiones, extensiones) + query + `/` con searchParams + cards + paginación + rate limit | Buscar por URL directa funciona end-to-end con datos reales del import |
-| **F2 — Selectores** | Bottom sheet de zona (autocompletar + regiones + GPS) + sheet de filtros con "Ver N" + chips removibles + sugerencias del campo de texto | Toda búsqueda se puede armar sin tocar la URL |
-| **F3 — Chips + mapa + impresiones** | Seed de los 9 chips + home con 4 + "ver más" + vista mapa MapLibre + logging de impresiones | Home completa como el diseño de arriba |
+| Fase | Alcance | Cierre verificable | Estado |
+|------|---------|--------------------|--------|
+| **F1 — Motor + lista** | Migración (chips, impresiones, extensiones) + query + `/` con searchParams + cards + paginación + rate limit | Buscar por URL directa funciona end-to-end con datos reales del import | ✅ 2026-07-20 |
+| **F2 — Selectores** | Bottom sheet de zona (autocompletar + regiones + GPS) + sheet de filtros con "Ver N" + chips removibles + sugerencias del campo de texto | Toda búsqueda se puede armar sin tocar la URL | ⬜ |
+| **F3 — Chips + mapa + impresiones** | Seed de los 9 chips + home con 4 + "ver más" + vista mapa MapLibre + logging de impresiones | Home completa como el diseño de arriba | ⬜ |
+
+### F1 — qué quedó construido (2026-07-20)
+
+- **Migración** `drizzle/0002_last_christian_walker.sql`: las 3 tablas + `unaccent` + `pg_trgm`
+  + índice GIN trgm. Las tablas de chips e impresiones se crean acá y **las usa F3**.
+- **`immutable_unaccent(text)`**: `unaccent()` se declara STABLE y Postgres no acepta STABLE en
+  un índice. El wrapper fija el diccionario y la vuelve IMMUTABLE. **La query tiene que filtrar
+  por `immutable_unaccent(lower(name))`** para pegarle al índice; si no, es seq scan sobre 26.057.
+- **Texto: `word_similarity` (`<%`), no `similarity` (`%`).** `similarity` compara strings
+  enteros y se cae con nombres largos. Medido con "parrila": 877 matches contra 611, y usa el
+  mismo índice. Es lo que hace que el typo entre "Parrila El Juanca".
+- **`lib/search/params.ts`** — URL ↔ estado, puro y testeado en los dos sentidos. Las
+  coordenadas del GPS **no viajan en la URL**: son del dispositivo que mira, no del que
+  compartió el link. Solo van como `lat`/`lng` a `/api/search`.
+- **`lib/search/query.ts`** — el motor. Cursor keyset con `id` como último criterio siempre,
+  para que el orden sea total y la paginación no repita ni saltee en los empates.
+- **Rate limit** (`lib/middleware/`): `getClientIp` portado de StressPlan sin cambios;
+  el contador **diverge** a memoria del proceso en vez de la tabla `rate_limit_logs`, porque
+  `/api/search` es de lectura y se llama en cada scroll. Motivo y límites, en el archivo.
+- **`fileParallelism: false` en vitest**: los fixtures de zona de este spec rompían el
+  invariante "hay 46 zonas" de ZONAS al correr en paralelo contra la misma base.
+- **La card perdió el prop `rating`** del scaffold: no hay fuente legal que lo llene
+  (decisión 7 + ToS de Google). Y `location` es nullable — los 1.890 sin zona primaria.
+
+**Pendiente de F1 que se completa en F2** (no son huecos, son la fase siguiente): el selector de
+zona y el sheet de filtros; las sugerencias del campo de texto; el infinite scroll (hoy hay un
+"Ver más" sin JS que ejerce el mismo cursor); los chips removibles del estado de 0 resultados.
 
 ## Criterios de done (DoD)
 
@@ -172,8 +249,10 @@ misma semántica OR-dentro / AND-entre facetas.
       cambiar filtros actualiza la URL (replace, sin romper el back)
 - [ ] Orden estable de la decisión 16 con test (dueño > confidence > nombre; con `q`,
       similitud primero)
-- [ ] Los 9 chips sembrados; los 4 de la home correctos; tocar un chip aplica sus filtros
-      como chips removibles; editarlo en DB cambia el comportamiento sin deploy
+- [ ] Los 9 chips sembrados en DB con sus tags; tocar un chip aplica sus filtros como chips
+      removibles; editarlo en DB cambia el comportamiento sin deploy. **Un chip que devuelve
+      0 no se lista** (decisión 25). El DoD NO exige que los 9 devuelvan resultados: con el
+      catálogo actual eso es falso y depende de curaduría, no de esta implementación
 - [ ] "Abierto ahora" NO aparece en el sheet de filtros (y quedó en BACKLOG como futura)
 - [ ] Vista mapa: pins del resultado actual, atribución OSM visible, mini-card al tocar;
       `/legales` actualizado con la línea de OpenStreetMap/OpenFreeMap
@@ -192,7 +271,7 @@ misma semántica OR-dentro / AND-entre facetas.
 | BUSQ-05 | Texto | "parrila" (typo) y "cafe" sin tilde matchean; "Villa Ortúzar" lleva a Chacarita |
 | BUSQ-06 | Borde de zona | El lugar del test ZON-02 aparece buscando Villa Crespo y buscando Palermo Soho |
 | BUSQ-07 | GPS | Activar "cerca de mí" con zonas elegidas: las zonas se apagan; resultados a ≤2 km |
-| BUSQ-08 | Chips | "Merienda" aplica Café + Merienda + Pastelería visibles como chips; "ver más" muestra los otros 5 |
+| BUSQ-08 | Chips | Tocar un chip listado aplica sus tags como chips removibles visibles; "ver más" muestra los chips no-home que tengan resultados. Un chip con 0 no aparece (decisión 25) |
 | BUSQ-09 | Deep link | Compartir la URL de una búsqueda armada la reproduce idéntica en otro dispositivo |
 | BUSQ-10 | Mapa | "Ver en mapa" muestra los pins del mismo resultado; atribución OSM visible |
 | BUSQ-11 | Vacío | Filtros que dan 0: mensaje + chips removibles, nunca pantalla muerta; "Ver N" del sheet anticipó el número |

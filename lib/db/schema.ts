@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -216,6 +217,59 @@ export const placeZones = pgTable(
 )
 
 /**
+ * Chips de Ocasión: combinaciones prearmadas de tags (decisión 18 de BUSQUEDA).
+ * Viven en DB y no hardcodeados porque son **curaduría**: ajustarlos no es un
+ * deploy, es un UPDATE — mismo patrón que el umbral de confidence.
+ *
+ * `active` es curaduría manual (apagar un chip a mano). NO se usa para ocultar
+ * los que hoy no tienen resultados: eso es un conteo en runtime (decisión 25),
+ * así un chip se prende solo cuando la curaduría le llena los tags.
+ */
+export const occasionChips = pgTable('occasion_chips', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  /** Contrato: puede viajar en URLs al compartir una búsqueda armada por chip. */
+  slug: text('slug').notNull().unique(),
+  /** Los 4 que se muestran sin abrir "ver más". */
+  inHome: boolean('in_home').notNull().default(false),
+  sort: integer('sort').notNull().default(0),
+  active: boolean('active').notNull().default(true),
+})
+
+/** Los tags que aplica cada chip. Misma semántica que un filtro a mano: OR dentro de faceta, AND entre facetas. */
+export const chipTags = pgTable(
+  'chip_tags',
+  {
+    chipId: integer('chip_id')
+      .notNull()
+      .references(() => occasionChips.id, { onDelete: 'cascade' }),
+    tagId: integer('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.chipId, t.tagId] })],
+)
+
+/**
+ * Impresiones agregadas por lugar y día (decisión 22). Es lo mínimo que **no se
+ * puede reconstruir después**: sin esto, el "tu ficha apareció en N búsquedas
+ * este mes" del B2B (spec 7) nace sin histórico.
+ *
+ * Agregado puro: sin user_id, sin cookies, sin sesión. Solo un contador.
+ */
+export const placeImpressionsDaily = pgTable(
+  'place_impressions_daily',
+  {
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    date: date('date').notNull(),
+    impressions: integer('impressions').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.placeId, t.date] })],
+)
+
+/**
  * Settings editables desde admin. Genérica a propósito: nace con el umbral de
  * confidence y las bandas de precio, y el mismo patrón sirve para precios de
  * planes y cupos de IA (decisión 15).
@@ -242,3 +296,7 @@ export type NewZone = typeof zones.$inferInsert
 export type ZoneAlias = typeof zoneAliases.$inferSelect
 export type PlaceZone = typeof placeZones.$inferSelect
 export type Region = (typeof regionEnum.enumValues)[number]
+export type OccasionChip = typeof occasionChips.$inferSelect
+export type NewOccasionChip = typeof occasionChips.$inferInsert
+export type ChipTag = typeof chipTags.$inferSelect
+export type PlaceImpressionDaily = typeof placeImpressionsDaily.$inferSelect

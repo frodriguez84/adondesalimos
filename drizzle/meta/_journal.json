@@ -15,6 +15,13 @@
       "when": 1784569096135,
       "tag": "0001_great_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784574105525,
+      "tag": "0002_last_christian_walker",
+      "breakpoints": true
     }
   ]
 }

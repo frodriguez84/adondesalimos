@@ -1,56 +1,81 @@
 import * as React from 'react'
-import { MapPin, Star } from 'lucide-react'
+import Link from 'next/link'
+import { MapPin } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
 export interface PlaceCardProps extends React.ComponentProps<'div'> {
+  id: string
   name: string
   tags?: string[]
-  zone: string
-  rating?: number
+  /**
+   * Zona primaria, o localidad como respaldo. **Nullable a propósito**: 1.890
+   * lugares publicados no tienen zona primaria (ZONAS, decisión 17). Lo resuelve
+   * `ubicacionDeCard`.
+   */
+  location?: string | null
+  /** Distancia en km. Solo en modo "cerca de mí". */
+  distanceKm?: number | null
 }
 
 /**
- * Card de lugar para el listado. Sin foto (decisión de producto).
- * Solo presentación: props tipadas simples, sin lógica de datos.
+ * Card de lugar para el listado. Sin foto y **sin rating**: ninguno de los dos es
+ * persistible desde Google (decisión 7 de BUSQUEDA + ToS). El prop `rating` del
+ * scaffold se removió por eso — no había fuente legal que lo llenara. El slot de
+ * foto lo llena el spec 5, cuando existan fotos de dueño.
+ *
+ * Solo presentación: sin lógica de datos. Tocar la card lleva a la ficha (spec 4).
  */
-function PlaceCard({ name, tags = [], zone, rating, className, ...props }: PlaceCardProps) {
+function PlaceCard({
+  id,
+  name,
+  tags = [],
+  location,
+  distanceKm,
+  className,
+  ...props
+}: PlaceCardProps) {
   return (
     <div
       data-slot="place-card"
       className={cn(
-        'flex flex-col gap-2 rounded-xl border border-border bg-card p-4 text-card-foreground',
+        'rounded-xl border border-border bg-card text-card-foreground transition-colors hover:border-muted-foreground/50',
         className,
       )}
       {...props}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold leading-snug">{name}</h3>
-        {typeof rating === 'number' && (
-          <span className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
-            <Star className="size-3.5 fill-primary text-primary" />
-            {rating.toFixed(1)}
-          </span>
-        )}
-      </div>
-
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
-            >
-              {tag}
+      <Link href={`/lugar/${id}`} className="flex flex-col gap-2 p-4 outline-none">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-base font-semibold leading-snug">{name}</h3>
+          {typeof distanceKm === 'number' && (
+            <span className="shrink-0 text-sm text-muted-foreground">
+              {distanceKm < 1
+                ? `${Math.round(distanceKm * 1000)} m`
+                : `${distanceKm.toFixed(1)} km`}
             </span>
-          ))}
+          )}
         </div>
-      )}
 
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-        <MapPin className="size-3.5" />
-        {zone}
-      </div>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {location && (
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            <MapPin className="size-3.5" />
+            {location}
+          </div>
+        )}
+      </Link>
     </div>
   )
 }
