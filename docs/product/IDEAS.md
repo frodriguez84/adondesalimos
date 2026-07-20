@@ -830,6 +830,55 @@ precio fijo se licúa con la inflación en meses.
 _Actualizado durante la tanda 5 (2026-07-19). Esta sección es lo primero que lee la
 sesión siguiente._
 
+### 🏁 Sesión de specs 2 — cerrada (2026-07-19) · SPEC 4 FICHA ESCRITO
+
+Sesión de autoría manual (Fable). Una sola entrega: **`docs/specs/planned/FICHA.md`** —
+`/lugar/[id]` y el primer uso de Google en vivo. Nada implementado; el contenedor de
+Postgres sigue sin levantarse. Lo que se decidió, que no estaba decidido antes:
+
+- ✅ **El matching Overture↔Google es GRATIS y ese es el hallazgo que ordena el spec.**
+  Text Search (New) *Essentials — IDs Only* (SKU 635D-A9DD-C520) cuesta **$0 ilimitado**
+  con `fieldMask: places.id`. Pedir un campo de más (`displayName` es Pro; `location` en
+  Text Search también) lo convierte en $32/1.000. El DoD lo protege con un test sobre el
+  field mask.
+- ✅ **Consecuencia: el matching es "a ciegas"** — con IDs-Only no se puede comparar nombre
+  ni distancia de la respuesta. Las salvaguardas van **en la entrada**: query con nombre +
+  dirección + localidad, `locationRestriction` de ±300 m sobre el lat/lng propio, 1 resultado.
+- ✅ **Matching perezoso, no batch**: se resuelve al abrir la ficha por primera vez. 5 estados
+  (`pending·matched·manual·not_found·blocked`) con reintento a 30 días y respeto absoluto
+  por lo que fijó un humano.
+- 🔴 **Restricción derivada que NO estaba escrita: una sola foto de Google por ficha.** El
+  presupuesto ya validado (~$54/mes a 3.000 fichas) sale de Details $40 + Photos $14, y eso
+  es exactamente 1 foto. Con 3 fotos serían ~$82 y el número de IDEAS § costos deja de valer.
+  La galería multi-foto queda **solo** para fotos de dueño.
+- ✅ **El bloque de Google se pide desde el cliente**, no en el render del server component.
+  Es decisión de **costo**, no de UX: los crawlers y los previews de WhatsApp —y compartir la
+  ficha por WhatsApp es el loop viral del producto— dispararían llamadas Enterprise sobre
+  fichas que ningún humano abrió (~$520 por un crawl del catálogo).
+- ✅ **Topes mensuales por SKU en `app_settings`** (`google.details_monthly_cap` /
+  `google.photos_monthly_cap`) contra la tabla `google_api_usage`. Superado el tope, la ficha
+  **degrada** al modo sin Google en vez de disparar la factura. Cuarto uso del mismo patrón
+  editable-sin-deploy (umbral · precios · cupos IA · cuotas de Google).
+- ✅ **Cero caché de datos de Google en cualquier nivel** — ni DB, ni `revalidate`, ni TTL en
+  memoria. Un refresh del usuario = una request paga. Es el costo de la disciplina del ToS
+  y se acepta explícitamente.
+- ✅ **`priceLevel` de Google como fallback** del rango de precios cuando el lugar no tiene
+  tag propio de Precio: viene gratis en la request Enterprise que ya se está pagando.
+- ✅ **Nunca `Enterprise + Atmosphere`** ($25/1.000): el ambiente es tag propio — es el
+  diferencial de la app, no se compra.
+- ✅ **`detail_views`** (columna nueva en `place_impressions_daily`): la apertura de ficha es
+  lo que vende el B2B y no se puede reconstruir a posteriori. Mismo argumento con el que
+  BUSQUEDA justificó las impresiones.
+- ✅ **La ficha se sostiene sin Google**: contacto, redes y website salen de Overture (86% /
+  98% / 41%), el "cómo llegar" es un deep link sobre lat/lng propios, y con la API key
+  apagada la pantalla se ve entera. Lo de Google se **encastra** en huecos que colapsan
+  limpio; nunca al revés.
+- 📌 A `BACKLOG.md` § mejoras futuras: refresh anual del `place_id` · batch de matching ·
+  slug SEO en la URL · `/admin` para corregir matches sin SQL.
+- ⏭️ **Próximo paso**: implementar CATALOGO (sesión Opus) o escribir el spec 5
+  (Auth + roles + reclamo de negocio) — uno por vez. Ya hay 4 specs escritos y **cero
+  implementados**: vale considerar bajar a implementar antes de seguir acumulando diseño.
+
 ### 🏁 Sesión de specs 1 — cerrada (2026-07-19) · PASO 0 + SPEC 1 HECHOS
 
 Primera sesión post-volcado (Fable). Dos entregas:
