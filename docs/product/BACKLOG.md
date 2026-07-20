@@ -14,7 +14,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 - [ ] **Paso 0 — scaffold de Next.js** (no es un spec; hoy no hay `package.json`)
 - [ ] **Catálogo + import de Overture** — schema, tags semilla, `confidence`/`operating_status`, atribución → spec: `docs/specs/planned/CATALOGO.md` (escrito 2026-07-19; siembra 96 tags — suma corregida y confirmada por Fer)
-- [ ] **Zonas** — ~44 polígonos (3 de Palermo a mano), zona primaria + buffer 400 m
+- [ ] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/planned/ZONAS.md` (escrito 2026-07-19)
 - [ ] **Búsqueda + filtros**
 - [ ] **Ficha** — primer uso de Google en vivo
 - [ ] **Auth + roles + reclamo de negocio**

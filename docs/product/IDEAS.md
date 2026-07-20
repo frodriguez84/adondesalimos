@@ -850,8 +850,13 @@ Primera sesión post-volcado (Fable). Dos entregas:
   enumeradas (lo validado ítem por ítem) son el canon y suman **96 tags** (Cocina 37 ·
   Actividad 19); los resúmenes decían 94 por error de suma. Conteos corregidos en todo
   este archivo. El spec CATALOGO siembra las 96 (105 filas contando los 9 padres de Cocina).
-- 📌 Nada commiteado (regla: no commitear sin preguntar). Próximo paso: implementar
-  CATALOGO o escribir el spec 2 (Zonas) — uno por vez.
+- ✅ **Spec 2 escrito en la misma sesión**: `docs/specs/planned/ZONAS.md` — modelo
+  `zones` / `zone_aliases` / `place_zones`, **46 zonas exactas** (CABA 21 · N 9 · O 7 ·
+  S 9; los "~19/~44" de este archivo eran aproximados), GeoJSON versionados en
+  `data/zones/`, **sin PostGIS en v1** (asignación precomputada con turf.js, buffer 400 m
+  materializado), fuente del conurbano estatal o dibujo manual — **nunca OSM** (ODbL).
+- 📌 Paso 0 y spec 1 commiteados (`73e103c`, `fd7b882`). Próximo paso: implementar
+  CATALOGO (sesión Opus) o escribir el spec 3 (Búsqueda) — uno por vez.
 
 ### Tanda 5 — cerrada (2026-07-19) · EL VOLCADO DE PRODUCTO ESTÁ COMPLETO
 
