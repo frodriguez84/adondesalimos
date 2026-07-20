@@ -120,7 +120,16 @@ export function MapView({ params, coords }: Props) {
         type: 'symbol',
         source: 'lugares',
         filter: ['has', 'point_count'],
-        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12 },
+        layout: {
+          'text-field': ['get', 'point_count_abbreviated'],
+          'text-size': 12,
+          // OpenFreeMap sirve fuentes Noto, no el default de MapLibre
+          // ("Open Sans Regular,Arial Unicode MS Regular"), que da 404 en su
+          // endpoint de glyphs y obliga al fallback de render local. Fijar el
+          // fontstack a uno que sí existe elimina el 404 y dibuja el número con
+          // la glyph real.
+          'text-font': ['Noto Sans Bold'],
+        },
         paint: { 'text-color': '#ffffff' },
       })
       m.addLayer({
