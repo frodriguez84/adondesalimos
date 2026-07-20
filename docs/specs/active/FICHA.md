@@ -237,10 +237,9 @@ renderiza.
 con `skipHttpRedirect`, la atribución a Google sobre datos en vivo y `robots.txt`
 bloqueando `/api/`. La línea de Google en `/legales` **ya existe** (la puso CATALOGO).
 
-**Nota de gate:** `npm run build` quedó pendiente de correr con el dev server parado
-(comparten `.next`; lección de BUSQUEDA). El gate reconfirmable —typecheck + tests—
-está verde. El build se corre en el cierre (`/check` / `/close-spec`) con el server
-apagado.
+**Gate técnico F1:** `npx tsc --noEmit` limpio · `npm test` 165/165 · `npm run build`
+verde (corrido con el dev server parado). En el build, `/lugar/[id]` sale como
+`ƒ (Dynamic)` — ruta dinámica, lista para el enriquecimiento en vivo de F2 (decisión 17).
 
 ## Criterios de done (DoD)
 

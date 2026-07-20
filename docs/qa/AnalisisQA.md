@@ -236,8 +236,8 @@ Con BUSQ-QA-09 en PASS, los 12 criterios están verdes y el veredicto pasa a **A
 tests + smoke en vivo. Los IDs son los del spec (`FICHA-NN`) y se reusan al cerrar.
 
 **Veredicto de F1:** PASA (alcance F1)
-**Verificación técnica:** typecheck ✅ · tests ✅ **165/165** (14 nuevos de F1) · build ⏳
-pendiente de correr con el dev server parado (comparten `.next` — lección BUSQUEDA).
+**Verificación técnica:** typecheck ✅ · tests ✅ **165/165** (14 nuevos de F1) · build ✅
+(con el dev server parado; `/lugar/[id]` sale como ruta dinámica `ƒ`, lista para F2).
 **Método:** unit tests (`lib/lugar/__tests__/ficha.test.ts`), integración contra el Postgres
 local (`detail-view.integration.test.ts`, `query.integration.test.ts`) y smoke en vivo con
 Playwright/MCP contra `https://adondesalimos.ngrok.app` sobre un lugar publicado real
