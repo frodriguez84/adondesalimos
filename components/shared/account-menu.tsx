@@ -8,8 +8,11 @@ type Props = { user: { name: string | null; email: string } | null }
 
 /**
  * Entrada de cuenta del header de la home (spec AUTH F1). Sin sesión: link a
- * ingresar. Con sesión: menú con Mi cuenta y salir. "Mi negocio" se suma en F2
- * (todavía no existe la ruta).
+ * ingresar. Con sesión: menú con las rutas del usuario.
+ *
+ * F2 suma "Registrá tu negocio": es la única puerta al alta de un lugar nuevo
+ * (el botón de la ficha solo cubre reclamar lo que ya existe). "Mi negocio"
+ * —la lista de lugares propios— llega con F3, junto con el panel.
  */
 export function AccountMenu({ user }: Props) {
   const [open, setOpen] = useState(false)
@@ -63,6 +66,14 @@ export function AccountMenu({ user }: Props) {
             <p className="truncate text-sm font-medium text-foreground">{user.name || 'Mi cuenta'}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
+          <Link
+            href="/registrar-negocio"
+            role="menuitem"
+            className="block px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            onClick={() => setOpen(false)}
+          >
+            Registrá tu negocio
+          </Link>
           <Link
             href="/cuenta"
             role="menuitem"

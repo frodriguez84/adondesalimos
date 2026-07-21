@@ -1,8 +1,9 @@
 import 'dotenv/config'
 import { DuckDBInstance } from '@duckdb/node-api'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { placeTags, places, tags } from '@/lib/db/schema'
+import { reemplazarTagsDeImport } from '@/lib/claims/ownership'
+import { places, tags } from '@/lib/db/schema'
 import { EXCLUDE_CATEGORIES, INCLUDE_CATEGORIES, isIncluded } from './overture/categories'
 import { toStringArray } from './overture/normalize'
 import { tagsForCategory } from './overture/tag-map'
@@ -121,6 +122,8 @@ async function main() {
   const porCategoria = new Map<string, number>()
   let conTags = 0
   let sinMapeo = 0
+  /** Lugares cuyas tags no se tocaron por tener dueño aprobado (decisión 14). */
+  let conDueno = 0
 
   for (const batch of chunk(usables, BATCH)) {
     const inserted = await db
@@ -166,15 +169,9 @@ async function main() {
       .returning({ id: places.id, overtureId: places.overtureId })
 
     const idByOvertureId = new Map(inserted.map((p) => [p.overtureId!, p.id]))
-
-    // Tags semilla del batch. Se reemplazan solo las de source='import': las que
-    // puso un dueño o un admin sobreviven al re-import.
     const placeIds = [...idByOvertureId.values()]
-    await db
-      .delete(placeTags)
-      .where(and(inArray(placeTags.placeId, placeIds), eq(placeTags.source, 'import')))
 
-    const nuevas: { placeId: string; tagId: number; source: 'import' }[] = []
+    const nuevas: { placeId: string; tagId: number }[] = []
     for (const r of batch) {
       porCategoria.set(r.category ?? 'null', (porCategoria.get(r.category ?? 'null') ?? 0) + 1)
       const placeId = idByOvertureId.get(r.id)
@@ -191,20 +188,23 @@ async function main() {
         if (!tagId) {
           throw new Error(`El mapeo de "${r.category}" usa el slug "${slug}", que no existe en tags`)
         }
-        nuevas.push({ placeId, tagId, source: 'import' })
+        nuevas.push({ placeId, tagId })
         asignadas++
       }
       if (asignadas > 0) conTags++
     }
 
-    if (nuevas.length > 0) {
-      // Si un admin ya había asignado la misma tag, su fila gana (no se pisa el source).
-      await db.insert(placeTags).values(nuevas).onConflictDoNothing()
-    }
+    // Tags semilla del batch. La regla vive en `lib/claims/ownership.ts`: se
+    // reemplazan solo las de source='import' —las que puso un dueño o un admin
+    // ya sobrevivían— y **los lugares con reclamo aprobado se saltean enteros**
+    // (AUTH, decisión 14): sin eso, una tag que el dueño borró reaparecería en
+    // el import siguiente.
+    const { protegidos } = await reemplazarTagsDeImport(placeIds, nuevas)
+    conDueno += protegidos
   }
 
   const despues = await countPlaces()
-  await reportar({ leidas: rows.length, usables: usables.length, descartadas, antes, despues, porCategoria, conTags, sinMapeo })
+  await reportar({ leidas: rows.length, usables: usables.length, descartadas, antes, despues, porCategoria, conTags, sinMapeo, conDueno })
 }
 
 async function countPlaces(): Promise<number> {
@@ -221,6 +221,7 @@ async function reportar(r: {
   porCategoria: Map<string, number>
   conTags: number
   sinMapeo: number
+  conDueno: number
 }) {
   const dist = await db
     .select({
@@ -249,6 +250,7 @@ async function reportar(r: {
   console.log(`places antes: ${r.antes} · después: ${r.despues} · nuevas: ${r.despues - r.antes}`)
   console.log(`Actualizadas (ya existían): ${r.usables - (r.despues - r.antes)}`)
   console.log(`Con tags de import: ${r.conTags} · sin mapeo de categoría: ${r.sinMapeo}`)
+  console.log(`Con dueño aprobado (tags intactas, decisión 14 de AUTH): ${r.conDueno}`)
   console.log(`Filas con confidence < 0.5 (importadas igual, invisibles): ${bajo}`)
   console.log(`Filas con categoría excluida (debe ser 0): ${excluidas}`)
   console.log('\nDistribución de confidence (décimas):')

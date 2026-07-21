@@ -1,9 +1,9 @@
 import { Resend } from 'resend'
 
 /**
- * Mails transaccionales (Resend, patrón StressPlan — decisión 25). En v1: solo
- * verificación de email y reset de password. Los mails de reclamo aprobado/
- * rechazado llegan con F2.
+ * Mails transaccionales (Resend, patrón StressPlan — decisión 25). En v1, los
+ * cuatro: verificación de email, reset de password, reclamo aprobado y reclamo
+ * rechazado. Nada más.
  *
  * `RESEND_API_KEY` es server-only. En dev el sender por defecto es el sandbox de
  * Resend (`onboarding@resend.dev`); en prod se setea `RESEND_FROM_EMAIL` con un
@@ -55,7 +55,7 @@ export async function sendVerificationEmail(email: string, url: string) {
       'Verificá tu email',
       `
         <p style="margin:0 0 28px;font-size:15px;color:#888;line-height:1.6">
-          Confirmá que este buzón es tuyo para poder iniciar sesión y recuperar tu cuenta si perdés la contraseña.
+          Confirmá que este mail es tuyo para poder iniciar sesión y recuperar tu cuenta si perdés la contraseña.
         </p>
         ${cta(url, 'Verificar mi email →')}
         <p style="margin:28px 0 0;font-size:13px;color:#555;line-height:1.6">
@@ -65,6 +65,67 @@ export async function sendVerificationEmail(email: string, url: string) {
   })
   if (result.error) {
     console.error('[resend] error al enviar verificación:', JSON.stringify(result.error))
+    throw new Error(result.error.message)
+  }
+}
+
+/** Escapa lo que viene del usuario o del admin antes de meterlo en el HTML. */
+function esc(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * Reclamo aprobado (decisión 22). El lugar ya está publicado cuando esto sale:
+ * el mail linkea a la ficha, que es la prueba.
+ */
+export async function sendClaimApprovedEmail(email: string, placeName: string, placeId: string) {
+  const url = `${APP_URL}/lugar/${placeId}`
+  const result = await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: `Aprobamos tu negocio: ${placeName} — ${BRAND}`,
+    html: shell(
+      'Tu negocio ya está publicado',
+      `
+        <p style="margin:0 0 28px;font-size:15px;color:#888;line-height:1.6">
+          Verificamos tu solicitud sobre <strong style="color:#F5F5F5">${esc(placeName)}</strong> y ya sos su dueño en la app.
+          Su ficha está publicada y aparece en las búsquedas.
+        </p>
+        ${cta(url, 'Ver la ficha →')}`,
+    ),
+  })
+  if (result.error) {
+    console.error('[resend] error al enviar aprobación:', JSON.stringify(result.error))
+    throw new Error(result.error.message)
+  }
+}
+
+/** Reclamo rechazado: el motivo del admin viaja en el mail (decisión 22). */
+export async function sendClaimRejectedEmail(email: string, placeName: string, motivo: string) {
+  const result = await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: `Sobre tu solicitud para ${placeName} — ${BRAND}`,
+    html: shell(
+      'No pudimos aprobar tu solicitud',
+      `
+        <p style="margin:0 0 16px;font-size:15px;color:#888;line-height:1.6">
+          Revisamos tu solicitud sobre <strong style="color:#F5F5F5">${esc(placeName)}</strong> y por ahora no la aprobamos.
+        </p>
+        <p style="margin:0 0 28px;padding:14px 16px;border-radius:10px;background:#0F0F0F;border:1px solid #2A2A2A;font-size:14px;color:#F5F5F5;line-height:1.6">
+          ${esc(motivo)}
+        </p>
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.6">
+          Si podés aportar algo que confirme tu vínculo con el negocio, respondé este mail y lo miramos de nuevo.
+        </p>`,
+    ),
+  })
+  if (result.error) {
+    console.error('[resend] error al enviar rechazo:', JSON.stringify(result.error))
     throw new Error(result.error.message)
   }
 }

@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import * as schema from '@/lib/db/schema'
 import { sendResetPasswordEmail, sendVerificationEmail } from '@/lib/email'
@@ -42,6 +43,35 @@ export const auth = betterAuth({
   user: {
     deleteUser: {
       enabled: true,
+      /**
+       * Edge case del spec (F2): al borrarse un dueño, sus claims caen por
+       * cascade y el lugar pierde la condición de reclamado — pero el
+       * `publish_override` que puso la aprobación no se baja solo, y el lugar
+       * quedaría publicado sin dueño. Se baja acá, ANTES del delete: después la
+       * fila del claim ya no existe y no habría por dónde encontrar el lugar.
+       *
+       * Un `source='overture'` con buen confidence sigue publicado por la regla
+       * normal; uno `source='owner'` vuelve a ser invisible. La regla no se toca.
+       */
+      beforeDelete: async (user) => {
+        await db
+          .update(schema.places)
+          .set({ publishOverride: false, updatedAt: new Date() })
+          .where(
+            inArray(
+              schema.places.id,
+              db
+                .select({ id: schema.placeClaims.placeId })
+                .from(schema.placeClaims)
+                .where(
+                  and(
+                    eq(schema.placeClaims.userId, user.id),
+                    eq(schema.placeClaims.status, 'approved'),
+                  ),
+                ),
+            ),
+          )
+      },
     },
   },
   emailVerification: {

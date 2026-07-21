@@ -17,7 +17,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/done/ZONAS.md`. **Cerrado ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#zonas)
 - [x] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/done/BUSQUEDA.md`. **Las 3 fases cerradas ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#busqueda)
 - [x] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/done/FICHA.md`. **Las 3 fases cerradas ✅ 2026-07-20** (F1 ficha propia · F2 Google en vivo · F3 foto/atribución). [Resumen](../archive/SPECS_ARCHIVO.md#ficha)
-- [ ] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/active/AUTH.md` (4 fases). **F1 auth base ✅ 2026-07-20**; F2-F4 pendientes
+- [ ] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/active/AUTH.md` (4 fases). **F1 auth base ✅ 2026-07-20 · F2 reclamo + alta + cola ✅ 2026-07-21**; F3-F4 pendientes
   - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea
 - [ ] **Votación en grupo**
 - [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
@@ -46,6 +46,19 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Un `/lugar/nombre-zona-xxxx` ayuda al descubrimiento orgánico.
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
+- [ ] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
+      2026-07-21). Los subqueries de `filtrosDeTags` y `filtroDeZonas` interpolan
+      `${places.id}`, que Drizzle renderiza como `"id"` **sin el nombre de la tabla**. Hoy
+      funciona por descarte: ni `place_tags` ni `place_zones` tienen columna `id`, así que el
+      identificador resuelve a `places.id`. Si alguna de las dos ganara un `id`, la búsqueda
+      empezaría a devolver **cero resultados en silencio** — que es exactamente lo que pasó en
+      `lib/claims/query.ts` contra `place_claims` (ver `docs/qa/AnalisisQA.md` § AUTH F2, H-1).
+      Cambiar a `leftJoin` sobre subconsulta del query builder, con test de regresión propio.
+- [ ] **El bbox de AMBA está escrito dos veces** (AUTH F2, 2026-07-21). `BBOX` en
+      `scripts/import-overture.ts` (qué se importa) y `AMBA_BBOX` en `lib/claims/validacion.ts`
+      (hasta dónde puede llegar el pin de un alta) son el mismo rectángulo. Hoy no divergen,
+      pero si se amplía la cobertura hay que tocar los dos. Unificarlo es un cambio aparte: el
+      script corre con `dotenv` y no debería depender de `lib/claims`.
 - [ ] **Medir la tasa de falsos positivos del matching a ciegas** (FICHA F2, 2026-07-20).
       Primer caso real: "Club Milanesa @ Av. Libertador 3883" matcheó a "El Club de la Milanesa
       – Paseo de la Infanta" (~160 m, misma marca), mientras esa dirección exacta en Google es

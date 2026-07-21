@@ -6,13 +6,16 @@ import type { MetadataRoute } from 'next'
  * ya se pide solo desde el cliente, y esto es la segunda barrera. El resto del
  * sitio —home, fichas, legales— se indexa normal: es bueno para el SEO y las
  * fichas no gastan en el render del server.
+ *
+ * `/admin` se suma con AUTH F2: para un crawler es un 404 igual (gate por
+ * `ADMIN_EMAIL`), pero no hay motivo para que lo visite.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: '/api/',
+      disallow: ['/api/', '/admin'],
     },
   }
 }

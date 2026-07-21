@@ -66,6 +66,12 @@ export const googleMatchStatusEnum = pgEnum('google_match_status', [
   'blocked',
 ])
 
+/** Por cuál de las dos entradas llegó el reclamo (AUTH, decisión 10). */
+export const claimKindEnum = pgEnum('claim_kind', ['claim', 'new'])
+
+/** Estado de la cola de aprobación manual (AUTH, decisiones 4 y 10). */
+export const claimStatusEnum = pgEnum('claim_status', ['pending', 'approved', 'rejected'])
+
 // ---------------------------------------------------------------------------
 // Tablas
 // ---------------------------------------------------------------------------
@@ -414,6 +420,66 @@ export const verification = pgTable('verification', {
 })
 
 // ---------------------------------------------------------------------------
+// Reclamo de negocio — spec AUTH F2
+// ---------------------------------------------------------------------------
+
+/**
+ * El reclamo y la propiedad son la misma fila (decisión 10): quién pide, sobre
+ * qué lugar, por cuál entrada llegó, en qué estado está y qué decidió el admin.
+ *
+ * **Un dueño por lugar**, garantizado por el índice único parcial sobre los
+ * aprobados: dos solicitudes sobre el mismo lugar pueden convivir `pending` (el
+ * admin las compara), pero aprobar la segunda con una ya aprobada rompe en la
+ * base, no en la aplicación.
+ *
+ * `status='approved'` es lo único que hace dueño a alguien: no hay columna
+ * `role` (decisión 8). La revocación es volver una aprobada a `rejected` y bajar
+ * `publish_override` — por eso la fila no se borra nunca.
+ */
+export const placeClaims = pgTable(
+  'place_claims',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** El alta nueva crea el lugar primero: acá siempre hay un `places.id`. */
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: claimKindEnum('kind').notNull(),
+    status: claimStatusEnum('status').notNull().default('pending'),
+
+    // Lo que el admin usa para verificar el vínculo con el negocio.
+    applicantName: text('applicant_name'),
+    applicantPhone: text('applicant_phone'),
+    applicantRole: text('applicant_role'),
+    comment: text('comment'),
+
+    decidedAt: timestamp('decided_at'),
+    /** Email del admin que decidió (no hay tabla de roles que referenciar). */
+    decidedBy: text('decided_by'),
+    /** Motivo del rechazo / notas internas. */
+    adminNotes: text('admin_notes'),
+
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // Único aprobado por lugar (decisión 10). Parcial: los pendientes y los
+    // rechazados pueden repetirse cuantas veces haga falta.
+    uniqueIndex('place_claims_aprobado_idx')
+      .on(t.placeId)
+      .where(sql`${t.status} = 'approved'`),
+    // El panel lista "mis lugares" y la ficha pregunta por lugar.
+    index('place_claims_user_idx').on(t.userId),
+    // Parcial: la cola de `/admin` lee solo los pendientes, que son pocos.
+    index('place_claims_pendientes_idx')
+      .on(t.createdAt)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -441,3 +507,7 @@ export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Session = typeof session.$inferSelect
 export type Account = typeof account.$inferSelect
+export type PlaceClaim = typeof placeClaims.$inferSelect
+export type NewPlaceClaim = typeof placeClaims.$inferInsert
+export type ClaimKind = (typeof claimKindEnum.enumValues)[number]
+export type ClaimStatus = (typeof claimStatusEnum.enumValues)[number]

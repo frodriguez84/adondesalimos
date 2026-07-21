@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placePhotos, placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { isPlacePublished } from '@/lib/db/visibility'
+import { tieneDuenoAprobado } from '@/lib/claims/ownership'
 import type { FichaTag } from './ficha'
 
 /**
@@ -30,6 +31,12 @@ export type PlaceDetail = {
   ownerPhotos: string[]
   /** Único dato de Google persistido: alimenta el deep link "cómo llegar". */
   googlePlaceId: string | null
+  /**
+   * Ya tiene un reclamo aprobado (AUTH, decisión 21). La ficha esconde el botón
+   * "¿Sos el dueño?" cuando es true: ofrecer reclamar algo que ya tiene dueño
+   * sería una promesa que el endpoint rechaza.
+   */
+  reclamado: boolean
 }
 
 /** Formato de UUID v4 de Postgres. Un `id` que no matchea no toca la base. */
@@ -83,10 +90,11 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
   )
   if (!publicado) return null
 
-  const [tagsDelLugar, zonaPrimaria, fotosDueno] = await Promise.all([
+  const [tagsDelLugar, zonaPrimaria, fotosDueno, reclamado] = await Promise.all([
     tagsDeLugar(id),
     zonaPrimariaDeLugar(id),
     fotosDeDueno(id),
+    tieneDuenoAprobado(id),
   ])
 
   return {
@@ -103,6 +111,7 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
     tags: tagsDelLugar,
     ownerPhotos: fotosDueno,
     googlePlaceId: place.googlePlaceId,
+    reclamado,
   }
 })
 

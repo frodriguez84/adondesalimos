@@ -28,6 +28,14 @@ const WINDOW_MS = 60_000
 const AUTH_MAX = 20
 const AUTH_WINDOW_MS = 60 * 60_000
 
+/**
+ * Reclamos y altas (decisión 23 de AUTH): 3 por día por IP. Es duro a propósito
+ * — cada fila que entra acá la mira un humano en `/admin`, así que el costo del
+ * abuso es tiempo de moderación, no CPU.
+ */
+const CLAIMS_MAX = 3
+const CLAIMS_WINDOW_MS = 24 * 60 * 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -88,6 +96,7 @@ function checkIpRateLimit(
   prefijo: string,
   max = MAX_REQUESTS,
   windowMs = WINDOW_MS,
+  mensaje = 'Pará un poco. Probá de nuevo en un minuto.',
 ): Response | null {
   if (deshabilitado()) return null
 
@@ -102,7 +111,7 @@ function checkIpRateLimit(
   return Response.json(
     {
       data: null,
-      error: { message: 'Pará un poco. Probá de nuevo en un minuto.', code: 'IP_RATE_LIMIT' },
+      error: { message: mensaje, code: 'IP_RATE_LIMIT' },
     },
     {
       status: 429,
@@ -136,4 +145,19 @@ export function checkGoogleRateLimit(request: Request): Response | null {
  */
 export function checkAuthRateLimit(request: Request): Response | null {
   return checkIpRateLimit(request, 'auth', AUTH_MAX, AUTH_WINDOW_MS)
+}
+
+/**
+ * Rate limit de `POST /api/claims` (AUTH, decisión 23): 3 reclamos/altas por día
+ * por IP. Cupo propio y mensaje propio: "probá en un minuto" sería mentira con
+ * una ventana de 24 horas.
+ */
+export function checkClaimsRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'claims',
+    CLAIMS_MAX,
+    CLAIMS_WINDOW_MS,
+    'Llegaste al límite de solicitudes por hoy. Probá mañana o escribinos.',
+  )
 }

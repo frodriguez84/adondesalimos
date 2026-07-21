@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { after } from 'next/server'
-import { Clock, Globe, MapPin, Navigation, Phone } from 'lucide-react'
+import { Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide-react'
 
 import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
@@ -201,7 +201,18 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
 
       {/* Horarios y rating de Google: hueco de F2. En F1 no se renderiza. */}
 
-      <footer className="mt-auto pt-2 text-xs text-muted-foreground">
+      <footer className="mt-auto flex flex-col gap-2 pt-2 text-xs text-muted-foreground">
+        {/* Decisión 21: discreto, al pie, y solo si el lugar todavía no tiene
+            dueño. Sin sesión, `/reclamar/[id]` manda a login y vuelve al flujo. */}
+        {!place.reclamado && (
+          <Link
+            href={`/reclamar/${place.id}`}
+            className="inline-flex items-center gap-1 underline underline-offset-4"
+          >
+            <Store className="size-3" />
+            ¿Sos el dueño? Reclamá esta ficha
+          </Link>
+        )}
         <Link href="/legales" className="inline-flex items-center gap-1 underline underline-offset-4">
           <Clock className="size-3" />
           Fuentes y atribución

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { checkSearchRateLimit, consumirCupo, resetRateLimit } from '../rate-limit'
+import { checkClaimsRateLimit, checkSearchRateLimit, consumirCupo, resetRateLimit } from '../rate-limit'
 import { getClientIp, UNKNOWN_IP } from '../get-client-ip'
 
 beforeEach(() => resetRateLimit())
@@ -56,6 +56,22 @@ describe('checkSearchRateLimit', () => {
     expect(bloqueo).not.toBeNull()
     expect(bloqueo!.status).toBe(429)
     expect(bloqueo!.headers.get('Retry-After')).toBeTruthy()
+  })
+
+  it('el cupo de claims es propio y no lo consume la búsqueda', () => {
+    process.env.TRUSTED_IP_HEADER = 'x-real-ip'
+    const headers = { 'x-real-ip': '8.8.8.8' }
+    const busqueda = new Request('http://x/api/search', { headers })
+    const claims = new Request('http://x/api/claims', { method: 'POST', headers })
+
+    // Agotar la búsqueda no toca el cupo de reclamos.
+    for (let i = 0; i < 70; i++) checkSearchRateLimit(busqueda)
+
+    // Decisión 23: 3 por día. El cuarto se corta.
+    for (let i = 0; i < 3; i++) expect(checkClaimsRateLimit(claims)).toBeNull()
+    const bloqueo = checkClaimsRateLimit(claims)
+    expect(bloqueo).not.toBeNull()
+    expect(bloqueo!.status).toBe(429)
   })
 
   it('DISABLE_RATE_LIMIT lo apaga', () => {

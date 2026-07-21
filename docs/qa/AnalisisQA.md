@@ -346,3 +346,65 @@ el uso real de la QA (`details: 7`, `photos: 2`). Las 2 filas de prueba en `plac
 **Nota de método (igual que F1/F2):** foto y datos son browser-only ⇒ fuera del alcance del
 checker read-only de `/qa-spec`. Esta QA en vivo es la fuente de verdad y **no se re-somete**
 a `/qa-spec` al cerrar; el gate técnico (typecheck + tests + build) sí se reconfirma.
+
+---
+
+## QA de fase — AUTH F2 (2026-07-21)
+
+**Alcance:** **Fase 2** — `place_claims`, botón "¿Sos el dueño?" en la ficha,
+`/registrar-negocio` (búsqueda del catálogo completo + alta con pin y zona automática),
+`/reclamar/[placeId]`, `/admin` con la cola, aprobar/rechazar/revocar + `publish_override`
++ mails. **F3 y F4 pendientes** ⇒ el spec sigue en `active/`.
+
+**Veredicto de F2:** PASA (alcance F2).
+
+**Verificación técnica:** typecheck ✅ · tests ✅ **244/244** (+6 sobre F1: gate de admin,
+validación de payloads, flujo completo contra la base, decisión 14, cupo de claims) ·
+**build ✅** (con el dev server parado; `/admin`, `/registrar-negocio`, `/reclamar/[placeId]`,
+`/api/claims` y `/api/admin/claims/[id]` salen dinámicos `ƒ`). **Cero ocurrencias de
+`ADMIN_EMAIL`, `RESEND_API_KEY`, `BETTER_AUTH_SECRET`, `GOOGLE_PLACES_API_KEY` y
+`DATABASE_URL` en `.next/static`.**
+
+**QA en vivo (Playwright sobre ngrok):** cuentas `frodriguez.este@gmail.com` (admin durante
+el QA) y `hugo@gmail.com` (no-admin) — ver `docs/qa/DATOS_QA.local.md`.
+
+| ID | Caso | Resultado | Evidencia / Nota |
+|----|------|-----------|------------------|
+| AUTH-14 | Rutas del flujo exigen sesión | ✅ PASS | `/registrar-negocio` sin sesión → redirect a `/login?callbackUrl=/registrar-negocio`. `/reclamar/[id]` idem. La sesión se verifica inline en cada página y handler (decisión 9) |
+| AUTH-15 | Botón "¿Sos el dueño?" en la ficha | ✅ PASS | Aparece al pie, junto a la atribución, con link a `/reclamar/[id]` (verificado en "Kansas Grill & Bar", Las Cañitas) |
+| AUTH-03 | Override del umbral | ✅ PASS | Lugar plantado con `confidence 0.3`: ficha **404** con el reclamo pendiente → tras aprobar, **ficha publicada**. `publishedWhere` lo cuenta (test de integración) y la regla de CATALOGO **no se tocó**. Datos de prueba borrados |
+| AUTH-02 | Reclamo feliz end-to-end | ✅ PASS | Login → ficha → botón → formulario (valida en español por campo antes de postear) → "Recibimos tu solicitud" → aparece en `/admin` con solicitante, rol, teléfono, cuenta y comentario → **Aprobar** → Pendientes 1→0, Aprobados 0→1 con "Aprobado por" → **el botón desaparece de la ficha** |
+| AUTH-04 | Alta nueva con pin | ✅ PASS | `/registrar-negocio` → "¿No está en la lista?" → mapa MapLibre con pin arrastrable y atribución OpenFreeMap/OSM → enviar. En la base: `source='owner'`, `confidence=null`, `publish_override=false` ⇒ **invisible**, claim `new` `pending`, y **zona "Retiro y Microcentro" primaria asignada por turf** desde el pin. Lugar de prueba borrado |
+| AUTH-05 | Duplicado evitado | ✅ PASS | Buscar "kansas" lista **10 lugares del catálogo completo** (visibles e invisibles) con zona y dirección, cada uno con "Es mío" → el alta solo se ofrece **después** de haber buscado |
+| AUTH-12 | Permisos | ✅ PASS | Con sesión no-admin: `/admin` → **404** (la ruta no existe para quien no es admin) y `PATCH /api/admin/claims/[id]` → **403 FORBIDDEN**. Reclamar un lugar ya reclamado → **409 YA_RECLAMADO**. Alta con pin en Nueva York → **400 INVALID** (bbox de AMBA) |
+| AUTH-16 | Cola de `/admin` | ✅ PASS | Gate por `ADMIN_EMAIL`; muestra Pendientes y Aprobados, etiqueta `Reclamo`/`Alta nueva` + `Publicado`/`Invisible`, link a la ficha, y **Revocar** sobre los aprobados (decisión 10) |
+| AUTH-17 | Menú de cuenta | ✅ PASS | Con sesión: "Registrá tu negocio" · "Mi cuenta" · "Salir". Es la única puerta al alta de un lugar nuevo (el botón de la ficha solo cubre reclamar lo que ya existe) |
+
+**Cobertura por test de integración (no en vivo):** idempotencia de aprobar (2ª vez ⇒
+`yaEstaba=true`, sin segundo mail) · un solo dueño por lugar (2º aprobado ⇒ `OTRO_APROBADO`)
+· dos pendientes del mismo lugar conviven · mismo usuario no duplica su pendiente
+(`YA_PENDIENTE`) · rechazar un pendiente deja el lugar igual y guarda el motivo · **revocar
+un aprobado baja `publish_override`** · rechazar un alta la deja invisible sin borrarla ·
+**el re-import no toca las tags de un lugar reclamado** (decisión 14) · rate limit de claims
+3/día con cupo propio.
+
+### Hallazgos
+
+**H-1 — `EXISTS` en SQL crudo comparaba una columna contra sí misma (bug encontrado y
+corregido durante este QA).** En `buscarCatalogoCompleto` y `getLugarAReclamar`, el flag
+`reclamado` se resolvía con un `EXISTS` escrito a mano. Drizzle renderiza `${places.id}`
+dentro del subquery **sin calificar la tabla** (`"id"`), y como `place_claims` **también**
+tiene una columna `id`, la condición terminaba siendo `pc.place_id = pc.id`: falsa siempre.
+Efecto: un lugar ya reclamado se seguía ofreciendo con "Es mío" en `/registrar-negocio`, y el
+endpoint lo rechazaba recién al enviar el formulario (409). **No había pérdida de datos ni
+agujero de permisos** — el gate real (`tieneDuenoAprobado`, query builder) siempre funcionó,
+y es el que usa la ficha. Corregido reemplazando los dos `EXISTS` por un `leftJoin` sobre una
+subconsulta del query builder y por el helper de `ownership`, con **3 tests de regresión**.
+Detectado solo en vivo: el test de integración cubría el helper, no la query de la pantalla.
+
+**H-2 — Mismo patrón latente en `lib/search/query.ts` (hoy inocuo, no se tocó).** Los
+`EXISTS` de `filtrosDeTags` y `filtroDeZonas` usan `${places.id}` igual, pero `place_tags` y
+`place_zones` **no** tienen columna `id`, así que el identificador sin calificar resuelve a
+`places.id` por descarte y la búsqueda funciona. Es correcto por accidente: si alguna de esas
+tablas ganara una columna `id`, la búsqueda empezaría a devolver cero en silencio. Anotado en
+`docs/product/BACKLOG.md` — se cambia con test propio, no de prepo dentro de otro spec.

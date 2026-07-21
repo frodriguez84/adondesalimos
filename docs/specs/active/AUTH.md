@@ -1,6 +1,6 @@
 # Spec: Auth + roles + reclamo de negocio
 
-**Estado:** 🟢 Parcial — F1 ✅ Auth base (2026-07-20); F2-F4 pendientes
+**Estado:** 🟢 Parcial — F1 ✅ Auth base (2026-07-20) · F2 ✅ Reclamo + alta + cola (2026-07-21); F3-F4 pendientes
 **Prioridad:** Alta — habilita al dueño, que es la pata B2B del modelo. Sin este spec no hay spec 6 (Votación necesita usuarios) ni spec 7 (Monetización necesita dueños)
 **Gate:** Ninguno
 **Bloquea:** spec 6 (Votación en grupo) · spec 7 (Monetización)
@@ -160,9 +160,31 @@ F1/F3) — no se toca.
 | Fase | Alcance | Verificable con |
 |------|---------|-----------------|
 | **1 — Auth base** ✅ | better-auth + tablas + pantallas login/registro/recuperar/restablecer + verificación obligatoria + `/cuenta` mínima + entrada en el header + rate limit de auth | Registro end-to-end con mail real (Resend), sin roles todavía |
-| **2 — Reclamo + alta + cola** | `place_claims`, botón en la ficha, `registrar-negocio` (búsqueda en catálogo completo + alta con pin + zona automática), `/admin` con la cola, aprobar/rechazar + `publish_override` + mails | Un lugar con confidence bajo el umbral aparece publicado tras aprobar |
+| **2 — Reclamo + alta + cola** ✅ | `place_claims`, botón en la ficha, `registrar-negocio` (búsqueda en catálogo completo + alta con pin + zona automática), `/admin` con la cola, aprobar/rechazar + `publish_override` + mails | Un lugar con confidence bajo el umbral aparece publicado tras aprobar |
 | **3 — Panel + contenido** | `place_owner_content`, editor de datos/tags, fotos a R2 con caps, `owner_plan` + gating, huecos en la ficha, teaser de stats | Ficha mostrando contenido de dueño; 4ª foto free rechazada |
 | **4 — Horarios propios** | Editor semanal (rangos que cruzan medianoche), prioridad dueño → Google en la ficha, abierto/cerrado con TZ AR | Ficha con horarios propios y estado correcto un día de semana vs trasnoche |
+
+### Notas de implementación — F2 (2026-07-21)
+
+Lo que el spec no fijaba y quedó decidido al implementar:
+
+- **La revocación es rechazar un aprobado**, no una acción aparte: `PATCH` con
+  `{accion:'reject', motivo}` sobre un claim `approved` lo pasa a `rejected` y baja
+  `publish_override`. Un solo camino de código para el rechazo y para AUTH-13.
+- **`/admin` responde 404 a los no-admin**, no 403: la ruta no existe para quien no es el
+  admin. Los endpoints sí devuelven 403 (el cliente necesita distinguir).
+- **La búsqueda de `/registrar-negocio` es server-side por `?q=`**, sin endpoint nuevo: el
+  resultado es una lista, no algo interactivo. La tabla de Rutas no lista un endpoint y no
+  hizo falta.
+- **`/mi-negocio` no entra en F2** (es F3, "Panel + contenido"). La puerta al alta de un
+  lugar nuevo es la entrada **"Registrá tu negocio"** del menú de cuenta — sin ella el flujo
+  solo sería alcanzable escribiendo la URL.
+- **El edge case "eliminar cuenta de un dueño"** se cierra con el hook `beforeDelete` de
+  better-auth, que baja `publish_override` de los lugares con claim aprobado del usuario
+  antes de que el cascade borre la fila. El resto del edge case (contenido de dueño, fotos
+  de R2) es F3.
+- **El alta carga teléfono y sitio en las columnas base** de `places` (decisión 13: en
+  `source='owner'` las base se llenan una vez, al alta).
 
 ## Edge cases
 
