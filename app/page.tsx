@@ -1,6 +1,9 @@
 import Link from 'next/link'
 import { after } from 'next/server'
+import { headers } from 'next/headers'
 
+import { auth } from '@/lib/auth'
+import { AccountMenu } from '@/components/shared/account-menu'
 import { SearchShell } from '@/components/search/search-shell'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
 import { getOccasionChips } from '@/lib/search/chips'
@@ -32,11 +35,12 @@ export default async function Home({
   //
   // Los catálogos van siempre: los sheets tienen que poder abrirse y ofrecer
   // zonas aunque todavía no haya búsqueda — es justamente la primera visita.
-  const [facetas, zonas, chips, resultado] = await Promise.all([
+  const [facetas, zonas, chips, resultado, session] = await Promise.all([
     getFacetCatalog(),
     getZoneCatalog(),
     getOccasionChips(),
     tieneBusqueda(params) ? searchPlaces(params) : null,
+    auth.api.getSession({ headers: await headers() }).catch(() => null),
   ])
 
   // Decisión 22. Va en `after` para que el contador no meta latencia en la
@@ -48,9 +52,12 @@ export default async function Home({
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">¿A dónde salimos?</h1>
-        <p className="text-sm text-muted-foreground">Decidilo rápido, sin dar mil vueltas.</p>
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">¿A dónde salimos?</h1>
+          <p className="text-sm text-muted-foreground">Decidilo rápido, sin dar mil vueltas.</p>
+        </div>
+        <AccountMenu user={session?.user ? { name: session.user.name ?? null, email: session.user.email } : null} />
       </header>
 
       <SearchShell

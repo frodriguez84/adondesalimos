@@ -19,13 +19,13 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-_(ninguno — el próximo a implementar sale del BACKLOG o de `planned/`)_
+| Spec | Qué cubre |
+|------|-----------|
+| [AUTH](active/AUTH.md) | Spec 5 — auth (better-auth, patrón StressPlan), reclamo/alta de negocio con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser de stats. **En curso** — F1 (auth base) en implementación; F2-F4 pendientes |
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Qué cubre |
-|------|-----------|
-| [AUTH](planned/AUTH.md) | Spec 5 — auth (better-auth, patrón StressPlan), reclamo/alta de negocio con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser de stats. Escrito 2026-07-20 |
+_(ninguno — el próximo a implementar sale del BACKLOG o de `active/`)_
 
 ## ⚫ Done (`done/`)
 

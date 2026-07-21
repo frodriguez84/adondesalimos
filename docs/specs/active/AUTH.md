@@ -1,6 +1,6 @@
 # Spec: Auth + roles + reclamo de negocio
 
-**Estado:** 🔵 Planned — en diseño
+**Estado:** 🟢 Parcial — F1 ✅ Auth base (2026-07-20); F2-F4 pendientes
 **Prioridad:** Alta — habilita al dueño, que es la pata B2B del modelo. Sin este spec no hay spec 6 (Votación necesita usuarios) ni spec 7 (Monetización necesita dueños)
 **Gate:** Ninguno
 **Bloquea:** spec 6 (Votación en grupo) · spec 7 (Monetización)
@@ -159,7 +159,7 @@ F1/F3) — no se toca.
 
 | Fase | Alcance | Verificable con |
 |------|---------|-----------------|
-| **1 — Auth base** | better-auth + tablas + pantallas login/registro/recuperar/restablecer + verificación obligatoria + `/cuenta` mínima + entrada en el header + rate limit de auth | Registro end-to-end con mail real (Resend), sin roles todavía |
+| **1 — Auth base** ✅ | better-auth + tablas + pantallas login/registro/recuperar/restablecer + verificación obligatoria + `/cuenta` mínima + entrada en el header + rate limit de auth | Registro end-to-end con mail real (Resend), sin roles todavía |
 | **2 — Reclamo + alta + cola** | `place_claims`, botón en la ficha, `registrar-negocio` (búsqueda en catálogo completo + alta con pin + zona automática), `/admin` con la cola, aprobar/rechazar + `publish_override` + mails | Un lugar con confidence bajo el umbral aparece publicado tras aprobar |
 | **3 — Panel + contenido** | `place_owner_content`, editor de datos/tags, fotos a R2 con caps, `owner_plan` + gating, huecos en la ficha, teaser de stats | Ficha mostrando contenido de dueño; 4ª foto free rechazada |
 | **4 — Horarios propios** | Editor semanal (rangos que cruzan medianoche), prioridad dueño → Google en la ficha, abierto/cerrado con TZ AR | Ficha con horarios propios y estado correcto un día de semana vs trasnoche |

@@ -17,7 +17,8 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/done/ZONAS.md`. **Cerrado ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#zonas)
 - [x] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/done/BUSQUEDA.md`. **Las 3 fases cerradas ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#busqueda)
 - [x] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/done/FICHA.md`. **Las 3 fases cerradas ✅ 2026-07-20** (F1 ficha propia · F2 Google en vivo · F3 foto/atribución). [Resumen](../archive/SPECS_ARCHIVO.md#ficha)
-- [ ] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/planned/AUTH.md` (escrito 2026-07-20; 4 fases)
+- [ ] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/active/AUTH.md` (4 fases). **F1 auth base ✅ 2026-07-20**; F2-F4 pendientes
+  - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea
 - [ ] **Votación en grupo**
 - [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
 

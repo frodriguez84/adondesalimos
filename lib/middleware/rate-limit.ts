@@ -24,6 +24,10 @@ import { getClientIp, UNKNOWN_IP } from './get-client-ip'
 const MAX_REQUESTS = 60
 const WINDOW_MS = 60_000
 
+/** Ventana del rate limit de auth (decisión 23 de AUTH): 20 POST/hora por IP. */
+const AUTH_MAX = 20
+const AUTH_WINDOW_MS = 60 * 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -46,11 +50,12 @@ export function consumirCupo(
   clave: string,
   ahora: number,
   max = MAX_REQUESTS,
+  windowMs = WINDOW_MS,
 ): { allowed: boolean; remaining: number; resetAt: number } {
   const bucket = buckets.get(clave)
 
   if (!bucket || bucket.resetAt <= ahora) {
-    const nuevo = { count: 1, resetAt: ahora + WINDOW_MS }
+    const nuevo = { count: 1, resetAt: ahora + windowMs }
     buckets.set(clave, nuevo)
     if (buckets.size > MAX_BUCKETS) podar(ahora)
     return { allowed: true, remaining: max - 1, resetAt: nuevo.resetAt }
@@ -78,7 +83,12 @@ function deshabilitado(): boolean {
  * pasa. El `prefijo` separa los cupos por endpoint (una IP que scrollea la búsqueda
  * no consume el cupo de abrir fichas). Misma firma que los checks de StressPlan.
  */
-function checkIpRateLimit(request: Request, prefijo: string): Response | null {
+function checkIpRateLimit(
+  request: Request,
+  prefijo: string,
+  max = MAX_REQUESTS,
+  windowMs = WINDOW_MS,
+): Response | null {
   if (deshabilitado()) return null
 
   const ip = getClientIp(request)
@@ -86,7 +96,7 @@ function checkIpRateLimit(request: Request, prefijo: string): Response | null {
   // (fail-closed de getClientIp). En dev eso haría inusable la app.
   if (ip === UNKNOWN_IP && process.env.NODE_ENV !== 'production') return null
 
-  const { allowed, remaining, resetAt } = consumirCupo(`${prefijo}:${ip}`, Date.now())
+  const { allowed, remaining, resetAt } = consumirCupo(`${prefijo}:${ip}`, Date.now(), max, windowMs)
   if (allowed) return null
 
   return Response.json(
@@ -116,4 +126,14 @@ export function checkSearchRateLimit(request: Request): Response | null {
  */
 export function checkGoogleRateLimit(request: Request): Response | null {
   return checkIpRateLimit(request, 'ficha-google')
+}
+
+/**
+ * Rate limit del catch-all de auth (AUTH, decisión 23): 20 POST/hora por IP.
+ * Acota fuerza bruta de login y spam de registro/reset sin tocar a los usuarios
+ * legítimos (un flujo de alta son pocos POSTs). Cupo propio: no comparte bucket
+ * con búsqueda ni con el enriquecimiento de la ficha.
+ */
+export function checkAuthRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(request, 'auth', AUTH_MAX, AUTH_WINDOW_MS)
 }

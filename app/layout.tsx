@@ -19,7 +19,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${inter.variable} antialiased`}>
-      <body className="min-h-screen bg-background text-foreground font-sans">
+      {/* suppressHydrationWarning: extensiones del browser (ej. ColorZilla, que
+          agrega `cz-shortcut-listen` al body) inyectan atributos antes de que
+          React hidrate. Suprime SOLO el mismatch de atributos del <body>, no el
+          de los componentes hijos. */}
+      <body suppressHydrationWarning className="min-h-screen bg-background text-foreground font-sans">
         {children}
       </body>
     </html>
