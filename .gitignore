@@ -37,5 +37,9 @@ Thumbs.db
 # Playwright MCP — snapshots/screenshots de QA en vivo (se regeneran por corrida)
 .playwright-mcp/
 
+# Datos de QA locales (usuarios de prueba con contraseña, fixtures) — NUNCA al repo.
+# Convención: cualquier archivo *.local.md en docs/qa/ queda fuera del control de versiones.
+docs/qa/*.local.md
+
 # MCP local del proyecto (tooling de dev/QA; cada quien decide si lo activa)
 .mcp.json
