@@ -46,6 +46,16 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Un `/lugar/nombre-zona-xxxx` ayuda al descubrimiento orgánico.
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
+- [ ] **Identidad visual: aplicar el logo y la paleta definitivos** (2026-07-21). Ya están
+      diseñados y fijados en **`docs/product/IDENTIDAD.md`** (hex, significado del logo,
+      contrastes WCAG medidos y jerarquía propuesta). Se aplican como tarea propia, no
+      mezclados con un spec. La UI usa tokens (`globals.css`), así que el grueso es cambiar
+      variables — pero hay **tres focos fuera de los tokens**: `lib/email/index.ts` (hex
+      hardcodeado, y el CTA debe ser color plano: Outlook ignora gradientes), los pins del
+      mapa en `map-view.tsx` / `pin-picker.tsx` (`#e11d48`), y los 4 colores del logo de
+      Google en `ficha-google.tsx`, que **no se tocan**. Falta además una **versión monocroma
+      del wordmark** (el gradiente no sobrevive a 28-32 px ni al mail) y sumar el logo a la
+      home, que hoy es un `h1` de texto.
 - [ ] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
       2026-07-21). Los subqueries de `filtrosDeTags` y `filtroDeZonas` interpolan
       `${places.id}`, que Drizzle renderiza como `"id"` **sin el nombre de la tabla**. Hoy

@@ -12,6 +12,7 @@
 | **QA** | [`qa/AnalisisQA.md`](qa/AnalisisQA.md) | No condensar — IDs y pass/fail son trazabilidad |
 | **Ops / local dev** | [`operations/OPERACIONES.md`](operations/OPERACIONES.md) | [`operations/LECCIONES_APRENDIDAS.md`](operations/LECCIONES_APRENDIDAS.md) |
 | **Pendientes** | [`product/BACKLOG.md`](product/BACKLOG.md) | — |
+| **Diseño / UI** | [`product/IDENTIDAD.md`](product/IDENTIDAD.md) | Logo, paleta y contrastes medidos. Fijada, **todavía no aplicada**: la app corre con la paleta provisoria |
 
 ---
 
@@ -22,7 +23,8 @@ docs/
 ├── README.md                 ← este archivo
 ├── AGENTES.md                ← formato de spec + autoría (fuente de verdad del template)
 ├── product/                  ← estado y cola de trabajo
-│   └── BACKLOG.md
+│   ├── BACKLOG.md
+│   └── IDENTIDAD.md          ← logo + paleta definitivos (fijados, sin aplicar aún)
 ├── specs/
 │   ├── README.md             ← manifiesto (activo / planned / done)
 │   ├── active/
