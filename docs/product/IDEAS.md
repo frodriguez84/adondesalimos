@@ -638,6 +638,20 @@ componentes y flujos. Fer lo señaló al cerrar el volcado. **Dónde vive ese tr
   en `/admin`** (al menos al principio; verificación automatizada = versión 2).
 - ❓ Cómo **verificar dueños** más allá de la aprobación manual (que el que reclama sea el
   dueño real) — mecanismo automatizado sin resolver, no bloquea el arranque.
+- ❓ **Qué pasa con las fotos cuando se revoca un reclamo** _(abierta el 2026-07-21, al
+  implementar AUTH F3)_. Al revocar, los **datos** del dueño ya vuelven a Overture, pero las
+  **fotos** siguen publicadas. La pregunta no es técnica: la revocación tiene dos causas
+  distintas y hoy el código las trata igual.
+  - Revocar **por abuso** (se hizo pasar por dueño, subió fotos ofensivas) ⇒ las fotos tienen
+    que desaparecer ya. Dejarlas convierte la revocación en un gesto a medias.
+  - Revocar **por corrección** (el local cambió de manos, se equivocó el admin) ⇒ las fotos
+    son una contribución real al catálogo, y borrarlas tira justo el valor que el free
+    generoso vino a comprar ("cada ficha reclamada mejora el catálogo gratis").
+  - 💡 **Recomendación**: no elegir una sola respuesta — **un checkbox "quitar las fotos" en
+    el rechazo de `/admin`**, default apagado. Le pide al admin el único dato que el código no
+    puede deducir (por qué revocó) y evita una trampa técnica fea del lado de la ficha.
+  - **No urge**: hoy no hay dueños reales y solo afecta a lugares de Overture que ya estaban
+    publicados. Detalle técnico completo en `docs/product/BACKLOG.md`.
 - ✅ **Panel del dueño propio ("Mi negocio"), separado del `/admin`**. Tres niveles:
   consumidor (ficha pública) → dueño (panel de SU negocio: editar ficha, fotos,
   estadísticas, suscripción) → admin/Fer (ve todo).
@@ -1102,5 +1116,8 @@ arriba): detalle de los planes · heladerías/panaderías/cines · umbral de `co
   bajar el extract con DuckDB y contar); leer a mano el ToS §3.2.3(b)/§3.2.4 (tarea de
   Fer, las páginas se truncan al fetchear); taxonomía concreta de filtros (nunca se
   volcó el árbol real); verificación automatizada de dueños (no bloquea).
+- **Abiertas después del volcado** (surgen al implementar, van arriba en su sección):
+  qué pasa con las **fotos al revocar un reclamo** (AUTH F3, 2026-07-21 — § Usuarios y
+  roles; hay recomendación anotada, no urge).
 - **NO hacer todavía**: specs (`/new-spec`), scaffold, código. Seguimos en volcado.
   No commitear sin preguntar (hay cambios sin commitear del bootstrap + docs).

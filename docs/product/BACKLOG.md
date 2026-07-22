@@ -65,21 +65,66 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       `lib/claims/query.ts` contra `place_claims` (ver `docs/qa/AnalisisQA.md` § AUTH F2, H-1).
       Cambiar a `leftJoin` sobre subconsulta del query builder, con test de regresión propio.
 - [ ] **Las fotos del dueño no se ocultan al revocar el reclamo** (AUTH F3, 2026-07-21).
-      AUTH-13 pide "contenido de dueño oculto": el contenido de `place_owner_content` ya se
-      oculta (el COALESCE está condicionado a tener claim aprobado), pero `place_photos`
-      sigue mostrándose. Gatearlas obligaría a tocar la prioridad dueño → Google de la ficha
-      (`fotoPrincipal` + el `EXISTS` server-side de `getPlaceForEnrichment`), que AUTH tiene
-      fuera de alcance. **Decisión consciente, no bug** — ver `docs/qa/AnalisisQA.md` §
-      AUTH F3, H-2. Se cambia con test propio, no de prepo dentro de otro spec.
+      🔸 **Tiene una decisión de producto abierta adelante — ver `docs/product/IDEAS.md`
+      § Usuarios y roles.** No implementar hasta que esté resuelta.
+
+      **Estado hoy.** AUTH-13 pide "contenido de dueño oculto". El contenido de
+      `place_owner_content` ya se oculta (el COALESCE está condicionado a tener claim
+      aprobado), pero `place_photos` sigue mostrándose: `fotosDeDueno` lee por `place_id` y no
+      pregunta si hay dueño. **Decisión consciente, no bug** — ver `docs/qa/AnalisisQA.md` §
+      AUTH F3, H-2.
+
+      **Alcance real.** Solo afecta a lugares `source='overture'` con confidence sobre el
+      umbral: siguen publicados por la regla normal y conservan las fotos del ex-dueño. Un
+      `source='owner'` revocado pierde el `publish_override` y su ficha da 404, así que no lo
+      ve nadie. **Hoy no hay dueños reales ⇒ exposición cero.**
+
+      **Trampa técnica: hay que tocar DOS lugares o ninguno.** Deciden sobre fotos
+      `fotoPrincipal` (`lib/lugar/ficha.ts`) y el chequeo `tieneFotoDueno` de
+      `getPlaceForEnrichment` (`lib/lugar/matching.ts`). Si se gatea solo el primero, la ficha
+      cae a Google pero el endpoint de enriquecimiento **sigue viendo las filas** en
+      `place_photos`, cree que hay foto de dueño y no le pide la foto a Google ⇒ la ficha
+      queda **sin ninguna foto**. Peor que ahora. Media corrección rompe más de lo que arregla.
+
+      **Recomendación: hacerlo depender del motivo de la revocación, no revocar y listo.**
+      Hoy `decidirClaim` trata igual dos casos que no lo son: revocar **por abuso** (se hizo
+      pasar por dueño, subió fotos ofensivas) donde las fotos tienen que desaparecer ya, y
+      revocar **por corrección** (el local cambió de manos, se equivocó el admin) donde las
+      fotos son una contribución real al catálogo y borrarlas es tirar el valor que el free
+      generoso vino a comprar. Lo más barato que resuelve las dos: **un checkbox "quitar las
+      fotos" en el rechazo de `/admin`**, default apagado, que borra filas + objetos de R2
+      reusando `limpiarFotosDeUsuario`. Evita la trampa de arriba por completo —no gatea nada,
+      borra— y le da al admin la única información que el código no puede deducir: por qué
+      revocó.
 - [ ] **Reordenar las fotos del panel** (AUTH F3, 2026-07-21). `place_photos.sort` existe y
       la ficha usa la primera como portada, pero el editor no deja arrastrar: hoy el orden es
       el de subida y para cambiar la portada hay que borrar y volver a subir. Drag & drop o
       un botón "poner de portada".
-- [ ] **Las fotos se guardan tal cual las sube el dueño** (AUTH F3, 2026-07-21). Hasta 5 MB
-      por foto, sin redimensionar ni recomprimir: el slot de la ficha es 4:3 y no necesita
-      más de ~1200 px de ancho. Con 15 fotos por lugar en el plan pago, eso es storage y
-      transferencia que se pagan por nada. Comprimir server-side antes del PUT (sharp) o
-      pedirle al browser que redimensione antes de subir.
+- [ ] **Las fotos se guardan tal cual las sube el dueño** (AUTH F3, 2026-07-21; encuadre
+      corregido el mismo día). Hasta 5 MB por foto, sin redimensionar ni recomprimir. Una
+      foto de celular son ~4000 px y 3-5 MB; el slot de la ficha es `aspect-[4/3]` dentro de
+      `max-w-md` menos el padding = **416 px CSS**, o sea ~1250 px físicos en una pantalla 3x.
+      Se guarda 10-20x más grande de lo que se muestra. **FICHA ya había resuelto esto para el
+      otro lado**: `PHOTO_MAX_WIDTH = 1200` en `lib/google/places.ts` pide la foto de Google
+      justo a esa medida. Las del dueño no siguen ese criterio.
+
+      ⚠️ **El costo NO es de infraestructura** (la primera versión de este ítem decía
+      "storage y transferencia que se pagan por nada" — mal en las dos puntas). El **egress de
+      R2 es gratis**, que es la razón por la que el spec eligió R2 (decisión 16), y el storage
+      es plata que no existe: 100 lugares pagos × 15 fotos × 4 MB ≈ 6 GB ≈ **menos de USD 0,10
+      por mes**. Recomprimir para ahorrar eso no se justifica.
+
+      **El costo real lo paga el usuario, y por eso el ítem vale igual**: bajar 4 MB por foto
+      con datos móviles, en el momento exacto en que la app tiene que ser rápida (alguien
+      parado en la calle decidiendo dónde entrar). Y del lado del dueño, subir 5 MB con mala
+      señal es donde el upload tarda o falla.
+
+      **Recomendación: redimensionar en el browser antes de subir** (canvas →
+      `toBlob('image/webp')`, tope ~1600 px de lado mayor). Arregla **las dos puntas de una**:
+      el dueño sube 200 KB en vez de 5 MB y el que mira la ficha baja 200 KB. `sharp`
+      server-side solo arregla la mitad —la bajada— y encima suma una dependencia nativa
+      pesada al build de Vercel. Dejar el límite de 5 MB y la validación server-side como
+      están: el cliente no es un boundary de seguridad, solo un optimizador.
 - [ ] **El bbox de AMBA está escrito dos veces** (AUTH F2, 2026-07-21). `BBOX` en
       `scripts/import-overture.ts` (qué se importa) y `AMBA_BBOX` en `lib/claims/validacion.ts`
       (hasta dónde puede llegar el pin de un alta) son el mismo rectángulo. Hoy no divergen,
