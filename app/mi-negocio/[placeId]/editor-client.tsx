@@ -1,0 +1,369 @@
+'use client'
+
+import { useState } from 'react'
+import { Lock, Plus, Trash2 } from 'lucide-react'
+
+import {
+  Aviso,
+  btnClass,
+  Campo,
+  erroresDeZod,
+  inputClass,
+  type Errores,
+} from '@/components/negocio/campos'
+import { contenidoSchema, MAX_SOCIALS } from '@/lib/negocio/validacion'
+import type { FacetaDelPanel, PanelLugar } from '@/lib/negocio/query'
+import { FotosEditor } from './fotos-editor'
+
+/**
+ * Editor del panel (AUTH F3). Un solo formulario para contacto + tags + campos
+ * pagos, y las fotos aparte porque se suben de a una y se ven al instante.
+ *
+ * Valida con **el mismo schema que el endpoint** (`lib/negocio/validacion.ts`) y
+ * el servidor vuelve a validar todo, incluido el gating por plan: los campos
+ * pagos se muestran bloqueados en `free`, pero el que manda es el `PATCH`
+ * (decisión 17 — el cliente no es un boundary de seguridad).
+ */
+
+type Estado = { phone: string; website: string; socials: string[]; description: string; menuUrl: string; news: string }
+
+export function EditorClient({ lugar }: { lugar: PanelLugar }) {
+  const pago = lugar.plan === 'paid'
+
+  const [datos, setDatos] = useState<Estado>({
+    phone: lugar.contenido.phone,
+    website: lugar.contenido.website,
+    socials: lugar.contenido.socials,
+    description: lugar.contenido.description,
+    menuUrl: lugar.contenido.menuUrl,
+    news: lugar.contenido.news,
+  })
+  const [elegidos, setElegidos] = useState<Set<string>>(
+    () => new Set(lugar.facetas.flatMap((f) => f.tags.filter((t) => t.elegido).map((t) => t.slug))),
+  )
+  const [errores, setErrores] = useState<Errores>({})
+  const [error, setError] = useState<string | null>(null)
+  const [guardado, setGuardado] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+
+  const set = (cambio: Partial<Estado>) => {
+    setDatos((d) => ({ ...d, ...cambio }))
+    setGuardado(false)
+  }
+
+  function alternarTag(slug: string) {
+    setElegidos((prev) => {
+      const proximo = new Set(prev)
+      if (proximo.has(slug)) proximo.delete(slug)
+      else proximo.add(slug)
+      return proximo
+    })
+    setGuardado(false)
+  }
+
+  function setSocial(i: number, valor: string) {
+    set({ socials: datos.socials.map((s, j) => (j === i ? valor : s)) })
+  }
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setGuardado(false)
+
+    // En free los campos pagos ni se mandan: el endpoint los rechazaría con 403,
+    // y el estado local puede tener lo que se cargó cuando el plan estaba activo.
+    const payload = {
+      phone: datos.phone,
+      website: datos.website,
+      socials: datos.socials.filter((s) => s.trim().length > 0),
+      tags: [...elegidos],
+      description: pago ? datos.description : '',
+      menuUrl: pago ? datos.menuUrl : '',
+      news: pago ? datos.news : '',
+    }
+
+    const parsed = contenidoSchema.safeParse(payload)
+    if (!parsed.success) {
+      setErrores(erroresDeZod(parsed.error))
+      setError('Revisá los campos marcados.')
+      return
+    }
+    setErrores({})
+    setGuardando(true)
+
+    try {
+      const res = await fetch(`/api/mi-negocio/${lugar.id}/content`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed.data),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json?.error?.message ?? 'No pudimos guardar los cambios.')
+        return
+      }
+      setGuardado(true)
+    } catch {
+      setError('No pudimos conectarnos. Revisá tu conexión y probá de nuevo.')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <form onSubmit={guardar} className="flex flex-col gap-6">
+        {/* --- Contacto: pisa lo de Overture, sin tocar sus columnas (dec. 13) --- */}
+        <Seccion titulo="Datos de contacto">
+          <Campo
+            label="Teléfono"
+            error={errores.phone}
+            hint={lugar.base.phone ? `Hoy se muestra: ${lugar.base.phone}` : undefined}
+          >
+            <input
+              type="tel"
+              value={datos.phone}
+              onChange={(e) => set({ phone: e.target.value })}
+              placeholder={lugar.base.phone ?? '11 5555 5555'}
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo
+            label="Sitio web"
+            error={errores.website}
+            hint={lugar.base.website ? `Hoy se muestra: ${lugar.base.website}` : 'Con https://'}
+          >
+            <input
+              type="url"
+              value={datos.website}
+              onChange={(e) => set({ website: e.target.value })}
+              placeholder="https://…"
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo
+            label="Redes"
+            error={errores.socials}
+            hint="Instagram, Facebook, lo que uses. Si cargás alguna, reemplazan a las que teníamos."
+          >
+            <div className="flex flex-col gap-2">
+              {datos.socials.map((social, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    type="url"
+                    value={social}
+                    onChange={(e) => setSocial(i, e.target.value)}
+                    placeholder="https://instagram.com/…"
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Quitar red"
+                    onClick={() => set({ socials: datos.socials.filter((_, j) => j !== i) })}
+                    className="shrink-0 rounded-xl border border-border px-3 text-muted-foreground transition-colors hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              ))}
+              {datos.socials.length < MAX_SOCIALS && (
+                <button
+                  type="button"
+                  onClick={() => set({ socials: [...datos.socials, ''] })}
+                  className="inline-flex w-fit items-center gap-1 text-sm text-primary underline underline-offset-4"
+                >
+                  <Plus className="size-4" />
+                  Agregar red
+                </button>
+              )}
+            </div>
+          </Campo>
+        </Seccion>
+
+        {/* --- Tags: el diferencial de la app lo carga el que conoce el lugar --- */}
+        <Seccion
+          titulo="Qué se encuentra en tu lugar"
+          bajada="Lo que tildes acá es con lo que la gente te va a encontrar buscando."
+        >
+          {lugar.facetas.map((faceta) => (
+            <Faceta
+              key={faceta.facet}
+              faceta={faceta}
+              elegidos={elegidos}
+              alternar={alternarTag}
+            />
+          ))}
+        </Seccion>
+
+        {/* --- Campos pagos: existen siempre, se editan solo con plan (dec. 18) --- */}
+        <Seccion
+          titulo="Contenido destacado"
+          bajada={
+            pago
+              ? 'Se muestran en tu ficha mientras el plan esté activo.'
+              : 'Del plan pago. Si lo dás de baja no se borra: deja de mostrarse.'
+          }
+        >
+          {!pago && (
+            <p className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
+              <Lock className="size-3.5 shrink-0" />
+              Escribinos para activar el plan pago.
+            </p>
+          )}
+
+          <Campo label="Descripción" error={errores.description}>
+            <textarea
+              value={pago ? datos.description : ''}
+              onChange={(e) => set({ description: e.target.value })}
+              disabled={!pago}
+              rows={4}
+              placeholder="Contá qué hace especial a tu lugar."
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Link a la carta" error={errores.menuUrl}>
+            <input
+              type="url"
+              value={pago ? datos.menuUrl : ''}
+              onChange={(e) => set({ menuUrl: e.target.value })}
+              disabled={!pago}
+              placeholder="https://…"
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Novedad" error={errores.news} hint="Una línea: “Happy hour de 18 a 20”.">
+            <input
+              value={pago ? datos.news : ''}
+              onChange={(e) => set({ news: e.target.value })}
+              disabled={!pago}
+              placeholder="Happy hour de 18 a 20"
+              className={inputClass}
+            />
+          </Campo>
+        </Seccion>
+
+        {error && <Aviso tipo="error">{error}</Aviso>}
+        {guardado && <Aviso tipo="ok">Listo, guardamos los cambios.</Aviso>}
+
+        <button type="submit" disabled={guardando} className={btnClass}>
+          {guardando ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </form>
+
+      {/* Fotos aparte: se suben de a una y el resultado se ve al instante. */}
+      <FotosEditor
+        placeId={lugar.id}
+        inicial={lugar.fotos}
+        cap={lugar.capFotos}
+        plan={lugar.plan}
+      />
+    </div>
+  )
+}
+
+function Seccion({
+  titulo,
+  bajada,
+  children,
+}: {
+  titulo: string
+  bajada?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-base font-semibold text-foreground">{titulo}</h2>
+        {bajada && <p className="text-xs text-muted-foreground">{bajada}</p>}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/**
+ * Una faceta con sus tags. Cocina viene con padres e hijos: los hijos se
+ * indentan bajo su padre, igual que en el sheet de filtros de la búsqueda.
+ */
+function Faceta({
+  faceta,
+  elegidos,
+  alternar,
+}: {
+  faceta: FacetaDelPanel
+  elegidos: Set<string>
+  alternar: (slug: string) => void
+}) {
+  const padres = faceta.tags.filter((t) => t.parent === null)
+  const hijosDe = (slug: string) => faceta.tags.filter((t) => t.parent === slug)
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {faceta.label}
+      </h3>
+      <div className="flex flex-wrap gap-1.5">
+        {padres.map((padre) => (
+          <TagToggle
+            key={padre.slug}
+            slug={padre.slug}
+            name={padre.name}
+            elegido={elegidos.has(padre.slug)}
+            alternar={alternar}
+          />
+        ))}
+      </div>
+      {padres.map((padre) => {
+        const hijos = hijosDe(padre.slug)
+        if (hijos.length === 0) return null
+        return (
+          <div key={`${padre.slug}-hijos`} className="flex flex-col gap-1 pl-3">
+            <p className="text-[11px] text-muted-foreground">{padre.name}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {hijos.map((hijo) => (
+                <TagToggle
+                  key={hijo.slug}
+                  slug={hijo.slug}
+                  name={hijo.name}
+                  elegido={elegidos.has(hijo.slug)}
+                  alternar={alternar}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function TagToggle({
+  slug,
+  name,
+  elegido,
+  alternar,
+}: {
+  slug: string
+  name: string
+  elegido: boolean
+  alternar: (slug: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={elegido}
+      onClick={() => alternar(slug)}
+      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+        elegido
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-border text-muted-foreground hover:border-muted-foreground/50'
+      }`}
+    >
+      {name}
+    </button>
+  )
+}

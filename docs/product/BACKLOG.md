@@ -17,7 +17,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Zonas** — 46 polígonos (los 4 de Palermo particionados a mano), zona primaria + buffer 400 m → spec: `docs/specs/done/ZONAS.md`. **Cerrado ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#zonas)
 - [x] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/done/BUSQUEDA.md`. **Las 3 fases cerradas ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#busqueda)
 - [x] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/done/FICHA.md`. **Las 3 fases cerradas ✅ 2026-07-20** (F1 ficha propia · F2 Google en vivo · F3 foto/atribución). [Resumen](../archive/SPECS_ARCHIVO.md#ficha)
-- [ ] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/active/AUTH.md` (4 fases). **F1 auth base ✅ 2026-07-20 · F2 reclamo + alta + cola ✅ 2026-07-21**; F3-F4 pendientes
+- [ ] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/active/AUTH.md` (4 fases). **F1 auth base ✅ 2026-07-20 · F2 reclamo + alta + cola ✅ 2026-07-21 · F3 panel + contenido ✅ 2026-07-21**; F4 (horarios propios) pendiente
   - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea
 - [ ] **Votación en grupo**
 - [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
@@ -64,6 +64,22 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       empezaría a devolver **cero resultados en silencio** — que es exactamente lo que pasó en
       `lib/claims/query.ts` contra `place_claims` (ver `docs/qa/AnalisisQA.md` § AUTH F2, H-1).
       Cambiar a `leftJoin` sobre subconsulta del query builder, con test de regresión propio.
+- [ ] **Las fotos del dueño no se ocultan al revocar el reclamo** (AUTH F3, 2026-07-21).
+      AUTH-13 pide "contenido de dueño oculto": el contenido de `place_owner_content` ya se
+      oculta (el COALESCE está condicionado a tener claim aprobado), pero `place_photos`
+      sigue mostrándose. Gatearlas obligaría a tocar la prioridad dueño → Google de la ficha
+      (`fotoPrincipal` + el `EXISTS` server-side de `getPlaceForEnrichment`), que AUTH tiene
+      fuera de alcance. **Decisión consciente, no bug** — ver `docs/qa/AnalisisQA.md` §
+      AUTH F3, H-2. Se cambia con test propio, no de prepo dentro de otro spec.
+- [ ] **Reordenar las fotos del panel** (AUTH F3, 2026-07-21). `place_photos.sort` existe y
+      la ficha usa la primera como portada, pero el editor no deja arrastrar: hoy el orden es
+      el de subida y para cambiar la portada hay que borrar y volver a subir. Drag & drop o
+      un botón "poner de portada".
+- [ ] **Las fotos se guardan tal cual las sube el dueño** (AUTH F3, 2026-07-21). Hasta 5 MB
+      por foto, sin redimensionar ni recomprimir: el slot de la ficha es 4:3 y no necesita
+      más de ~1200 px de ancho. Con 15 fotos por lugar en el plan pago, eso es storage y
+      transferencia que se pagan por nada. Comprimir server-side antes del PUT (sharp) o
+      pedirle al browser que redimensione antes de subir.
 - [ ] **El bbox de AMBA está escrito dos veces** (AUTH F2, 2026-07-21). `BBOX` en
       `scripts/import-overture.ts` (qué se importa) y `AMBA_BBOX` en `lib/claims/validacion.ts`
       (hasta dónde puede llegar el pin de un alta) son el mismo rectángulo. Hoy no divergen,

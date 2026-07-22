@@ -11,8 +11,12 @@ type Props = { user: { name: string | null; email: string } | null }
  * ingresar. Con sesión: menú con las rutas del usuario.
  *
  * F2 suma "Registrá tu negocio": es la única puerta al alta de un lugar nuevo
- * (el botón de la ficha solo cubre reclamar lo que ya existe). "Mi negocio"
- * —la lista de lugares propios— llega con F3, junto con el panel.
+ * (el botón de la ficha solo cubre reclamar lo que ya existe). F3 suma "Mi
+ * negocio", la lista de lugares propios.
+ *
+ * "Mi negocio" se muestra a **todos** los que tienen sesión, no solo a los
+ * dueños: preguntar por reclamos aprobados sería una query en el header de cada
+ * página, y la pantalla ya resuelve el caso sin lugares mandando al alta.
  */
 export function AccountMenu({ user }: Props) {
   const [open, setOpen] = useState(false)
@@ -66,6 +70,14 @@ export function AccountMenu({ user }: Props) {
             <p className="truncate text-sm font-medium text-foreground">{user.name || 'Mi cuenta'}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
+          <Link
+            href="/mi-negocio"
+            role="menuitem"
+            className="block px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            onClick={() => setOpen(false)}
+          >
+            Mi negocio
+          </Link>
           <Link
             href="/registrar-negocio"
             role="menuitem"

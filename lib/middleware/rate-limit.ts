@@ -36,6 +36,14 @@ const AUTH_WINDOW_MS = 60 * 60_000
 const CLAIMS_MAX = 3
 const CLAIMS_WINDOW_MS = 24 * 60 * 60_000
 
+/**
+ * Upload de fotos del panel (decisión 23): 30 por hora por IP. Generoso para un
+ * dueño cargando su ficha —el cap real de cuántas quedan es por plan y lo aplica
+ * `agregarFoto`— pero acota subir 5 MB en loop contra el bucket.
+ */
+const FOTOS_MAX = 30
+const FOTOS_WINDOW_MS = 60 * 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -159,5 +167,20 @@ export function checkClaimsRateLimit(request: Request): Response | null {
     CLAIMS_MAX,
     CLAIMS_WINDOW_MS,
     'Llegaste al límite de solicitudes por hoy. Probá mañana o escribinos.',
+  )
+}
+
+/**
+ * Rate limit de `POST /api/mi-negocio/[placeId]/photos` (AUTH, decisión 23):
+ * 30 uploads por hora por IP. Cupo propio: el dueño que carga fotos no gasta el
+ * de búsqueda ni el de reclamos.
+ */
+export function checkFotosRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'fotos',
+    FOTOS_MAX,
+    FOTOS_WINDOW_MS,
+    'Muchas fotos seguidas. Probá de nuevo en un rato.',
   )
 }

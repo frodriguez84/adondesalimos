@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { checkClaimsRateLimit, checkSearchRateLimit, consumirCupo, resetRateLimit } from '../rate-limit'
+import {
+  checkClaimsRateLimit,
+  checkFotosRateLimit,
+  checkSearchRateLimit,
+  consumirCupo,
+  resetRateLimit,
+} from '../rate-limit'
 import { getClientIp, UNKNOWN_IP } from '../get-client-ip'
 
 beforeEach(() => resetRateLimit())
@@ -70,6 +76,22 @@ describe('checkSearchRateLimit', () => {
     // Decisión 23: 3 por día. El cuarto se corta.
     for (let i = 0; i < 3; i++) expect(checkClaimsRateLimit(claims)).toBeNull()
     const bloqueo = checkClaimsRateLimit(claims)
+    expect(bloqueo).not.toBeNull()
+    expect(bloqueo!.status).toBe(429)
+  })
+
+  it('el cupo de fotos es propio: 30/h y no lo consumen búsqueda ni claims (decisión 23)', () => {
+    process.env.TRUSTED_IP_HEADER = 'x-real-ip'
+    const headers = { 'x-real-ip': '7.7.7.7' }
+    const busqueda = new Request('http://x/api/search', { headers })
+    const claims = new Request('http://x/api/claims', { method: 'POST', headers })
+    const fotos = new Request('http://x/api/mi-negocio/abc/photos', { method: 'POST', headers })
+
+    for (let i = 0; i < 70; i++) checkSearchRateLimit(busqueda)
+    for (let i = 0; i < 5; i++) checkClaimsRateLimit(claims)
+
+    for (let i = 0; i < 30; i++) expect(checkFotosRateLimit(fotos)).toBeNull()
+    const bloqueo = checkFotosRateLimit(fotos)
     expect(bloqueo).not.toBeNull()
     expect(bloqueo!.status).toBe(429)
   })

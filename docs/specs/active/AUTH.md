@@ -1,6 +1,6 @@
 # Spec: Auth + roles + reclamo de negocio
 
-**Estado:** 🟢 Parcial — F1 ✅ Auth base (2026-07-20) · F2 ✅ Reclamo + alta + cola (2026-07-21); F3-F4 pendientes
+**Estado:** 🟢 Parcial — F1 ✅ Auth base (2026-07-20) · F2 ✅ Reclamo + alta + cola (2026-07-21) · F3 ✅ Panel + contenido (2026-07-21); F4 pendiente
 **Prioridad:** Alta — habilita al dueño, que es la pata B2B del modelo. Sin este spec no hay spec 6 (Votación necesita usuarios) ni spec 7 (Monetización necesita dueños)
 **Gate:** Ninguno
 **Bloquea:** spec 6 (Votación en grupo) · spec 7 (Monetización)
@@ -161,7 +161,7 @@ F1/F3) — no se toca.
 |------|---------|-----------------|
 | **1 — Auth base** ✅ | better-auth + tablas + pantallas login/registro/recuperar/restablecer + verificación obligatoria + `/cuenta` mínima + entrada en el header + rate limit de auth | Registro end-to-end con mail real (Resend), sin roles todavía |
 | **2 — Reclamo + alta + cola** ✅ | `place_claims`, botón en la ficha, `registrar-negocio` (búsqueda en catálogo completo + alta con pin + zona automática), `/admin` con la cola, aprobar/rechazar + `publish_override` + mails | Un lugar con confidence bajo el umbral aparece publicado tras aprobar |
-| **3 — Panel + contenido** | `place_owner_content`, editor de datos/tags, fotos a R2 con caps, `owner_plan` + gating, huecos en la ficha, teaser de stats | Ficha mostrando contenido de dueño; 4ª foto free rechazada |
+| **3 — Panel + contenido** ✅ | `place_owner_content`, editor de datos/tags, fotos a R2 con caps, `owner_plan` + gating, huecos en la ficha, teaser de stats | Ficha mostrando contenido de dueño; 4ª foto free rechazada |
 | **4 — Horarios propios** | Editor semanal (rangos que cruzan medianoche), prioridad dueño → Google en la ficha, abierto/cerrado con TZ AR | Ficha con horarios propios y estado correcto un día de semana vs trasnoche |
 
 ### Notas de implementación — F2 (2026-07-21)
@@ -185,6 +185,38 @@ Lo que el spec no fijaba y quedó decidido al implementar:
   de R2) es F3.
 - **El alta carga teléfono y sitio en las columnas base** de `places` (decisión 13: en
   `source='owner'` las base se llenan una vez, al alta).
+
+### Notas de implementación — F3 (2026-07-21)
+
+Lo que el spec no fijaba y quedó decidido al implementar:
+
+- **El contenido del dueño se aplica solo mientras el lugar tenga reclamo aprobado.** El
+  COALESCE de `getPlaceDetail` está condicionado a `reclamado`. Es lo que hace que revocar
+  (AUTH-13) y eliminar la cuenta devuelvan la ficha a Overture: sin esto, el teléfono de un
+  ex-dueño quedaba publicado para siempre. **La fila no se borra** — se deja de aplicar,
+  mismo criterio que el contenido pago cuando se cae el plan.
+- **Las fotos NO se ocultan al revocar** (decisión consciente, ver QA § AUTH F3 H-2):
+  gatearlas obligaría a tocar la prioridad dueño → Google de FICHA, que está fuera de
+  alcance. Revocar devuelve los datos a Overture pero deja las fotos. → BACKLOG.
+- **Tags y contenido viajan en el mismo `PATCH`**: el editor es un formulario, no dos. La
+  tabla de Rutas no lista un endpoint de tags y no hizo falta.
+- **Guardar tags reemplaza el set completo del lugar con `source='owner'`**, incluidas las
+  que venían de `import`: para SU lugar el dueño aprobado es mejor fuente que Overture
+  (decisión 14) y el re-import ya no las toca.
+- **El cap de fotos se chequea dos veces**: una barata antes de subir (para no gastar un PUT
+  que va a rebotar) y otra dentro de la transacción con la fila del lugar tomada `FOR
+  UPDATE`. Sin ese lock, dos uploads simultáneos con 2 fotos cargadas dejaban 4 en un plan
+  de 3.
+- **`opening_hours` se creó con la tabla pero nadie la lee ni la escribe**: crear la tabla
+  entera de una vez es más barato que un `ALTER` después. La usa F4.
+- **`PATCH .../content` no lleva rate limit propio**: exige sesión y solo puede tocar un
+  lugar que ya es del usuario. El cupo de la decisión 23 cubre lo abierto (auth, claims,
+  fotos).
+- **"Mi negocio" se muestra a todo el que tenga sesión**, no solo a dueños: preguntar por
+  claims aprobados sería una query en el header de cada página, y la pantalla vacía ya
+  resuelve el caso mandando al alta.
+- **El cliente de R2 es `@aws-sdk/client-s3`** (R2 es S3-compatible), instanciado perezoso y
+  memoizado: sin fotos en juego la app nunca lo crea.
 
 ## Edge cases
 
@@ -218,20 +250,23 @@ Lo que el spec no fijaba y quedó decidido al implementar:
 - [ ] "Registrá tu negocio" busca en el catálogo **completo** (visibles e invisibles) antes
       de ofrecer el alta; el alta crea `source='owner'` invisible con zona asignada por la
       geometría de ZONAS; rechazar lo deja invisible
-- [ ] Fotos: upload a R2 solo jpeg/png/webp ≤ 5 MB; la 4ª foto con `owner_plan='free'`
+- [x] Fotos: upload a R2 solo jpeg/png/webp ≤ 5 MB; la 4ª foto con `owner_plan='free'`
       responde 4xx; la ficha muestra las del dueño y **no** pide la foto de Google
       (comportamiento ya implementado en FICHA, verificado de punta a punta con fotos reales)
-- [ ] Campos pagos: con `free` el editor los muestra bloqueados y el PATCH los rechaza
+      — F3, QA AUTH-07/AUTH-21/AUTH-22
+- [x] Campos pagos: con `free` el editor los muestra bloqueados y el PATCH los rechaza
       server-side; con `paid` se editan y la ficha los muestra en los huecos; volver a
-      `free` los oculta sin borrarlos
-- [ ] Re-correr el import de Overture no pisa **nada** editado por el dueño (contenido en
-      `place_owner_content` intacto, tags de lugares reclamados sin tocar — test)
-- [ ] Teaser del panel = `SUM(detail_views)` del mes corriente, solo el número
+      `free` los oculta sin borrarlos — F3, QA AUTH-08
+- [x] Re-correr el import de Overture no pisa **nada** editado por el dueño (contenido en
+      `place_owner_content` intacto, tags de lugares reclamados sin tocar — test) — F3
+- [x] Teaser del panel = `SUM(detail_views)` del mes corriente, solo el número — F3, QA AUTH-10
 - [ ] Horarios propios: la ficha los prioriza sobre Google y el estado abierto/cerrado es
       correcto en TZ AR, incluido un rango que cruza medianoche
-- [ ] Rate limit activo en POST claims (3/día/IP), upload (30/h/IP) y auth (20/h/IP)
-- [ ] Ningún secreto nuevo llega al bundle del browser (R2, Resend, `ADMIN_EMAIL`,
-      `BETTER_AUTH_SECRET`); `.env.example` actualizado con nombre y propósito
+- [x] Rate limit activo en POST claims (3/día/IP), upload (30/h/IP) y auth (20/h/IP) — el de
+      upload entró con F3
+- [x] Ningún secreto nuevo llega al bundle del browser (R2, Resend, `ADMIN_EMAIL`,
+      `BETTER_AUTH_SECRET`); `.env.example` actualizado con nombre y propósito — F3 sumó las
+      5 de R2
 - [ ] `typecheck` + tests + `build` verdes (build con el dev server parado)
 
 ## QA manual (IDs propuestos)

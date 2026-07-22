@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { after } from 'next/server'
-import { Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide-react'
+import { BookOpen, Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide-react'
 
 import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
@@ -88,8 +88,10 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
   const ubicacion = ubicacionDeCard(place)
   const encontras = queEncontras(place.tags)
   const comoLlegar = comoLlegarUrl(place)
-  const telefono = place.phones[0] ?? null
-  const web = place.websites[0] ?? null
+  // Ya resueltos por la query: dueño → Overture, y los pagos gateados por plan
+  // (AUTH, decisiones 13, 18 y 19). Acá no se decide nada de eso.
+  const telefono = place.phone
+  const web = place.website
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 pb-28 pt-4">
@@ -130,6 +132,14 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
               {[ubicacion, precio].filter(Boolean).join(' · ')}
             </p>
           )}
+
+          {/* Novedad del dueño (decisión 19): banner corto bajo el header. Solo
+              con plan pago — la query ya devuelve null si no lo tiene. */}
+          {place.news && (
+            <p className="rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-foreground">
+              {place.news}
+            </p>
+          )}
         </header>
       </FichaGoogle>
 
@@ -142,7 +152,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
           </p>
         )}
 
-        {(telefono || web) && (
+        {(telefono || web || place.menuUrl) && (
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
             {telefono && (
               <a href={`tel:${telefono}`} className="text-foreground underline underline-offset-4">
@@ -159,6 +169,21 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
               >
                 {web.replace(/^https?:\/\//, '').replace(/\/$/, '')}
               </a>
+            )}
+            {/* Carta del dueño (decisión 19): acción junto al website. */}
+            {place.menuUrl && (
+              <>
+                {(telefono || web) && <span aria-hidden>·</span>}
+                <a
+                  href={place.menuUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-foreground underline underline-offset-4"
+                >
+                  <BookOpen className="size-3.5" />
+                  Ver la carta
+                </a>
+              </>
             )}
           </p>
         )}
@@ -196,6 +221,17 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
               </span>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Descripción del dueño (decisión 19): debajo de "Qué vas a encontrar".
+          Se renderiza aunque no haya tags de onda — son dos cosas distintas. */}
+      {place.description && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Sobre el lugar
+          </h2>
+          <p className="whitespace-pre-line text-sm text-foreground">{place.description}</p>
         </section>
       )}
 

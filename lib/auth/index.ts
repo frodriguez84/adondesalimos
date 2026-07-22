@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import * as schema from '@/lib/db/schema'
 import { sendResetPasswordEmail, sendVerificationEmail } from '@/lib/email'
+import { limpiarFotosDeUsuario } from '@/lib/negocio/acciones'
 
 /**
  * Config de better-auth replicando el patrón de StressPlan (decisión 6), con una
@@ -52,8 +53,15 @@ export const auth = betterAuth({
        *
        * Un `source='overture'` con buen confidence sigue publicado por la regla
        * normal; uno `source='owner'` vuelve a ser invisible. La regla no se toca.
+       *
+       * F3 completa el edge case: se borran también sus fotos (base + R2). El
+       * contenido de `place_owner_content` no se borra — sin claim aprobado la
+       * ficha deja de aplicarlo, que es lo que el spec pide ("deja de mostrarse").
        */
       beforeDelete: async (user) => {
+        // Antes que el update: usa los claims, que el cascade está por borrar.
+        await limpiarFotosDeUsuario(user.id)
+
         await db
           .update(schema.places)
           .set({ publishOverride: false, updatedAt: new Date() })

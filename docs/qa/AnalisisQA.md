@@ -408,3 +408,87 @@ Detectado solo en vivo: el test de integración cubría el helper, no la query d
 `places.id` por descarte y la búsqueda funciona. Es correcto por accidente: si alguna de esas
 tablas ganara una columna `id`, la búsqueda empezaría a devolver cero en silencio. Anotado en
 `docs/product/BACKLOG.md` — se cambia con test propio, no de prepo dentro de otro spec.
+
+---
+
+## QA de fase — AUTH F3 (2026-07-21)
+
+**Alcance:** **Fase 3** — `place_owner_content` + `places.owner_plan`, `/mi-negocio` (lista)
+y `/mi-negocio/[placeId]` (editor: contacto, tags de las 6 facetas, fotos, campos pagos
+bloqueados, teaser), `lib/storage/r2.ts` como único módulo que habla con R2, `PATCH
+/api/mi-negocio/[placeId]/content`, `POST`/`DELETE .../photos`, y la ficha consumiendo el
+contenido del dueño (COALESCE + huecos pagos). **F4 (horarios propios) pendiente** ⇒ el spec
+sigue en `active/`.
+
+**Veredicto de F3:** PASA (alcance F3).
+
+**Verificación técnica:** typecheck ✅ · tests ✅ **301/301** (+57 sobre F2: COALESCE y
+gating puros, schemas y normalización del panel, claves/URLs de R2, y el flujo completo
+contra la base) · **build ✅** (con el dev server parado; las 4 rutas nuevas salen dinámicas
+`ƒ`).
+
+**Escaneo de secretos en `.next/static` (41 archivos):** se buscaron los **valores reales**
+de `.env`, no solo los nombres — **0 ocurrencias** de `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `ADMIN_EMAIL`, `RESEND_API_KEY`, `BETTER_AUTH_SECRET`,
+`GOOGLE_PLACES_API_KEY` y `DATABASE_URL`. El **nombre** `BETTER_AUTH_SECRET` sí aparece una
+vez, en `chunks/0f5ga4v0.hwf-.js`: es el accessor de env de la propia better-auth
+(`Object.freeze({get BETTER_AUTH_SECRET(){return a("BETTER_AUTH_SECRET")}…})`), que en el
+browser resuelve a `undefined` porque Next solo inlinea `NEXT_PUBLIC_*`. No es una fuga —
+pero deja la lección de que **buscar nombres no alcanza: hay que buscar valores**.
+
+**QA en vivo (Playwright sobre ngrok):** cuentas `frodriguez.este@gmail.com` (dueño aprobado
+de "Kansas Grill & Bar") y `hugo@gmail.com` (no-dueño) — ver `docs/qa/DATOS_QA.local.md`.
+Fotos reales subidas a R2 y borradas al final.
+
+| ID | Caso | Resultado | Evidencia / Nota |
+|----|------|-----------|------------------|
+| AUTH-07 | Cap de fotos free | ✅ PASS | 3 fotos PNG reales subidas a R2 (`pub-….r2.dev/lugares/<placeId>/<uuid>.png`, 400×300, cargan en la ficha). Con 3, el botón queda deshabilitado ("Llegaste al máximo de 3") y **el 4º POST forzado por API responde 409 `CAP_FOTOS`**. El contador de fotos de Google **no se movió**: `google_api_usage.photos` = 15 antes y después de 2 aperturas de ficha (`details` sí subió 21→23) — la foto de dueño evita el SKU caro (decisión 3, ya implementado en FICHA F3) |
+| AUTH-08 | Gating por plan | ✅ PASS | Con `free`: los 3 campos pagos se muestran **deshabilitados** con el aviso "Escribinos para activar el plan pago", y el `PATCH` con `description` cargada responde **403 `CAMPO_PAGO`**. `UPDATE owner_plan='paid'` → editor desbloqueado y cap de fotos 3→15 → cargados descripción, carta y novedad → **los tres aparecen en la ficha en sus huecos** (decisión 19). Volver a `free` → **los tres desaparecen de la ficha y siguen en `place_owner_content`** (verificado en la base) |
+| AUTH-12 | Permisos | ✅ PASS | Con sesión de `hugo@gmail.com` (sin claims): `/mi-negocio` muestra el estado vacío que manda al alta; `/mi-negocio/<id ajeno>` → **404**; `PATCH .../content` y `DELETE .../photos` → **403 `NO_AUTORIZADO`**. El gate es `esDuenoDe`, el mismo para la página y los dos endpoints |
+| AUTH-10 | Teaser | ✅ PASS | `/mi-negocio` y el editor muestran **"5 visitas este mes"** para Kansas, que es el `SUM(detail_views)` real del mes corriente acumulado por el QA de F2. Solo el número — sin desglose ni comparación (eso es spec 7) |
+| AUTH-18 | Panel: lista y editor | ✅ PASS | La lista muestra nombre, zona · dirección, chip Publicado/Sin publicado, visitas del mes y `N/cap` fotos. El editor trae el contacto de Overture como hint ("Hoy se muestra: +541147764100"), la taxonomía **completa** de las 6 facetas con los tags del lugar ya tildados (Restaurante, Americana), y Cocina con hijos anidados bajo su padre |
+| AUTH-19 | La ficha consume lo del dueño | ✅ PASS | Cargados teléfono, web e Instagram propios + 3 tags nuevos → la ficha muestra **el teléfono del dueño** (`11 4776 4100`, no el `+541147764100` de Overture), **su web** (https, no el http de Overture), **su Instagram** (reemplaza al de Overture) y los tags nuevos en el encabezado y en "Qué vas a encontrar". Vaciar un campo devuelve el de Overture (test de integración) |
+| AUTH-20 | Tags del dueño | ✅ PASS | Los 5 tags del lugar quedan con `source='owner'` (incluido el `americana` que venía de import): para SU lugar el dueño es mejor fuente que Overture (decisión 14), y el re-import ya no los toca. Un slug inventado se descarta sin romper el guardado |
+| AUTH-21 | Validación del boundary | ✅ PASS | Upload de un PDF con `type: application/pdf` → **415 `TIPO_INVALIDO`**. `website: 'javascript:alert(1)'` → **400 `INVALID`** (los links de la ficha se usan como `href`). Tamaño verificado sobre los bytes leídos, no sobre el `size` declarado |
+| AUTH-22 | Borrar una foto | ✅ PASS | Borrar la 3ª: desaparece de la grilla (3→2, contador "2 de 3") y el objeto **ya no está en R2** (`curl` a su URL → **HTTP 404**). La fila se borra aunque R2 falle; el objeto huérfano es el lado barato del error |
+| AUTH-17 | Menú de cuenta | ✅ PASS | Suma "Mi negocio" antes de "Registrá tu negocio". Se muestra a todo el que tenga sesión, no solo a dueños: preguntar por claims aprobados sería una query en el header de cada página, y la pantalla vacía ya resuelve el caso |
+
+**Cobertura por test (no en vivo):** COALESCE dueño → base en sus 6 casos (dato propio gana ·
+`null` cae a la base · sin dato en ningún lado ⇒ `null` · redes reemplazan, no mezclan ·
+redes vacías caen a la base) · gating por plan en los 3 campos, en los dos sentidos ·
+`CAP_FOTOS` con las 3 filas plantadas (sin tocar R2) · borrar la foto de otro lugar sabiendo
+su id ⇒ `FOTO_NOT_FOUND` · el teaser suma el mes corriente y **deja afuera el día anterior al
+1°** · la taxonomía del panel lista Precio, que la búsqueda esconde por conteo cero · el
+`UPDATE` de las columnas base (lo que hace el re-import) no toca `place_owner_content` ·
+cascade de `places` → `place_owner_content` · cupo de fotos 30/h propio, que no consumen ni
+la búsqueda ni los claims.
+
+### Hallazgos
+
+**H-1 — Dos partes del edge case "eliminar cuenta de un dueño" seguían sin implementar
+(encontrado leyendo el spec durante la implementación, cerrado en F3).** Las notas de F2
+decían explícitamente que "el resto del edge case (contenido de dueño, fotos de R2) es F3", y
+AUTH-13 pide además que revocar un reclamo deje el "contenido de dueño oculto". Faltaban las
+dos:
+
+1. **El contenido se aplicaba sin mirar si había dueño.** `getPlaceDetail` leía
+   `place_owner_content` por `place_id` y listo, así que el teléfono de un ex-dueño quedaba
+   publicado para siempre después de revocarle el reclamo o de que borrara su cuenta.
+   Cerrado condicionando el COALESCE a `reclamado` (el flag que la query ya calculaba): sin
+   claim aprobado la ficha vuelve a Overture. **La fila no se borra** — se deja de aplicar,
+   mismo criterio que el contenido pago cuando se cae el plan, así que volver a reclamar
+   recupera lo cargado. Con test.
+2. **Las fotos no se limpiaban.** `place_photos` cuelga del lugar, no del usuario, así que el
+   cascade del delete de cuenta no las tocaba: quedaban filas apuntando a objetos vivos en
+   R2. Cerrado con `limpiarFotosDeUsuario`, llamada desde el hook `beforeDelete` **antes** del
+   update de `publish_override` (después, el cascade ya se llevó los claims y no habría por
+   dónde encontrar los lugares). Best effort de punta a punta: nada de esto puede impedir que
+   alguien borre su cuenta.
+
+**H-2 — Las fotos NO se ocultan al revocar (decisión tomada, no bug).** AUTH-13 dice
+"contenido de dueño oculto"; el contenido de `place_owner_content` ahora se oculta, pero
+`place_photos` sigue mostrándose. Gatear las fotos obligaría a tocar la prioridad dueño →
+Google de la ficha (`fotoPrincipal` + el `EXISTS` server-side de `getPlaceForEnrichment`),
+que este spec tiene explícitamente fuera de alcance. Queda como decisión consciente: revocar
+devuelve los **datos** a Overture pero deja las fotos cargadas. Anotado en
+`docs/product/BACKLOG.md` — se cambia con test propio, no de prepo dentro de otro spec.

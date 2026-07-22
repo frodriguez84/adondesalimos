@@ -72,6 +72,13 @@ export const claimKindEnum = pgEnum('claim_kind', ['claim', 'new'])
 /** Estado de la cola de aprobación manual (AUTH, decisiones 4 y 10). */
 export const claimStatusEnum = pgEnum('claim_status', ['pending', 'approved', 'rejected'])
 
+/**
+ * Plan del lugar (AUTH, decisión 18). **Por lugar, no por usuario**: el destaque y
+ * las stats del spec 7 son por ficha. Hasta ese spec se cambia a mano con un
+ * UPDATE documentado — mismo criterio que el umbral de confidence antes de `/admin`.
+ */
+export const ownerPlanEnum = pgEnum('owner_plan', ['free', 'paid'])
+
 // ---------------------------------------------------------------------------
 // Tablas
 // ---------------------------------------------------------------------------
@@ -123,6 +130,14 @@ export const places = pgTable(
 
     /** Reclamo de dueño aprobado ⇒ true. Lo opera el spec de Auth/reclamo. */
     publishOverride: boolean('publish_override').notNull().default(false),
+
+    /**
+     * Plan del dueño de ESTE lugar (AUTH, decisión 18). Nace `free` para todos y
+     * hasta el spec 7 solo cambia con un UPDATE a mano. Gatea qué campos de
+     * `place_owner_content` se pueden editar y cuáles se muestran en la ficha:
+     * volver a `free` **oculta** el contenido pago, no lo borra.
+     */
+    ownerPlan: ownerPlanEnum('owner_plan').notNull().default('free'),
 
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -480,6 +495,56 @@ export const placeClaims = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Contenido del dueño — spec AUTH F3
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo que el dueño edita de SU lugar (decisión 13). 1-a-1 con `places`.
+ *
+ * **Nada de esto va a las columnas base de `places`**: el re-import de Overture
+ * las pisa (CATALOGO dec. 17 solo preserva `google_place_id`, `publish_override`
+ * y las tags no-import). La ficha resuelve `COALESCE(dueño → base)`, así que
+ * borrar un campo de acá devuelve el dato de Overture en vez de dejar un hueco.
+ *
+ * **Todo nullable**: cada campo sobrescribe la base solo si está cargado. La fila
+ * existe o no existe; un lugar sin fila se comporta exactamente como antes de F3.
+ *
+ * Los tres campos pagos (`description`, `menu_url`, `news`) se guardan igual que
+ * el resto, pero solo se **escriben** y se **muestran** con `places.owner_plan =
+ * 'paid'` (decisión 18): si el dueño deja de pagar, se ocultan sin borrarse.
+ */
+export const placeOwnerContent = pgTable('place_owner_content', {
+  placeId: uuid('place_id')
+    .primaryKey()
+    .references(() => places.id, { onDelete: 'cascade' }),
+
+  // --- Free ---------------------------------------------------------------
+  /** Pisa `places.phones[0]` en la ficha. */
+  phone: text('phone'),
+  /** Pisa `places.websites[0]`. */
+  website: text('website'),
+  /** Reemplaza `places.socials` **entero** si está cargado (no se mezclan). */
+  socials: jsonb('socials').$type<string[]>(),
+  /**
+   * Horarios propios semanales (decisión 20). La columna nace con la tabla —
+   * crear una tabla entera de una es más barato que un ALTER después— pero
+   * **nadie la lee ni la escribe hasta F4**, que trae el editor semanal, la
+   * prioridad dueño → Google y el cálculo de abierto/cerrado en TZ AR.
+   */
+  openingHours: jsonb('opening_hours'),
+
+  // --- Pago (decisión 5; los huecos de la ficha son la decisión 19) --------
+  /** Descripción larga: va debajo de "Qué vas a encontrar". */
+  description: text('description'),
+  /** Link a la carta: acción junto al website. */
+  menuUrl: text('menu_url'),
+  /** Novedad corta ("happy hour 18-20"): banner bajo el header. */
+  news: text('news'),
+
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -511,3 +576,6 @@ export type PlaceClaim = typeof placeClaims.$inferSelect
 export type NewPlaceClaim = typeof placeClaims.$inferInsert
 export type ClaimKind = (typeof claimKindEnum.enumValues)[number]
 export type ClaimStatus = (typeof claimStatusEnum.enumValues)[number]
+export type PlaceOwnerContent = typeof placeOwnerContent.$inferSelect
+export type NewPlaceOwnerContent = typeof placeOwnerContent.$inferInsert
+export type OwnerPlan = (typeof ownerPlanEnum.enumValues)[number]

@@ -115,6 +115,23 @@ regla. `operating_status` hoy no filtra nada (Overture lo entrega NULL en todo A
   FICHA son la línea entre gratis y pago — hay tests que fallan si el field mask trae un campo
   de más. No relajarlos.
 
+### Contenido del dueño y planes (AUTH F3)
+- **Lo que edita el dueño NUNCA va a las columnas base de `places`**: el re-import de Overture
+  las pisa. Va a `place_owner_content` (1-a-1, todo nullable) y la ficha resuelve
+  `COALESCE(dueño → base)` con `resolverContenidoDueno` (`lib/negocio/contenido.ts`), que es la
+  fuente única de esa regla.
+- **El contenido se aplica solo mientras el lugar tenga reclamo aprobado.** Revocar o eliminar
+  la cuenta devuelve la ficha a Overture sin borrar la fila. Ocultar ≠ borrar, en los dos ejes:
+  también el contenido pago se oculta al volver a `owner_plan='free'`.
+- **`places.owner_plan`** (`'free'`|`'paid'`, por lugar) gatea 3 fotos vs 15 y los 3 campos
+  pagos (`description`, `menu_url`, `news`). **Se aplica server-side desde el día 1**: "subir un
+  cupo es un regalo; bajarlo es una traición". Hasta el spec 7 se cambia con un `UPDATE`
+  documentado — no hay automatización y no debe agregarse acá.
+- **Un solo módulo habla con R2**: `lib/storage/r2.ts` (server-only, mismo criterio que
+  `lib/google/places.ts`). El browser sube a `/api/mi-negocio/[placeId]/photos`, nunca a R2.
+  **La fila de `place_photos` se inserta DESPUÉS del PUT exitoso** — nunca una URL huérfana en
+  la base; un objeto huérfano en R2 sí es aceptable.
+
 ### Métricas agregadas (BUSQUEDA + FICHA)
 `place_impressions_daily` cuenta `impressions` (búsqueda) y `detail_views` (aperturas de ficha)
 por lugar y día. **Agregado puro**: sin `user_id`, sin cookies, sin IP. Es el histórico que

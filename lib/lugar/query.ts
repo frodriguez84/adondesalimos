@@ -2,9 +2,18 @@ import { cache } from 'react'
 import { and, asc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
-import { placePhotos, placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
+import {
+  placeOwnerContent,
+  placePhotos,
+  placeTags,
+  placeZones,
+  places,
+  tags,
+  zones,
+} from '@/lib/db/schema'
 import { isPlacePublished } from '@/lib/db/visibility'
 import { tieneDuenoAprobado } from '@/lib/claims/ownership'
+import { resolverContenidoDueno } from '@/lib/negocio/contenido'
 import type { FichaTag } from './ficha'
 
 /**
@@ -22,9 +31,21 @@ export type PlaceDetail = {
   locality: string | null
   /** Zona primaria, o `null`: 1.890 lugares publicados no tienen (ZONAS, dec. 17). */
   zone: string | null
-  phones: string[]
-  websites: string[]
+  /**
+   * Contacto ya resuelto `COALESCE(dueño → Overture)` (AUTH, decisión 13). Lo que
+   * el dueño cargó gana; lo que dejó vacío cae a la base. La ficha no ve el
+   * origen — solo el dato que corresponde mostrar.
+   */
+  phone: string | null
+  website: string | null
   socials: string[]
+  /**
+   * Huecos del plan pago (AUTH, decisiones 18 y 19). `null` con `owner_plan =
+   * 'free'` **aunque estén cargados**: dejar de pagar los oculta, no los borra.
+   */
+  description: string | null
+  menuUrl: string | null
+  news: string | null
   /** Todos los tags activos, ordenados por `sort`. */
   tags: FichaTag[]
   /** Fotos del dueño, ordenadas. Vacío hasta el spec de reclamo (dec. 3). */
@@ -72,6 +93,7 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
       operatingStatus: places.operatingStatus,
       publishOverride: places.publishOverride,
       googlePlaceId: places.googlePlaceId,
+      ownerPlan: places.ownerPlan,
     })
     .from(places)
     .where(eq(places.id, id))
@@ -90,12 +112,31 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
   )
   if (!publicado) return null
 
-  const [tagsDelLugar, zonaPrimaria, fotosDueno, reclamado] = await Promise.all([
+  const [tagsDelLugar, zonaPrimaria, fotosDueno, reclamado, contenidoDueno] = await Promise.all([
     tagsDeLugar(id),
     zonaPrimariaDeLugar(id),
     fotosDeDueno(id),
     tieneDuenoAprobado(id),
+    contenidoDeDueno(id),
   ])
+
+  // COALESCE dueño → base y gating por plan, en el helper puro (AUTH F3): la
+  // regla que decide qué se ve está testeada sin base, y acá solo se aplica.
+  //
+  // El contenido se aplica **solo mientras el lugar tenga dueño aprobado**. Es lo
+  // que hace que revocar un reclamo (AUTH-13) o eliminar la cuenta del dueño
+  // devuelvan la ficha a los datos de Overture: sin esta condición, el teléfono
+  // de un ex-dueño quedaría publicado para siempre. La fila **no se borra** — se
+  // deja de aplicar, igual que el contenido pago cuando se cae el plan.
+  const contenido = resolverContenidoDueno({
+    base: {
+      phones: place.phones ?? [],
+      websites: place.websites ?? [],
+      socials: place.socials ?? [],
+    },
+    owner: reclamado ? contenidoDueno : null,
+    plan: place.ownerPlan,
+  })
 
   return {
     id: place.id,
@@ -105,9 +146,12 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
     address: place.address,
     locality: place.locality,
     zone: zonaPrimaria,
-    phones: place.phones ?? [],
-    websites: place.websites ?? [],
-    socials: place.socials ?? [],
+    phone: contenido.phone,
+    website: contenido.website,
+    socials: contenido.socials,
+    description: contenido.description,
+    menuUrl: contenido.menuUrl,
+    news: contenido.news,
     tags: tagsDelLugar,
     ownerPhotos: fotosDueno,
     googlePlaceId: place.googlePlaceId,
@@ -137,6 +181,28 @@ async function zonaPrimariaDeLugar(id: string): Promise<string | null> {
     .limit(1)
 
   return fila?.name ?? null
+}
+
+/**
+ * La fila de `place_owner_content`, o `null` si el dueño no editó nada (o no hay
+ * dueño). Query aparte y no un `leftJoin` sobre la de arriba: la ficha ya hace
+ * varias en paralelo y así la del lugar no cambia de forma.
+ */
+async function contenidoDeDueno(id: string) {
+  const [fila] = await db
+    .select({
+      phone: placeOwnerContent.phone,
+      website: placeOwnerContent.website,
+      socials: placeOwnerContent.socials,
+      description: placeOwnerContent.description,
+      menuUrl: placeOwnerContent.menuUrl,
+      news: placeOwnerContent.news,
+    })
+    .from(placeOwnerContent)
+    .where(eq(placeOwnerContent.placeId, id))
+    .limit(1)
+
+  return fila ?? null
 }
 
 /** Fotos del dueño, ordenadas. Vacío hasta que el spec de reclamo las cargue. */

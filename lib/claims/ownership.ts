@@ -36,6 +36,42 @@ export async function placesConDuenoAprobado(
 }
 
 /**
+ * **El gate del panel** (F3): ¿este usuario es dueño de este lugar? Mismo
+ * criterio que `tieneDuenoAprobado`, con el usuario adentro.
+ *
+ * Lo usan `/mi-negocio/[placeId]` y los dos endpoints del panel. Nadie escribe
+ * "existe un claim aprobado de este usuario" por su cuenta: el día que la
+ * propiedad deje de ser una sola fila aprobada, se cambia acá y nada más.
+ */
+export async function esDuenoDe(
+  userId: string,
+  placeId: string,
+  tx: DbOrTx = db,
+): Promise<boolean> {
+  const [fila] = await tx
+    .select({ id: placeClaims.id })
+    .from(placeClaims)
+    .where(
+      and(
+        eq(placeClaims.placeId, placeId),
+        eq(placeClaims.userId, userId),
+        eq(placeClaims.status, 'approved'),
+      ),
+    )
+    .limit(1)
+  return fila !== undefined
+}
+
+/** Los lugares de un usuario, para la lista de `/mi-negocio`. Misma regla. */
+export async function placeIdsDelUsuario(userId: string, tx: DbOrTx = db): Promise<string[]> {
+  const filas = await tx
+    .selectDistinct({ placeId: placeClaims.placeId })
+    .from(placeClaims)
+    .where(and(eq(placeClaims.userId, userId), eq(placeClaims.status, 'approved')))
+  return filas.map((f) => f.placeId)
+}
+
+/**
  * Reemplaza las tags `source='import'` de un lote **salteando los lugares con
  * dueño aprobado** (decisión 14).
  *

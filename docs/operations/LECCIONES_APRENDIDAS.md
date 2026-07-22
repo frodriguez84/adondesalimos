@@ -222,3 +222,56 @@ la request. Verificado en vivo: el panel de red muestra **una** llamada a
 —shell con `children`, contexto, o props—, nunca un fetch por zona. "Componentes chicos y
 autónomos, cada uno con su fetch" es buen default para datos gratis; sobre una API que factura
 por request, es multiplicar la factura por la cantidad de componentes.
+
+---
+
+## Un edge case del spec puede quedar sin dueño entre dos fases (2026-07-21 · AUTH F3)
+
+**Qué pasó.** El edge case "eliminar cuenta de un dueño" del spec pide tres cosas: bajar
+`publish_override`, que el contenido de dueño deje de mostrarse y que las fotos se borren de
+R2. F2 implementó la primera y **anotó explícitamente en sus notas** que "el resto del edge
+case (contenido de dueño, fotos de R2) es F3". F3 arrancó con un alcance escrito en términos
+de pantallas y endpoints —panel, editor, R2, huecos en la ficha— donde esas dos deudas **no
+aparecían por ningún lado**. Se encontraron leyendo el spec entero de nuevo a mitad de la
+implementación, no por la lista de tareas.
+
+**Por qué importa.** El agujero no era teórico: sin la parte del contenido, revocarle el
+reclamo a alguien le dejaba el teléfono publicado en la ficha **para siempre**. Y ninguna de
+las dos habría salido en el QA de F3, porque el QA se arma contra el alcance de la fase.
+
+**La causa.** Una nota de fase que dice "esto lo hace la fase siguiente" es una deuda sin
+dueño: vive en la sección de **otra** fase, así que ni el alcance de F3 ni su DoD la
+mencionan. El único lugar donde estaba escrita era el párrafo que la difería.
+
+**La regla.** Al arrancar una fase, **buscar en el spec entero las deudas que las fases
+anteriores difirieron a ésta** —grep de "es F3", "queda para", "la fase siguiente"— y sumarlas
+al alcance antes de empezar. Y al diferir algo, escribirlo **en las dos puntas**: en la nota de
+la fase que lo difiere *y* en el alcance de la fase que lo recibe. Un ítem que solo existe en
+el párrafo que lo pospone es un ítem que nadie va a implementar.
+
+---
+
+## Un cap que se cuenta y después se inserta no es un cap (2026-07-21 · AUTH F3)
+
+**Qué pasó.** El límite de fotos por plan (3 free / 15 pago) arrancó como el patrón obvio:
+contar cuántas hay, comparar contra el cap, subir a R2, insertar la fila. Con dos uploads
+simultáneos del mismo lugar y 2 fotos cargadas, los dos cuentan 2, los dos pasan, y el plan
+free termina con 4 fotos. La ventana es chica pero el límite es exactamente lo que no puede
+fallar: **subir un cupo es un regalo; bajarlo es una traición**, así que una foto de más
+regalada por una carrera no se puede sacar después sin romper la promesa.
+
+**Por qué el retry no alcanza.** Mover el conteo adentro de la transacción tampoco cierra:
+bajo `READ COMMITTED` cada transacción ve su propio insert y no el de la otra, así que las dos
+cuentan 3 sobre un cap de 3 y las dos commitean.
+
+**Qué se hizo.** `SELECT ... FROM places WHERE id = $1 FOR UPDATE` al entrar a la transacción,
+antes de contar: bloquea la fila del lugar y serializa los uploads **de ese lugar** (no de la
+tabla). Dos líneas, sin tabla de locks ni advisory locks, y el cap pasa a ser real. El
+pre-chequeo barato se mantiene igual, pero por otro motivo: evitar un PUT a R2 que va a
+rebotar.
+
+**La regla para el próximo (Votación, Monetización).** Todo límite de negocio que se verifica
+leyendo y se aplica escribiendo necesita **el lock de la fila que lo ancla**, no solo la
+transacción. "Contar y después insertar" es correcto solo si nadie más puede insertar en el
+medio, y eso hay que garantizarlo, no suponerlo. Si el límite se puede pasar por una carrera,
+no es un límite: es una sugerencia con buena intención.
