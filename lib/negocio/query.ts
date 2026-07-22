@@ -15,6 +15,7 @@ import { isPlacePublished } from '@/lib/db/visibility'
 import { esDuenoDe, placeIdsDelUsuario } from '@/lib/claims/ownership'
 import { FACET_LABELS, FACET_ORDER } from '@/lib/db/taxonomy'
 import { capDeFotos } from './contenido'
+import { normalizarSemana, type HorariosSemana } from './horarios'
 import type { Facet, OwnerPlan } from '@/lib/db/schema'
 
 /**
@@ -119,6 +120,8 @@ export type PanelLugar = {
     menuUrl: string
     news: string
   }
+  /** Horarios propios ya cargados (semana completa; vacía si el dueño no cargó). */
+  horarios: HorariosSemana
   fotos: FotoDelPanel[]
   capFotos: number
   facetas: FacetaDelPanel[]
@@ -193,6 +196,7 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
       menuUrl: contenido?.menuUrl ?? '',
       news: contenido?.news ?? '',
     },
+    horarios: normalizarSemana(contenido?.openingHours),
     fotos,
     capFotos: capDeFotos(place.ownerPlan),
     facetas,
@@ -206,6 +210,7 @@ export async function getContenidoDueno(placeId: string) {
       phone: placeOwnerContent.phone,
       website: placeOwnerContent.website,
       socials: placeOwnerContent.socials,
+      openingHours: placeOwnerContent.openingHours,
       description: placeOwnerContent.description,
       menuUrl: placeOwnerContent.menuUrl,
       news: placeOwnerContent.news,

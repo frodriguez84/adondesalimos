@@ -1,4 +1,12 @@
 import { z } from 'zod'
+import {
+  DIAS,
+  esHoraValida,
+  haySolapamiento,
+  minutosDe,
+  semanaVacia,
+  type RangoHorario,
+} from './horarios'
 
 /**
  * Validación del payload del panel (`PATCH /api/mi-negocio/[placeId]/content`).
@@ -9,7 +17,8 @@ import { z } from 'zod'
  *
  * El gating por plan **no** está acá a propósito: depende del `owner_plan` del
  * lugar, que es estado de la base. La forma se valida acá; el permiso, en
- * `acciones.ts` (server-side, decisión 17).
+ * `acciones.ts` (server-side, decisión 17). Los horarios son **free** (decisión
+ * 20): no pasan por ese gate.
  */
 
 /** Texto opcional que se puede vaciar: `''` es válido y significa "borralo". */
@@ -29,6 +38,40 @@ const link = (max: number) =>
 export const MAX_SOCIALS = 6
 /** Tope duro del array de tags: cota del payload, no regla de negocio (dec. 15). */
 export const MAX_TAGS = 100
+/** Tope de rangos por día: 3 (mañana / tarde / trasnoche) alcanza y acota el payload. */
+export const MAX_RANGOS_POR_DIA = 3
+
+/**
+ * Un rango `hh:mm`: apertura y cierre bien formados, y cierre distinto de la
+ * apertura (`20:00–20:00` es ambiguo entre "cerrado" y "24 h", no se acepta). El
+ * cruce de medianoche —cierre menor que apertura— **sí** es válido: es lo normal
+ * en una app de salidas (`20:00–02:00`).
+ */
+const rangoSchema = z
+  .object({
+    abre: z.string().refine(esHoraValida, { message: 'Hora inválida' }),
+    cierra: z.string().refine(esHoraValida, { message: 'Hora inválida' }),
+  })
+  .refine((r: RangoHorario) => minutosDe(r.abre) !== minutosDe(r.cierra), {
+    message: 'El cierre no puede ser igual a la apertura',
+  })
+
+/** Los rangos de un día: sin superar el tope y sin pisarse entre sí. */
+const diaSchema = z
+  .array(rangoSchema)
+  .max(MAX_RANGOS_POR_DIA)
+  .refine((rangos) => !haySolapamiento(rangos), { message: 'Hay horarios que se pisan' })
+
+/** La semana entera: los 7 días, cada uno con su lista de rangos. */
+export const horariosSchema = z.object({
+  lunes: diaSchema,
+  martes: diaSchema,
+  miercoles: diaSchema,
+  jueves: diaSchema,
+  viernes: diaSchema,
+  sabado: diaSchema,
+  domingo: diaSchema,
+})
 
 export const contenidoSchema = z.object({
   // --- Free ---------------------------------------------------------------
@@ -37,6 +80,8 @@ export const contenidoSchema = z.object({
   socials: z.array(link(300)).max(MAX_SOCIALS),
   /** Slugs de la taxonomía. Los que no existan o estén inactivos se descartan. */
   tags: z.array(z.string().trim().min(1).max(80)).max(MAX_TAGS),
+  /** Horarios propios (free): la ficha los prioriza sobre los de Google. */
+  openingHours: horariosSchema,
 
   // --- Pago: la forma se valida siempre; el permiso lo checkea `acciones.ts` --
   description: opcional(2000),
@@ -51,6 +96,7 @@ export const CONTENIDO_VACIO: ContenidoPayload = {
   website: '',
   socials: [],
   tags: [],
+  openingHours: semanaVacia(),
   description: '',
   menuUrl: '',
   news: '',

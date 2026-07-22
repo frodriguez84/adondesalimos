@@ -17,6 +17,7 @@ import { getPlaceDetail } from '@/lib/lugar/query'
 import { agregarFoto, guardarContenido, limpiarFotosDeUsuario, quitarFoto } from '../acciones'
 import { getPanelLugar, misLugares, visitasDelMes } from '../query'
 import { CONTENIDO_VACIO } from '../validacion'
+import { semanaVacia } from '../horarios'
 
 /**
  * F3 contra la base. Lo que se verifica acá es lo que no se puede verificar con
@@ -254,6 +255,56 @@ describe.runIf(process.env.DATABASE_URL)('la ficha consume el contenido del due�
   it('un slug inventado se descarta sin romper el guardado', async () => {
     const r = await guardarContenido(duenoId, placeId, payload({ tags: ['no-existe-este-tag'] }))
     expect(r.ok && r.data.tagsGuardados).toBe(0)
+  })
+})
+
+describe.runIf(process.env.DATABASE_URL)('horarios propios (decisión 20)', () => {
+  const conLunes = () =>
+    payload({ openingHours: { ...semanaVacia(), lunes: [{ abre: '20:00', cierra: '02:00' }] } })
+
+  it('se guardan y la ficha los expone SOLO con dueño aprobado', async () => {
+    await guardarContenido(duenoId, placeId, conLunes())
+
+    // La pantalla (getPlaceDetail) los muestra mientras hay reclamo aprobado.
+    const ficha = await getPlaceDetail(placeId)
+    expect(ficha!.horariosDueno).not.toBeNull()
+    expect(ficha!.horariosDueno!.lunes).toEqual([{ abre: '20:00', cierra: '02:00' }])
+
+    // El panel los devuelve para prellenar el editor.
+    const panel = await getPanelLugar(placeId, duenoId)
+    expect(panel!.horarios.lunes).toEqual([{ abre: '20:00', cierra: '02:00' }])
+  })
+
+  it('revocar el reclamo los oculta en la ficha sin borrar la fila', async () => {
+    await guardarContenido(duenoId, placeId, conLunes())
+    await db
+      .update(placeClaims)
+      .set({ status: 'rejected', adminNotes: 'revocado' })
+      .where(eq(placeClaims.placeId, placeId))
+
+    // La ficha vuelve a los de Google (dueño → null), como el resto del contenido.
+    expect((await getPlaceDetail(placeId))!.horariosDueno).toBeNull()
+
+    // Pero el dato sigue guardado: volver a reclamar lo recupera.
+    const [fila] = await db
+      .select({ openingHours: placeOwnerContent.openingHours })
+      .from(placeOwnerContent)
+      .where(eq(placeOwnerContent.placeId, placeId))
+    expect(fila.openingHours).toEqual({ ...semanaVacia(), lunes: [{ abre: '20:00', cierra: '02:00' }] })
+  })
+
+  it('una semana entera vacía se guarda como null ⇒ la ficha usa Google', async () => {
+    // Primero cargar algo, después vaciar: el "borrar" tiene que dejar null.
+    await guardarContenido(duenoId, placeId, conLunes())
+    await guardarContenido(duenoId, placeId, payload({ openingHours: semanaVacia() }))
+
+    expect((await getPlaceDetail(placeId))!.horariosDueno).toBeNull()
+
+    const [fila] = await db
+      .select({ openingHours: placeOwnerContent.openingHours })
+      .from(placeOwnerContent)
+      .where(eq(placeOwnerContent.placeId, placeId))
+    expect(fila.openingHours).toBeNull()
   })
 })
 

@@ -40,6 +40,9 @@ export function erroresDeZod(error: z.ZodError): Errores {
 function mensajeDeIssue(issue: z.core.$ZodIssue): string {
   if (issue.code === 'too_small') return 'Falta completar este dato.'
   if (issue.code === 'too_big') return 'Es demasiado largo.'
+  // Los refines propios (horarios que se pisan, cierre igual a apertura) ya traen
+  // un mensaje en español: se muestra tal cual en vez del genérico.
+  if (issue.code === 'custom' && typeof issue.message === 'string') return issue.message
   return 'Revisá este dato.'
 }
 

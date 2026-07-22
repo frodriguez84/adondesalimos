@@ -14,6 +14,11 @@ import {
 import { isPlacePublished } from '@/lib/db/visibility'
 import { tieneDuenoAprobado } from '@/lib/claims/ownership'
 import { resolverContenidoDueno } from '@/lib/negocio/contenido'
+import {
+  normalizarSemana,
+  tieneAlgunHorario,
+  type HorariosSemana,
+} from '@/lib/negocio/horarios'
 import type { FichaTag } from './ficha'
 
 /**
@@ -46,6 +51,13 @@ export type PlaceDetail = {
   description: string | null
   menuUrl: string | null
   news: string | null
+  /**
+   * Horarios propios del dueño (AUTH F4, decisión 20), o `null` si no cargó
+   * ninguno o el lugar ya no tiene reclamo aprobado. Cuando hay, la ficha los
+   * muestra **en lugar** de los de Google (mismo patrón que las fotos); Google
+   * sigue aportando solo el rating.
+   */
+  horariosDueno: HorariosSemana | null
   /** Todos los tags activos, ordenados por `sort`. */
   tags: FichaTag[]
   /** Fotos del dueño, ordenadas. Vacío hasta el spec de reclamo (dec. 3). */
@@ -138,6 +150,13 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
     plan: place.ownerPlan,
   })
 
+  // Horarios: misma condición que el resto del contenido (solo con dueño
+  // aprobado) pero **fuera** del gate de plan — son free (decisión 20). No pasan
+  // por `resolverContenidoDueno`: la prioridad dueño → Google la resuelve la
+  // ficha en el cliente, no hay dato base de Overture que hacer COALESCE.
+  const semana = reclamado ? normalizarSemana(contenidoDueno?.openingHours) : null
+  const horariosDueno = semana && tieneAlgunHorario(semana) ? semana : null
+
   return {
     id: place.id,
     name: place.name,
@@ -152,6 +171,7 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
     description: contenido.description,
     menuUrl: contenido.menuUrl,
     news: contenido.news,
+    horariosDueno,
     tags: tagsDelLugar,
     ownerPhotos: fotosDueno,
     googlePlaceId: place.googlePlaceId,
@@ -194,6 +214,7 @@ async function contenidoDeDueno(id: string) {
       phone: placeOwnerContent.phone,
       website: placeOwnerContent.website,
       socials: placeOwnerContent.socials,
+      openingHours: placeOwnerContent.openingHours,
       description: placeOwnerContent.description,
       menuUrl: placeOwnerContent.menuUrl,
       news: placeOwnerContent.news,

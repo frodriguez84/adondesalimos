@@ -4,6 +4,7 @@ import { placeOwnerContent, placePhotos, placeTags, places, tags } from '@/lib/d
 import { esDuenoDe, placeIdsDelUsuario } from '@/lib/claims/ownership'
 import { borrarFoto, claveDeFoto, claveDeUrl, subirFoto, type TipoFoto } from '@/lib/storage/r2'
 import { CAMPOS_PAGOS, capDeFotos, esPlanPago } from './contenido'
+import { tieneAlgunHorario } from './horarios'
 import { listaANull, vacioANull, type ContenidoPayload } from './validacion'
 import type { Resultado } from '@/lib/claims/acciones'
 import type { OwnerPlan } from '@/lib/db/schema'
@@ -90,6 +91,9 @@ export async function guardarContenido(
       phone: vacioANull(payload.phone),
       website: vacioANull(payload.website),
       socials: listaANull(payload.socials),
+      // Horarios: son free (decisión 20), no pasan por el gate de plan. Una semana
+      // sin ningún rango se guarda como null ⇒ la ficha vuelve a los de Google.
+      openingHours: tieneAlgunHorario(payload.openingHours) ? payload.openingHours : null,
       // Con plan free ya salimos arriba si venían cargados: acá siempre son null.
       description: vacioANull(payload.description),
       menuUrl: vacioANull(payload.menuUrl),

@@ -275,3 +275,27 @@ leyendo y se aplica escribiendo necesita **el lock de la fila que lo ancla**, no
 transacción. "Contar y después insertar" es correcto solo si nadie más puede insertar en el
 medio, y eso hay que garantizarlo, no suponerlo. Si el límite se puede pasar por una carrera,
 no es un límite: es una sugerencia con buena intención.
+
+---
+
+## Un valor que depende del reloj no se calcula en el render (2026-07-22 · AUTH F4)
+
+**Qué pasó.** El "Abierto ahora / Cerrado ahora" de la ficha depende de la hora actual. La
+tentación es calcularlo directo en el render con `estaAbierto(horarios, new Date())`. Pero la
+ficha es un componente cliente que **también** se renderiza en el server (SSR): el server
+calcula con SU reloj, el cliente re-hidrata con el suyo, y si el minuto cruzó un borde de
+apertura entre ambos, el HTML del server y el del cliente no coinciden — hydration mismatch.
+
+**Qué se hizo.** El estado abierto/cerrado se calcula **después de montar** (`useEffect` que
+setea `new Date()` en estado): en el primer render —server y cliente— vale `null` y no se
+pinta el punto, y recién tras la hidratación aparece. La **semana** (las líneas de horario) no
+depende de la hora, así que esa sí se pinta directo en el server, sin riesgo. Dos verdades
+separadas: lo determinista se puede prerenderizar; lo que depende del "ahora", no.
+
+**Los otros dos cuidados del cálculo de horarios, para el próximo (filtro "Abierto ahora").**
+(1) Un rango que **cruza la medianoche** (`20:00–02:00`) pertenece al día en que abre: para
+saber si está abierto a la 01:30 hay que mirar los rangos de **ayer**, no solo los de hoy. Es
+el caso que más fácil sale mal y por eso `estaAbierto` es una función pura con **tabla de
+tests** (lunes 23:00, martes 01:30, martes 03:00, salto domingo→lunes), no lógica adentro de un
+componente. (2) La zona horaria se fija explícita (`America/Argentina/Buenos_Aires` vía `Intl`),
+nunca el reloj de quien mira: un turista en otra TZ tiene que ver el mismo estado que un local.

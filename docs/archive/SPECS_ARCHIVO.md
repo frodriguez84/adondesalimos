@@ -213,3 +213,55 @@ costos: catálogo propio gratis, Google solo acá, topes por SKU editables sin d
 - **Riesgo abierto (FICHA-03):** el matching a ciegas puede pegarle a un local vecino de la
   misma marca dentro de los 300 m. Riesgo aceptado; medir la tasa con un spot-check de ~10
   fichas antes de tocar el radio. Ver BACKLOG y LECCIONES.
+
+---
+
+## Auth + roles + reclamo de negocio {#auth}
+
+**Spec:** [`docs/specs/done/AUTH.md`](../specs/done/AUTH.md) · ✅ Implementado (2026-07-22)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — AUTH* — APROBADO (un DoD diferido: UI del botón OAuth). QA por fase: § AUTH F2 · F3 · F4
+
+**Qué hace:** convierte el catálogo 100% Overture en uno editable por sus dueños. Auth con
+better-auth (registro único, email verificado obligatorio, consumidor anónimo por default),
+reclamo/alta de negocio con cola de aprobación manual en `/admin`, panel "Mi negocio" (datos,
+tags, fotos a R2, contenido pago gateado por plan, horarios propios) y la ficha consumiendo
+todo eso con prioridad dueño → Overture/Google. Es la pata B2B: habilita specs 6 (votación) y 7
+(monetización).
+
+**Alcance implementado (4 fases):**
+
+- **F1 — Auth base** (`lib/auth/`, `app/(auth)/`, tablas better-auth): drizzleAdapter,
+  email+password con `requireEmailVerification: true` (divergencia explícita con StressPlan),
+  mails por Resend, `/cuenta` mínima, entrada de cuenta en el header, rate limit de auth
+  (20/h/IP). Sin columna `role`: admin = `ADMIN_EMAIL`, dueño = derivado de reclamo aprobado.
+- **F2 — Reclamo + alta + cola** (`lib/claims/`, `app/registrar-negocio`, `app/reclamar/[id]`,
+  `app/admin`, `/api/claims`, `/api/admin/claims/[id]`): tabla `place_claims` (reclamo y
+  propiedad = misma fila, único aprobado por lugar por índice parcial). "Registrá tu negocio"
+  busca el catálogo completo (visibles e invisibles) → reclamo o alta con pin MapLibre + zona
+  por turf. Aprobar ⇒ `publish_override=true` + mail; revocar = rechazar un aprobado.
+- **F3 — Panel + contenido** (`lib/negocio/`, `lib/storage/r2.ts`, `app/mi-negocio`): tabla
+  `place_owner_content` (1-a-1, COALESCE dueño → base vía `resolverContenidoDueno`), tags con
+  `source='owner'`, fotos a R2 (único módulo server-only, caps 3 free/15 pago con `FOR UPDATE`),
+  `owner_plan` + gating de los 3 campos pagos server-side, huecos en la ficha, teaser de stats.
+- **F4 — Horarios propios** (`lib/negocio/horarios.ts`): editor semanal (rangos `hh:mm` que
+  cruzan medianoche), la ficha prioriza horarios del dueño sobre Google, cálculo abierto/cerrado
+  en TZ `America/Argentina/Buenos_Aires`. **Sin migración** (usó la columna `opening_hours` que
+  F3 creó con la tabla). **Field mask de Google intacto** (el ahorro de la decisión 20 es de UI).
+
+**Reglas críticas que hereda el próximo spec:**
+
+- **Lo que edita el dueño NUNCA va a las columnas base de `places`** (el re-import las pisa): va
+  a `place_owner_content` y la ficha resuelve `COALESCE(dueño → base)`. El re-import tampoco
+  toca las tags de un lugar reclamado.
+- **El contenido del dueño se aplica solo mientras haya reclamo aprobado** (`getPlaceDetail`
+  condiciona el COALESCE y los horarios a `reclamado`). Revocar/eliminar cuenta devuelve la
+  ficha a Overture **sin borrar la fila** — ocultar ≠ borrar, en los dos ejes (contenido y plan).
+- **`owner_plan` se aplica server-side desde el día 1** (3 vs 15 fotos, 3 campos pagos): "subir
+  un cupo es un regalo; bajarlo es una traición". Hasta el spec 7 se cambia con un `UPDATE`.
+- **Cálculo de "abierto ahora" client-side, tras montar** (evita hydration mismatch); el cruce
+  de medianoche mira el día anterior; TZ fija por `Intl`, no por el reloj de quien mira.
+- **Fotos: la fila de `place_photos` se inserta DESPUÉS del PUT a R2** (nunca URL huérfana).
+
+**Deferrals aceptados (a BACKLOG, no bugs):** UI del botón de Google OAuth (F1, la config lo
+soporta) · fotos no se ocultan al revocar (F3, gatearlas tocaría la prioridad de FICHA) ·
+filtro "Abierto ahora" en búsqueda (F4 empieza a acumular la masa de horarios que lo destraba).

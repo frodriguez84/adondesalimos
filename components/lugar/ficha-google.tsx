@@ -5,6 +5,12 @@ import { ChevronDown, Image as ImageIcon, Star } from 'lucide-react'
 
 import type { GoogleEnriquecimiento, GoogleFoto } from '@/lib/google/types'
 import { fotoPrincipal } from '@/lib/lugar/ficha'
+import {
+  estaAbierto,
+  lineasSemana,
+  tieneAlgunHorario,
+  type HorariosSemana,
+} from '@/lib/negocio/horarios'
 
 /**
  * Bloque de Google en vivo de la ficha (FICHA, F2 + F3, decisión 16). Cliente porque
@@ -33,6 +39,7 @@ export function FichaGoogle({
   placeId,
   tienePrecioPropio,
   fotoDueno,
+  horariosDueno,
   nombre,
   children,
 }: {
@@ -41,6 +48,11 @@ export function FichaGoogle({
   tienePrecioPropio: boolean
   /** Foto de dueño (prioridad máxima, decisión 3), o `null`. Sale del server. */
   fotoDueno: string | null
+  /**
+   * Horarios propios del dueño (AUTH F4, decisión 20), o `null`. Cuando hay, se
+   * muestran **en lugar** de los de Google; Google solo aporta el rating.
+   */
+  horariosDueno: HorariosSemana | null
   /** Nombre del lugar, para el `alt` de la foto. */
   nombre: string
   /** El encabezado server-rendered, entre la foto y el bloque de datos. */
@@ -109,21 +121,47 @@ export function FichaGoogle({
       {children}
 
       {/* Bloque de datos en vivo (horarios, rating, precio de fallback). */}
-      <BloqueDatos estado={estado} data={data} tienePrecioPropio={tienePrecioPropio} />
+      <BloqueDatos
+        estado={estado}
+        data={data}
+        tienePrecioPropio={tienePrecioPropio}
+        horariosDueno={horariosDueno}
+      />
     </>
   )
 }
 
-/** Datos en vivo: rating, abierto/cerrado, horarios y la atribución con el logo. */
+/**
+ * Datos en vivo: rating, abierto/cerrado, horarios y la atribución con el logo.
+ *
+ * **Prioridad de horarios dueño → Google** (decisión 20): si el dueño cargó los
+ * suyos, se muestran esos y Google queda solo para el rating — como con las fotos.
+ * Sin horarios de dueño, es el bloque de Google de F2/F3 tal cual.
+ */
 function BloqueDatos({
   estado,
   data,
   tienePrecioPropio,
+  horariosDueno,
 }: {
   estado: Estado
   data: GoogleEnriquecimiento | null
   tienePrecioPropio: boolean
+  horariosDueno: HorariosSemana | null
 }) {
+  // El dueño le gana a Google. Sus horarios se muestran SIEMPRE, sin esperar ni
+  // depender del enriquecimiento (que solo aporta el rating en ese caso).
+  if (tieneAlgunHorario(horariosDueno)) {
+    return (
+      <DatosConHorariosDueno
+        estado={estado}
+        data={data}
+        tienePrecioPropio={tienePrecioPropio}
+        horarios={horariosDueno as HorariosSemana}
+      />
+    )
+  }
+
   if (estado === 'cargando') {
     return (
       <section className="flex flex-col gap-2" aria-busy="true" aria-label="Cargando datos de Google">
@@ -142,67 +180,132 @@ function BloqueDatos({
   }
 
   const precioGoogle = !tienePrecioPropio ? data.priceLevel : null
-  const abierto = data.horarios?.abierto ?? null
-  const semana = data.horarios?.semana ?? []
 
   return (
     <section className="flex flex-col gap-2 text-sm">
-      {/* Rating + precio de fallback, en la misma línea que en el mockup. */}
-      {(data.rating !== null || precioGoogle) && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {data.rating !== null && (
-            <span className="inline-flex items-center gap-1 font-medium text-foreground">
-              <Star className="size-4 fill-current text-amber-500" />
-              {formatearRating(data.rating)}
-              {data.userRatingCount !== null && (
-                <span className="font-normal text-muted-foreground">({data.userRatingCount})</span>
-              )}
-            </span>
-          )}
-          {precioGoogle && (
-            <>
-              {data.rating !== null && <span aria-hidden className="text-muted-foreground">·</span>}
-              <span className="text-muted-foreground">{precioGoogle}</span>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Estado abierto/cerrado + acordeón nativo con la semana. */}
-      {abierto !== null && (
-        <p className="flex items-center gap-2 text-foreground">
-          <span
-            aria-hidden
-            className={abierto ? 'size-2 rounded-full bg-emerald-500' : 'size-2 rounded-full bg-muted-foreground'}
-          />
-          {abierto ? 'Abierto ahora' : 'Cerrado ahora'}
-        </p>
-      )}
-
-      {semana.length > 0 && (
-        <details className="group">
-          <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-muted-foreground underline-offset-4 hover:underline">
-            Ver horarios de la semana
-            <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
-          </summary>
-          <ul className="mt-2 flex flex-col gap-1 text-muted-foreground">
-            {semana.map((linea) => (
-              <li key={linea}>{linea}</li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      {/* Atribución (decisión 5): el logo de Google sobre los datos en vivo, con link
-          a la atribución completa en /legales. Reemplaza el texto de F2. */}
-      <a
-        href="/legales"
-        className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:underline"
-      >
-        Horarios y calificación
-        <GoogleLogo className="h-4 w-auto" />
-      </a>
+      <LineaRating rating={data.rating} userRatingCount={data.userRatingCount} precio={precioGoogle} />
+      <EstadoAbierto abierto={data.horarios?.abierto ?? null} />
+      <SemanaAcordeon semana={data.horarios?.semana ?? []} />
+      {/* Atribución (decisión 5): el logo de Google sobre los datos en vivo. */}
+      <AtribucionGoogle texto="Horarios y calificación" />
     </section>
+  )
+}
+
+/**
+ * Bloque cuando el dueño cargó sus horarios (decisión 20). El estado abierto/
+ * cerrado se calcula en TZ AR, y **después de montar** para no divergir entre el
+ * HTML del server y la hidratación (el "ahora" es distinto en cada uno). La semana
+ * es determinista y se puede pintar de una. Google, si respondió, solo suma rating.
+ */
+function DatosConHorariosDueno({
+  estado,
+  data,
+  tienePrecioPropio,
+  horarios,
+}: {
+  estado: Estado
+  data: GoogleEnriquecimiento | null
+  tienePrecioPropio: boolean
+  horarios: HorariosSemana
+}) {
+  const [ahora, setAhora] = React.useState<Date | null>(null)
+  React.useEffect(() => {
+    setAhora(new Date())
+  }, [])
+
+  const abierto = ahora ? estaAbierto(horarios, ahora) : null
+  const semana = lineasSemana(horarios)
+
+  const rating = estado === 'ok' && data ? data.rating : null
+  const userRatingCount = estado === 'ok' && data ? data.userRatingCount : null
+  const precioGoogle = estado === 'ok' && data && !tienePrecioPropio ? data.priceLevel : null
+
+  return (
+    <section className="flex flex-col gap-2 text-sm">
+      <LineaRating rating={rating} userRatingCount={userRatingCount} precio={precioGoogle} />
+      <EstadoAbierto abierto={abierto} />
+      <SemanaAcordeon semana={semana} />
+      {/* Los horarios son del local; Google, si aportó rating o precio, se atribuye. */}
+      {(rating !== null || precioGoogle) && <AtribucionGoogle texto="Calificación" />}
+    </section>
+  )
+}
+
+/** Rating + precio de fallback, en la misma línea que en el mockup. */
+function LineaRating({
+  rating,
+  userRatingCount,
+  precio,
+}: {
+  rating: number | null
+  userRatingCount: number | null
+  precio: string | null
+}) {
+  if (rating === null && !precio) return null
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      {rating !== null && (
+        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+          <Star className="size-4 fill-current text-amber-500" />
+          {formatearRating(rating)}
+          {userRatingCount !== null && (
+            <span className="font-normal text-muted-foreground">({userRatingCount})</span>
+          )}
+        </span>
+      )}
+      {precio && (
+        <>
+          {rating !== null && <span aria-hidden className="text-muted-foreground">·</span>}
+          <span className="text-muted-foreground">{precio}</span>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Punto + "Abierto/Cerrado ahora". `null` (no se sabe todavía) ⇒ no se pinta. */
+function EstadoAbierto({ abierto }: { abierto: boolean | null }) {
+  if (abierto === null) return null
+  return (
+    <p className="flex items-center gap-2 text-foreground">
+      <span
+        aria-hidden
+        className={abierto ? 'size-2 rounded-full bg-emerald-500' : 'size-2 rounded-full bg-muted-foreground'}
+      />
+      {abierto ? 'Abierto ahora' : 'Cerrado ahora'}
+    </p>
+  )
+}
+
+/** Acordeón nativo con la semana (una línea por día). */
+function SemanaAcordeon({ semana }: { semana: string[] }) {
+  if (semana.length === 0) return null
+  return (
+    <details className="group">
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-muted-foreground underline-offset-4 hover:underline">
+        Ver horarios de la semana
+        <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+      </summary>
+      <ul className="mt-2 flex flex-col gap-1 text-muted-foreground">
+        {semana.map((linea) => (
+          <li key={linea}>{linea}</li>
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+/** Atribución obligatoria a Google (decisión 5): su logo + link a /legales. */
+function AtribucionGoogle({ texto }: { texto: string }) {
+  return (
+    <a
+      href="/legales"
+      className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:underline"
+    >
+      {texto}
+      <GoogleLogo className="h-4 w-auto" />
+    </a>
   )
 }
 

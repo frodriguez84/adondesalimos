@@ -47,6 +47,49 @@ describe('contenidoSchema', () => {
   })
 })
 
+describe('horarios propios (decisión 20)', () => {
+  const conDia = (rangos: { abre: string; cierra: string }[]) => ({
+    ...ok,
+    openingHours: { ...ok.openingHours, lunes: rangos },
+  })
+
+  it('acepta un rango normal y uno que cruza la medianoche', () => {
+    expect(contenidoSchema.safeParse(conDia([{ abre: '09:00', cierra: '18:00' }])).success).toBe(true)
+    expect(contenidoSchema.safeParse(conDia([{ abre: '20:00', cierra: '02:00' }])).success).toBe(true)
+  })
+
+  it('rechaza una hora mal formada', () => {
+    expect(contenidoSchema.safeParse(conDia([{ abre: '9:00', cierra: '18:00' }])).success).toBe(false)
+    expect(contenidoSchema.safeParse(conDia([{ abre: '24:00', cierra: '02:00' }])).success).toBe(false)
+  })
+
+  it('rechaza cierre igual a apertura (ambiguo entre cerrado y 24 h)', () => {
+    expect(contenidoSchema.safeParse(conDia([{ abre: '20:00', cierra: '20:00' }])).success).toBe(false)
+  })
+
+  it('rechaza rangos que se pisan en un mismo día', () => {
+    const r = contenidoSchema.safeParse(
+      conDia([
+        { abre: '09:00', cierra: '14:00' },
+        { abre: '13:00', cierra: '18:00' },
+      ]),
+    )
+    expect(r.success).toBe(false)
+  })
+
+  it('rechaza más franjas que el tope por día', () => {
+    const r = contenidoSchema.safeParse(
+      conDia([
+        { abre: '08:00', cierra: '09:00' },
+        { abre: '10:00', cierra: '11:00' },
+        { abre: '12:00', cierra: '13:00' },
+        { abre: '14:00', cierra: '15:00' },
+      ]),
+    )
+    expect(r.success).toBe(false)
+  })
+})
+
 describe('normalización a null (lo que hace que borrar devuelva la base)', () => {
   it('string vacío o con espacios ⇒ null', () => {
     expect(vacioANull('')).toBeNull()

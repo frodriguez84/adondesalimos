@@ -11,7 +11,14 @@ import {
   inputClass,
   type Errores,
 } from '@/components/negocio/campos'
-import { contenidoSchema, MAX_SOCIALS } from '@/lib/negocio/validacion'
+import { contenidoSchema, MAX_RANGOS_POR_DIA, MAX_SOCIALS } from '@/lib/negocio/validacion'
+import {
+  DIAS,
+  NOMBRE_DIA,
+  type Dia,
+  type HorariosSemana,
+  type RangoHorario,
+} from '@/lib/negocio/horarios'
 import type { FacetaDelPanel, PanelLugar } from '@/lib/negocio/query'
 import { FotosEditor } from './fotos-editor'
 
@@ -25,7 +32,18 @@ import { FotosEditor } from './fotos-editor'
  * (decisión 17 — el cliente no es un boundary de seguridad).
  */
 
-type Estado = { phone: string; website: string; socials: string[]; description: string; menuUrl: string; news: string }
+type Estado = {
+  phone: string
+  website: string
+  socials: string[]
+  horarios: HorariosSemana
+  description: string
+  menuUrl: string
+  news: string
+}
+
+/** Rango por defecto al agregar uno: una franja de tarde/noche razonable. */
+const RANGO_NUEVO: RangoHorario = { abre: '18:00', cierra: '23:00' }
 
 export function EditorClient({ lugar }: { lugar: PanelLugar }) {
   const pago = lugar.plan === 'paid'
@@ -34,6 +52,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
     phone: lugar.contenido.phone,
     website: lugar.contenido.website,
     socials: lugar.contenido.socials,
+    horarios: lugar.horarios,
     description: lugar.contenido.description,
     menuUrl: lugar.contenido.menuUrl,
     news: lugar.contenido.news,
@@ -65,6 +84,11 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
     set({ socials: datos.socials.map((s, j) => (j === i ? valor : s)) })
   }
 
+  /** Reemplaza los rangos de un día (agregar / editar / quitar pasan por acá). */
+  function setRangos(dia: Dia, rangos: RangoHorario[]) {
+    set({ horarios: { ...datos.horarios, [dia]: rangos } })
+  }
+
   async function guardar(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -77,6 +101,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
       website: datos.website,
       socials: datos.socials.filter((s) => s.trim().length > 0),
       tags: [...elegidos],
+      openingHours: datos.horarios,
       description: pago ? datos.description : '',
       menuUrl: pago ? datos.menuUrl : '',
       news: pago ? datos.news : '',
@@ -197,6 +222,22 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           ))}
         </Seccion>
 
+        {/* --- Horarios propios (free): la ficha los prioriza sobre Google (dec. 20) --- */}
+        <Seccion
+          titulo="Horarios"
+          bajada="Se muestran en tu ficha en lugar de los de Google. Un rango puede cruzar la medianoche (por ejemplo, 20:00 a 02:00)."
+        >
+          {errores.openingHours && <Aviso tipo="error">{errores.openingHours}</Aviso>}
+          {DIAS.map((dia) => (
+            <DiaHorario
+              key={dia}
+              nombre={NOMBRE_DIA[dia]}
+              rangos={datos.horarios[dia]}
+              onChange={(rangos) => setRangos(dia, rangos)}
+            />
+          ))}
+        </Seccion>
+
         {/* --- Campos pagos: existen siempre, se editan solo con plan (dec. 18) --- */}
         <Seccion
           titulo="Contenido destacado"
@@ -261,6 +302,72 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
         cap={lugar.capFotos}
         plan={lugar.plan}
       />
+    </div>
+  )
+}
+
+/**
+ * Un día del editor semanal: su lista de rangos `hh:mm` con agregar/quitar. Los
+ * inputs `type="time"` dan el formato 24 h que el schema espera; la validación
+ * real (solapamientos, tope, cruce de medianoche) corre en el mismo schema que
+ * el endpoint.
+ */
+function DiaHorario({
+  nombre,
+  rangos,
+  onChange,
+}: {
+  nombre: string
+  rangos: RangoHorario[]
+  onChange: (rangos: RangoHorario[]) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{nombre}</h3>
+        {rangos.length < MAX_RANGOS_POR_DIA && (
+          <button
+            type="button"
+            onClick={() => onChange([...rangos, { ...RANGO_NUEVO }])}
+            className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-4"
+          >
+            <Plus className="size-3.5" />
+            Agregar franja
+          </button>
+        )}
+      </div>
+
+      {rangos.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Cerrado</p>
+      ) : (
+        rangos.map((rango, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="time"
+              aria-label={`${nombre}: abre`}
+              value={rango.abre}
+              onChange={(e) => onChange(rangos.map((r, j) => (j === i ? { ...r, abre: e.target.value } : r)))}
+              className={inputClass}
+            />
+            <span className="shrink-0 text-sm text-muted-foreground">a</span>
+            <input
+              type="time"
+              aria-label={`${nombre}: cierra`}
+              value={rango.cierra}
+              onChange={(e) => onChange(rangos.map((r, j) => (j === i ? { ...r, cierra: e.target.value } : r)))}
+              className={inputClass}
+            />
+            <button
+              type="button"
+              aria-label="Quitar franja"
+              onClick={() => onChange(rangos.filter((_, j) => j !== i))}
+              className="shrink-0 rounded-xl border border-border px-3 text-muted-foreground transition-colors hover:text-destructive"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </div>
+        ))
+      )}
     </div>
   )
 }

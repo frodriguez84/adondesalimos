@@ -492,3 +492,93 @@ Google de la ficha (`fotoPrincipal` + el `EXISTS` server-side de `getPlaceForEnr
 que este spec tiene explícitamente fuera de alcance. Queda como decisión consciente: revocar
 devuelve los **datos** a Overture pero deja las fotos cargadas. Anotado en
 `docs/product/BACKLOG.md` — se cambia con test propio, no de prepo dentro de otro spec.
+
+---
+
+## QA de fase — AUTH F4 (2026-07-22)
+
+**Alcance:** **Fase 4 (última del spec)** — horarios propios del dueño: módulo puro
+`lib/negocio/horarios.ts` (modelo semanal, `estaAbierto` con cruce de medianoche en TZ
+`America/Argentina/Buenos_Aires`, `lineasSemana`, solapamientos, cap de rangos), editor
+semanal en `/mi-negocio/[placeId]` (sección nueva del mismo formulario), `openingHours` en
+`contenidoSchema` + persistencia en `guardarContenido` (free, **fuera** del gate de plan), la
+ficha priorizando horarios del dueño sobre los de Google (`getPlaceDetail.horariosDueno` →
+`FichaGoogle`), y la reconciliación de los DoD abiertos de F1/F2. **Sin migración**: usa la
+columna `opening_hours` que F3 creó con la tabla. **Field mask de Google intacto** (el ahorro
+de la decisión 20 es de UI, no de SKU; el rating sigue viniendo de la misma request).
+
+**Veredicto de F4:** PASA (alcance F4) → **cierra el spec AUTH completo**.
+
+**Verificación técnica:** typecheck ✅ · tests ✅ **331/331** (+30 sobre F3: tabla de horas de
+`estaAbierto` incluyendo trasnoche y salto de semana domingo→lunes, solapamientos, forma del
+schema de horarios, y el flag sobre `getPlaceDetail` —dueño → Google, oculto al revocar,
+semana vacía ⇒ null). · **build ✅** (con el dev server parado; la ficha y el editor siguen
+dinámicos). · **Escaneo de secretos en `.next/static` (34 archivos)**: se buscaron los
+**valores reales** de `.env` (`BETTER_AUTH_SECRET`, `RESEND_API_KEY`, `ADMIN_EMAIL`,
+`GOOGLE_PLACES_API_KEY`, las 3 de R2, `DATABASE_URL`) — **0 fugas**. F4 no agrega ninguna env
+ni secreto nuevo (los horarios son datos planos); el módulo `horarios.ts` es puro y el cliente
+(`ficha-google`, `editor-client`) solo importa de él y tipos, así que no arrastró server-only.
+
+**QA en vivo (Playwright sobre ngrok):** cuenta `frodriguez.este@gmail.com` (dueño aprobado de
+"Kansas Grill & Bar") — ver `docs/qa/DATOS_QA.local.md`. Hora de la corrida: **miércoles
+19:52 AR**.
+
+| ID | Caso | Resultado | Evidencia / Nota |
+|----|------|-----------|------------------|
+| AUTH-11 | Horarios propios en la ficha | ✅ PASS | Cargados en el editor: **Lunes 09:00–18:00, Miércoles 18:00–02:00, Viernes 20:00–02:00** (dos cruzan medianoche). La ficha muestra **esos** horarios en el acordeón "Ver horarios de la semana" (`Miércoles: 18:00–02:00`, `Viernes: 20:00–02:00`, resto "Cerrado"), **no** los de Google. La atribución pasó de "Horarios y calificación" a **"Calificación"**: Google ya solo aporta el rating (4,4 · 24886), que sigue viniendo de la misma request Enterprise |
+| AUTH-11a | Abierto/cerrado — rango que cruza medianoche | ✅ PASS | A las **19:52 del miércoles**, con el rango **18:00–02:00**, la ficha muestra **"Abierto ahora"** (punto verde): es el tramo de la noche del propio día. El cálculo corre client-side tras montar (evita hydration mismatch) en TZ AR |
+| AUTH-11b | Cerrado ahora (control negativo) | ✅ PASS | Edición temporal del miércoles a **09:00–12:00** (franja ya pasada a las 19:52) → la ficha muestra **"Cerrado ahora"**. Restaurado a 18:00–02:00 al terminar. Confirma que el estado no está fijo en "abierto" |
+| AUTH-11c | Round-trip del editor | ✅ PASS | Al recargar `/mi-negocio/[placeId]` el editor **prellena** los horarios guardados, incluidos los rangos que cruzan medianoche (Miércoles 18:00–02:00 vuelve tal cual). Guardar una semana entera vacía deja `opening_hours` en **null** ⇒ la ficha vuelve a los de Google (test de integración) |
+| AUTH-01 | Registro + verificación (DoD F1, reconciliado) | ✅ PASS | `/registro` renderiza el form (nombre, email, contraseña, confirmación); `requireEmailVerification: true` en `lib/auth/index.ts:31` ⇒ el registro **no** abre sesión y **sin verificar no hay login** (ya ejercido de punta a punta en el login de AUTH-02, F2). No re-verificado a mano |
+| AUTH-OAuth | Google OAuth condicional (DoD F1) | ⏸️ DIFERIDO | La config de better-auth soporta OAuth condicional por env (`lib/auth/index.ts:98`), pero la **UI del botón no está construida** — se difirió en F1 a pedido (2026-07-20, ver BACKLOG). Que "sin vars el botón no aparece" hoy es trivial: el botón no existe. Único DoD del spec sin cerrar; deferral aceptado, no regresión. **No se declara PASS** |
+
+**DoD de F1/F2 reconciliados desde el QA ya registrado** (no re-verificados a mano, regla del
+prompt de cierre): sesión inline con `getSession` + `/admin` rechaza no-admin → **AUTH-14 +
+AUTH-12** (F2); reclamo end-to-end con `publish_override` y mail → **AUTH-02 + AUTH-03** (F2);
+"Registrá tu negocio" busca el catálogo completo antes del alta → **AUTH-04 + AUTH-05** (F2).
+
+**Cobertura por test (no en vivo):** `estaAbierto` en tabla — lunes 23:00 (abierto), martes
+01:30 (cola de la madrugada del lunes, abierto), martes 03:00 (cerrado), domingo 23:00 y lunes
+01:30 (salto de semana, el día anterior del lunes es domingo), rango normal 09:00–18:00 en sus
+bordes, día sin rangos siempre cerrado · `haySolapamiento` (crucen o no la medianoche) ·
+`normalizarSemana` completa los 7 días y descarta basura · el schema rechaza hora mal formada,
+cierre igual a apertura, rangos que se pisan y más franjas que el tope · `getPlaceDetail`
+expone `horariosDueno` **solo con dueño aprobado**, lo oculta al revocar sin borrar la fila, y
+guarda null cuando la semana queda vacía.
+
+### Hallazgos
+
+Sin hallazgos. El único ajuste durante la implementación fue de razonamiento en un test propio
+de `haySolapamiento` (un rango vespertino que cruza la medianoche **no** se pisa, como
+intervalos literales, con una franja de la mañana del mismo día: su cola cae al día
+siguiente) — corregido el test, no el código.
+
+---
+
+## QA /qa-spec — AUTH (spec completo) (2026-07-22)
+
+**Veredicto:** APROBADO (alcance implementado) — con **un DoD diferido, no fallado**: la UI del
+botón de Google OAuth (AUTH-QA-09), descope aceptado de F1 anotado en BACKLOG. No hay FAIL de
+criterio normativo ni gate técnico rojo; el deferral es un ítem de trabajo futuro, no un bug.
+
+**Verificación técnica:** typecheck ✅ · tests ✅ 331/331 · build ✅ (dev server parado).
+
+**Método:** checker independiente (Explore/haiku, read-only, maker≠checker) contra el DoD de
+`docs/specs/active/AUTH.md`. Los criterios de comportamiento en vivo (AUTH-11 abierto/cerrado,
+prioridad dueño → Google) se verificaron con Playwright sobre ngrok esta misma sesión (ver
+§ QA de fase — AUTH F4). Los DoD de F1/F2 se reconciliaron contra su QA ya registrado.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| AUTH-QA-01 | La ficha prioriza horarios del dueño sobre Google; el rating de Google se sigue mostrando | ✅ PASS | `lib/lugar/query.ts:55-60,157-158,174` (`horariosDueno`); `components/lugar/ficha-google.tsx:154-162` (branch dueño), `:201-232` (`DatosConHorariosDueno` muestra horarios propios + rating de Google); `app/lugar/[id]/page.tsx:111`. Live: § AUTH F4 AUTH-11 |
+| AUTH-QA-02 | Abierto/cerrado en TZ AR correcto con rango que cruza medianoche (día anterior) | ✅ PASS | `lib/negocio/horarios.ts` `estaAbierto` (mira hoy y `(dia+6)%7`), `partesEnAR` (Intl `America/Argentina/Buenos_Aires`); tests de tabla `horarios.test.ts` (lunes 23:00, martes 01:30, martes 03:00, salto domingo→lunes). Live: § AUTH F4 AUTH-11a/11b |
+| AUTH-QA-03 | Horarios son free (guardan sin gate de plan) | ✅ PASS | `lib/negocio/acciones.ts:94-96` (persistencia fuera del bloque de `CAMPOS_PAGOS`); `contenido.ts:19` (`openingHours` no está en `CAMPOS_PAGOS`) |
+| AUTH-QA-04 | Validación server-side de rangos (formato, solapamientos, tope) | ✅ PASS | `validacion.ts` `horariosSchema`/`diaSchema` (`.max(MAX_RANGOS_POR_DIA)`, `!haySolapamiento`, `esHoraValida`); re-validado en `app/api/mi-negocio/[placeId]/content/route.ts:47` |
+| AUTH-QA-05 | Horarios se aplican solo con reclamo aprobado; revocar oculta sin borrar | ✅ PASS | `lib/lugar/query.ts:157-158` (`reclamado ? … : null`); test de integración `panel.integration.test.ts` (revocar ⇒ `horariosDueno` null, fila intacta) |
+| AUTH-QA-06 | Sin migración nueva (usa columna preexistente de F3) | ✅ PASS | `drizzle/0006_*.sql:7` (`opening_hours` en el CREATE TABLE); no existe `0007`; `schema.ts:534` |
+| AUTH-QA-07 | Field mask de Google intacto (regresión de costos) | ✅ PASS | `lib/google/places.ts:46,55-56` masks exactos; `places.test.ts` asertan el valor y rechazan Atmosphere (`reviews`/`editorialSummary`) |
+| AUTH-QA-08 | Registro + verificación obligatoria (`requireEmailVerification: true`) | ✅ PASS | `lib/auth/index.ts:31`; live: `/registro` renderiza y login exige verificación (§ AUTH F4 AUTH-01, y AUTH-02 F2) |
+| AUTH-QA-09 | Google OAuth condicional por env | ⏸️ DIFERIDO | La config lo soporta (`lib/auth/index.ts:98`), pero la **UI del botón no está construida** (diferido en F1 a pedido, ver BACKLOG). No se declara PASS: el único DoD del spec que queda abierto, deferral aceptado |
+| AUTH-QA-10 | Sesión inline con `getSession` en handlers nuevos; `/admin` rechaza no-admin | ✅ PASS | Reconciliado de F2: § AUTH F2 AUTH-14 + AUTH-12 |
+| AUTH-QA-11 | Reclamo end-to-end + `publish_override` + mail | ✅ PASS | Reconciliado de F2: § AUTH F2 AUTH-02 + AUTH-03 |
+| AUTH-QA-12 | "Registrá tu negocio" busca catálogo completo antes del alta | ✅ PASS | Reconciliado de F2: § AUTH F2 AUTH-04 + AUTH-05 |

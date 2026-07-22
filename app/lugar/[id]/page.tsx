@@ -108,6 +108,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
         placeId={place.id}
         tienePrecioPropio={precio !== null}
         fotoDueno={place.ownerPhotos[0] ?? null}
+        horariosDueno={place.horariosDueno}
         nombre={place.name}
       >
         {/* Encabezado: nombre, tipo/cocina, zona · precio */}

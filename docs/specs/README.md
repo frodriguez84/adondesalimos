@@ -19,9 +19,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-| Spec | Qué cubre |
-|------|-----------|
-| [AUTH](active/AUTH.md) | Spec 5 — auth (better-auth, patrón StressPlan), reclamo/alta de negocio con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser de stats. **En curso** — F1 (auth base) ✅ · F2 (reclamo + alta + cola) ✅ · F3 (panel + contenido) ✅ 2026-07-21; F4 (horarios propios) pendiente |
+_(ninguno — todos los specs de v1 están cerrados; el próximo sale del BACKLOG o de un spec nuevo)_
 
 ## 🔵 Planned (`planned/`)
 
@@ -35,3 +33,4 @@ _(ninguno — el próximo a implementar sale del BACKLOG o de `active/`)_
 | [ZONAS](done/ZONAS.md) | Spec 2 — 46 zonas de AMBA (GeoJSON versionados, sin PostGIS), primaria + buffer 400 m. [Resumen](../archive/SPECS_ARCHIVO.md#zonas) · ✅ 2026-07-20 |
 | [BUSQUEDA](done/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). [Resumen](../archive/SPECS_ARCHIVO.md#busqueda) · ✅ 2026-07-20 |
 | [FICHA](done/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; primer uso de Google en vivo (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). [Resumen](../archive/SPECS_ARCHIVO.md#ficha) · ✅ 2026-07-20 |
+| [AUTH](done/AUTH.md) | Spec 5 — auth (better-auth), reclamo/alta con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser. 4 fases. [Resumen](../archive/SPECS_ARCHIVO.md#auth) · ✅ 2026-07-22 |

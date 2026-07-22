@@ -18,6 +18,7 @@ import {
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import type { MultiPolygon, Polygon } from 'geojson'
+import type { HorariosSemana } from '@/lib/negocio/horarios'
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -531,7 +532,7 @@ export const placeOwnerContent = pgTable('place_owner_content', {
    * **nadie la lee ni la escribe hasta F4**, que trae el editor semanal, la
    * prioridad dueño → Google y el cálculo de abierto/cerrado en TZ AR.
    */
-  openingHours: jsonb('opening_hours'),
+  openingHours: jsonb('opening_hours').$type<HorariosSemana>(),
 
   // --- Pago (decisión 5; los huecos de la ficha son la decisión 19) --------
   /** Descripción larga: va debajo de "Qué vas a encontrar". */
