@@ -46,7 +46,9 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Un `/lugar/nombre-zona-xxxx` ayuda al descubrimiento orgánico.
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
-- [ ] **Identidad visual: aplicar el logo y la paleta definitivos** (2026-07-21). Ya están
+- [x] **Identidad visual: aplicar el logo y la paleta definitivos** (2026-07-21). **Hecho ✅
+      2026-07-23** en el mini-spec HOME_IDENTIDAD ([resumen](../archive/SPECS_ARCHIVO.md#home_identidad)).
+      Ya están
       diseñados y fijados en **`docs/product/IDENTIDAD.md`** (hex, significado del logo,
       contrastes WCAG medidos y jerarquía propuesta). Se aplican como tarea propia, no
       mezclados con un spec. La UI usa tokens (`globals.css`), así que el grueso es cambiar
@@ -56,8 +58,11 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Google en `ficha-google.tsx`, que **no se tocan**. Falta además una **versión monocroma
       del wordmark** (el gradiente no sobrevive a 28-32 px ni al mail) y sumar el logo a la
       home, que hoy es un `h1` de texto.
-- [ ] **Home: ¿landing o buscador de una? + pulido del estado vacío** (duda de UI/UX,
-      2026-07-23). **Track de UX, NO un spec de features — separado de Monetización.**
+- [x] **Home: ¿landing o buscador de una? + pulido del estado vacío** (duda de UI/UX,
+      2026-07-23). **Hecho ✅ 2026-07-23** en el mini-spec HOME_IDENTIDAD
+      ([resumen](../archive/SPECS_ARCHIVO.md#home_identidad)): buscador de una confirmado, estado
+      vacío convertido en mini-landing (hero + headline rotativo). **Track de UX, NO un spec de
+      features — separado de Monetización.**
 
       **La duda.** Al entrar a `adondesalimos.com.ar`, ¿el usuario cae directo al buscador o
       hay una landing? Hoy es buscador de una (BUSQUEDA decisión 1: *home = search*).
@@ -97,6 +102,18 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
       Se solapa con la tarea de identidad — conviene hacerlos **juntos como una sola pasada**:
       el mini-spec sería *"home + identidad"* (estado vacío con onda + logo + swap de paleta).
+- [ ] **Header de marca global — llevar el wordmark fuera del Home** (UX/marca, 2026-07-23,
+      surgido en la QA de HOME_IDENTIDAD). Tras aplicar la paleta se verificó que **está bien
+      aplicada en toda la app** (naranja `#FF8A00` + fondo azulado, botones por token, cero
+      ámbar residual). Pero la **marca** (el wordmark) vive **solo en el Home**: navegando a la
+      ficha, `/cuenta`, `/votacion/[token]` o "Mi negocio" no hay presencia de marca, y por eso
+      "se siente" menos aplicado aunque el color sí cambió. El lever correcto **no es recolorear
+      controles** (IDENTIDAD prohíbe gradiente en botones — compite con el contenido), sino un
+      **header compartido con el `Wordmark`** (`components/shared/wordmark.tsx`, ya existe) en
+      las páginas clave. **Track de UX, mini-spec propio** (decisión de Fer 2026-07-23: no
+      mezclarlo con HOME_IDENTIDAD). A diseñar: dónde sí y dónde no, y cómo convive con los
+      headers propios de cada página (la ficha ya tiene su barra volver/compartir; la votación
+      su "VOTACIÓN / Inicio"). No hardcodear: reusar el componente y los tokens.
 - [ ] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
       2026-07-21). Los subqueries de `filtrosDeTags` y `filtroDeZonas` interpolan
       `${places.id}`, que Drizzle renderiza como `"id"` **sin el nombre de la tabla**. Hoy
@@ -277,6 +294,33 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       búsqueda de 18.993 paginada de a 20. No rompe nada y el resultado es honesto, pero
       contradice el espíritu de la decisión 2 ("zona es el gesto default"). Decidir si el chip
       abre el selector de zona en vez de buscar.
+- [ ] **Filtro fantasma: un tag activo con 0 lugares queda inquitable y cero-ea la búsqueda**
+      (BUSQUEDA, observado 2026-07-23 durante la QA de HOME_IDENTIDAD). Repro: entrar a
+      `/?t=fiesta-tematica` (tag `active=true`, facet *actividad*, **0 lugares**; es uno de los
+      4 tags del chip "Salir a bailar", junto con `boliche`/`dj`/`salsa-bachata` que sí tienen
+      lugares). Síntomas: la búsqueda devuelve **0 resultados**, el badge de "Filtros" cuenta 1,
+      pero **no hay chip removible ni entrada en el sheet** para sacarlo — solo se saca editando
+      la URL a mano.
+
+      **Causa raíz — motor y catálogo no coinciden.** `filtrosDeTags` (`lib/search/query.ts`)
+      filtra por `eq(tags.active, true)` sin mirar el conteo de lugares, así que honra el tag y
+      arma su `EXISTS` (que con 0 lugares no matchea a nadie ⇒ 0 resultados). El catálogo
+      (`getFacetCatalog`, decisión 27) **esconde** los tags con 0 lugares, así que
+      `etiquetaDeTag` devuelve `null` y `ChipsActivos` hace `if (!label) continue` (no dibuja
+      chip) y el `FiltersSheet` no lo lista. Lo que el motor aplica, la UI no lo puede mostrar
+      ni sacar. Vía el chip "Salir a bailar" queda enmascarado (los otros 3 tags traen
+      resultados); el caso pelado en la URL lo destapa. **Contradice la decisión 15 del spec
+      ("lo que se aplica se ve") y el invariante de que la URL es el estado y todo lo que está
+      en ella se puede revertir.**
+
+      **Recomendación: garantizar que TODO tag en `params.tags` tenga chip removible.**
+      `ChipsActivos` debería dibujar un chip para cualquier slug de la URL aunque el catálogo no
+      le dé label —cayendo al nombre del tag o al slug crudo— en vez de saltearlo. Es el arreglo
+      robusto (la URL manda; nada aplicado puede quedar sin forma de sacarse). Alternativa más
+      débil: alinear `filtrosDeTags` con el catálogo y descartar también los tags con 0 lugares
+      —evita el 0 resultados pero deja el badge fantasma en 1—. La primera resuelve las dos
+      puntas. Cambio quirúrgico en `search-shell.tsx` (`ChipsActivos`), con test de regresión
+      (tag en URL sin lugares ⇒ chip removible presente).
 - [ ] **Sobreconteo de impresiones con `gps=1` + zonas en la URL** (BUSQUEDA F3, 2026-07-20).
       El server renderiza por zona (no tiene coordenadas) y el cliente reemplaza al obtener
       permiso: esos 20 lugares suman impresión habiéndose visto un instante. Caso de borde de
@@ -300,6 +344,23 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Mini-spec HOME_IDENTIDAD — home + identidad** (2026-07-23): se aplicó la identidad real y
+      se le dio onda al home para que un link compartido no parezca a medio hacer. **Paleta** por
+      tokens (`globals.css`): naranja `#FF8A00` (reemplaza el ámbar), fondo azulado `#0D0D1F`,
+      neutros con tinte azul y tokens de categoría (rosa/violeta/turquesa/amarillo). **Tres focos
+      fuera de tokens** + un 4º hallado en QA: email (CTA plano), pins del mapa a rosa `#FF2D75`,
+      logo de Google **intacto**, y la estrella del rating de `text-amber-500` → `text-amarillo`.
+      **Wordmark** (`components/shared/wordmark.tsx`, pin SVG con gradiente + texto) reemplaza el
+      `h1`. **Estado vacío = mini-landing**: hero con headline rotativo rioplatense
+      (`rotating-headline.tsx`, client-side para evitar hydration mismatch) que colapsa con
+      búsqueda. **Favicon/app-icon** del logomark aislado con transparencia real
+      (`docs/product/assets/logo_2.png` → `app/icon.png` + `app/favicon.ico`), cierra el 404.
+      QA de cierre: typecheck + **381 tests** + build verde (server parado) + `/qa-spec`
+      **APROBADO** (11 criterios, 3 checkers independientes) + QA en vivo con Playwright
+      (home vacío/con búsqueda, votación, rotación sin warnings, pins rosa, ficha, favicon 200).
+      Cierra los ítems de BACKLOG "identidad visual" y "home: pulido". Dejó anotados como tracks
+      aparte: header de marca global y el filtro fantasma de tags con 0 lugares.
+      [Resumen](../archive/SPECS_ARCHIVO.md#home_identidad)
 - [x] **Spec 6 — VOTACION · las 3 fases + cierre del spec** (2026-07-22): votación en grupo, el
       loop viral. **F1** schema (`polls`/`poll_options`/`poll_votes` + `users.plan`), gate "1
       activa" server-side con `FOR UPDATE` del usuario, token aleatorio, `/votacion/nueva` con

@@ -20,6 +20,12 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --font-sans: var(--font-inter);
+  /* Colores de categoría (IDENTIDAD.md). Disponibles como tokens; su cableado por
+     faceta es trabajo aparte (ver BACKLOG). El rosa además es el color de los pins. */
+  --color-rosa: #FF2D75;
+  --color-violeta: #7B3FFF;
+  --color-turquesa: #00D4C4;
+  --color-amarillo: #FFD400;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -27,28 +33,30 @@
   --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-/* A Dónde Salimos — paleta única, tema oscuro ("Ámbar StressPlan").
+/* A Dónde Salimos — paleta única, tema oscuro (identidad real, docs/product/IDENTIDAD.md).
    Regla de producto: cambiar la paleta entera = tocar solo estas variables.
-   No hay tema claro, ni variante .dark, ni toggle. */
+   No hay tema claro, ni variante .dark, ni toggle.
+   Acción primaria = naranja #FF8A00 (8.12:1 sobre el fondo, texto oscuro encima).
+   Fondo #0D0D1F (azulado); neutros con tinte azul leve para no verse grises sobre él. */
 :root {
-  --background: #0F0F0F;
+  --background: #0D0D1F;
   --foreground: #F5F5F5;
-  --card: #1A1A1A;
+  --card: #1A1A2E;
   --card-foreground: #F5F5F5;
-  --popover: #1A1A1A;
+  --popover: #1A1A2E;
   --popover-foreground: #F5F5F5;
-  --primary: #F59E0B;
-  --primary-foreground: #0F0F0F;
-  --secondary: #2A2A2A;
+  --primary: #FF8A00;
+  --primary-foreground: #0D0D1F;
+  --secondary: #2A2A3E;
   --secondary-foreground: #F5F5F5;
-  --muted: #2A2A2A;
+  --muted: #2A2A3E;
   --muted-foreground: #888888;
-  --accent: #F59E0B;
-  --accent-foreground: #0F0F0F;
+  --accent: #FF8A00;
+  --accent-foreground: #0D0D1F;
   --destructive: #EF4444;
-  --border: #2A2A2A;
-  --input: #2A2A2A;
-  --ring: #F59E0B;
+  --border: #2A2A3E;
+  --input: #2A2A3E;
+  --ring: #FF8A00;
   --radius: 0.5rem;
 }
 

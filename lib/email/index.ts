@@ -22,15 +22,15 @@ function shell(title: string, bodyHtml: string): string {
 <!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0F0F0F;font-family:Inter,Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0F0F0F;padding:40px 20px">
+<body style="margin:0;padding:0;background:#0D0D1F;font-family:Inter,Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0D0D1F;padding:40px 20px">
     <tr><td align="center">
-      <table width="100%" style="max-width:520px;background:#1A1A1A;border-radius:12px;border:1px solid #2A2A2A;padding:40px">
+      <table width="100%" style="max-width:520px;background:#1A1A2E;border-radius:12px;border:1px solid #2A2A3E;padding:40px">
         <tr><td>
           <p style="margin:0 0 4px;font-size:13px;color:#888;letter-spacing:0.05em;text-transform:uppercase">${BRAND}</p>
           <h1 style="margin:0 0 24px;font-size:22px;color:#F5F5F5;font-weight:700">${title}</h1>
           ${bodyHtml}
-          <hr style="margin:28px 0;border:none;border-top:1px solid #2A2A2A">
+          <hr style="margin:28px 0;border:none;border-top:1px solid #2A2A3E">
           <p style="margin:0;font-size:12px;color:#555">
             <a href="${APP_URL}" style="color:#555;text-decoration:none">${BRAND}</a>
           </p>
@@ -43,7 +43,7 @@ function shell(title: string, bodyHtml: string): string {
 }
 
 function cta(url: string, label: string): string {
-  return `<a href="${url}" style="display:inline-block;background:#F59E0B;color:#0F0F0F;font-weight:700;font-size:15px;padding:14px 28px;border-radius:10px;text-decoration:none">${label}</a>`
+  return `<a href="${url}" style="display:inline-block;background:#FF8A00;color:#0D0D1F;font-weight:700;font-size:15px;padding:14px 28px;border-radius:10px;text-decoration:none">${label}</a>`
 }
 
 export async function sendVerificationEmail(email: string, url: string) {
@@ -116,7 +116,7 @@ export async function sendClaimRejectedEmail(email: string, placeName: string, m
         <p style="margin:0 0 16px;font-size:15px;color:#888;line-height:1.6">
           Revisamos tu solicitud sobre <strong style="color:#F5F5F5">${esc(placeName)}</strong> y por ahora no la aprobamos.
         </p>
-        <p style="margin:0 0 28px;padding:14px 16px;border-radius:10px;background:#0F0F0F;border:1px solid #2A2A2A;font-size:14px;color:#F5F5F5;line-height:1.6">
+        <p style="margin:0 0 28px;padding:14px 16px;border-radius:10px;background:#0D0D1F;border:1px solid #2A2A3E;font-size:14px;color:#F5F5F5;line-height:1.6">
           ${esc(motivo)}
         </p>
         <p style="margin:0;font-size:13px;color:#555;line-height:1.6">

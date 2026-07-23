@@ -615,3 +615,22 @@ reales); los de lógica de dominio, con tests de integración contra la base + l
 | VOT-14 | Rate limit: crear 3/día/IP · voto 20/min/IP, cupos propios (no comparten bucket) | ✅ PASS | `rate-limit.ts` `checkVotacionesRateLimit` (prefijo `votaciones`, `CLAIMS_MAX`) y `checkVotoRateLimit` (prefijo `voto`, 20/min) |
 | VOT-15 | Premium modelado y gateado pero apagado: free no ve botón IA ni historial; premium ve el botón pero no llama a IA | ✅ PASS | Botón IA bajo `{esPremium && …}` con `onClick` no-op (`nueva-client.tsx`); historial gateado en la query `misVotaciones(userId, incluirHistorial)` server-side |
 | VOT-NOEXPO | Ningún endpoint expone `voter_token`; resultados = conteo agregado por opción | ✅ PASS | `query.ts` conteo por `GROUP BY option_id`; tipos `OpcionPublica`/`ResultadosEnVivo` sin `voterToken` · test "no expone el voter_token" |
+
+## QA /qa-spec — HOME_IDENTIDAD (2026-07-23)
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 381/381 ✅ · build ✅
+**Método:** 3 checkers independientes en paralelo (Explore/haiku, maker≠checker) sobre los criterios code-verificables + **QA en vivo con Playwright/MCP** sobre `https://adondesalimos.ngrok.app` — la evidencia visual (render, tokens computados, favicon, sin hydration) la aporta la QA en vivo porque el checker read-only no ve el render (lección BUSQUEDA).
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| HOME_IDENTIDAD-01 | Home vacío: wordmark + hero + fondo azulado + chips | ✅ PASS | Live: wordmark con pin gradiente; hero rioplatense; fondo `#0D0D1F`; chips de Ocasión visibles (screenshot) |
+| HOME_IDENTIDAD-02 | Home con búsqueda: el hero colapsa, el header queda | ✅ PASS | Live `/?z=palermo-soho`: sin hero, wordmark en header, lista/mapa en paleta nueva, chip activo con borde naranja |
+| HOME_IDENTIDAD-03 | `/votacion/[token]` compartido en paleta nueva | ✅ PASS | Live: fondo azulado, barras y borde ganador en naranja, sin restos de ámbar |
+| HOME_IDENTIDAD-04 | Headline rotativo sin hydration mismatch | ✅ PASS | Live: 3 cargas → "¿Qué hacemos?"→"¿Qué sale?"; consola 0 warnings. Código: SSR índice 0 + `useEffect` random (`rotating-headline.tsx`) |
+| HOME_IDENTIDAD-05 | Pins del mapa en rosa `#FF2D75` | ✅ PASS | Checker: `map-view.tsx:113,143` + `pin-picker.tsx:52`; sin `#e11d48`. Live: clusters rosa, número oscuro |
+| HOME_IDENTIDAD-06 | Contraste WCAG (texto oscuro sobre naranja/rosa) | ✅ PASS | `--primary-foreground #0D0D1F`; número de cluster `#0D0D1F` sobre rosa (5.38:1); botones texto oscuro sobre naranja |
+| HOME_IDENTIDAD-07 | Paleta en tokens: primary `#FF8A00`, bg `#0D0D1F`, categorías, sin ámbar en `:root` | ✅ PASS | Checker: `globals.css:42,48,54,59` + categorías `25-28`; sin `#F59E0B`/`#0F0F0F`. Live: `--primary` = `#ff8a00`, body `rgb(13,13,31)` |
+| HOME_IDENTIDAD-08 | Tres focos: email (CTA plano) + pins + logo de Google intacto | ✅ PASS | Checker: `email/index.ts:25,28,46` (CTA plano); logo de Google `#4285F4/#34A853/#FBBC05/#EA4335` intactos (`ficha-google.tsx:356-368`) |
+| HOME_IDENTIDAD-09 | Estrella del rating → amarillo de marca (leftover ámbar) | ✅ PASS | Checker: `ficha-google.tsx:250` `text-amarillo`, sin `text-amber-500`. Live: estrella computa `rgb(255,212,0)` |
+| HOME_IDENTIDAD-10 | Wordmark reemplaza el `h1` (pin SVG + texto) | ✅ PASS | Checker: `wordmark.tsx` (`linearGradient` `ads-pin`, "salimos?" en `text-primary`); `page.tsx` usa `<Wordmark/>`, sin `h1` de texto |
+| HOME_IDENTIDAD-11 | Favicon / app-icon (cierra el 404) | ✅ PASS | `app/icon.png` + `app/favicon.ico`. Live: `/icon.png` y `/favicon.ico` → 200; `<link rel=icon sizes=512x512>` |

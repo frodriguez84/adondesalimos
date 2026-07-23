@@ -49,7 +49,7 @@ export function PinPicker({ valor, onChange }: Props) {
     })
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
 
-    const mk = new maplibregl.Marker({ draggable: true, color: '#e11d48' })
+    const mk = new maplibregl.Marker({ draggable: true, color: '#FF2D75' })
       .setLngLat([valor.lng, valor.lat])
       .addTo(m)
 

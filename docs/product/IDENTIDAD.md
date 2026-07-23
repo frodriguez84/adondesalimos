@@ -1,8 +1,11 @@
 # Identidad visual — logo y paleta
 
-**Estado:** 🟡 Diseñada y fijada (2026-07-21) — **todavía NO aplicada al código**.
-La app corre hoy con la paleta provisoria (negro `#0F0F0F` + ámbar `#F59E0B`, heredada de
-StressPlan). La aplicación es una tarea propia, anotada en `docs/product/BACKLOG.md`.
+**Estado:** ✅ Aplicada (2026-07-23) — en el mini-spec HOME_IDENTIDAD
+([`docs/specs/done/HOME_IDENTIDAD.md`](../specs/done/HOME_IDENTIDAD.md) ·
+[resumen](../archive/SPECS_ARCHIVO.md#home_identidad)). La app corre con la paleta real:
+naranja `#FF8A00` de acción, fondo azulado `#0D0D1F`, tokens de categoría, wordmark en el
+header y el logomark como favicon. Lo que queda es el **header de marca global** (wordmark
+fuera del home), anotado en `docs/product/BACKLOG.md`.
 
 Este archivo es la fuente de verdad de la identidad: si el diseño vive solo en una imagen
 suelta, se pierde.
@@ -14,6 +17,13 @@ suelta, se pierde.
 ![Logo y paleta de ¿A dónde salimos?](assets/logo-identidad.png)
 
 *(pieza original del diseño: `docs/product/assets/logo-identidad.png`)*
+
+**Logomark aislado con transparencia real:** `docs/product/assets/logo_2.png` (RGBA 1024×1024,
+fondo transparente de verdad — el pin + íconos de categoría, sin wordmark). Es el asset reusable
+de la marca. Ya se usa como **favicon / app-icon** (`app/icon.png` recortado al pin + `app/favicon.ico`).
+Nota: sus zonas transparentes tienen color residual en el canal RGB (glow horneado); no molesta en
+web porque el navegador respeta el alfa y la app es dark-only. Si alguna vez va sobre fondo claro,
+limpiar el matte. *(La versión anterior `logo_2`… si se renombra a un nombre canónico, actualizar acá.)*
 
 Pin de ubicación con el interior calado, relleno con un gradiente rosa → naranja → amarillo,
 rodeado de íconos de las categorías de salida (cubiertos, campana de servicio, máscaras de

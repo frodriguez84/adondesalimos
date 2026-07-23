@@ -323,3 +323,24 @@ Server Action** (o `middleware.ts` si existe) — nunca el render de una página
 "al entrar se setea la cookie X" en un spec, verificar que haya un boundary de escritura en ese
 momento; si el único evento server es un `POST` posterior, la identidad se crea ahí y el spec debe
 decirlo. Setear la cookie "al abrir" **exige** middleware, y sumarlo es una decisión aparte.
+
+---
+
+## Un PNG "transparente" de un generador de IA puede tener el damero horneado (2026-07-23 · HOME_IDENTIDAD)
+
+**Qué pasó.** Para el logo se recibió un `logo.png` que en el visor se veía con fondo transparente
+(el clásico damero gris/blanco). Pero al inspeccionarlo: **color type 2 (RGB, sin canal alfa)** y
+las esquinas eran píxeles opacos alternando `#F0F0F0`/`#FFFFFF` — el damero estaba **pintado en la
+imagen**, no era transparencia real. Puesto sobre el fondo oscuro de la app habría mostrado una
+caja gris a cuadros alrededor del logo. Los generadores de imágenes (ChatGPT/DALL·E incluidos)
+suelen "dibujar" el fondo de transparencia en vez de exportar alfa real. El segundo intento
+(`logo_2.png`) sí vino bien: **color type 6 (RGBA)**, esquinas alfa=0.
+
+**La regla.** Antes de usar un PNG "transparente" que vino de afuera, **verificar la transparencia
+de verdad**, no confiar en cómo se ve en el visor (el visor dibuja damero tanto para alfa real como
+para un damero horneado). Chequeos baratos: el **color type del IHDR** (byte 25: 6 = RGBA, 4 =
+gray+alpha; 2 o 0 = **sin alfa**), y muestrear el alfa de las esquinas (`GetPixel().A` debe ser 0).
+Si el "fondo" son píxeles opacos, pedir de nuevo el asset con alfa real (o recortarlo). Vale además
+para el matte: aun con alfa real, las zonas transparentes pueden traer color residual en el RGB
+(glow) — inocuo en web (el navegador respeta el alfa) pero problemático si algún día se aplana
+sobre fondo claro.

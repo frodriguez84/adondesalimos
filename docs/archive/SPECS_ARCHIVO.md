@@ -317,3 +317,43 @@ pero apagado (lo enciende el spec 7).
 - **`poll_options.place_id` y `polls.winner_place_id` NO cascadean** al borrar un place (a
   propósito: un lugar no se borra por debajo de una votación). En tests, borrar el usuario
   primero (cascade de polls) antes que los places.
+
+---
+
+## Home + identidad — paleta real y estado vacío con onda {#home_identidad}
+
+**Spec:** [`docs/specs/done/HOME_IDENTIDAD.md`](../specs/done/HOME_IDENTIDAD.md) · ✅ Implementado (2026-07-23)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — HOME_IDENTIDAD* — APROBADO, 11 criterios PASS (3 checkers independientes + QA en vivo con Playwright)
+
+**Qué hace:** reemplaza la paleta placeholder de dev (ámbar/negro heredado de StressPlan) por la
+identidad real de `docs/product/IDENTIDAD.md` y le da onda al home, para que un link compartido
+(votación/ficha) no parezca un proyecto a medio hacer. Ejecuta juntos, como una sola pasada
+visual, los dos ítems de BACKLOG "identidad visual" y "home: pulido del estado vacío".
+
+**Alcance implementado:**
+
+- **Swap de paleta por tokens** (`app/globals.css`): acción primaria naranja `#FF8A00` (reemplaza
+  ámbar `#F59E0B`, mismo contraste ⇒ casi drop-in), fondo azulado `#0D0D1F`, neutros con tinte
+  azul (`#1A1A2E`/`#2A2A3E`), y tokens de categoría en `@theme`
+  (`--color-rosa/violeta/turquesa/amarillo`). El grueso de la app cambia solo por variables.
+- **Los tres focos fuera de los tokens** (+ un cuarto hallado en QA): `lib/email/index.ts` (hex a
+  mano, CTA **color plano** no gradiente — Outlook los ignora), pins del mapa a rosa `#FF2D75`
+  (`map-view.tsx`, `pin-picker.tsx`), **logo de Google intacto** (`ficha-google.tsx`), y la
+  **estrella del rating** de `text-amber-500` (ámbar viejo) → `text-amarillo` (`#FFD400`).
+- **Wordmark** (`components/shared/wordmark.tsx`): pin SVG con gradiente de marca + centro calado +
+  texto ("salimos?" en naranja sólido). Reemplaza el `h1` de texto del header. Monocromo por
+  diseño (a 28 px el gradiente sobre texto fino colapsa; el gradiente se reserva al hero grande).
+- **Estado vacío = mini-landing** (`app/page.tsx` + `components/shared/rotating-headline.tsx`):
+  hero con headline rotativo rioplatense ("¿Qué sale?"/"¿Qué pinta?"/"¿Qué hacemos?") + frase de
+  valor; se colapsa apenas hay búsqueda. Rotación resuelta client-side tras montar (SSR índice 0)
+  para evitar hydration mismatch (lección AUTH F4).
+- **Favicon / app-icon:** del logomark aislado con transparencia real
+  (`docs/product/assets/logo_2.png`, RGBA) → `app/icon.png` (recortado al pin) + `app/favicon.ico`.
+  Cierra el 404 de `favicon.ico`.
+
+**Archivos clave:** `app/globals.css` · `app/page.tsx` · `app/icon.png` · `app/favicon.ico` ·
+`components/shared/wordmark.tsx` · `components/shared/rotating-headline.tsx` · `lib/email/index.ts` ·
+`components/search/map-view.tsx` · `components/negocio/pin-picker.tsx` · `components/lugar/ficha-google.tsx`.
+
+**Fuera de scope (anotado en BACKLOG):** header de marca global (el wordmark en el resto de las
+páginas) + hero/OG con el logomark; y el filtro fantasma de tags con 0 lugares (BÚSQUEDA).

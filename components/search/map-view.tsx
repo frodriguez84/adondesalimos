@@ -110,7 +110,7 @@ export function MapView({ params, coords }: Props) {
         source: 'lugares',
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#e11d48',
+          'circle-color': '#FF2D75',
           'circle-opacity': 0.85,
           'circle-radius': ['step', ['get', 'point_count'], 16, 10, 22, 50, 30],
         },
@@ -130,7 +130,9 @@ export function MapView({ params, coords }: Props) {
           // la glyph real.
           'text-font': ['Noto Sans Bold'],
         },
-        paint: { 'text-color': '#ffffff' },
+        // Texto oscuro sobre rosa (IDENTIDAD): blanco da 3.57:1 y falla AA; el
+        // oscuro #0D0D1F da 5.38:1. La regla es "sobre rosa el texto va oscuro".
+        paint: { 'text-color': '#0D0D1F' },
       })
       m.addLayer({
         id: 'pins',
@@ -138,7 +140,7 @@ export function MapView({ params, coords }: Props) {
         source: 'lugares',
         filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-color': '#e11d48',
+          'circle-color': '#FF2D75',
           'circle-radius': 7,
           'circle-stroke-width': 2,
           'circle-stroke-color': '#ffffff',

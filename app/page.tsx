@@ -4,6 +4,8 @@ import { headers } from 'next/headers'
 
 import { auth } from '@/lib/auth'
 import { AccountMenu } from '@/components/shared/account-menu'
+import { Wordmark } from '@/components/shared/wordmark'
+import { RotatingHeadline } from '@/components/shared/rotating-headline'
 import { SearchShell } from '@/components/search/search-shell'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
 import { getOccasionChips } from '@/lib/search/chips'
@@ -52,13 +54,22 @@ export default async function Home({
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">¿A dónde salimos?</h1>
-          <p className="text-sm text-muted-foreground">Decidilo rápido, sin dar mil vueltas.</p>
-        </div>
+      <header className="flex items-center justify-between gap-3">
+        <Wordmark />
         <AccountMenu user={session?.user ? { name: session.user.name ?? null, email: session.user.email } : null} />
       </header>
+
+      {/* Estado vacío = mini-landing: hero de marca (headline rotativo + frase de
+          valor) que se colapsa apenas hay búsqueda. El hint funcional ("elegí
+          zona") lo da el propio SearchShell, no se duplica acá. */}
+      {!tieneBusqueda(params) && (
+        <section className="flex flex-col gap-2 pt-2">
+          <RotatingHeadline />
+          <p className="text-base text-muted-foreground">
+            Bares, restos, shows y birras cerca tuyo. Decidí sin dar mil vueltas.
+          </p>
+        </section>
+      )}
 
       <SearchShell
         params={params}

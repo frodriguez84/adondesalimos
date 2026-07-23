@@ -247,7 +247,7 @@ function LineaRating({
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       {rating !== null && (
         <span className="inline-flex items-center gap-1 font-medium text-foreground">
-          <Star className="size-4 fill-current text-amber-500" />
+          <Star className="size-4 fill-current text-amarillo" />
           {formatearRating(rating)}
           {userRatingCount !== null && (
             <span className="font-normal text-muted-foreground">({userRatingCount})</span>
