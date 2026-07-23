@@ -672,8 +672,14 @@ componentes y flujos. Fer lo señaló al cerrar el volcado. **Dónde vive ese tr
 
 ### Reuso desde StressPlan (código/lógica para robar)
 
-- ✅ Integración MercadoPago suscripciones (billing checkout/cancel, webhook, sync admin).
-- ✅ Prompt + chat behavior del chat IA.
+- ✅ Integración MercadoPago **suscripciones — YA FUNCIONA en StressPlan** (billing
+  checkout/cancel, webhook, sync admin): el spec 7 la reutiliza, no la reinventa. Dos cosas a
+  confirmar al escribir el spec 7 (2026-07-22): **(a)** si las suscripciones usan **bricks o
+  checkout** (Fer no lo recuerda — verificar en el código de StressPlan antes de decidir), y
+  **(b)** hará falta **crear usuarios vendedor y comprador de prueba** (sandbox de MP) para el
+  QA del cobro.
+- ✅ Prompt + chat behavior del chat IA — **StressPlan tiene una buena base** de comportamiento
+  del chat y prompt; el spec del chat IA (candidato a spec 8) parte de ahí, no de cero.
 - ✅ Email verificado obligatorio + rate limit por IP/dispositivo.
 - ✅ Setup de better-auth.
 
@@ -692,6 +698,12 @@ dirección, detalles sin cerrar:_
   - **Muy parecido a StressPlan** — ✅ se pueden reutilizar prompt y chat behavior de
     StressPlan como base.
   - Más features free-vs-premium a definir.
+  - ✅ **El chat con IA va en un spec propio (candidato a spec 8), NO dentro del spec 7**
+    (decidido 2026-07-22). El spec 7 es "cómo se cobra" (MercadoPago + gates); el chat IA es
+    "qué hace el producto premium" (comportamiento del chat, cupo de mensajes, prompt, control
+    de costo de la API de Claude) — feature grande de por sí. Va **después** de que la
+    monetización exista para solventar el costo de la API (línea de abajo). No meterlo en el 7
+    por inercia.
 - 💡 La búsqueda con IA se posterga hasta que la monetización solvente el costo de la API
   de Claude (ya anotado en Concepto general).
 - ✅ **Medio de pago: MercadoPago** (suscripciones / bricks). Verificado en código: StressPlan
@@ -841,8 +853,44 @@ precio fijo se licúa con la inflación en meses.
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de specs 3 (2026-07-20). Esta sección es lo primero que lee la
+_Actualizado en la sesión de specs 4 (2026-07-22). Esta sección es lo primero que lee la
 sesión siguiente._
+
+### 🏁 Sesión de specs 4 — cerrada (2026-07-22) · SPEC 6 VOTACION ESCRITO
+
+Sesión de autoría manual (Fable). Una sola entrega: **`docs/specs/planned/VOTACION.md`** — la
+votación en grupo, el "loop viral". Nada implementado. Base: § "Feature: votación en grupo" +
+§ planes (ya decididos) + el patrón real de AUTH (sesión inline, rate limit propio, gate por
+plan server-side). Lo que se decidió nuevo — cerró las preguntas abiertas que traía la feature:
+
+- ✅ **Voto anónimo = cookie por dispositivo (`voter_id`), NO IP** (era la pregunta central). La
+  IP se descarta como identidad: un grupo entero en una WiFi (o CGNAT móvil) comparte IP y se
+  pisaría los votos, que es EL caso de uso. La cookie es evadible (incógnito, borrar cookies) y
+  **está bien que lo sea** — el stake es decidir un asado, no una elección legal; encarecer el
+  anti-fraude arruinaría el loop viral a cambio de nada. La IP queda solo como rate-limit. El voto
+  es cambiable mientras esté abierta (restricción única `(poll_id, voter_token)`, revotar = UPDATE).
+- ✅ **Expiración lazy, sin cron** (72 h, el máximo del rango): "activa" = `status='open' AND
+  expires_at > now()`; una vencida se lee en modo cerrado y no bloquea crear otra. El proyecto no
+  tiene cron y el spec no lo agrega — mismo criterio que el matching perezoso de FICHA.
+- ✅ **Modelo de datos**: 3 tablas (`polls`, `poll_options`, `poll_votes`) + link por token no
+  adivinable (`nanoid`). Votos = agregado por opción; el `voter_token` nunca sale al cliente.
+- ✅ **La shortlist reusa la búsqueda existente** (`lib/search` + `publishedWhere`) y `PlaceCard` —
+  no un selector nuevo. Solo lugares publicados.
+- ✅ **El gate free/premium se modela con `users.plan`** (`free`/`premium`) — el **primer atributo
+  de plan del usuario** (AUTH solo tenía `owner_plan` por lugar, B2B). Espejo B2C del mismo patrón:
+  se aplica server-side desde el día 1 (free = 1 activa), se cambia con UPDATE manual hasta que el
+  spec 7 lo automatice con MercadoPago. La IA que arma la shortlist y el historial navegable quedan
+  **gateados y apagados** — construidos como hueco, sin la lógica detrás (spec 7/8).
+- ✅ **Resultados en vivo** (no solo al cierre): ver el conteo subir es lo que empuja a re-compartir,
+  el motor del loop viral. **Cierre = el creador elige el ganador** (default = el más votado), cubre
+  empate y "ganó X pero elijo Y" de un solo camino. Link cerrado/expirado/cancelado ⇒ solo-lectura
+  con el ganador, **nunca 404**.
+- ✅ **La página del link NO usa Google ni IA** (contrasta con la ficha): el preview de WhatsApp sale
+  de datos propios, gratis de crawlear.
+- ⏭️ **Próximo paso**: implementar VOTACION (sesión Opus, 3 fases) o escribir el spec 7
+  (Monetización / MercadoPago) — uno por vez. El spec 7 **enciende** el premium que este dejó
+  modelado (`users.plan` → MP) y arrastra las dos cosas a confirmar ya anotadas en § Reuso desde
+  StressPlan: bricks-vs-checkout y usuarios sandbox de MP.
 
 ### 🏁 Sesión de specs 3 — cerrada (2026-07-20) · SPEC 5 AUTH ESCRITO
 

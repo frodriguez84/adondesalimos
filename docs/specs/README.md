@@ -23,7 +23,9 @@ _(ninguno — todos los specs de v1 están cerrados; el próximo sale del BACKLO
 
 ## 🔵 Planned (`planned/`)
 
-_(ninguno — el próximo a implementar sale del BACKLOG o de `active/`)_
+| Spec | Resumen |
+|------|---------|
+| [VOTACION](planned/VOTACION.md) | Spec 6 — votación en grupo (el loop viral): creador con cuenta arma shortlist de 2-5 lugares, votantes sin cuenta (cookie por dispositivo), resultados en vivo, cierre/desempate del creador, expiración lazy a 72 h. Free = 1 activa; premium (ilimitadas · IA shortlist · historial) modelado y gateado, encendido en spec 7. 3 fases. Sin código todavía |
 
 ## ⚫ Done (`done/`)
 
