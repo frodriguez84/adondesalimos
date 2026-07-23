@@ -47,12 +47,21 @@ Cruzá `docs/specs/README.md` (tablas 🟢/🔵/⚫) vs cada spec: la primera l�
 vs la tabla donde figura; specs en `active/`/`done/`/`planned/` ausentes del manifiesto (o al
 revés); specs `✅ Implementado` pero aún en 🟢 sin nota de fase.
 
+### (d2) BACKLOG `## Hecho` ↔ specs en `done/`
+El log `## Hecho` de `docs/product/BACKLOG.md` es la tercera representación de "cerrado"
+(además de la lista de tareas de arriba y de `SPECS_ARCHIVO`), y la que más fácil se olvida
+al cerrar (drift real en specs 1-5). Cruzá:
+- **Cada spec en `docs/specs/done/` tiene su entrada en `## Hecho`** — si falta, es **ALTO**
+  (se cerró sin registrarlo en el log). Los stubs (`— movido`) no cuentan como specs.
+- El ítem de la **lista de tareas** de ese spec está `[x]` (no `[ ]`) — desajuste = **ALTO**.
+Acción sugerida: agregar la entrada faltante al tope del log (ver `/close-spec` paso 7).
+
 ### (e) Anchors rotos en cross-links de docs — OPCIONAL
 Links `FILE.md#slug`: verificá que el `{#slug}` exista en el destino. Reportá como **INFO**.
 Si genera muchos falsos, **omití este check**.
 
 ## Output
-Reporte por check (a–e); cada hallazgo con: **severidad** (ALTO/INFO), qué, dónde
+Reporte por check (a, b, c, d, d2, e); cada hallazgo con: **severidad** (ALTO/INFO), qué, dónde
 (archivo:línea) y acción sugerida. Cierre:
 - **Veredicto: CERO DRIFT** (nada ALTO) o **N hallazgos** (X ALTO, Y INFO).
 - Si hay hallazgos, **proponé** correcciones pero **no las apliques sin OK**.

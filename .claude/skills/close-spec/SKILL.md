@@ -66,8 +66,12 @@ por `active/`). **Parcial (fases) → omitir; queda en `active/`.**
 `docs/specs/README.md`: mover la fila a la tabla correcta — 🟢 Activo / 🔵 Planned / ⚫ Done.
 Total → ⚫ Done. Parcial (fases) → queda en 🟢 con nota de fase.
 
-### 7. Cola de trabajo BACKLOG.md
-`docs/product/BACKLOG.md`: ítem ✅ con fecha.
+### 7. Cola de trabajo BACKLOG.md — DOS lugares, no uno
+`docs/product/BACKLOG.md` tiene **dos** representaciones de "hecho" y hay que tocar las dos
+(olvidarse del log es drift real que ya pasó en specs 1-5):
+- **(a)** La **lista de tareas** de arriba: tildar el ítem `[x]` con fecha y link al resumen.
+- **(b)** El log cronológico **`## Hecho`**: agregar una entrada nueva **al tope** (va de más
+  nuevo a más viejo) con el detalle por fase, el QA de cierre y el link a `SPECS_ARCHIVO`.
 
 ### 8. Stub de redirect — solo si moviste el archivo (cierre total)
 Ruta vieja: stub ~5 líneas `# NAME — movido` + flechas a `done/`, `SPECS_ARCHIVO` (§slug) y

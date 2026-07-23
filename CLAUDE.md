@@ -240,7 +240,7 @@ existe. Pasó de verdad al empezar BÚSQUEDA. Desde 2026-07-20:
 | 4 | Estado en el spec | Primera línea: `**Estado:** ✅ Implementado (YYYY-MM-DD)` o `Parcial — §X ✅; §Y pendiente` |
 | 5 | Mover el spec | 100% cerrado → `git mv active/FOO.md done/`. Parcial → queda en `active/` |
 | 6 | Manifiesto | `docs/specs/README.md` — mover fila a la tabla correcta |
-| 7 | Cola de trabajo | `docs/product/BACKLOG.md` — ítem ✅ con fecha |
+| 7 | Cola de trabajo | `docs/product/BACKLOG.md` — **los dos**: tildar el ítem de la lista `[x]` con fecha **y** agregar la entrada al log `## Hecho` (al tope) |
 | 8 | Stub de redirect | Si moviste el archivo: stub de 5 líneas en la ruta vieja |
 | 9 | Lecciones (si aplica) | `docs/operations/LECCIONES_APRENDIDAS.md` |
 

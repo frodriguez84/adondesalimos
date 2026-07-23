@@ -259,6 +259,20 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 5 — AUTH · las 4 fases + cierre del spec** (F1 2026-07-20 · F2/F3 2026-07-21 · F4
+      2026-07-22): auth con better-auth y reclamo de negocio. **F1** auth base (email+password,
+      `requireEmailVerification: true`, Resend, `/cuenta`, rate limit, sin columna `role`).
+      **F2** `place_claims` (un dueño por lugar), `/registrar-negocio` (búsqueda del catálogo
+      completo + alta con pin MapLibre + zona por turf), `/reclamar/[id]`, `/admin` con la cola,
+      aprobar/rechazar/revocar + `publish_override` + mails. **F3** `place_owner_content`
+      (COALESCE dueño → base), tags `source='owner'`, fotos a R2 (`lib/storage/r2.ts`, caps con
+      `FOR UPDATE`), `owner_plan` + gating server-side, huecos en la ficha, teaser de stats.
+      **F4** horarios propios (`lib/negocio/horarios.ts`, editor semanal, prioridad dueño →
+      Google, abierto/cerrado en TZ AR con cruce de medianoche; sin migración, field mask de
+      Google intacto). QA de cierre: typecheck + **331 tests** + build verde + escaneo de
+      secretos (0 fugas) + QA en vivo con Playwright — `/qa-spec` **APROBADO** (ver
+      `docs/qa/AnalisisQA.md` § AUTH F2/F3/F4 y § QA /qa-spec — AUTH). **Único DoD diferido:**
+      UI del botón de Google OAuth (deferral aceptado de F1). Spec movido a `done/`. [Resumen](../archive/SPECS_ARCHIVO.md#auth)
 - [x] **Spec 4 — FICHA · Fase 3 + cierre del spec** (2026-07-20): foto de Google y atribución.
       `parseFotoCandidata` (una sola foto) + `fetchFotoUri` (media endpoint con
       `skipHttpRedirect=true` ⇒ `photoUri` efímero, la key nunca sale al browser) en
