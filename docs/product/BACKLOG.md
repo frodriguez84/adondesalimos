@@ -56,6 +56,47 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       Google en `ficha-google.tsx`, que **no se tocan**. Falta además una **versión monocroma
       del wordmark** (el gradiente no sobrevive a 28-32 px ni al mail) y sumar el logo a la
       home, que hoy es un `h1` de texto.
+- [ ] **Home: ¿landing o buscador de una? + pulido del estado vacío** (duda de UI/UX,
+      2026-07-23). **Track de UX, NO un spec de features — separado de Monetización.**
+
+      **La duda.** Al entrar a `adondesalimos.com.ar`, ¿el usuario cae directo al buscador o
+      hay una landing? Hoy es buscador de una (BUSQUEDA decisión 1: *home = search*).
+
+      **Recomendación (Claude, a validar con Fer): mantener buscador de una, sin landing
+      separada.** Razones: (1) la promesa es velocidad —una landing con hero/CTA mete un click
+      entre el usuario y lo que vino a hacer; (2) el punto de entrada **viral no es el home**
+      sino `/votacion/[token]` y las fichas compartidas, así que el home casi nunca es la
+      primera impresión del que llega nuevo. **La vuelta:** el **estado vacío** del home
+      (primera visita, `tieneBusqueda` = false) hace de **mini-landing** — hero cálido, frase de
+      valor, los **chips de Ocasión como gancho**, un hint de cómo funciona; se colapsa apenas
+      se busca. Ya calza con la arquitectura (el home renderiza distinto sin búsqueda). Una
+      landing de marketing completa queda para cuando se vaya a prod/SEO — anotada como opción,
+      no decidida.
+
+      **Voz del hero (importante, corregido por Fer 2026-07-23): argentino rioplatense, NO
+      neutro.** El "¿Qué se te antoja?" que se había propuesto **no se usa acá** — suena a
+      doblaje. Las que van: **"¿Qué sale?"**, **"¿Qué pinta?"** o simplemente **"¿Qué
+      hacemos?"**. Idea linda: **rotar las tres** como headline del hero (aleatorio o por
+      día/hora), le da vida. (Distinto de rotar los *chips* mismos, que es otro ítem de abajo.)
+      Regla general que sale de esto: **todo el copy de la app va en argentino rioplatense,
+      evitar el español neutro** — principio de voz, no solo para este texto.
+
+      **Pulido (para que no parezca amateur, acotado, NO rediseño).** Foco en ese estado vacío
+      + **aplicar la identidad visual ya definida** (`docs/product/IDENTIDAD.md` + la pieza
+      original `docs/product/assets/logo-identidad.png`, ver ítem de identidad arriba). Concreto:
+      - **Sumar el logo a la home** — hoy es un `h1` de texto pelado; va el wordmark real (pin +
+        "¿A DÓNDE SALIMOS?"). OJO: hace falta la **versión monocroma del wordmark** para el
+        header chico (el gradiente colapsa a 28-32 px) — ver aviso en `IDENTIDAD.md`.
+      - **Swap de paleta**: lo que corre hoy (negro `#0F0F0F` + ámbar `#F59E0B`) es **placeholder
+        de dev copiado de StressPlan**. La paleta real es la de `IDENTIDAD.md`: acción primaria
+        **naranja `#FF8A00`** (reemplaza al ámbar, mismo contraste ⇒ casi solo swap de variables
+        en `globals.css`), fondo **`#0D0D1F`** (azulado), y rosa/violeta/turquesa/amarillo para
+        categorías. Los tres focos fuera de los tokens (mails, pins del mapa, logo de Google que
+        NO se toca) están listados en `IDENTIDAD.md`.
+      - Jerarquía tipográfica del hero, chips como protagonistas, spacing.
+
+      Se solapa con la tarea de identidad — conviene hacerlos **juntos como una sola pasada**:
+      el mini-spec sería *"home + identidad"* (estado vacío con onda + logo + swap de paleta).
 - [ ] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
       2026-07-21). Los subqueries de `filtrosDeTags` y `filtroDeZonas` interpolan
       `${places.id}`, que Drizzle renderiza como `"id"` **sin el nombre de la tabla**. Hoy

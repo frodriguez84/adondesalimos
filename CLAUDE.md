@@ -11,6 +11,11 @@
 comentarios de PR, resúmenes de specs. Si una herramienta o el código está en inglés, está
 bien citarlo tal cual, pero el texto propio va en español de principio a fin.
 
+**El copy de cara al usuario va en argentino rioplatense** (voseo, "¿qué sale?" / "¿qué
+pinta?"), **nunca español neutro**. Aplica a toda la UI: botones, mensajes de error, mails,
+estados vacíos, headlines. El "antojar" y compañía suenan a doblaje — no van. (Esto es voz de
+producto; el texto interno de docs/comentarios sigue la regla de arriba, español a secas.)
+
 ## Contexto del producto
 
 App para decidir a dónde salir (bares, restaurantes, planes). _(one-liner provisorio — se refina con el volcado de ideas de producto)_
