@@ -44,6 +44,15 @@ const CLAIMS_WINDOW_MS = 24 * 60 * 60_000
 const FOTOS_MAX = 30
 const FOTOS_WINDOW_MS = 60 * 60_000
 
+/**
+ * Voto de una votación (VOTACION, decisión 9): 20 por minuto por IP. **Generoso a
+ * propósito**: un grupo entero de WhatsApp vota casi a la vez desde la misma WiFi
+ * (o detrás de CGNAT móvil), así que la IP NO es la identidad —eso es la cookie
+ * `voter_id`—; este cupo solo corta el bot que borra cookies en loop.
+ */
+const VOTO_MAX = 20
+const VOTO_WINDOW_MS = 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -182,5 +191,38 @@ export function checkFotosRateLimit(request: Request): Response | null {
     FOTOS_MAX,
     FOTOS_WINDOW_MS,
     'Muchas fotos seguidas. Probá de nuevo en un rato.',
+  )
+}
+
+/**
+ * Rate limit de `POST /api/votaciones` (VOTACION, decisión 9): reusa **exactamente
+ * el cupo de claims** —3 por día por IP— porque crear una votación es igual de
+ * barato e igual de spameable. Cupo con **prefijo propio** (`votaciones`): no
+ * comparte bucket con los reclamos, así crear una votación no gasta el cupo de
+ * dar de alta un negocio ni al revés.
+ */
+export function checkVotacionesRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'votaciones',
+    CLAIMS_MAX,
+    CLAIMS_WINDOW_MS,
+    'Llegaste al límite de votaciones por hoy. Probá mañana.',
+  )
+}
+
+/**
+ * Rate limit de `POST /api/votaciones/[token]/voto` (VOTACION, decisión 9): 20 por
+ * minuto por IP. Cupo propio y generoso — la IP no es la identidad del votante
+ * (esa es la cookie), así que un grupo entero votando casi a la vez desde la misma
+ * IP tiene que pasar; solo corta el bot que borra cookies en loop.
+ */
+export function checkVotoRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'voto',
+    VOTO_MAX,
+    VOTO_WINDOW_MS,
+    'Pará un poco con los votos. Probá de nuevo en un minuto.',
   )
 }

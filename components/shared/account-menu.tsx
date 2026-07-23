@@ -17,6 +17,10 @@ type Props = { user: { name: string | null; email: string } | null }
  * "Mi negocio" se muestra a **todos** los que tienen sesión, no solo a los
  * dueños: preguntar por reclamos aprobados sería una query en el header de cada
  * página, y la pantalla ya resuelve el caso sin lugares mandando al alta.
+ *
+ * VOTACION suma "Armar votación" y "Mis votaciones" (decisión / rutas): visibles
+ * para todo usuario con sesión, con el mismo criterio que "Mi negocio" — la
+ * pantalla destino resuelve el caso vacío, no se pre-consulta acá.
  */
 export function AccountMenu({ user }: Props) {
   const [open, setOpen] = useState(false)
@@ -70,6 +74,22 @@ export function AccountMenu({ user }: Props) {
             <p className="truncate text-sm font-medium text-foreground">{user.name || 'Mi cuenta'}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
+          <Link
+            href="/votacion/nueva"
+            role="menuitem"
+            className="block px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            onClick={() => setOpen(false)}
+          >
+            Armar votación
+          </Link>
+          <Link
+            href="/mis-votaciones"
+            role="menuitem"
+            className="block px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            onClick={() => setOpen(false)}
+          >
+            Mis votaciones
+          </Link>
           <Link
             href="/mi-negocio"
             role="menuitem"

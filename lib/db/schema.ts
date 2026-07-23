@@ -80,6 +80,23 @@ export const claimStatusEnum = pgEnum('claim_status', ['pending', 'approved', 'r
  */
 export const ownerPlanEnum = pgEnum('owner_plan', ['free', 'paid'])
 
+/**
+ * Plan del **usuario** (VOTACION, decisión 17). Espejo B2C de `owner_plan` (que es
+ * B2B, por lugar): gatea votaciones ilimitadas · IA arma shortlist · historial.
+ * Hasta el spec 7 (MercadoPago) se cambia con un UPDATE a mano, mismo camino que
+ * `owner_plan`. `free` es el default por construcción — better-auth inserta el
+ * user sin tocar esta columna y la base pone el default.
+ */
+export const userPlanEnum = pgEnum('user_plan', ['free', 'premium'])
+
+/**
+ * Estado de una votación (VOTACION, decisión 21). Una votación **expirada** sigue
+ * con `status='open'` en la columna: "activa" no es solo el status, es
+ * `status='open' AND expires_at > now()` (decisión 11). La expiración se resuelve
+ * perezosa al leer, sin cron.
+ */
+export const pollStatusEnum = pgEnum('poll_status', ['open', 'closed', 'cancelled'])
+
 // ---------------------------------------------------------------------------
 // Tablas
 // ---------------------------------------------------------------------------
@@ -395,6 +412,15 @@ export const users = pgTable('users', {
   name: text('name'),
   image: text('image'),
   emailVerified: boolean('email_verified').notNull().default(false),
+  /**
+   * Plan del usuario (VOTACION, decisión 17). Nace `free` para todos; hasta el
+   * spec 7 solo cambia con un UPDATE a mano. Gatea el tramo premium de las
+   * votaciones (ilimitadas · IA · historial). **No se agrega vía
+   * `additionalFields` de better-auth**: como `owner_plan`, se consulta siempre
+   * server-side (`esPremium`), nunca viaja en la sesión — así "bajar el plan" es
+   * inmediato y no depende de refrescar un token. Ver `lib/votaciones/planes.ts`.
+   */
+  plan: userPlanEnum('plan').notNull().default('free'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -546,6 +572,96 @@ export const placeOwnerContent = pgTable('place_owner_content', {
 })
 
 // ---------------------------------------------------------------------------
+// Votación en grupo — spec VOTACION
+// ---------------------------------------------------------------------------
+
+/**
+ * La votación (decisión 21). El creador siempre tiene cuenta (`creator_id`); los
+ * votantes jamás (decisión 1). El link es el `token` aleatorio, no el `id`
+ * (decisión 10): quien tiene el token, vota — la URL es la *capability*.
+ */
+export const polls = pgTable(
+  'polls',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** El del link (`/votacion/[token]`): opaco, no adivinable (decisión 10). */
+    token: text('token').notNull().unique(),
+    /** Opcional; si falta, la UI arma uno con los nombres de los lugares. */
+    title: text('title'),
+    status: pollStatusEnum('status').notNull().default('open'),
+    /** Lo fija el creador al cerrar, entre las opciones (decisión 14). */
+    winnerPlaceId: uuid('winner_place_id').references(() => places.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    /** `created_at + VOTACION_TTL_HORAS`. Expirada = `open` + esto en el pasado. */
+    expiresAt: timestamp('expires_at').notNull(),
+    closedAt: timestamp('closed_at'),
+  },
+  (t) => [
+    uniqueIndex('polls_token_idx').on(t.token),
+    // El panel "Mis votaciones" y el gate "1 activa" entran por creador.
+    index('polls_creator_idx').on(t.creatorId),
+  ],
+)
+
+/**
+ * Los lugares de la shortlist (2-5 por poll, decisión 3). Se congela al crear:
+ * si un lugar se vuelve invisible después, la opción **sigue** (decisión / edge
+ * case) — la cancha ya está armada.
+ */
+export const pollOptions = pgTable(
+  'poll_options',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pollId: uuid('poll_id')
+      .notNull()
+      .references(() => polls.id, { onDelete: 'cascade' }),
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id),
+    /** Orden en que el creador los puso; desempate determinista (edge case). */
+    position: integer('position').notNull(),
+  },
+  (t) => [
+    // No repetir un lugar en la misma votación.
+    uniqueIndex('poll_options_poll_place_idx').on(t.pollId, t.placeId),
+    index('poll_options_poll_idx').on(t.pollId),
+  ],
+)
+
+/**
+ * Los votos (decisión 8). **Agregado a nivel opción**: el conteo sale de un
+ * `GROUP BY option_id`; el `voter_token` (cookie por dispositivo, decisión 7) no
+ * se expone a ningún cliente. Un voto por dispositivo por votación, cambiable
+ * mientras esté abierta — revotar es un `UPDATE` de `option_id`, no una fila nueva.
+ */
+export const pollVotes = pgTable(
+  'poll_votes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Denormalizado para la restricción única y el conteo por votación. */
+    pollId: uuid('poll_id')
+      .notNull()
+      .references(() => polls.id, { onDelete: 'cascade' }),
+    optionId: uuid('option_id')
+      .notNull()
+      .references(() => pollOptions.id, { onDelete: 'cascade' }),
+    /** El UUID de la cookie `voter_id`. Nunca se expone (decisión 7). */
+    voterToken: text('voter_token').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // Un voto por dispositivo por votación; revotar es UPDATE (decisión 8).
+    uniqueIndex('poll_votes_poll_voter_idx').on(t.pollId, t.voterToken),
+    // Conteo por opción.
+    index('poll_votes_option_idx').on(t.optionId),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -580,3 +696,11 @@ export type ClaimStatus = (typeof claimStatusEnum.enumValues)[number]
 export type PlaceOwnerContent = typeof placeOwnerContent.$inferSelect
 export type NewPlaceOwnerContent = typeof placeOwnerContent.$inferInsert
 export type OwnerPlan = (typeof ownerPlanEnum.enumValues)[number]
+export type UserPlan = (typeof userPlanEnum.enumValues)[number]
+export type Poll = typeof polls.$inferSelect
+export type NewPoll = typeof polls.$inferInsert
+export type PollOption = typeof pollOptions.$inferSelect
+export type NewPollOption = typeof pollOptions.$inferInsert
+export type PollVote = typeof pollVotes.$inferSelect
+export type NewPollVote = typeof pollVotes.$inferInsert
+export type PollStatus = (typeof pollStatusEnum.enumValues)[number]

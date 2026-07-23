@@ -23,9 +23,7 @@ _(ninguno — todos los specs de v1 están cerrados; el próximo sale del BACKLO
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Resumen |
-|------|---------|
-| [VOTACION](planned/VOTACION.md) | Spec 6 — votación en grupo (el loop viral): creador con cuenta arma shortlist de 2-5 lugares, votantes sin cuenta (cookie por dispositivo), resultados en vivo, cierre/desempate del creador, expiración lazy a 72 h. Free = 1 activa; premium (ilimitadas · IA shortlist · historial) modelado y gateado, encendido en spec 7. 3 fases. Sin código todavía |
+_(ninguno)_
 
 ## ⚫ Done (`done/`)
 
@@ -36,3 +34,4 @@ _(ninguno — todos los specs de v1 están cerrados; el próximo sale del BACKLO
 | [BUSQUEDA](done/BUSQUEDA.md) | Spec 3 — home/búsqueda en 3 fases (motor+lista · selectores · chips+mapa). [Resumen](../archive/SPECS_ARCHIVO.md#busqueda) · ✅ 2026-07-20 |
 | [FICHA](done/FICHA.md) | Spec 4 — `/lugar/[id]` en 3 fases; primer uso de Google en vivo (matching IDs-Only $0, Details Enterprise, 1 foto, cero caché). [Resumen](../archive/SPECS_ARCHIVO.md#ficha) · ✅ 2026-07-20 |
 | [AUTH](done/AUTH.md) | Spec 5 — auth (better-auth), reclamo/alta con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser. 4 fases. [Resumen](../archive/SPECS_ARCHIVO.md#auth) · ✅ 2026-07-22 |
+| [VOTACION](done/VOTACION.md) | Spec 6 — votación en grupo (el loop viral): shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado. 3 fases. [Resumen](../archive/SPECS_ARCHIVO.md#votacion) · ✅ 2026-07-22 |

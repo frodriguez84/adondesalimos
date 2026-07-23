@@ -858,7 +858,7 @@ sesión siguiente._
 
 ### 🏁 Sesión de specs 4 — cerrada (2026-07-22) · SPEC 6 VOTACION ESCRITO
 
-Sesión de autoría manual (Fable). Una sola entrega: **`docs/specs/planned/VOTACION.md`** — la
+Sesión de autoría manual (Fable). Una sola entrega: **`docs/specs/done/VOTACION.md`** (era `planned/` al escribirse; implementado y movido a `done/` el 2026-07-22) — la
 votación en grupo, el "loop viral". Nada implementado. Base: § "Feature: votación en grupo" +
 § planes (ya decididos) + el patrón real de AUTH (sesión inline, rate limit propio, gate por
 plan server-side). Lo que se decidió nuevo — cerró las preguntas abiertas que traía la feature:

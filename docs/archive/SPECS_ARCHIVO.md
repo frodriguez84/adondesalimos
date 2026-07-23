@@ -265,3 +265,55 @@ todo eso con prioridad dueño → Overture/Google. Es la pata B2B: habilita spec
 **Deferrals aceptados (a BACKLOG, no bugs):** UI del botón de Google OAuth (F1, la config lo
 soporta) · fotos no se ocultan al revocar (F3, gatearlas tocaría la prioridad de FICHA) ·
 filtro "Abierto ahora" en búsqueda (F4 empieza a acumular la masa de horarios que lo destraba).
+
+---
+
+## Votación en grupo {#votacion}
+
+**Spec:** [`docs/specs/done/VOTACION.md`](../specs/done/VOTACION.md) · ✅ Implementado (2026-07-22)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — VOTACION* — APROBADO, 15 criterios PASS (VOT-01..15 + NOEXPO)
+
+**Qué hace:** el **loop viral** del producto. Un usuario con cuenta arma una shortlist de 2-5
+lugares publicados (reusando la búsqueda) y obtiene un link compartible; cualquiera vota **sin
+registrarse** (identidad = cookie por dispositivo, no la IP); resultados en vivo; el creador
+cierra y elige el ganador. Free = 1 votación activa; el tramo premium queda modelado y gateado
+pero apagado (lo enciende el spec 7).
+
+**Alcance implementado (3 fases):**
+
+- **Schema** (`lib/db/schema.ts`): `polls` · `poll_options` · `poll_votes` + `users.plan`
+  (`user_plan` enum `free`/`premium`) + `poll_status` enum. Índices únicos: `polls.token`,
+  `poll_votes (poll_id, voter_token)`, `poll_options (poll_id, place_id)`. Migración
+  `drizzle/0007_broad_sharon_carter.sql` (aditiva).
+- **Dominio** (`lib/votaciones/`): `acciones.ts` (`crearVotacion` con gate "1 activa" +
+  `FOR UPDATE` del usuario · `votar` upsert · `cerrarVotacion`/`cancelarVotacion` solo creador) ·
+  `query.ts` (`getVotacionPublica` con expiración lazy · `getResultados` · `misVotaciones`
+  gateada por plan) · `estado.ts` (helpers puros: `estaActiva`/`estaExpirada`/`estadoVisible`) ·
+  `planes.ts` (`esPremium`) · `token.ts` · `validacion.ts` · `constantes.ts`.
+- **API**: `POST /api/votaciones` (crear) · `POST /api/votaciones/[token]/voto` (votar, setea
+  cookie `voter_id`) · `GET /api/votaciones/[token]` (resultados en vivo) · `PATCH` (cerrar/
+  cancelar). Envelope `{ data, error }` + `STATUS_POR_CODIGO`, patrón de `claims`.
+- **Rutas** (`app/`): `votacion/nueva` (picker con búsqueda embebida) · `votacion/[token]`
+  (pública, server-render sin Google, OG estático, conteo en vivo por polling) ·
+  `mis-votaciones` (panel del creador). Entrada "Armar votación"/"Mis votaciones" en el menú.
+- **Rate limit** (`lib/middleware/rate-limit.ts`): `checkVotacionesRateLimit` (3/día/IP, cupo
+  propio) · `checkVotoRateLimit` (20/min/IP).
+- **Tests**: 50 nuevos en `lib/votaciones/__tests__/` (2 puros + 3 de integración contra la base).
+
+**Lo que hay que saber para el próximo spec (7 — MercadoPago):**
+
+- **`users.plan` es el flag premium del usuario** (espejo B2C de `owner_plan`). Se consulta
+  server-side con `esPremium`, **nunca viaja en la sesión** (no se usó `additionalFields` de
+  better-auth): así bajar el plan es inmediato. El spec 7 lo automatiza con MercadoPago; hoy es
+  un `UPDATE` a mano. Puede migrar a `user_subscriptions` si el cobro pide datos de suscripción.
+- **El tramo premium está construido y apagado**: gate "1 activa" saltea premium, historial de
+  `/mis-votaciones` gateado en la query, botón "IA arma shortlist" visible solo a premium con
+  `onClick` no-op. Encenderlo = permitir cambiar `users.plan` (spec 7) + construir la IA (spec 8).
+- **La cookie `voter_id` es httpOnly y se crea en el primer voto** (no en el render): un Server
+  Component no puede escribir cookies y no hay `middleware.ts`. Divergencia menor de la decisión
+  7 ("al abrir el link se setea"), funcionalmente idéntica para el dedupe. Ver LECCIONES.
+- **Expiración lazy, sin cron**: "activa" = `status='open' AND expires_at > now()`; al leer una
+  vencida se persiste `status='closed'` best-effort. Una expirada no bloquea el gate "1 activa".
+- **`poll_options.place_id` y `polls.winner_place_id` NO cascadean** al borrar un place (a
+  propósito: un lugar no se borra por debajo de una votación). En tests, borrar el usuario
+  primero (cascade de polls) antes que los places.

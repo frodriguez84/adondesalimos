@@ -582,3 +582,36 @@ prioridad dueño → Google) se verificaron con Playwright sobre ngrok esta mism
 | AUTH-QA-10 | Sesión inline con `getSession` en handlers nuevos; `/admin` rechaza no-admin | ✅ PASS | Reconciliado de F2: § AUTH F2 AUTH-14 + AUTH-12 |
 | AUTH-QA-11 | Reclamo end-to-end + `publish_override` + mail | ✅ PASS | Reconciliado de F2: § AUTH F2 AUTH-02 + AUTH-03 |
 | AUTH-QA-12 | "Registrá tu negocio" busca catálogo completo antes del alta | ✅ PASS | Reconciliado de F2: § AUTH F2 AUTH-04 + AUTH-05 |
+
+---
+
+## QA /qa-spec — VOTACION (spec completo, 3 fases) (2026-07-22)
+
+**Veredicto:** APROBADO — todos los criterios del DoD PASS (código + verificación en vivo) y gate técnico verde.
+
+**Verificación técnica:** typecheck ✅ · tests ✅ 381/381 (50 nuevos de `lib/votaciones`) · build ✅ (dev server parado).
+
+**Método:** tres checkers independientes (Explore/haiku, read-only, maker≠checker), uno por fase,
+contra el DoD y los 15 IDs propuestos en `docs/specs/done/VOTACION.md`. Los criterios de
+**rendering / cookie** (VOT-05, VOT-08, VOT-09, VOT-13) se verificaron en vivo con Playwright sobre
+`https://adondesalimos.ngrok.app` esta misma sesión (votación sembrada con 3 lugares publicados
+reales); los de lógica de dominio, con tests de integración contra la base + lectura de código.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| VOT-01 | Crear votación feliz: 2-5 lugares publicados → link con token no adivinable que abre la página pública | ✅ PASS | `app/api/votaciones/route.ts` (POST) · `lib/votaciones/token.ts` (16 bytes `crypto` base64url, separado del id) · `acciones.ts` valida `publishedWhere`. Live: la página abre con las 3 opciones (PlaceCard) |
+| VOT-02 | Límites de shortlist: 1 o 6 lugares rechazado server-side | ✅ PASS | `lib/votaciones/validacion.ts` `crearVotacionSchema` dedup (`new Set`) + refine min 2/max 5 · test `validacion.test.ts` |
+| VOT-03 | Gate "1 activa" (free) server-side, con lock de la fila del usuario (anti-carrera) | ✅ PASS | `acciones.ts` `crearVotacion`: `users … .for('update')`, cuenta `status='open' AND expires_at > now()` → `LIMITE_ACTIVA` 409 · test `votaciones.integration.test.ts` |
+| VOT-04 | Premium ilimitado (`users.plan='premium'`) crea varias activas | ✅ PASS | `schema.ts` `userPlanEnum` + `users.plan` · `planes.ts` `esPremium` · gate saltea premium · test integración |
+| VOT-05 | Voto anónimo sin cuenta; el conteo sube en vivo | ✅ PASS | POST voto sin sesión + upsert (`acciones.ts` `votar`). **Live**: voté sin sesión, 0→1 voto, botón pasó a "Tu voto", total actualizó |
+| VOT-06 | Revotar cambia la elección sin sumar (restricción `(poll_id, voter_token)`) | ✅ PASS | `onConflictDoUpdate` sobre índice único · test `voto.integration.test.ts` (A→B: total sigue 1) |
+| VOT-07 | La IP no es la identidad: dos cookies distintas = 2 votos | ✅ PASS | El voto se ancla al `voterToken` (cookie), no a la IP; la IP solo rate-limit · test integración (`device-A`/`device-B` = 2) |
+| VOT-08 | Cookie `voter_id` httpOnly, SameSite=Lax, larga duración | ✅ PASS | `voto/route.ts` `cookies().set(…, { httpOnly, sameSite:'lax', maxAge })`. **Live**: `document.cookie` vacío tras votar (confirma httpOnly) |
+| VOT-09 | Expiración lazy sin cron; solo-lectura, nunca 404 salvo token inexistente | ✅ PASS | `query.ts` `getVotacionPublica` persiste cierre best-effort; `page.tsx` `notFound()` solo si null. **Live**: expiré `expires_at`, recargué → banner "ya cerró", sin botones, `status` persistió `closed` |
+| VOT-10 | Cierre: solo el creador, elige ganador (≠ más votado posible), queda `winner_place_id`; idempotente | ✅ PASS | `acciones.ts` `cerrarVotacion` valida `creator_id` + ganador∈opciones, idempotente (no re-elige ni pisa `closed_at`) · test `cierre.integration.test.ts` |
+| VOT-11 | Solo el creador cierra/cancela: no-creador → 403 | ✅ PASS | PATCH con sesión inline; `cargarPropia` verifica `creator_id` → `NO_AUTORIZADO` (mapa 403) · test integración |
+| VOT-12 | Cancelar libera el cupo "1 activa" al instante; link cancelado en solo-lectura, sin borrar fila | ✅ PASS | `cancelarVotacion` → `status='cancelled'` (UPDATE, no DELETE); el gate solo cuenta `open` · test integración (crea otra tras cancelar) |
+| VOT-13 | `/votacion/[token]` sin llamadas a Google/IA; OG de datos propios | ✅ PASS | Sin imports de `lib/google`; `generateMetadata` arma OG con título+nombres. **Live**: panel de red = solo `/api/votaciones/*`, cero Google |
+| VOT-14 | Rate limit: crear 3/día/IP · voto 20/min/IP, cupos propios (no comparten bucket) | ✅ PASS | `rate-limit.ts` `checkVotacionesRateLimit` (prefijo `votaciones`, `CLAIMS_MAX`) y `checkVotoRateLimit` (prefijo `voto`, 20/min) |
+| VOT-15 | Premium modelado y gateado pero apagado: free no ve botón IA ni historial; premium ve el botón pero no llama a IA | ✅ PASS | Botón IA bajo `{esPremium && …}` con `onClick` no-op (`nueva-client.tsx`); historial gateado en la query `misVotaciones(userId, incluirHistorial)` server-side |
+| VOT-NOEXPO | Ningún endpoint expone `voter_token`; resultados = conteo agregado por opción | ✅ PASS | `query.ts` conteo por `GROUP BY option_id`; tipos `OpcionPublica`/`ResultadosEnVivo` sin `voterToken` · test "no expone el voter_token" |

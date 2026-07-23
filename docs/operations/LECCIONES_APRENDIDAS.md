@@ -299,3 +299,27 @@ el caso que más fácil sale mal y por eso `estaAbierto` es una función pura co
 tests** (lunes 23:00, martes 01:30, martes 03:00, salto domingo→lunes), no lógica adentro de un
 componente. (2) La zona horaria se fija explícita (`America/Argentina/Buenos_Aires` vía `Intl`),
 nunca el reloj de quien mira: un turista en otra TZ tiene que ver el mismo estado que un local.
+
+---
+
+## Una cookie httpOnly no se puede setear en el render de un Server Component (2026-07-22 · VOTACION)
+
+**Qué pasó (decisión de diseño, no un bug).** La decisión 7 del spec dice "al abrir el link se
+setea la cookie `voter_id` (httpOnly)". La forma literal —crearla en el render de
+`app/votacion/[token]/page.tsx`— **no es posible**: un React Server Component no puede escribir
+cookies (solo leerlas), y el proyecto no tiene `middleware.ts` (AUTH decisión 9), que sería el
+otro lugar donde setearla al entrar. Y como es `httpOnly`, el cliente tampoco puede crearla.
+
+**Qué se hizo.** La cookie se crea en el **primer voto** (el `POST` del route handler, que sí
+puede escribir cookies). Antes de votar el dispositivo no tiene identidad, y no la necesita: el
+anti-doble-voto se ancla a la cookie que nace justo cuando hay un voto que deduplicar. Al reabrir
+el link, la cookie ya existe y se lee server-side para marcar la opción votada. Funcionalmente
+idéntico a "setearla al abrir", sin sumar middleware por esto. La divergencia quedó anotada en el
+código (`voto/route.ts`) y en SPECS_ARCHIVO.
+
+**La regla para el próximo (spec 7 y cualquier feature con identidad anónima o cookie funcional).**
+Si una cookie tiene que ser `httpOnly`, el único lugar que la puede crear es un **Route Handler o
+Server Action** (o `middleware.ts` si existe) — nunca el render de una página. Antes de escribir
+"al entrar se setea la cookie X" en un spec, verificar que haya un boundary de escritura en ese
+momento; si el único evento server es un `POST` posterior, la identidad se crea ahí y el spec debe
+decirlo. Setear la cookie "al abrir" **exige** middleware, y sumarlo es una decisión aparte.

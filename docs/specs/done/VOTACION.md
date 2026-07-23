@@ -1,6 +1,6 @@
 # Spec: Votación en grupo ("¿a dónde salimos?")
 
-**Estado:** 🔵 Planned — en diseño
+**Estado:** ✅ Implementado (2026-07-22) — 3 fases cerradas (F1 crear+shortlist+gate · F2 votar anónimo+resultados en vivo · F3 cierre+desempate+panel). QA APROBADO (VOT-01..15), ver `docs/qa/AnalisisQA.md`. Gate técnico verde: typecheck · 381 tests · build
 **Prioridad:** Alta — es el **loop viral** del producto: cada link compartido lleva la app a un grupo nuevo sin costo de adquisición. Es la única feature de v1 que trae usuarios en vez de solo servirlos
 **Gate:** Ninguno para el free (1 votación activa). El tramo premium (ilimitadas · IA arma shortlist · historial) queda **modelado pero apagado** hasta el spec 7 (MercadoPago)
 **Bloquea:** nada

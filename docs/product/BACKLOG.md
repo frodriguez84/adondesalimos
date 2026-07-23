@@ -19,8 +19,8 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/done/FICHA.md`. **Las 3 fases cerradas ✅ 2026-07-20** (F1 ficha propia · F2 Google en vivo · F3 foto/atribución). [Resumen](../archive/SPECS_ARCHIVO.md#ficha)
 - [x] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/done/AUTH.md`. **Las 4 fases cerradas ✅ 2026-07-22** (F1 auth base · F2 reclamo + alta + cola · F3 panel + contenido · F4 horarios propios). [Resumen](../archive/SPECS_ARCHIVO.md#auth)
   - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea. **Único DoD de AUTH sin cerrar** (deferral aceptado, ver spec § DoD)
-- [ ] **Votación en grupo**
-- [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan
+- [x] **Votación en grupo** — el loop viral: shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado → spec: `docs/specs/done/VOTACION.md`. **Las 3 fases cerradas ✅ 2026-07-22** (F1 crear+gate · F2 votar+vivo · F3 cierre+panel). [Resumen](../archive/SPECS_ARCHIVO.md#votacion)
+- [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH
 
 ## Mejoras futuras (fuera de v1)
 
@@ -259,6 +259,19 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 6 — VOTACION · las 3 fases + cierre del spec** (2026-07-22): votación en grupo, el
+      loop viral. **F1** schema (`polls`/`poll_options`/`poll_votes` + `users.plan`), gate "1
+      activa" server-side con `FOR UPDATE` del usuario, token aleatorio, `/votacion/nueva` con
+      búsqueda embebida, rate limit propio. **F2** `/votacion/[token]` pública (server-render sin
+      Google, OG estático), voto anónimo por cookie `voter_id` httpOnly (identidad por
+      dispositivo, no IP), upsert `(poll_id, voter_token)`, conteo en vivo por polling,
+      expiración lazy sin cron. **F3** `PATCH` cerrar (elegir ganador)/cancelar solo del creador,
+      `/mis-votaciones` (free = activa · premium = historial, gate en la query), botón "IA arma
+      shortlist" gateado y no-op. QA de cierre: typecheck + **381 tests** (50 nuevos) +
+      `/qa-spec` **APROBADO** (VOT-01..15, 3 checkers independientes) + QA en vivo con Playwright
+      (voto/conteo/sin-Google/solo-lectura) + `next build` verde (server parado). Premium modelado
+      y **apagado** (lo enciende el spec 7). Spec movido a `done/`.
+      [Resumen](../archive/SPECS_ARCHIVO.md#votacion)
 - [x] **Spec 5 — AUTH · las 4 fases + cierre del spec** (F1 2026-07-20 · F2/F3 2026-07-21 · F4
       2026-07-22): auth con better-auth y reclamo de negocio. **F1** auth base (email+password,
       `requireEmailVerification: true`, Resend, `/cuenta`, rate limit, sin columna `role`).
