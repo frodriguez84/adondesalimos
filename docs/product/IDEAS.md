@@ -673,11 +673,14 @@ componentes y flujos. Fer lo señaló al cerrar el volcado. **Dónde vive ese tr
 ### Reuso desde StressPlan (código/lógica para robar)
 
 - ✅ Integración MercadoPago **suscripciones — YA FUNCIONA en StressPlan** (billing
-  checkout/cancel, webhook, sync admin): el spec 7 la reutiliza, no la reinventa. Dos cosas a
-  confirmar al escribir el spec 7 (2026-07-22): **(a)** si las suscripciones usan **bricks o
-  checkout** (Fer no lo recuerda — verificar en el código de StressPlan antes de decidir), y
-  **(b)** hará falta **crear usuarios vendedor y comprador de prueba** (sandbox de MP) para el
-  QA del cobro.
+  checkout/cancel, webhook, sync admin): el spec 7 la reutiliza, no la reinventa. Las dos
+  cosas a confirmar quedaron **✅ RESUELTAS al escribir el spec 7 (2026-07-24, verificado en
+  el código de StressPlan)**: **(a)** las suscripciones usan **Checkout Bricks (Card Payment
+  Brick embebido) + `POST /preapproval`** — el redirect de Checkout Pro es solo del flujo à
+  la carte, que acá no existe; **(b)** **sí hacen falta usuarios vendedor y comprador de
+  prueba** (sandbox de MP) para el QA del cobro — pagar siempre con el comprador test, nunca
+  con la cuenta vendedor (lecciones MP de StressPlan). Detalle en
+  `docs/specs/planned/MONETIZACION.md` § Incógnitas resueltas.
 - ✅ Prompt + chat behavior del chat IA — **StressPlan tiene una buena base** de comportamiento
   del chat y prompt; el spec del chat IA (candidato a spec 8) parte de ahí, no de cero.
 - ✅ Email verificado obligatorio + rate limit por IP/dispositivo.
@@ -865,8 +868,44 @@ precio fijo se licúa con la inflación en meses.
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de specs 4 (2026-07-22). Esta sección es lo primero que lee la
+_Actualizado en la sesión de specs 5 (2026-07-24). Esta sección es lo primero que lee la
 sesión siguiente._
+
+### 🏁 Sesión de specs 5 — cerrada (2026-07-24) · SPEC 7 MONETIZACION ESCRITO
+
+Sesión de autoría manual (Fable). Una sola entrega: **`docs/specs/planned/MONETIZACION.md`**
+— el cobro con MercadoPago que enciende `users.plan` (B2C) y `owner_plan` (B2B, por lugar),
+más destaque, desglose de estadísticas y precio en DB. Nada implementado. Base: § Monetización
+(precios y planes ya decididos, no se reabrieron) + specs 5-6 (gating existente) + el código
+MP real de StressPlan (explorado en esta sesión, no de memoria). Lo que se decidió nuevo:
+
+- ✅ **Incógnitas (a) y (b) resueltas** — ver § Reuso desde StressPlan (Bricks + preapproval;
+  sí a los usuarios de prueba).
+- ✅ **Preapproval SIN plan pre-creado en MP** (divergencia consciente con StressPlan): el
+  monto sale de `app_settings` al crear cada suscripción — una sola fuente de verdad del
+  precio, sin el problema de 3 capas que StressPlan documenta en `PRICING_GRID.md`. Fallback
+  anotado si el sandbox lo rechaza.
+- ✅ **Webhook solo firmado** (HMAC `x-signature`, 401 sin firma; la rama IPN legacy de
+  StressPlan no se porta) + **idempotencia en 3 capas** (GET defensivo · guard UNIQUE por
+  `authorized_payment_id` registrado solo-al-aprobar · `FOR UPDATE`) + **reconciliación lazy
+  obligatoria** — los webhooks de MP demostraron no ser confiables (BUG-020 de StressPlan).
+- ✅ **Estados `active`/`past_due`/`canceled`**: pago fallido conserva el acceso mientras MP
+  reintenta; baja a free solo con `paused`/`cancelled` o vencimiento + 3 días de gracia.
+  **Cancelación diferida simulada** (MP cancela ya, el acceso dura hasta fin de período).
+- ✅ **Bajar de plan = mover el flag y nada más** (ocultar ≠ borrar ya regía en los dos ejes);
+  re-suscribir reactiva todo tal cual estaba.
+- ✅ **Rotación del destaque: menor-mostrado-primero** con contador `featured_impressions`
+  por día — auto-balancea y es auditable: el mismo contador que decide alimenta la
+  transparencia del panel ("destacada en X de las Y búsquedas").
+- ✅ **Precio en DB con historial** (`app_settings_history`) y **monto congelado por
+  suscripción** (`amount_ars` en la fila). Cambiar el precio afecta solo altas nuevas; subir
+  a suscriptos existentes quedó explícitamente v2 (MP no tiene camino confirmado).
+- ✅ **La instrumentación del desglose (taps + qué filtros te encontraron) va en la FASE 1**,
+  antes que el cobro: ese histórico no se reconstruye y es el argumento de venta.
+- ⏭️ **Próximo paso**: implementar MONETIZACION (sesión Opus, 4 fases: instrumentación+precios
+  · cobro MP · destaque · desglose). Gate operativo previo al QA de F2: crear la app en MP
+  (credenciales + webhook en el panel) y los usuarios de prueba vendedor/comprador. Después:
+  spec 8 (Chat IA, se financia con esto).
 
 ### 🏁 Sesión de specs 4 — cerrada (2026-07-22) · SPEC 6 VOTACION ESCRITO
 

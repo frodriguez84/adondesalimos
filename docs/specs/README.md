@@ -23,7 +23,9 @@ _(ninguno — todos los specs de v1 están cerrados; el próximo sale del BACKLO
 
 ## 🔵 Planned (`planned/`)
 
-_(ninguno)_
+| Spec | Resumen |
+|------|---------|
+| [MONETIZACION](planned/MONETIZACION.md) | Spec 7 — MercadoPago: suscripción B2B por lugar (destaque + desglose de stats) y premium B2C; enciende `users.plan` y `owner_plan`. 🔵 En diseño |
 
 ## ⚫ Done (`done/`)
 
