@@ -348,6 +348,21 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 7 MONETIZACION — F1 (Instrumentación + precios)** (2026-07-24): la primera fase,
+      antes que el cobro, porque instrumenta histórico que no se reconstruye. **Migración completa**
+      del § Modelo de una (criterio AUTH F3): `subscriptions` + `subscription_payments` (nacen sin
+      uso, se llenan en F2), `place_taps_daily`, `place_tag_impressions_daily`, `featured_impressions`
+      en `place_impressions_daily`, `app_settings_history` (`drizzle/0008`). **Taps**: `<TapLink>`
+      (beacon `sendBeacon`, best-effort) en los 7 anchors de la ficha → `POST /api/lugar/[id]/tap`
+      (rate limit 60/h) → upsert agregado por `(place, día, kind)`. **Tags por búsqueda**:
+      `registrarTagsDeBusqueda` en el mismo `after()` del batch de impresiones (search route + home);
+      el texto libre y la zona no se registran. **Instrumentación agregada pura** — sin user_id,
+      cookie ni IP (test de columnas en las dos tablas). **Precios en DB**: `lib/billing/settings.ts`
+      (getters runtime + `editarPrecio` transaccional con historial), `PATCH /api/admin/settings`
+      (gate `ADMIN_EMAIL`), sección Precios editable + historial en `/admin`; seed idempotente
+      `billing.precio_b2b_ars=15000` / `billing.precio_b2c_ars=7000`. `.env.example` con las 3 env
+      de MP. QA de cierre: typecheck + **393 tests** + build verde (server parado), QA MONE-13/14/16
+      + migración/seed/env en `docs/qa/AnalisisQA.md`. Pendiente: F2 cobro · F3 destaque · F4 desglose
 - [x] **Mini-spec HOME_IDENTIDAD — home + identidad** (2026-07-23): se aplicó la identidad real y
       se le dio onda al home para que un link compartido no parezca a medio hacer. **Paleta** por
       tokens (`globals.css`): naranja `#FF8A00` (reemplaza el ámbar), fondo azulado `#0D0D1F`,

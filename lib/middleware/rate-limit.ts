@@ -53,6 +53,15 @@ const FOTOS_WINDOW_MS = 60 * 60_000
 const VOTO_MAX = 20
 const VOTO_WINDOW_MS = 60_000
 
+/**
+ * Beacon de taps de la ficha (MONETIZACION, decisión 29): 60 por hora por IP.
+ * Generoso —una ficha muy activa dispara varios taps— pero corta el inflado
+ * burdo de las stats. El dato es para el dueño, no facturable por tap, así que el
+ * inflado fino no se persigue (edge case del spec).
+ */
+const TAP_MAX = 60
+const TAP_WINDOW_MS = 60 * 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -225,4 +234,13 @@ export function checkVotoRateLimit(request: Request): Response | null {
     VOTO_WINDOW_MS,
     'Pará un poco con los votos. Probá de nuevo en un minuto.',
   )
+}
+
+/**
+ * Rate limit del beacon de taps `POST /api/lugar/[id]/tap` (MONETIZACION,
+ * decisión 29): 60 por hora por IP. Cupo propio: tocar acciones de una ficha no
+ * gasta el de búsqueda ni el de abrir el bloque de Google.
+ */
+export function checkTapRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(request, 'tap', TAP_MAX, TAP_WINDOW_MS)
 }

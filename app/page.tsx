@@ -9,7 +9,7 @@ import { RotatingHeadline } from '@/components/shared/rotating-headline'
 import { SearchShell } from '@/components/search/search-shell'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
 import { getOccasionChips } from '@/lib/search/chips'
-import { registrarImpresiones } from '@/lib/search/impressions'
+import { registrarImpresiones, registrarTagsDeBusqueda } from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda, type RawParams } from '@/lib/search/params'
 import { searchPlaces } from '@/lib/search/query'
 
@@ -49,7 +49,11 @@ export default async function Home({
   // pantalla: la respuesta sale y la escritura ocurre después. Solo los lugares
   // de esta página — los que el usuario efectivamente vio.
   if (resultado && resultado.places.length > 0) {
-    after(() => registrarImpresiones(resultado.places.map((p) => p.id)))
+    const ids = resultado.places.map((p) => p.id)
+    after(() => registrarImpresiones(ids))
+    // Decisión 22b: "qué filtros te encontraron". +1 por tag activo (incluidos
+    // los expandidos por chips) para cada lugar servido, en el mismo after().
+    after(() => registrarTagsDeBusqueda(ids, params.tags))
   }
 
   return (

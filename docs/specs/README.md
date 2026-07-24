@@ -19,13 +19,13 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-_(ninguno — todos los specs de v1 están cerrados; el próximo sale del BACKLOG o de un spec nuevo)_
+| Spec | Resumen |
+|------|---------|
+| [MONETIZACION](active/MONETIZACION.md) | Spec 7 — MercadoPago (4 fases): suscripción B2B por lugar (destaque + desglose) y premium B2C; enciende `users.plan` y `owner_plan`. **F1 (instrumentación + precios) ✅ 2026-07-24**; F2 cobro · F3 destaque · F4 desglose pendientes |
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Resumen |
-|------|---------|
-| [MONETIZACION](planned/MONETIZACION.md) | Spec 7 — MercadoPago: suscripción B2B por lugar (destaque + desglose de stats) y premium B2C; enciende `users.plan` y `owner_plan`. 🔵 En diseño |
+_(ninguno con código pendiente además de MONETIZACION, que ya está en curso)_
 
 ## ⚫ Done (`done/`)
 

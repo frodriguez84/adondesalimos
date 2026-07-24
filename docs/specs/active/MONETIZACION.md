@@ -1,6 +1,6 @@
 # Spec: Monetización (MercadoPago)
 
-**Estado:** 🔵 Planned — en diseño (autoría 2026-07-24)
+**Estado:** 🟢 Parcial — F1 (Instrumentación + precios) ✅ Implementado (2026-07-24); F2 (cobro MP) · F3 (destaque) · F4 (desglose) pendientes. QA: `docs/qa/AnalisisQA.md` § MONETIZACION F1
 **Prioridad:** Alta — spec 7: es el modelo de negocio entero. Enciende el premium B2C que VOTACION dejó modelado y apagado, y el plan pago B2B que AUTH dejó gateado a mano. Sin esto, `users.plan` y `owner_plan` se cambian con UPDATE y no entra un peso
 **Gate:** Ninguno técnico. Operativo: crear la aplicación en MercadoPago (credenciales + webhook en el panel) y los usuarios de prueba del sandbox antes del QA de cobro
 **Bloquea:** spec 8 (Chat IA — decidido que va después de que la monetización exista para solventar el costo de la API)
@@ -210,7 +210,7 @@ sync manual, columnas `stripe_*`, `billing_provider`, plan IDs por env, rama IPN
 
 | Fase | Alcance | Verificable con |
 |------|---------|-----------------|
-| **1 — Instrumentación + precios** | Migración completa (todas las tablas/columnas de § Modelo) · taps con beacon en la ficha · tags por búsqueda en el `after()` · seed de precios · `/admin` Precios con historial | Tocar "cómo llegar" suma en `place_taps_daily`; una búsqueda filtrada suma en `place_tag_impressions_daily`; editar el precio en `/admin` queda en el historial y rige sin deploy |
+| **1 — Instrumentación + precios** ✅ | Migración completa (todas las tablas/columnas de § Modelo) · taps con beacon en la ficha · tags por búsqueda en el `after()` · seed de precios · `/admin` Precios con historial | Tocar "cómo llegar" suma en `place_taps_daily`; una búsqueda filtrada suma en `place_tag_impressions_daily`; editar el precio en `/admin` queda en el historial y rige sin deploy — **implementada 2026-07-24** (`drizzle/0008`, `lib/billing/settings.ts`, `lib/search/impressions.ts`, `components/lugar/tap-link.tsx`, `app/api/lugar/[id]/tap`, `app/api/admin/settings`, `app/admin/precios-client.tsx`) |
 | **2 — Cobro (MP)** | `lib/billing/*` portado · checkout Bricks · `POST checkout`/`cancel` · webhook firmado · renovación idempotente · lazy check · tabs de suscripción en `/cuenta` y `/mi-negocio/[placeId]` · sync de flags · hooks de revocación/borrado · `/admin` Suscripciones | Sandbox end-to-end: comprador test paga B2C ⇒ `users.plan='premium'` al toque y los gates de VOTACION abren; paga B2B de un lugar ⇒ campos pagos editables en ese lugar y **no** en otro del mismo dueño; cancelar mantiene acceso hasta fin de período |
 | **3 — Destaque** | `buscarDestacados` (candidatos + rotación + contador) · bloque en la primera página con badge · dedupe · `featured_impressions` | Dos lugares pagos que matchean la misma búsqueda alternan el orden del bloque entre búsquedas; el orgánico de abajo no cambia; el badge se ve; bajar un plan lo saca al instante |
 | **4 — Desglose** | Sección de estadísticas paga en el panel (vistas · impresiones · taps · top filtros · vs mes anterior · destacada X de Y) gateada server-side | Un lugar `paid` ve el desglose con los datos acumulados desde F1; volver a `free` lo devuelve al teaser exacto de AUTH |
@@ -245,15 +245,15 @@ sync manual, columnas `stripe_*`, `billing_provider`, plan IDs por env, rama IPN
 
 ## Criterios de done (DoD)
 
-- [ ] Migración aditiva verde: `subscriptions`, `subscription_payments`, `place_taps_daily`,
+- [x] Migración aditiva verde: `subscriptions`, `subscription_payments`, `place_taps_daily`,
       `place_tag_impressions_daily`, `featured_impressions`, `app_settings_history`, seed de
-      precios idempotente
-- [ ] Instrumentación: tocar teléfono / cómo llegar / redes / website / carta en la ficha suma
+      precios idempotente — **F1** (`drizzle/0008_short_talisman.sql`)
+- [x] Instrumentación: tocar teléfono / cómo llegar / redes / website / carta en la ficha suma
       en `place_taps_daily`; una búsqueda con tags activos suma en `place_tag_impressions_daily`
-      para los lugares servidos; **ninguna de las dos guarda user_id, cookie ni IP** (test)
-- [ ] Precio editable desde `/admin` sin deploy; el cambio queda en `app_settings_history` con
+      para los lugares servidos; **ninguna de las dos guarda user_id, cookie ni IP** (test) — **F1**
+- [x] Precio editable desde `/admin` sin deploy; el cambio queda en `app_settings_history` con
       quién y cuándo; el checkout siguiente usa el precio nuevo y las suscripciones existentes
-      conservan su `amount_ars`
+      conservan su `amount_ars` — **F1** (`amount_ars` congelado se prueba en F2, cuando haya subs)
 - [ ] Checkout B2C en sandbox end-to-end: comprador test paga con el brick ⇒ 201 con
       `users.plan='premium'` inmediato ⇒ crear 2ª votación activa funciona y el historial
       aparece (gates de VOTACION abren sin tocar sus helpers)

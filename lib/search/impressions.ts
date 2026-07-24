@@ -1,6 +1,12 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { placeImpressionsDaily } from '@/lib/db/schema'
+import {
+  placeImpressionsDaily,
+  placeTagImpressionsDaily,
+  placeTapsDaily,
+  tags,
+} from '@/lib/db/schema'
+import type { TapKind } from '@/lib/lugar/tap-kinds'
 
 /**
  * Impresiones agregadas por lugar y día (decisión 22).
@@ -83,5 +89,93 @@ export async function registrarDetailView(placeId: string): Promise<void> {
       })
   } catch (error) {
     console.error('[detail-view]', error)
+  }
+}
+
+/**
+ * Suma 1 a un tap de la ficha, en la fila de hoy (MONETIZACION, decisión 22a).
+ *
+ * Mismo criterio agregado que las impresiones: un contador por (lugar, día,
+ * tipo), sin `user_id`, sin cookies, sin IP. Es el "qué tocó la gente en tu
+ * ficha" del desglose B2B (F4), que no se reconstruye a posteriori.
+ *
+ * No tira nunca: el beacon del cliente es best-effort y un tap perdido no puede
+ * tumbar nada — se loguea y sigue.
+ */
+export async function registrarTap(placeId: string, kind: TapKind): Promise<void> {
+  try {
+    await db
+      .insert(placeTapsDaily)
+      .values({
+        placeId,
+        date: sql`current_date` as unknown as string,
+        kind,
+        count: 1,
+      })
+      .onConflictDoUpdate({
+        target: [placeTapsDaily.placeId, placeTapsDaily.date, placeTapsDaily.kind],
+        set: {
+          count: sql`${placeTapsDaily.count} + excluded.count`,
+        },
+      })
+  } catch (error) {
+    console.error('[tap]', error)
+  }
+}
+
+/**
+ * "Qué filtros te encontraron" (MONETIZACION, decisión 22b): por cada lugar
+ * servido, suma 1 en cada tag activo de la búsqueda, en la fila de hoy.
+ *
+ * Los `tagSlugs` son los de `params.tags` — que ya incluyen los expandidos por
+ * chips de Ocasión, porque un chip aplica sus tags a la URL (BUSQUEDA dec. 18).
+ * El texto libre y la zona NO se registran: no llegan acá.
+ *
+ * Se resuelven slugs → ids de tags **activos** (mismo criterio que
+ * `filtrosDeTags`: un slug retirado por curaduría no filtró, así que tampoco
+ * cuenta). Cardinalidad acotada: ~20 lugares × ~3 tags.
+ *
+ * Agregado puro y best-effort igual que `registrarImpresiones`: no tira nunca.
+ */
+export async function registrarTagsDeBusqueda(
+  placeIds: string[],
+  tagSlugs: string[],
+): Promise<void> {
+  if (placeIds.length === 0 || tagSlugs.length === 0) return
+
+  try {
+    const filasTags = await db
+      .select({ id: tags.id })
+      .from(tags)
+      .where(and(inArray(tags.slug, tagSlugs), eq(tags.active, true)))
+    if (filasTags.length === 0) return
+
+    // Un lugar repetido contaría doble en el mismo INSERT y rompería el
+    // ON CONFLICT (mismo motivo que en `registrarImpresiones`).
+    const lugares = [...new Set(placeIds)]
+    const valores = lugares.flatMap((placeId) =>
+      filasTags.map((t) => ({
+        placeId,
+        date: sql`current_date` as unknown as string,
+        tagId: t.id,
+        count: 1,
+      })),
+    )
+
+    await db
+      .insert(placeTagImpressionsDaily)
+      .values(valores)
+      .onConflictDoUpdate({
+        target: [
+          placeTagImpressionsDaily.placeId,
+          placeTagImpressionsDaily.date,
+          placeTagImpressionsDaily.tagId,
+        ],
+        set: {
+          count: sql`${placeTagImpressionsDaily.count} + excluded.count`,
+        },
+      })
+  } catch (error) {
+    console.error('[tag-impresiones]', error)
   }
 }

@@ -19,6 +19,7 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import type { MultiPolygon, Polygon } from 'geojson'
 import type { HorariosSemana } from '@/lib/negocio/horarios'
+import { TAP_KINDS } from '@/lib/lugar/tap-kinds'
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -96,6 +97,26 @@ export const userPlanEnum = pgEnum('user_plan', ['free', 'premium'])
  * perezosa al leer, sin cron.
  */
 export const pollStatusEnum = pgEnum('poll_status', ['open', 'closed', 'cancelled'])
+
+/**
+ * Estado de una suscripción (MONETIZACION, decisión 13). Enum propio, **sin
+ * `trialing`** (no hay trials, decisión "Qué NO es"). El mapeo desde el
+ * preapproval de MP vive en F2 (`authorized→active` · `pending→past_due` ·
+ * `paused`/`cancelled→canceled`); el enum ya nace con la migración de F1.
+ */
+export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'active',
+  'past_due',
+  'canceled',
+])
+
+/**
+ * Las 5 acciones tappables de la ficha que se instrumentan (MONETIZACION,
+ * decisión 22a). El conjunto es `TAP_KINDS`, compartido con el `<TapLink>` del
+ * cliente — una sola fuente para que el enum de la base no driftee del literal
+ * que dispara el beacon.
+ */
+export const tapKindEnum = pgEnum('tap_kind', TAP_KINDS)
 
 // ---------------------------------------------------------------------------
 // Tablas
@@ -343,8 +364,62 @@ export const placeImpressionsDaily = pgTable(
      * Misma tabla que las impresiones: agregado por día, sin datos por usuario.
      */
     detailViews: integer('detail_views').notNull().default(0),
+    /**
+     * Cuántas veces el lugar salió **destacado** en una búsqueda ese día
+     * (MONETIZACION, decisión 20). La escribe el destaque (F3) en el mismo batch
+     * `after()` de las impresiones; nace en 0 y sin backfill (antes del destaque
+     * el valor real es 0). Es el contador que decide la rotación *y* el que
+     * reporta la transparencia del panel ("destacada en X de las Y búsquedas").
+     */
+    featuredImpressions: integer('featured_impressions').notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.placeId, t.date] })],
+)
+
+/**
+ * Taps por lugar, día y tipo de acción (MONETIZACION, decisión 22a). El "qué
+ * hizo la gente en tu ficha" del desglose B2B (F4): tocó el teléfono, pidió cómo
+ * llegar, abrió la carta. No se puede reconstruir después.
+ *
+ * **Agregado puro**: sin `user_id`, sin cookies, sin IP — mismo invariante que
+ * `place_impressions_daily`. Solo un contador por (lugar, día, tipo). El cliente
+ * dispara un beacon best-effort; un tap perdido no rompe nada.
+ */
+export const placeTapsDaily = pgTable(
+  'place_taps_daily',
+  {
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    date: date('date').notNull(),
+    kind: tapKindEnum('kind').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.placeId, t.date, t.kind] })],
+)
+
+/**
+ * "Qué filtros te encontraron" (MONETIZACION, decisión 22b): por cada búsqueda
+ * servida con tags activos, cada lugar mostrado suma +1 en cada uno de esos tags
+ * (incluye los expandidos por chips de Ocasión). El texto libre y la zona no se
+ * registran (cardinalidad + privacidad).
+ *
+ * **Agregado puro**, igual que las impresiones: sin datos por usuario. Cardinalidad
+ * acotada: ~20 lugares × ~3 tags por búsqueda.
+ */
+export const placeTagImpressionsDaily = pgTable(
+  'place_tag_impressions_daily',
+  {
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    date: date('date').notNull(),
+    tagId: integer('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.placeId, t.date, t.tagId] })],
 )
 
 /**
@@ -390,6 +465,24 @@ export const appSettings = pgTable('app_settings', {
   key: text('key').primaryKey(),
   value: jsonb('value').notNull(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+/**
+ * Historial de cambios de `app_settings` (MONETIZACION, decisión 25). Genérico y
+ * barato: una fila por cada edición hecha desde `/admin` (INSERT en el mismo
+ * PATCH). Cubre "¿qué precio regía en marzo?" para cualquier setting, no solo
+ * billing.
+ *
+ * **Lo operativo no depende de esto**: qué paga cada suscripto está congelado en
+ * `subscriptions.amount_ars`; este historial es auditoría, no fuente de verdad.
+ */
+export const appSettingsHistory = pgTable('app_settings_history', {
+  id: serial('id').primaryKey(),
+  key: text('key').notNull(),
+  value: jsonb('value').notNull(),
+  /** Email del admin que hizo el cambio (no hay tabla de roles que referenciar). */
+  changedBy: text('changed_by').notNull(),
+  changedAt: timestamp('changed_at').notNull().defaultNow(),
 })
 
 // ---------------------------------------------------------------------------
@@ -662,6 +755,87 @@ export const pollVotes = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Suscripciones (MercadoPago) — spec MONETIZACION
+// ---------------------------------------------------------------------------
+//
+// Estas dos tablas nacen con la migración de F1 aunque **recién se usan en F2**
+// (el cobro): mismo criterio que AUTH F3, que creó `place_owner_content` entera
+// de una para no encadenar un ALTER después. F1 solo instrumenta y precios; nada
+// escribe acá todavía.
+
+/**
+ * Una fila por suscripción (MONETIZACION, decisión 12). Nombres MP nativos, sin
+ * el alias `stripe_*` legacy ni `billing_provider` (MP es el único proveedor).
+ *
+ * **La suscripción es por lugar, no por cuenta** (decisión 2): `place_id`
+ * nullable — `null` = premium B2C del usuario; con valor = B2B de ESE lugar.
+ * `user_id` (quién paga) siempre. Un usuario puede tener 1 fila B2C + N B2B.
+ *
+ * `amount_ars` queda **congelado al contratar** (decisión 25): cambiar el precio
+ * en `/admin` afecta altas nuevas, no las filas vivas.
+ */
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** `null` = B2C premium; con valor = B2B de ese lugar (decisión 2). */
+    placeId: uuid('place_id').references(() => places.id, { onDelete: 'cascade' }),
+    status: subscriptionStatusEnum('status').notNull(),
+    /** id del preapproval en MP. Unique: un preapproval, una fila. */
+    mpPreapprovalId: text('mp_preapproval_id').notNull().unique(),
+    /** El que pagó (puede diferir del email de la cuenta). */
+    mpPayerEmail: text('mp_payer_email'),
+    /** Congelado al contratar (decisión 25). */
+    amountArs: integer('amount_ars').notNull(),
+    currentPeriodStart: timestamp('current_period_start').notNull(),
+    currentPeriodEnd: timestamp('current_period_end').notNull(),
+    /** Cancelación diferida simulada (decisión 15): true = corta al fin del período. */
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+    canceledAt: timestamp('canceled_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // Una B2C viva por usuario. Parcial: las canceladas quedan como historial y
+    // re-suscribir crea fila nueva (decisión 12).
+    uniqueIndex('subscriptions_b2c_viva_idx')
+      .on(t.userId)
+      .where(sql`${t.placeId} IS NULL AND ${t.status} <> 'canceled'`),
+    // Una B2B viva por lugar.
+    uniqueIndex('subscriptions_b2b_viva_idx')
+      .on(t.placeId)
+      .where(sql`${t.placeId} IS NOT NULL AND ${t.status} <> 'canceled'`),
+    // El panel y la reconciliación entran por usuario y por lugar.
+    index('subscriptions_user_idx').on(t.userId),
+    index('subscriptions_place_idx').on(t.placeId),
+  ],
+)
+
+/**
+ * Guard de idempotencia de renovaciones + historial de cobros (MONETIZACION,
+ * decisión 17). `mp_authorized_payment_id` es UNIQUE y se inserta **solo al
+ * aprobar** —nunca al rechazar—, porque MP reusa el mismo id en el reintento
+ * (lección OBS-002: el guard va donde se aplica el efecto, no donde llega el
+ * evento).
+ */
+export const subscriptionPayments = pgTable('subscription_payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  subscriptionId: uuid('subscription_id')
+    .notNull()
+    .references(() => subscriptions.id, { onDelete: 'cascade' }),
+  /** El guard de idempotencia (decisión 17). */
+  mpAuthorizedPaymentId: text('mp_authorized_payment_id').notNull().unique(),
+  amountArs: integer('amount_ars').notNull(),
+  /** El período que este pago extendió. */
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -704,3 +878,11 @@ export type NewPollOption = typeof pollOptions.$inferInsert
 export type PollVote = typeof pollVotes.$inferSelect
 export type NewPollVote = typeof pollVotes.$inferInsert
 export type PollStatus = (typeof pollStatusEnum.enumValues)[number]
+export type PlaceTapDaily = typeof placeTapsDaily.$inferSelect
+export type PlaceTagImpressionDaily = typeof placeTagImpressionsDaily.$inferSelect
+export type AppSettingsHistory = typeof appSettingsHistory.$inferSelect
+export type Subscription = typeof subscriptions.$inferSelect
+export type NewSubscription = typeof subscriptions.$inferInsert
+export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect
+export type NewSubscriptionPayment = typeof subscriptionPayments.$inferInsert
+export type SubscriptionStatus = (typeof subscriptionStatusEnum.enumValues)[number]

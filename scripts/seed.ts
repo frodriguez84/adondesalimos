@@ -18,6 +18,12 @@ import {
   MATCH_RETRY_DAYS_KEY,
   PHOTOS_MONTHLY_CAP_KEY,
 } from '@/lib/google/settings'
+import {
+  DEFAULT_PRECIO_B2B_ARS,
+  DEFAULT_PRECIO_B2C_ARS,
+  PRECIO_B2B_ARS_KEY,
+  PRECIO_B2C_ARS_KEY,
+} from '@/lib/billing/settings'
 
 /**
  * Seed idempotente de la taxonomía (105 filas) + los chips de Ocasión + los 2
@@ -82,6 +88,11 @@ async function main() {
       { key: DETAILS_MONTHLY_CAP_KEY, value: DEFAULT_DETAILS_MONTHLY_CAP },
       { key: PHOTOS_MONTHLY_CAP_KEY, value: DEFAULT_PHOTOS_MONTHLY_CAP },
       { key: MATCH_RETRY_DAYS_KEY, value: DEFAULT_MATCH_RETRY_DAYS },
+      // MONETIZACION (decisiones 1 y 5): precios de los planes, editables desde
+      // `/admin`. El `onConflictDoNothing` NO pisa un precio ya editado a mano —
+      // ese es justamente el mecanismo (mismo criterio que el umbral de confidence).
+      { key: PRECIO_B2B_ARS_KEY, value: DEFAULT_PRECIO_B2B_ARS },
+      { key: PRECIO_B2C_ARS_KEY, value: DEFAULT_PRECIO_B2C_ARS },
     ])
     .onConflictDoNothing({ target: appSettings.key })
 
@@ -91,7 +102,7 @@ async function main() {
   console.log(`Total en la tabla: ${total}`)
   console.log(`Chips de Ocasión: ${chipsSembrados} (esperados ${TOTAL_CHIPS})`)
   console.log(
-    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}`,
+    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}`,
   )
 
   if (total !== TOTAL_TAGS) {

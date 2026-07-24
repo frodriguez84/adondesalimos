@@ -6,6 +6,7 @@ import { BookOpen, Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide
 
 import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
+import { TapLink } from '@/components/lugar/tap-link'
 import { buttonVariants } from '@/components/ui/button'
 import { ubicacionDeCard } from '@/lib/search/card'
 import { registrarDetailView } from '@/lib/search/impressions'
@@ -156,26 +157,35 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
         {(telefono || web || place.menuUrl) && (
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
             {telefono && (
-              <a href={`tel:${telefono}`} className="text-foreground underline underline-offset-4">
+              <TapLink
+                placeId={place.id}
+                kind="telefono"
+                href={`tel:${telefono}`}
+                className="text-foreground underline underline-offset-4"
+              >
                 {telefono}
-              </a>
+              </TapLink>
             )}
             {telefono && web && <span aria-hidden>·</span>}
             {web && (
-              <a
+              <TapLink
+                placeId={place.id}
+                kind="website"
                 href={web}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground underline underline-offset-4"
               >
                 {web.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-              </a>
+              </TapLink>
             )}
             {/* Carta del dueño (decisión 19): acción junto al website. */}
             {place.menuUrl && (
               <>
                 {(telefono || web) && <span aria-hidden>·</span>}
-                <a
+                <TapLink
+                  placeId={place.id}
+                  kind="menu"
                   href={place.menuUrl}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -183,7 +193,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
                 >
                   <BookOpen className="size-3.5" />
                   Ver la carta
-                </a>
+                </TapLink>
               </>
             )}
           </p>
@@ -192,15 +202,17 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
         {place.socials.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-0.5">
             {place.socials.map((url) => (
-              <a
+              <TapLink
                 key={url}
+                placeId={place.id}
+                kind="redes"
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground transition-colors hover:border-muted-foreground/50"
               >
                 {RED_LABEL[clasificarRed(url)]}
-              </a>
+              </TapLink>
             ))}
           </div>
         )}
@@ -259,7 +271,9 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
       {/* Barra fija: acciones que deciden la salida. Cómo llegar es costo cero. */}
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-md items-center gap-2 px-4 py-3">
-          <a
+          <TapLink
+            placeId={place.id}
+            kind="como_llegar"
             href={comoLlegar}
             target="_blank"
             rel="noopener noreferrer"
@@ -267,18 +281,22 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
           >
             <Navigation className="size-4" />
             Cómo llegar
-          </a>
+          </TapLink>
           {telefono && (
-            <a
+            <TapLink
+              placeId={place.id}
+              kind="telefono"
               href={`tel:${telefono}`}
               aria-label="Llamar"
               className={cn(buttonVariants({ variant: 'secondary', size: 'icon' }))}
             >
               <Phone className="size-4" />
-            </a>
+            </TapLink>
           )}
           {web && (
-            <a
+            <TapLink
+              placeId={place.id}
+              kind="website"
               href={web}
               target="_blank"
               rel="noopener noreferrer"
@@ -286,7 +304,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
               className={cn(buttonVariants({ variant: 'secondary', size: 'icon' }))}
             >
               <Globe className="size-4" />
-            </a>
+            </TapLink>
           )}
         </div>
       </nav>

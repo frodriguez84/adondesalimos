@@ -1,7 +1,7 @@
 import { after } from 'next/server'
 
 import { checkSearchRateLimit } from '@/lib/middleware/rate-limit'
-import { registrarImpresiones } from '@/lib/search/impressions'
+import { registrarImpresiones, registrarTagsDeBusqueda } from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda } from '@/lib/search/params'
 import { searchPlaces } from '@/lib/search/query'
 
@@ -35,7 +35,11 @@ export async function GET(request: Request) {
     // scroll infinito muestra lugares nuevos y esos también fueron vistos. El
     // mapa (`/api/search/pins`) NO cuenta: un pin no es una impresión de ficha.
     if (resultado.places.length > 0) {
-      after(() => registrarImpresiones(resultado.places.map((p) => p.id)))
+      const ids = resultado.places.map((p) => p.id)
+      after(() => registrarImpresiones(ids))
+      // Decisión 22b: "qué filtros te encontraron". +1 por tag activo (incluidos
+      // los expandidos por chips) para cada lugar servido, en el mismo after().
+      after(() => registrarTagsDeBusqueda(ids, params.tags))
     }
 
     return Response.json({ data: resultado, error: null })
