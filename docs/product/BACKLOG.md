@@ -34,6 +34,10 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       office"). En v1 son fijos. Requiere datos de uso reales.
 - [ ] **Sugerir lugar en una votación** (que los votantes agreguen opciones). En v1 solo
       el creador arma la cancha.
+- [ ] **Descuento escalonado multi-local en el plan de dueño (B2B)** — base por lugar
+      (2do local -X%, 3ro -Y%, etc.) para el dueño de varios locales. Puerta abierta el
+      2026-07-24; el modelo por-lugar del spec 7 lo permite sumar después sin romperse. Ver
+      `docs/product/IDEAS.md` § Monetización (B2B).
 - [ ] **Carga de lugares por consumidores** — requiere sistema de moderación/reportes.
 - [ ] **Verificación automatizada de dueños** — en v1 la aprobación es manual en `/admin`.
 - [ ] **Refresh anual del `google_place_id`** — Google recomienda refrescarlo a los 12 meses

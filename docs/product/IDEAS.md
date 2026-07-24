@@ -780,6 +780,18 @@ reclama, y se pierde el dato — que vale más que la suscripción marginal.
 - ✅ **El teaser de estadísticas es el motor de conversión**: el dueño ve el número, no ve el
   desglose. El dato "qué búsquedas te encontraron" es el que ningún dueño tiene hoy por
   ningún otro medio.
+- ✅ **La suscripción del dueño es POR LUGAR, no por cuenta** (decidido 2026-07-24; ya implícito
+  en AUTH decisión 18 "`owner_plan` por lugar" y en el pricing "15.000 por ficha"). Un dueño con
+  3 locales que los quiere a los 3 en pago paga **3 suscripciones**; puede tener el lugar A en pago
+  y B/C en free a la vez. Razón: el beneficio pago es **intrínsecamente por ficha** — el destaque
+  tiene cupo (máx 3 por búsqueda, rotativo) y las stats son de esa ficha. Una suscripción única que
+  encendiera todos los lugares del dueño rompería la economía del destaque (el de 20 locales pagaría
+  igual que el de 1 y saturaría los destacados). En datos: `subscriptions` (la tabla de StressPlan)
+  suma un `place_id` **nullable** — `null` = premium B2C del usuario; con valor = suscripción B2B de
+  ese lugar; `user_id` (quién paga) siempre. Un usuario puede tener 1 fila B2C + N filas B2B.
+- 💡 **Descuento escalonado multi-local** (idea de Fer, 2026-07-24, puerta abierta, NO v1): base por
+  lugar, con descuento por volumen para el dueño de varios locales (2do -X%, 3ro -Y%, etc.). Se puede
+  sumar después sin romper el modelo por-lugar. → `BACKLOG.md` § mejoras futuras.
 
 ##### B2C — premium ✅ VALIDADO
 
