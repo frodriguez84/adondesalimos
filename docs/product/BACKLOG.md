@@ -24,6 +24,28 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **🐛 BUG — La búsqueda por zona trae lugares de zonas NO adyacentes** (reportado por Fer,
+      2026-07-25; bug de **datos de ZONAS** —spec 2, done— que aflora en BUSQUEDA. **Merece
+      sesión propia**). **Repro:** `z=almagro-boedo t=parrilla` → 20 resultados, **9 con su
+      primaria en otra zona**: Caballito ×5, Botánico y Alto Palermo ×2, Recoleta ×1, La Boca y
+      Barracas ×1.
+
+      **No es el buffer de 400 m** (ZONAS dec.5, intencional y acotado a *bordes* adyacentes):
+      Almagro no linda con La Boca/Barracas. **Diagnóstico (read-only, 2026-07-25):** `place_zones`
+      tiene asignaciones **geométricamente imposibles** — p.ej. "Parrilla el Nuevo Miguelito"
+      (primaria Caballito) figura a la vez en *La Boca y Barracas + Almagro y Boedo + Caballito*,
+      tres zonas que no se tocan. **Descartado bug de unidades del buffer**: medido
+      `polygon_search / polygon` = 1.5–1.8× (400 m real, correcto).
+
+      **A investigar (aguas arriba de la query — la búsqueda filtra fiel por `place_zones`):**
+      (a) geometría de algún polígono fuente en `data/zones/*.geojson` — `la-boca-barracas` tiene
+      un bbox de ~**12 km** de ancho, sospechoso; (b) `scripts/zones/assign.ts` (point-in-polygon
+      con turf contra `polygon_search`): ¿swap lng/lat en algún caso?, ¿acumula sin resetear entre
+      corridas?; (c) `polygon_search` con self-intersection o MultiPolygon que
+      `turf.booleanPointInPolygon` interpreta mal. **Dónde mirar:** `scripts/zones/build.ts`
+      (buffer), `scripts/zones/assign.ts` (asignación), `data/zones/*.geojson`, tabla `place_zones`.
+      **Pendiente de cuantificar** la escala (cuántos lugares con asignación cruzada). Impacto: la
+      calidad de resultados en toda CABA, no solo en bordes.
 - [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
       el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
       cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).
