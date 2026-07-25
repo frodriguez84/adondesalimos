@@ -2,6 +2,7 @@ import { and, eq, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { placeClaims, places, users } from '@/lib/db/schema'
 import { asignarZonasDeLugar } from '@/lib/zones/persistir'
+import { cancelarSuscripcionDeLugar } from '@/lib/billing/baja'
 import { tieneDuenoAprobado } from './ownership'
 import type { AltaPayload, Decision, ReclamoPayload } from './validacion'
 
@@ -254,6 +255,14 @@ export async function decidirClaim(
         .where(eq(places.id, claim.placeId))
     }
   })
+
+  // MONETIZACION F2 (decisión 28): revocar un reclamo con una suscripción B2B viva
+  // cancela el preapproval en MP (best-effort) y baja `owner_plan` — no se le puede
+  // seguir cobrando por un lugar que ya no controla. Fuera de la TX: hace su propia
+  // llamada de red a MP. Si MP no responde, la reconciliación lazy cierra el ciclo.
+  if (revocado) {
+    await cancelarSuscripcionDeLugar(claim.placeId)
+  }
 
   return { ok: true, data: { ...base, yaEstaba: false, revocado } }
 }

@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import * as schema from '@/lib/db/schema'
 import { sendResetPasswordEmail, sendVerificationEmail } from '@/lib/email'
 import { limpiarFotosDeUsuario } from '@/lib/negocio/acciones'
+import { cancelarSuscripcionesDeUsuario } from '@/lib/billing/baja'
 
 /**
  * Config de better-auth replicando el patrón de StressPlan (decisión 6), con una
@@ -57,8 +58,15 @@ export const auth = betterAuth({
        * F3 completa el edge case: se borran también sus fotos (base + R2). El
        * contenido de `place_owner_content` no se borra — sin claim aprobado la
        * ficha deja de aplicarlo, que es lo que el spec pide ("deja de mostrarse").
+       *
+       * MONETIZACION F2 (decisión 28): antes del cascade que borra sus
+       * `subscriptions`, se cancelan los preapprovals en MP (best-effort) para que
+       * MP deje de cobrar, y se baja el `owner_plan` de sus lugares.
        */
       beforeDelete: async (user) => {
+        // Antes del cascade: lee las subscriptions vivas y las cancela en MP.
+        await cancelarSuscripcionesDeUsuario(user.id)
+
         // Antes que el update: usa los claims, que el cascade está por borrar.
         await limpiarFotosDeUsuario(user.id)
 

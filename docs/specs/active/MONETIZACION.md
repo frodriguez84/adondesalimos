@@ -1,6 +1,6 @@
 # Spec: Monetización (MercadoPago)
 
-**Estado:** 🟢 Parcial — F1 (Instrumentación + precios) ✅ Implementado (2026-07-24); F2 (cobro MP) · F3 (destaque) · F4 (desglose) pendientes. QA: `docs/qa/AnalisisQA.md` § MONETIZACION F1
+**Estado:** 🟢 Parcial — F1 (Instrumentación + precios) ✅ Implementado (2026-07-24); F2 (cobro MP) ✅ Implementado (2026-07-24); F3 (destaque) · F4 (desglose) pendientes. QA: `docs/qa/AnalisisQA.md` § MONETIZACION F1 y § MONETIZACION F2
 **Prioridad:** Alta — spec 7: es el modelo de negocio entero. Enciende el premium B2C que VOTACION dejó modelado y apagado, y el plan pago B2B que AUTH dejó gateado a mano. Sin esto, `users.plan` y `owner_plan` se cambian con UPDATE y no entra un peso
 **Gate:** Ninguno técnico. Operativo: crear la aplicación en MercadoPago (credenciales + webhook en el panel) y los usuarios de prueba del sandbox antes del QA de cobro
 **Bloquea:** spec 8 (Chat IA — decidido que va después de que la monetización exista para solventar el costo de la API)
@@ -254,19 +254,19 @@ sync manual, columnas `stripe_*`, `billing_provider`, plan IDs por env, rama IPN
 - [x] Precio editable desde `/admin` sin deploy; el cambio queda en `app_settings_history` con
       quién y cuándo; el checkout siguiente usa el precio nuevo y las suscripciones existentes
       conservan su `amount_ars` — **F1** (`amount_ars` congelado se prueba en F2, cuando haya subs)
-- [ ] Checkout B2C en sandbox end-to-end: comprador test paga con el brick ⇒ 201 con
+- [x] Checkout B2C en sandbox end-to-end: comprador test paga con el brick ⇒ 201 con
       `users.plan='premium'` inmediato ⇒ crear 2ª votación activa funciona y el historial
-      aparece (gates de VOTACION abren sin tocar sus helpers)
-- [ ] Checkout B2B por lugar: paga el lugar A ⇒ `owner_plan='paid'` en A (campos pagos
-      editables, 15 fotos) y el lugar B del mismo dueño sigue `free`
-- [ ] Webhook: request sin firma o con firma inválida ⇒ 401 y no toca la DB; replay del mismo
+      aparece (gates de VOTACION abren sin tocar sus helpers) — **F2** (MONE-01, live)
+- [x] Checkout B2B por lugar: paga el lugar A ⇒ `owner_plan='paid'` en A (campos pagos
+      editables, 15 fotos) y el lugar B del mismo dueño sigue `free` — **F2** (MONE-02/03, live)
+- [x] Webhook: request sin firma o con firma inválida ⇒ 401 y no toca la DB; replay del mismo
       `authorized_payment_id` aprobado no duplica el pago ni extiende el período dos veces
-      (test con el guard UNIQUE)
-- [ ] Renovación rechazada ⇒ `past_due` y el acceso se conserva; `paused`/`cancelled` del
-      preapproval ⇒ flag a `free`; el contenido pago se oculta sin borrarse
-- [ ] Cancelación diferida: cancelar deja acceso hasta `current_period_end`; pasado el fin +
+      (test con el guard UNIQUE) — **F2** (MONE-06/07, tests)
+- [x] Renovación rechazada ⇒ `past_due` y el acceso se conserva; `paused`/`cancelled` del
+      preapproval ⇒ flag a `free`; el contenido pago se oculta sin borrarse — **F2** (MONE-05, test)
+- [x] Cancelación diferida: cancelar deja acceso hasta `current_period_end`; pasado el fin +
       gracia, el lazy check baja el flag **sin que haya llegado ningún webhook** (test
-      adelantando fechas)
+      adelantando fechas) — **F2** (MONE-08, live + test)
 - [ ] Destaque: con ≥4 lugares `paid` que matchean, el bloque muestra exactamente 3 con badge
       "Destacado", arriba, solo en la primera página; la rotación alterna entre búsquedas
       (menor `featured_impressions` primero, test); un lugar `paid` que NO matchea los filtros
@@ -274,12 +274,12 @@ sync manual, columnas `stripe_*`, `billing_provider`, plan IDs por env, rama IPN
 - [ ] Desglose: con `owner_plan='paid'` el panel muestra vistas · impresiones · taps por tipo ·
       top filtros · vs mes anterior · "destacada en X de Y"; con `free` responde exactamente el
       teaser de AUTH (gate en la query, test)
-- [ ] `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET` solo se leen en `lib/billing/mercadopago.ts` y
+- [x] `MP_ACCESS_TOKEN` y `MP_WEBHOOK_SECRET` solo se leen en `lib/billing/mercadopago.ts` y
       no llegan al bundle del browser (mismo test-criterio que Google/R2); `.env.example`
-      actualizado
-- [ ] Rate limit activo en checkout (5/h/IP) y tap (60/h/IP); el webhook responde 401 sin
-      firma sin consumir cupo de nada
-- [ ] `typecheck` + tests + `build` verdes (build con el dev server parado)
+      actualizado — **F2** (MONE-F2-SECRET, test)
+- [x] Rate limit activo en checkout (5/h/IP) y tap (60/h/IP); el webhook responde 401 sin
+      firma sin consumir cupo de nada — **F2** (`checkCheckoutRateLimit`; MONE-07)
+- [x] `typecheck` + tests + `build` verdes (build con el dev server parado) — **F2** (418 tests)
 
 ## QA manual (IDs propuestos)
 

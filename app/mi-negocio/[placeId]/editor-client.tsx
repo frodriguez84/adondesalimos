@@ -250,7 +250,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           {!pago && (
             <p className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
               <Lock className="size-3.5 shrink-0" />
-              Escribinos para activar el plan pago.
+              Activá el plan del lugar acá arriba para editar estos campos.
             </p>
           )}
 

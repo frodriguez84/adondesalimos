@@ -344,3 +344,22 @@ Si el "fondo" son píxeles opacos, pedir de nuevo el asset con alfa real (o reco
 para el matte: aun con alfa real, las zonas transparentes pueden traer color residual en el RGB
 (glow) — inocuo en web (el navegador respeta el alfa) pero problemático si algún día se aplana
 sobre fondo claro.
+
+## Un mensaje de error portado puede traer lenguaje de sandbox a producción (2026-07-24 · MONETIZACION F2)
+
+**Qué pasó.** El mapeo de errores de MercadoPago (`lib/billing/mp-errors.ts`) se **portó de
+StressPlan** con los mensajes tal cual. Uno de ellos, para el código antifraude `CC_VAL_433`,
+decía al usuario final: *"Esperá unos minutos y probá de nuevo con el comprador de prueba,
+titular APRO"*, y otro sugería números de tarjeta de test (`5031 7557 3453 0604`…). En el
+sandbox eso es útil. En **producción**, un cliente real con una tarjeta genuinamente rechazada
+vería instrucciones de QA sin sentido ("¿qué comprador de prueba?"). Los tests unit incluso
+**afirmaban** esas frases (`expect(msg).toMatch(/APRO/)`), así que blindaban el bug en vez de
+detectarlo. Lo encontró el **usuario mirando el mensaje real** durante el QA en vivo de MONE-04.
+
+**La regla.** Al portar mensajes de cara al usuario desde otro proyecto, **releerlos como los
+lee un cliente en producción**, no como los lee un dev en sandbox. La guía de test (tarjetas,
+titulares `APRO`/`OTHE`, "comprador de prueba") va en **comentarios**, nunca en el string que
+llega a la UI. Y el test tiene que **prohibir la fuga**, no fijarla: la aserción correcta es
+`expect(msg).not.toMatch(/APRO|comprador de prueba|\d{4} \d{4}/)`, no una que exija esas frases.
+Reafirma [[qa-en-vivo-encuentra-lo-que-los-tests-no]]: el copy solo se juzga leyéndolo, y un
+test escrito sobre el bug lo perpetúa.

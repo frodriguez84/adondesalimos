@@ -6,6 +6,9 @@ import { Eye } from 'lucide-react'
 
 import { auth } from '@/lib/auth'
 import { getPanelLugar } from '@/lib/negocio/query'
+import { getPrecioB2bArs } from '@/lib/billing/settings'
+import { estadoSuscripcionB2B } from '@/lib/billing/estado'
+import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
 import { EditorClient } from './editor-client'
 
 /**
@@ -28,6 +31,11 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
 
   const lugar = await getPanelLugar(placeId, session.user.id)
   if (!lugar) notFound()
+
+  const [suscripcion, precioB2b] = await Promise.all([
+    estadoSuscripcionB2B(placeId),
+    getPrecioB2bArs(),
+  ])
 
   const ubicacion = [lugar.zone, lugar.address ?? lugar.locality].filter(Boolean).join(' · ')
 
@@ -67,6 +75,8 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
           </p>
         )}
       </header>
+
+      <SuscripcionPanel tipo="b2b" placeId={placeId} estado={suscripcion} precioArs={precioB2b} />
 
       <EditorClient lugar={lugar} />
     </main>

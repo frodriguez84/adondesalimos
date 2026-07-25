@@ -3,10 +3,16 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth/client'
+import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
+import type { EstadoSuscripcion } from '@/lib/billing/estado'
 
-type Props = { user: { name: string; email: string } }
+type Props = {
+  user: { name: string; email: string }
+  suscripcion: EstadoSuscripcion
+  precioB2cArs: number
+}
 
-export function CuentaClient({ user }: Props) {
+export function CuentaClient({ user, suscripcion, precioB2cArs }: Props) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-8">
       <header className="flex items-center justify-between">
@@ -17,6 +23,7 @@ export function CuentaClient({ user }: Props) {
       </header>
 
       <PerfilSection name={user.name} email={user.email} />
+      <SuscripcionPanel tipo="b2c" estado={suscripcion} precioArs={precioB2cArs} />
       <PasswordSection />
       <DangerZone />
     </main>

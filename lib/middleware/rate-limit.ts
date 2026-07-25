@@ -62,6 +62,14 @@ const VOTO_WINDOW_MS = 60_000
 const TAP_MAX = 60
 const TAP_WINDOW_MS = 60 * 60_000
 
+/**
+ * Checkout de suscripción `POST /api/billing/checkout` (MONETIZACION, decisión 29):
+ * 5 por hora por IP. Duro a propósito — un humano no contrata 5 veces en una hora,
+ * y el brute-force de tokens de tarjeta contra el endpoint de cobro se corta acá.
+ */
+const CHECKOUT_MAX = 5
+const CHECKOUT_WINDOW_MS = 60 * 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -243,4 +251,19 @@ export function checkVotoRateLimit(request: Request): Response | null {
  */
 export function checkTapRateLimit(request: Request): Response | null {
   return checkIpRateLimit(request, 'tap', TAP_MAX, TAP_WINDOW_MS)
+}
+
+/**
+ * Rate limit del checkout de suscripción `POST /api/billing/checkout`
+ * (MONETIZACION, decisión 29): 5 por hora por IP. Cupo propio: contratar no gasta
+ * el de búsqueda ni el de taps, y su límite bajo corta el brute-force de tokens.
+ */
+export function checkCheckoutRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'checkout',
+    CHECKOUT_MAX,
+    CHECKOUT_WINDOW_MS,
+    'Demasiados intentos de pago. Probá de nuevo en un rato.',
+  )
 }

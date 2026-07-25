@@ -20,7 +20,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/done/AUTH.md`. **Las 4 fases cerradas ✅ 2026-07-22** (F1 auth base · F2 reclamo + alta + cola · F3 panel + contenido · F4 horarios propios). [Resumen](../archive/SPECS_ARCHIVO.md#auth)
   - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea. **Único DoD de AUTH sin cerrar** (deferral aceptado, ver spec § DoD)
 - [x] **Votación en grupo** — el loop viral: shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado → spec: `docs/specs/done/VOTACION.md`. **Las 3 fases cerradas ✅ 2026-07-22** (F1 crear+gate · F2 votar+vivo · F3 cierre+panel). [Resumen](../archive/SPECS_ARCHIVO.md#votacion)
-- [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH
+- [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH. **F1 (instrumentación + precios) ✅ · F2 (cobro MP) ✅ 2026-07-24**; F3 destaque · F4 desglose pendientes
 
 ## Mejoras futuras (fuera de v1)
 
@@ -348,6 +348,18 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 7 MONETIZACION — F2 (Cobro con MercadoPago)** (2026-07-24): enciende el premium
+      B2C y el plan B2B por lugar sin tocar los helpers de gating — la suscripción solo **mueve**
+      `users.plan` / `places.owner_plan` (decisión 8). `lib/billing/*` portado de StressPlan
+      (cliente `fetch` server-only, **preapproval SIN plan** dec.10, `validateWebhookSignature`
+      tal cual, renovación idempotente con guard UNIQUE + `FOR UPDATE`, lazy check + gracia 3d).
+      Endpoints `checkout`/`cancel`/`webhook` (firma 401, GET defensivo, idempotente); Checkout
+      Bricks sobre `BottomSheet`; tabs de suscripción en `/cuenta` (B2C) y `/mi-negocio/[placeId]`
+      (B2B); hooks de revocación (AUTH-13) y `beforeDelete` que cancelan el preapproval (dec.28);
+      `/admin` con Suscripciones read-only. **QA en vivo (sandbox)**: MONE-01/02/03/04/17/18 ✅;
+      MONE-05/06/07/08 por tests de integración/unit. **418 tests verdes**. Hallazgo del QA en
+      vivo: el mensaje de tarjeta rechazada filtraba lenguaje de sandbox ("titular APRO") —
+      corregido a copy de producción con test que lo blinda. [QA](../qa/AnalisisQA.md) § F2.
 - [x] **Spec 7 MONETIZACION — F1 (Instrumentación + precios)** (2026-07-24): la primera fase,
       antes que el cobro, porque instrumenta histórico que no se reconstruye. **Migración completa**
       del § Modelo de una (criterio AUTH F3): `subscriptions` + `subscription_payments` (nacen sin
