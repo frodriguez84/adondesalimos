@@ -23,7 +23,9 @@ _(ninguno)_
 
 ## 🔵 Planned (`planned/`)
 
-_(ninguno)_
+| Spec | Qué es | Gate |
+|------|--------|------|
+| [CHAT_IA](planned/CHAT_IA.md) | Spec 8 — chat con IA "armá tu salida" (`/chat`) + enciende el botón "la IA arma la shortlist" de VOTACION. Tool-use sobre el motor de búsqueda con doble candado de grounding; Haiku 4.5 con model id en `app_settings`; cupo 30/mes premium + probadita 3 de por vida; topes por SKU que degradan. Decisiones cerradas 2026-07-25 | Operativo: crear `ANTHROPIC_API_KEY` antes del QA |
 
 ## ⚫ Done (`done/`)
 

@@ -864,12 +864,70 @@ precio fijo se licúa con la inflación en meses.
 - ✅ **Anti-abuso v1**: email verificado obligatorio para crear cuenta + rate limit por
   IP/dispositivo — **código/lógica ya existe en StressPlan, se saca de ahí**.
 
+## Feature: chat IA (spec 8) — ✅ DECIDIDO (2026-07-25, sesión de specs 6)
+
+Cierra las decisiones abiertas del gate declarado en MONETIZACION ("el spec 8 construye lo
+que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_del_plan` vs
+`otorgados_este_mes`, cupo en DB desde `/admin`, probadita free) no se reabrió.
+
+- ✅ **Scope v1: chat conversacional "armá tu salida" + encender el botón "que la IA arme
+  la shortlist" de VOTACION** (mismo backend, dos entradas). El **wizard guiado queda
+  fuera de v1** → mejora futura (es otra UX sobre el mismo motor).
+- ✅ **Grounding con doble candado — la regla de oro**: (1) la IA consulta el catálogo vía
+  **tool-use nativo** (una tool que ejecuta el motor real de `lib/search` con
+  `publishedWhere`); (2) el server **valida cada lugar citado** contra los resultados que
+  las tools devolvieron en esa conversación — un ID no visto se descarta. Un lugar
+  alucinado es un bug de producto, no un detalle. (StressPlan NO usa tool-use — su
+  protocolo textual JSON+regex no se porta.)
+- ✅ **Modelo: Haiku 4.5** (`claude-haiku-4-5`), con el model id en **`app_settings`**
+  (`ai.chat_model`) — pasar a Sonnet 5 es un UPDATE sin deploy, mismo patrón que umbral /
+  precios / topes Google. Con **prompt caching** (system prompt + tools a ~0,1x en cache
+  read). Costo estimado ya validado: ~ARS 150/premium/mes con Haiku (2% del plan).
+- ✅ **UX: pantalla propia `/chat`**, entrada desde header/home; el botón de
+  `/votacion/nueva` abre el mismo chat en modo shortlist y el resultado vuelve a la
+  votación. Streaming SSE (patrón de StressPlan, portable).
+- ✅ **Probadita free: 3 mensajes, una única vez (de por vida), con login**. Sin login no
+  hay chat (el cupo necesita identidad). Al agotarse: CTA a premium, nunca un error crudo.
+- ✅ **Persistencia: conversaciones por usuario en DB** (con "borrar conversación").
+  **Divergencia explícita y justificada** del invariante "agregado puro sin user_id" de
+  las tablas de stats: esto es contenido del usuario (como sus votaciones), no telemetría.
+  El invariante sigue intacto para `place_impressions_daily` y compañía.
+- ✅ **Nada B2B en v1**, y los lugares con `owner_plan='paid'` **no reciben trato
+  preferencial** en las respuestas (misma regla anti-desconfianza que los destacados: la
+  IA recomienda por relevancia). Mencionar la "novedad" del dueño pago = mejora futura.
+- ✅ **Disciplina de costos, mismo criterio que FICHA/Google**: topes de gasto mensuales
+  por SKU en `app_settings` + contador de uso; superado el tope el chat **degrada** con
+  mensaje claro en vez de facturar; bajar el tope a 0 apaga el SKU sin deploy. **Un solo
+  módulo habla con Anthropic** (server-only, la key vive solo ahí — patrón
+  `lib/google/places.ts` / `lib/billing/mercadopago.ts` / `lib/storage/r2.ts`).
+
 ---
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de specs 5 (2026-07-24). Esta sección es lo primero que lee la
+_Actualizado en la sesión de specs 6 (2026-07-25). Esta sección es lo primero que lee la
 sesión siguiente._
+
+### 🏁 Sesión de specs 6 — cerrada (2026-07-25) · SPEC 8 CHAT_IA ESCRITO
+
+Sesión de autoría manual (Fable). Entrega: **`docs/specs/planned/CHAT_IA.md`** — el chat
+con IA que el premium B2C compra (spec 7 ya cobra; este construye lo que el premium hace).
+Base: § Feature: chat IA (decisiones de arriba, todas cerradas con el usuario en esta
+sesión) + el código real del chat de StressPlan (explorado en esta sesión, no de memoria)
++ el skill `claude-api` para modelo/precios/tool-use/caching (no de memoria).
+
+- ✅ Decisiones A-G cerradas — ver § Feature: chat IA (spec 8). Resumen: chat `/chat` +
+  botón de VOTACION · tool-use con doble candado de grounding · Haiku 4.5 con model id en
+  `app_settings` · probadita 3 mensajes de por vida con login · conversaciones persistidas
+  (divergencia justificada del invariante sin user_id) · nada B2B · topes por SKU que
+  degradan.
+- ✅ Reuso desde StressPlan leído en código: portable = cliente singleton, config de
+  modelos, patrón SSE, cupo TOCTOU-safe (INSERT = reserva + FOR UPDATE + revert si la IA
+  falla), esquema chat_messages, conteo mensual. NO portable = prompts/contexto (dominio
+  financiero) y el protocolo JSON textual (acá es tool-use nativo). StressPlan NO tiene:
+  tool-use, prompt caching, cupo mensual con reset, tope global de gasto — se construyen acá.
+- ⏭️ **Próximo paso**: implementar CHAT_IA (sesión Opus, fases del spec). Gate operativo
+  previo: crear la key de Anthropic y cargarla en `.env` (`ANTHROPIC_API_KEY`, server-only).
 
 ### 🏁 Sesión de specs 5 — cerrada (2026-07-24) · SPEC 7 MONETIZACION ESCRITO
 
