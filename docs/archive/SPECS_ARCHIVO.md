@@ -357,3 +357,75 @@ visual, los dos ítems de BACKLOG "identidad visual" y "home: pulido del estado 
 
 **Fuera de scope (anotado en BACKLOG):** header de marca global (el wordmark en el resto de las
 páginas) + hero/OG con el logomark; y el filtro fantasma de tags con 0 lugares (BÚSQUEDA).
+
+---
+
+## Monetización (MercadoPago) {#monetizacion}
+
+**Spec:** [`docs/specs/done/MONETIZACION.md`](../specs/done/MONETIZACION.md) · ✅ Implementado (2026-07-25)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *MONETIZACION F1/F2/F3/F4* — las 4 fases APROBADO (MONE-01..18 + tests de integración/unit)
+
+**Qué hace:** el **modelo de negocio entero**. Enciende el premium B2C (`users.plan`) que VOTACION
+dejó modelado y el plan B2B **por lugar** (`owner_plan`) que AUTH dejó gateado a mano, con cobro
+real por MercadoPago. La suscripción **mueve** los flags; los helpers de gating no se tocan
+(decisión 8: el flag sigue siendo la única fuente, se consulta server-side en cada request). Suma
+las dos features que venden el B2B (destaque en búsqueda + desglose de estadísticas) y el precio
+editable en DB sin deploy.
+
+**Alcance implementado (4 fases):**
+
+- **F1 — Instrumentación + precios** (`drizzle/0008`): migración completa del modelo —
+  `subscriptions` (índices únicos parciales: 1 B2C viva por usuario, 1 B2B viva por lugar) ·
+  `subscription_payments` (guard `mp_authorized_payment_id` unique) · `place_taps_daily` ·
+  `place_tag_impressions_daily` · `featured_impressions` en `place_impressions_daily` ·
+  `app_settings_history`. Taps con `<TapLink>` (beacon best-effort) en la ficha → `POST
+  /api/lugar/[id]/tap`; tags-por-búsqueda en el `after()` del batch de impresiones; precios en
+  `app_settings` (`billing.precio_b2b_ars=15000`/`b2c_ars=7000`, seed idempotente) editables desde
+  `/admin` con historial. Todo agregado puro (sin user_id/cookie/IP).
+- **F2 — Cobro (MP)** (`lib/billing/*` portado de StressPlan): cliente `fetch` server-only
+  (`mercadopago.ts`, **preapproval SIN plan pre-creado**, dec.10), `validateWebhookSignature` tal
+  cual, renovación idempotente (guard UNIQUE solo-al-aprobar + `FOR UPDATE`), lazy check + gracia
+  3 días. Endpoints `checkout`/`cancel`/`webhook` (firma HMAC → 401, GET defensivo, idempotente);
+  Checkout Bricks sobre `BottomSheet`; tabs de suscripción en `/cuenta` (B2C) y
+  `/mi-negocio/[placeId]` (B2B); sync de flags en activación/caída/reactivación; hooks de
+  revocación (AUTH-13) y `beforeDelete` que cancelan el preapproval (dec.28); `/admin` con
+  Suscripciones read-only.
+- **F3 — Destaque** (`lib/search/query.ts` `buscarDestacados` + `registrarDestacados`): candidatos
+  = `owner_plan='paid'` ∩ el `where` completo de la búsqueda (reusa `construirWhere` → "solo si
+  matchea" gratis); rotación menor-mostrado-primero por `featured_impressions` ascendente con
+  desempate `md5(place_id‖fecha)`; bloque de hasta 3 con badge "Destacado" arriba de la primera
+  página (lista, no mapa), dedupe contra el orgánico; el contador sube en el mismo `after()`.
+- **F4 — Desglose** (`lib/negocio/query.ts` `desgloseEstadisticas` + `components/negocio/desglose-panel.tsx`):
+  sección de estadísticas paga en el panel, **gateada server-side por `owner_plan='paid'`** (con
+  `free` la query devuelve `null` y el dueño se queda con el teaser pelado de AUTH, sin
+  enriquecerlo). Muestra vistas de ficha e impresiones **vs mes anterior** (mismo criterio de mes
+  calendario que `visitasDelMes`), taps por tipo (los 5 kinds, 0 incluido), top de filtros que lo
+  encontraron (nombres de tags) y la transparencia del destaque "destacada en X de las Y búsquedas"
+  (`featured_impressions / impressions`, dec.20). Sin migración: reusa las tablas de F1.
+
+**Decisiones espina (línea entre gratis y pago):** suscripción **por lugar** (`subscriptions.place_id`
+nullable: `null`=B2C, con valor=B2B) · preapproval **sin plan en MP** (el precio de DB es la única
+fuente, dec.10) · un solo módulo habla con MP (`lib/billing/mercadopago.ts`, secrets solo ahí) ·
+webhook solo firmado + GET defensivo + reconciliación lazy (los webhooks de MP no son confiables,
+BUG-020) · cancelación diferida simulada (cancela ya en MP, acceso hasta fin de período) · precio
+congelado en `subscriptions.amount_ars` al contratar.
+
+**Archivos clave:** `lib/billing/*` (`mercadopago.ts` · `renovacion.ts` · `vencimiento.ts` ·
+`mp-errors.ts` · `settings.ts` · `estado.ts` · `subscriptions.ts`) · `app/api/billing/{checkout,cancel}` ·
+`app/api/webhooks/mercadopago` · `app/api/lugar/[id]/tap` · `app/api/admin/settings` ·
+`lib/search/{query,impressions}.ts` (destaque + contadores) · `lib/negocio/query.ts`
+(`desgloseEstadisticas`) · `components/billing/*` · `components/negocio/desglose-panel.tsx` ·
+`components/lugar/tap-link.tsx` · `drizzle/0008_short_talisman.sql`.
+
+**Lo que hay que saber para el próximo spec (8 — Chat IA):**
+
+- **`users.plan` se mueve solo** ahora (lo mueve la suscripción B2C). El cupo de mensajes y el
+  modelo `cupo_del_plan` vs `otorgados_este_mes` son del spec 8; acá solo quedó el flag automatizado.
+- **La instrumentación agregada (impresiones · vistas · taps · tags · featured) es el histórico que
+  vende el B2B** y no se reconstruye. Cualquier feature nueva que quiera métricas por lugar suma una
+  columna/tabla `*_daily` con el mismo invariante (sin dato por usuario), no un evento por request.
+- **"Ocultar ≠ borrar" en los dos ejes**: bajar de plan mueve el flag y nada más — el contenido
+  pago, el destaque y el desglose se apagan sin borrar dato; re-suscribir reactiva todo tal cual.
+- **Fuera de v1 (en BACKLOG):** descuento multi-local B2B · subir el precio a suscriptores vivos
+  (MP no tiene camino confirmado, `MP_INFLATION_PRICING` sin resolver en StressPlan) · trials/plan
+  anual · comprobantes AFIP · panel de sync manual de MP.

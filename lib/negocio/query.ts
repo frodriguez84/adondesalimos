@@ -1,11 +1,13 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import {
   placeImpressionsDaily,
   placeOwnerContent,
   placePhotos,
+  placeTagImpressionsDaily,
   placeTags,
+  placeTapsDaily,
   placeZones,
   places,
   tags,
@@ -14,6 +16,7 @@ import {
 import { isPlacePublished } from '@/lib/db/visibility'
 import { esDuenoDe, placeIdsDelUsuario } from '@/lib/claims/ownership'
 import { FACET_LABELS, FACET_ORDER } from '@/lib/db/taxonomy'
+import { TAP_KINDS, type TapKind } from '@/lib/lugar/tap-kinds'
 import { capDeFotos } from './contenido'
 import { normalizarSemana, type HorariosSemana } from './horarios'
 import type { Facet, OwnerPlan } from '@/lib/db/schema'
@@ -305,6 +308,122 @@ export async function visitasDelMes(placeIds: string[]): Promise<Map<string, num
 
   for (const f of filas) mapa.set(f.placeId, f.total)
   return mapa
+}
+
+// ---------------------------------------------------------------------------
+// Desglose de estadísticas — solo plan pago (decisión 24)
+// ---------------------------------------------------------------------------
+
+/** Un contador del mes corriente contra el mismo del mes anterior. */
+export type MetricaMensual = { esteMes: number; mesAnterior: number }
+
+/**
+ * El desglose pago del panel (MONETIZACION F4, decisión 24). Es lo que el teaser
+ * de AUTH (`visitasDelMes`, el número pelado) promete y no muestra: el `free`
+ * sigue viendo solo ese número, el `paid` ve esto.
+ */
+export type DesgloseEstadisticas = {
+  /** Aperturas de ficha (el mismo dato del teaser), este mes vs el anterior. */
+  vistas: MetricaMensual
+  /** Veces que apareció en un listado de búsqueda, este mes vs el anterior. */
+  impresiones: MetricaMensual
+  /** Taps por tipo del mes corriente, en el orden canónico y con los 5 tipos (0 incluido). */
+  taps: { kind: TapKind; count: number }[]
+  /** Los tags por los que más lo encontraron este mes (nombre para mostrar). */
+  topFiltros: { slug: string; name: string; count: number }[]
+  /**
+   * Transparencia del destaque (decisión 20): "destacada en X de las Y búsquedas
+   * donde apareció" este mes. `destacada = featured_impressions`,
+   * `apariciones = impressions` — el mismo contador que decide la rotación.
+   */
+  destaque: { destacada: number; apariciones: number }
+}
+
+// El mes calendario corriente y el anterior, con Postgres poniendo el reloj
+// (mismo criterio que `visitasDelMes`: un solo reloj parte el mes).
+const MES_ACTUAL = sql`date_trunc('month', current_date)`
+const MES_ANTERIOR = sql`date_trunc('month', current_date) - interval '1 month'`
+
+/**
+ * El desglose de estadísticas de un lugar, **gateado server-side por
+ * `owner_plan='paid'`** (decisión 24): con `free` devuelve `null` y el panel se
+ * queda con el teaser de AUTH exacto. El flag es la única fuente y se lee en cada
+ * request (mismo criterio que el resto del gating, decisión 8): volver a `free`
+ * apaga el desglose sin borrar los agregados (ocultar ≠ borrar).
+ *
+ * La propiedad ya la validó `getPanelLugar` aguas arriba; acá solo se decide
+ * plan y se leen los agregados (todos sin `user_id`/cookie/IP, invariante de las
+ * 3 tablas).
+ */
+export async function desgloseEstadisticas(placeId: string): Promise<DesgloseEstadisticas | null> {
+  const [place] = await db
+    .select({ ownerPlan: places.ownerPlan })
+    .from(places)
+    .where(eq(places.id, placeId))
+    .limit(1)
+  if (place?.ownerPlan !== 'paid') return null
+
+  const [impresionesFila, tapsFilas, filtrosFilas] = await Promise.all([
+    // Impresiones/vistas/destaques del mes corriente y el anterior, en una fila.
+    db
+      .select({
+        vistasMes: sql<number>`coalesce(sum(${placeImpressionsDaily.detailViews}) filter (where ${placeImpressionsDaily.date} >= ${MES_ACTUAL}), 0)::int`,
+        vistasPrev: sql<number>`coalesce(sum(${placeImpressionsDaily.detailViews}) filter (where ${placeImpressionsDaily.date} >= ${MES_ANTERIOR} and ${placeImpressionsDaily.date} < ${MES_ACTUAL}), 0)::int`,
+        imprMes: sql<number>`coalesce(sum(${placeImpressionsDaily.impressions}) filter (where ${placeImpressionsDaily.date} >= ${MES_ACTUAL}), 0)::int`,
+        imprPrev: sql<number>`coalesce(sum(${placeImpressionsDaily.impressions}) filter (where ${placeImpressionsDaily.date} >= ${MES_ANTERIOR} and ${placeImpressionsDaily.date} < ${MES_ACTUAL}), 0)::int`,
+        featMes: sql<number>`coalesce(sum(${placeImpressionsDaily.featuredImpressions}) filter (where ${placeImpressionsDaily.date} >= ${MES_ACTUAL}), 0)::int`,
+      })
+      .from(placeImpressionsDaily)
+      .where(
+        and(
+          eq(placeImpressionsDaily.placeId, placeId),
+          sql`${placeImpressionsDaily.date} >= ${MES_ANTERIOR}`,
+        ),
+      ),
+    // Taps por tipo del mes corriente.
+    db
+      .select({
+        kind: placeTapsDaily.kind,
+        total: sql<number>`coalesce(sum(${placeTapsDaily.count}), 0)::int`,
+      })
+      .from(placeTapsDaily)
+      .where(
+        and(
+          eq(placeTapsDaily.placeId, placeId),
+          sql`${placeTapsDaily.date} >= ${MES_ACTUAL}`,
+        ),
+      )
+      .groupBy(placeTapsDaily.kind),
+    // Top de tags que lo encontraron este mes.
+    db
+      .select({
+        slug: tags.slug,
+        name: tags.name,
+        count: sql<number>`sum(${placeTagImpressionsDaily.count})::int`,
+      })
+      .from(placeTagImpressionsDaily)
+      .innerJoin(tags, eq(tags.id, placeTagImpressionsDaily.tagId))
+      .where(
+        and(
+          eq(placeTagImpressionsDaily.placeId, placeId),
+          sql`${placeTagImpressionsDaily.date} >= ${MES_ACTUAL}`,
+        ),
+      )
+      .groupBy(tags.slug, tags.name)
+      .orderBy(desc(sql`sum(${placeTagImpressionsDaily.count})`))
+      .limit(8),
+  ])
+
+  const agg = impresionesFila[0] ?? { vistasMes: 0, vistasPrev: 0, imprMes: 0, imprPrev: 0, featMes: 0 }
+  const tapsPorKind = new Map(tapsFilas.map((f) => [f.kind, f.total]))
+
+  return {
+    vistas: { esteMes: agg.vistasMes, mesAnterior: agg.vistasPrev },
+    impresiones: { esteMes: agg.imprMes, mesAnterior: agg.imprPrev },
+    taps: TAP_KINDS.map((kind) => ({ kind, count: tapsPorKind.get(kind) ?? 0 })),
+    topFiltros: filtrosFilas,
+    destaque: { destacada: agg.featMes, apariciones: agg.imprMes },
+  }
 }
 
 /** Cuántas fotos tiene cada lugar del lote (para el cap y el contador del panel). */

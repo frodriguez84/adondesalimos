@@ -7,7 +7,9 @@ import {
   placeImpressionsDaily,
   placeOwnerContent,
   placePhotos,
+  placeTagImpressionsDaily,
   placeTags,
+  placeTapsDaily,
   places,
   tags,
   users,
@@ -15,7 +17,7 @@ import {
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { getPlaceDetail } from '@/lib/lugar/query'
 import { agregarFoto, guardarContenido, limpiarFotosDeUsuario, quitarFoto } from '../acciones'
-import { getPanelLugar, misLugares, visitasDelMes } from '../query'
+import { desgloseEstadisticas, getPanelLugar, misLugares, visitasDelMes } from '../query'
 import { CONTENIDO_VACIO } from '../validacion'
 import { semanaVacia } from '../horarios'
 
@@ -389,6 +391,77 @@ describe.runIf(process.env.DATABASE_URL)('teaser de estadísticas (decisión 24)
   it('sin aperturas, cero (no undefined)', async () => {
     const [lugar] = await misLugares(duenoId)
     expect(lugar.visitasDelMes).toBe(0)
+  })
+})
+
+describe.runIf(process.env.DATABASE_URL)('desglose pago — gate server-side (decisión 24)', () => {
+  const ESTE_MES = sql`date_trunc('month', current_date)::date` as unknown as string
+  const MES_PASADO = sql`(date_trunc('month', current_date) - interval '1 month')::date` as unknown as string
+
+  it('con free no hay desglose: null (el dueño se queda con el teaser)', async () => {
+    // Aunque haya datos, el gate por plan devuelve null.
+    await db.insert(placeImpressionsDaily).values({ placeId, date: ESTE_MES, detailViews: 3 })
+    expect(await desgloseEstadisticas(placeId)).toBeNull()
+  })
+
+  it('con paid arma vistas/impresiones vs mes anterior, taps, filtros y destaque', async () => {
+    await setPlan('paid')
+
+    await db.insert(placeImpressionsDaily).values([
+      { placeId, date: ESTE_MES, impressions: 40, detailViews: 10, featuredImpressions: 6 },
+      { placeId, date: MES_PASADO, impressions: 20, detailViews: 4 },
+    ])
+    await db.insert(placeTapsDaily).values([
+      { placeId, date: ESTE_MES, kind: 'telefono', count: 7 },
+      { placeId, date: ESTE_MES, kind: 'como_llegar', count: 3 },
+    ])
+
+    const [tagBar] = await db.select({ id: tags.id }).from(tags).where(eq(tags.slug, 'bar')).limit(1)
+    if (tagBar) {
+      await db.insert(placeTagImpressionsDaily).values({
+        placeId,
+        date: ESTE_MES,
+        tagId: tagBar.id,
+        count: 15,
+      })
+    }
+
+    const d = await desgloseEstadisticas(placeId)
+    expect(d).not.toBeNull()
+
+    // Vistas e impresiones: mes corriente y el anterior, cada uno por separado.
+    expect(d!.vistas).toEqual({ esteMes: 10, mesAnterior: 4 })
+    expect(d!.impresiones).toEqual({ esteMes: 40, mesAnterior: 20 })
+
+    // Los 5 taps, en orden canónico, con 0 en los que no hubo.
+    expect(d!.taps.map((t) => t.kind)).toEqual(['telefono', 'como_llegar', 'website', 'redes', 'menu'])
+    const porKind = new Map(d!.taps.map((t) => [t.kind, t.count]))
+    expect(porKind.get('telefono')).toBe(7)
+    expect(porKind.get('como_llegar')).toBe(3)
+    expect(porKind.get('menu')).toBe(0)
+
+    // Transparencia del destaque: X de Y (decisión 20).
+    expect(d!.destaque).toEqual({ destacada: 6, apariciones: 40 })
+
+    if (tagBar) {
+      expect(d!.topFiltros[0]).toMatchObject({ slug: 'bar', count: 15 })
+    }
+  })
+
+  it('volver a free apaga el desglose sin borrar los agregados (ocultar ≠ borrar)', async () => {
+    await setPlan('paid')
+    await db.insert(placeTapsDaily).values({ placeId, date: ESTE_MES, kind: 'telefono', count: 2 })
+    expect(await desgloseEstadisticas(placeId)).not.toBeNull()
+
+    await setPlan('free')
+    expect(await desgloseEstadisticas(placeId)).toBeNull()
+
+    // El agregado sigue en la base: re-suscribir lo trae de vuelta tal cual.
+    const [fila] = await db
+      .select({ count: placeTapsDaily.count })
+      .from(placeTapsDaily)
+      .where(eq(placeTapsDaily.placeId, placeId))
+    expect(fila.count).toBe(2)
   })
 })
 

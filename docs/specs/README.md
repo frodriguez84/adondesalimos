@@ -19,13 +19,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🟢 Activos (`active/`)
 
-| Spec | Resumen |
-|------|---------|
-| [MONETIZACION](active/MONETIZACION.md) | Spec 7 — MercadoPago (4 fases): suscripción B2B por lugar (destaque + desglose) y premium B2C; enciende `users.plan` y `owner_plan`. **F1 (instrumentación + precios) ✅ · F2 (cobro MP) ✅ 2026-07-24 · F3 (destaque) ✅ 2026-07-25**; F4 desglose pendiente |
+_(ninguno)_
 
 ## 🔵 Planned (`planned/`)
 
-_(ninguno con código pendiente además de MONETIZACION, que ya está en curso)_
+_(ninguno)_
 
 ## ⚫ Done (`done/`)
 
@@ -38,3 +36,4 @@ _(ninguno con código pendiente además de MONETIZACION, que ya está en curso)_
 | [AUTH](done/AUTH.md) | Spec 5 — auth (better-auth), reclamo/alta con cola en `/admin`, panel "Mi negocio" (fotos a R2, contenido, horarios propios), teaser. 4 fases. [Resumen](../archive/SPECS_ARCHIVO.md#auth) · ✅ 2026-07-22 |
 | [VOTACION](done/VOTACION.md) | Spec 6 — votación en grupo (el loop viral): shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado. 3 fases. [Resumen](../archive/SPECS_ARCHIVO.md#votacion) · ✅ 2026-07-22 |
 | [HOME_IDENTIDAD](done/HOME_IDENTIDAD.md) | Mini-spec — home + identidad: paleta real (naranja `#FF8A00` / fondo azulado), wordmark en el header, estado vacío con hero + headline rotativo, y favicon del logomark. [Resumen](../archive/SPECS_ARCHIVO.md#home_identidad) · ✅ 2026-07-23 |
+| [MONETIZACION](done/MONETIZACION.md) | Spec 7 — MercadoPago (4 fases): instrumentación + precios en DB · cobro (Bricks, webhook, suscripciones por lugar) · destaque en búsqueda · desglose de estadísticas pago. Enciende `users.plan` (B2C) y `owner_plan` (B2B). [Resumen](../archive/SPECS_ARCHIVO.md#monetizacion) · ✅ 2026-07-25 |

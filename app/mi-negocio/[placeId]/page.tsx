@@ -5,10 +5,11 @@ import { notFound, redirect } from 'next/navigation'
 import { Eye } from 'lucide-react'
 
 import { auth } from '@/lib/auth'
-import { getPanelLugar } from '@/lib/negocio/query'
+import { desgloseEstadisticas, getPanelLugar } from '@/lib/negocio/query'
 import { getPrecioB2bArs } from '@/lib/billing/settings'
 import { estadoSuscripcionB2B } from '@/lib/billing/estado'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
+import { DesglosePanel } from '@/components/negocio/desglose-panel'
 import { EditorClient } from './editor-client'
 
 /**
@@ -32,9 +33,12 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
   const lugar = await getPanelLugar(placeId, session.user.id)
   if (!lugar) notFound()
 
-  const [suscripcion, precioB2b] = await Promise.all([
+  const [suscripcion, precioB2b, desglose] = await Promise.all([
     estadoSuscripcionB2B(placeId),
     getPrecioB2bArs(),
+    // Gateado por `owner_plan='paid'` en la query: `free` devuelve null y el
+    // dueño se queda con el teaser de arriba (decisión 24).
+    desgloseEstadisticas(placeId),
   ])
 
   const ubicacion = [lugar.zone, lugar.address ?? lugar.locality].filter(Boolean).join(' · ')
@@ -77,6 +81,8 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
       </header>
 
       <SuscripcionPanel tipo="b2b" placeId={placeId} estado={suscripcion} precioArs={precioB2b} />
+
+      {desglose && <DesglosePanel desglose={desglose} />}
 
       <EditorClient lugar={lugar} />
     </main>

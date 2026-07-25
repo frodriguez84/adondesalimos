@@ -20,7 +20,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/done/AUTH.md`. **Las 4 fases cerradas ✅ 2026-07-22** (F1 auth base · F2 reclamo + alta + cola · F3 panel + contenido · F4 horarios propios). [Resumen](../archive/SPECS_ARCHIVO.md#auth)
   - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea. **Único DoD de AUTH sin cerrar** (deferral aceptado, ver spec § DoD)
 - [x] **Votación en grupo** — el loop viral: shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado → spec: `docs/specs/done/VOTACION.md`. **Las 3 fases cerradas ✅ 2026-07-22** (F1 crear+gate · F2 votar+vivo · F3 cierre+panel). [Resumen](../archive/SPECS_ARCHIVO.md#votacion)
-- [ ] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH. **F1 (instrumentación + precios) ✅ · F2 (cobro MP) ✅ 2026-07-24 · F3 (destaque) ✅ 2026-07-25**; F4 desglose pendiente
+- [x] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH → spec: `docs/specs/done/MONETIZACION.md`. **Las 4 fases cerradas ✅ 2026-07-25** (F1 instrumentación + precios · F2 cobro MP · F3 destaque · F4 desglose). [Resumen](../archive/SPECS_ARCHIVO.md#monetizacion)
 
 ## Mejoras futuras (fuera de v1)
 
@@ -370,6 +370,19 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 7 MONETIZACION — F4 (Desglose de estadísticas) — CIERRA EL SPEC 7** (2026-07-25): la
+      segunda feature que **vende** el B2B, montada sobre el teaser que AUTH dejó ("N visitas este
+      mes"). `desgloseEstadisticas` (`lib/negocio/query.ts`) **gateado server-side por
+      `owner_plan='paid'`**: con `free` devuelve `null` y el dueño se queda con el teaser pelado
+      (sin enriquecerlo, dec.24). Con `paid`: vistas de ficha e impresiones **vs mes anterior**
+      (mismo criterio de mes calendario que `visitasDelMes`, que quedó intacto), taps por tipo (los
+      5 kinds, 0 incluido), top de filtros que lo encontraron (nombres de tags), y la transparencia
+      del destaque "**destacada en X de las Y búsquedas**" (`featured_impressions / impressions`,
+      dec.20). Presentacional en `components/negocio/desglose-panel.tsx`. **Sin migración**: reusa las
+      3 tablas agregadas de F1. **QA en vivo** MONE-15 ✅ (paid ve el desglose completo; volver a
+      `free` devuelve el teaser exacto, ocultar ≠ borrar) + test del gate server-side + checker
+      independiente. **427 tests verdes** (3 nuevos). [QA](../qa/AnalisisQA.md) § F4. Con F4 quedan
+      **las 4 fases del spec 7 cerradas** — el modelo de negocio entero está encendido.
 - [x] **Spec 7 MONETIZACION — F3 (Destaque en búsqueda)** (2026-07-25): la primera de las dos
       features que **venden** el plan B2B. `buscarDestacados` reusa `construirWhere` (candidatos =
       `owner_plan='paid'` ∩ el where completo → "solo si matchea" sale gratis) y rota por

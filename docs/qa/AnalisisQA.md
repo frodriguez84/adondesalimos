@@ -706,3 +706,23 @@ reales); los de lógica de dominio, con tests de integración contra la base + l
 
 - **Divergencia aplicada (explícita):** los destacados suman a `impressions` además de `featured_impressions` (unión orgánico ∪ destacados en el `after()`). La transparencia de F4 (decisión 20) es `featured_impressions / impressions`; un destacado fuera del orgánico *apareció igual*, y sin contarlo como impresión el ratio daría `X > Y`. Es dato que "no se reconstruye", por eso se captura desde F3.
 - **Observación (no bloqueante):** recargar la **misma URL** en el browser puede servir del bfcache/router-cache y mostrar el mismo set hasta que expira. La rotación es una propiedad a nivel población de búsquedas (se auto-balancea), no una garantía de que cambie en cada reload idéntico del mismo usuario.
+
+---
+
+## QA de fase — MONETIZACION F4 (Desglose de estadísticas) (2026-07-25)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 427/427 ✅ (3 nuevos de F4 vs base real: gate por plan + agregación + ocultar≠borrar) · build ✅ (server parado)
+**Método:** verificación en vivo sobre `https://adondesalimos.ngrok.app` con Playwright/MCP, logueado como el dueño aprobado de **Kansas Grill & Bar** (`6323f392-…`). Setup: `owner_plan='paid'` a mano + datos QA sembrados (`featured_impressions=18` hoy, una fila del mes anterior con 8 vistas / 90 impresiones, taps 9/5/2), **todo revertido al cerrar** (Kansas vuelto a `free`, featured de hoy a 0, taps y fila del mes anterior borradas). La cuenta paga real la hace el usuario (F2); F4 solo lee lo que F1/F3 acumularon, así que el flag se puso a mano. Checker independiente (Explore/haiku, maker≠checker) confirmó los 3 criterios PASS por lectura de código (gate por plan, contenido del desglose, reuso + agregado puro + sin migración nueva — última es `drizzle/0008`).
+
+| ID | Criterio (spec) | Resultado | Evidencia / Gap |
+|----|-----------------|-----------|-----------------|
+| MONE-15 | Panel de un lugar `paid` muestra el desglose completo (vistas · impresiones · taps por tipo · top filtros · vs mes anterior · "destacada X de Y"); volver a `free` devuelve el teaser pelado | ✅ PASS | Live con Kansas en `paid`: sección "Estadísticas de tu ficha" con los dos contadores (**Visitas 13 · "+5 vs. el mes pasado"**, **Apariciones 144 · "+54 vs. el mes pasado"**), transparencia **"Saliste destacado en 18 de las 144 búsquedas donde apareciste este mes"** (decisión 20), los 5 taps en orden canónico (Teléfono 9 · Cómo llegar 5 · Sitio web 2 · Redes 0 · Carta 0) y "Con qué filtros te encontraron" (Parrilla 65 · Terraza/rooftop 2). Bajado a `free` y recargado: **solo** el teaser de AUTH "13 visitas a tu ficha este mes", **sin** la sección de desglose (el panel Suscripción pasa a "Free"). El teaser no se enriqueció |
+| MONE-F4-GATE | El gate del desglose es server-side por `owner_plan='paid'` (test) | ✅ PASS | Test integración (`panel.integration.test.ts` § "desglose pago — gate server-side"): con `free`, `desgloseEstadisticas` devuelve **null** aunque haya datos; con `paid` arma vistas/impresiones vs mes anterior (13/4, 40/20 sobre datos plantados), taps en orden canónico con 0 incluido, `destaque = {destacada:6, apariciones:40}`, top filtros por nombre; volver a `free` devuelve null **sin borrar** el agregado (ocultar ≠ borrar, decisión 24). El flag se lee de `places` en cada llamada |
+| MONE-F4-REUSE | El desglose extiende la query del panel, no duplica `visitasDelMes` | ✅ PASS | `desgloseEstadisticas` vive en `lib/negocio/query.ts` junto a `visitasDelMes`, reusa su criterio de mes (`date_trunc('month', current_date)`, Postgres pone el reloj); `visitasDelMes` (el teaser) queda intacto. Ownership la resuelve `getPanelLugar`/`esDuenoDe` aguas arriba (la página llama al desglose con el mismo `placeId` ya validado, patrón de `estadoSuscripcionB2B`) |
+
+### Notas
+
+- **Sin migración:** F4 no toca el schema — las 3 tablas agregadas (`place_impressions_daily` con `featured_impressions`, `place_taps_daily`, `place_tag_impressions_daily`) existen desde F1 (`drizzle/0008`). Solo suma lectura (`desgloseEstadisticas`), un componente presentacional (`components/negocio/desglose-panel.tsx`) y el wire en `app/mi-negocio/[placeId]/page.tsx`.
+- **Comparación sin base:** cuando el mes anterior es 0, la variación no inventa un porcentaje — muestra "Primer mes con datos". La resta directa (`esteMes - mesAnterior`) solo se rotula cuando hay base.
+- **Invariante agregado puro respetado:** las tres lecturas del desglose son `SUM/GROUP BY` sobre las tablas agregadas — sin `user_id`, sin cookies, sin IP (nada que reconstruir por usuario).
