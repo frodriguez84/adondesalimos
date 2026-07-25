@@ -70,6 +70,15 @@ const TAP_WINDOW_MS = 60 * 60_000
 const CHECKOUT_MAX = 5
 const CHECKOUT_WINDOW_MS = 60 * 60_000
 
+/**
+ * Mensaje del chat IA `POST /api/chat` (CHAT_IA, decisión 22): 10 por minuto por
+ * IP. Es **anti-ráfaga**: el gate económico real es el cupo por usuario + el tope
+ * global (ambos en DB, auditan lo caro). La divergencia con el patrón-DB de
+ * StressPlan ya está documentada arriba y acá aplica igual.
+ */
+const CHAT_MAX = 10
+const CHAT_WINDOW_MS = 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -265,5 +274,20 @@ export function checkCheckoutRateLimit(request: Request): Response | null {
     CHECKOUT_MAX,
     CHECKOUT_WINDOW_MS,
     'Demasiados intentos de pago. Probá de nuevo en un rato.',
+  )
+}
+
+/**
+ * Rate limit del chat IA `POST /api/chat` (CHAT_IA, decisión 22): 10 mensajes/min
+ * por IP. Cupo con prefijo propio: mandar mensajes al chat no gasta el de búsqueda,
+ * votos ni taps. El gate económico de verdad es el cupo por usuario + el tope global.
+ */
+export function checkChatRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'chat',
+    CHAT_MAX,
+    CHAT_WINDOW_MS,
+    'Pará un poco con los mensajes. Probá de nuevo en un minuto.',
   )
 }

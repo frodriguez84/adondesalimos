@@ -457,6 +457,25 @@ export const googleApiUsage = pgTable(
 )
 
 /**
+ * Consumo mensual de la API de Anthropic por SKU (CHAT_IA, decisión 15). Espejo de
+ * `google_api_usage`: alimenta el tope global editable `ai.chat_monthly_cap` de
+ * `app_settings`. Superado el tope, el chat **degrada** ("está descansando") en vez
+ * de disparar el gasto. Se incrementa **antes** de llamar — contar de menos por una
+ * excepción es peor que contar de más. Único SKU hoy: `'chat_messages'`.
+ */
+export const aiApiUsage = pgTable(
+  'ai_api_usage',
+  {
+    /** `YYYY-MM`, lo pone Postgres (`to_char(current_date, 'YYYY-MM')`). */
+    month: text('month').notNull(),
+    /** `'chat_messages'`. Texto, no enum: sumar un SKU no es una migración. */
+    sku: text('sku').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.month, t.sku] })],
+)
+
+/**
  * Settings editables desde admin. Genérica a propósito: nace con el umbral de
  * confidence y las bandas de precio, y el mismo patrón sirve para precios de
  * planes y cupos de IA (decisión 15).
@@ -514,6 +533,13 @@ export const users = pgTable('users', {
    * inmediato y no depende de refrescar un token. Ver `lib/votaciones/planes.ts`.
    */
   plan: userPlanEnum('plan').notNull().default('free'),
+  /**
+   * Probadita del chat IA consumida de por vida (CHAT_IA, decisión 6). Contador
+   * propio, NO derivado de `chat_messages`: borrar una conversación no devuelve la
+   * probadita (decisión 14). Nace en 0; el gate free la compara contra
+   * `ai.chat_quota_trial`.
+   */
+  chatTrialUsed: integer('chat_trial_used').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -836,6 +862,109 @@ export const subscriptionPayments = pgTable('subscription_payments', {
 })
 
 // ---------------------------------------------------------------------------
+// Chat IA — spec CHAT_IA
+// ---------------------------------------------------------------------------
+//
+// Cuatro tablas nuevas (+ la columna `users.chat_trial_used` y `ai_api_usage`
+// arriba). **Divergencia consciente del invariante "agregado puro sin user_id"**
+// de las tablas de stats (decisión 7): esto es contenido del usuario (como sus
+// votaciones), no telemetría. El invariante sigue intacto para
+// `place_impressions_daily` y compañía.
+
+/** 'chat' (default) o 'shortlist' (VOTACION, F3). */
+export const chatModoEnum = pgEnum('chat_modo', ['chat', 'shortlist'])
+/** El plan con el que se mandó el mensaje: telemetría de cupo, solo en el user. */
+export const chatPlanEnum = pgEnum('chat_plan', ['trial', 'premium'])
+
+/**
+ * Una conversación del chat por usuario (decisión 7). `seen_place_ids` es el set
+ * de grounding que persiste (decisión 17): acumula los IDs que las tools
+ * devolvieron, y la validación del candado (b) valida contra él — funciona aunque
+ * el turno actual no haya llamado tools ("dale, el segundo que me dijiste").
+ */
+export const chatConversations = pgTable(
+  'chat_conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    modo: chatModoEnum('modo').notNull().default('chat'),
+    /** Primeros ~60 chars del primer mensaje. */
+    titulo: text('titulo'),
+    /** Set de grounding (decisión 17): IDs de lugares que las tools devolvieron. */
+    seenPlaceIds: jsonb('seen_place_ids').$type<string[]>().notNull().default([]),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [index('chat_conversations_user_idx').on(t.userId, t.updatedAt)],
+)
+
+/**
+ * Los mensajes de una conversación. `content` es texto plano con los marcadores
+ * `[[lugar:id]]` **ya validados** (decisión 11): los inválidos se quitaron. El
+ * consumo NO se cuenta desde acá (decisión 14) — borrar una conversación borra
+ * contenido, nunca cupo.
+ */
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => chatConversations.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(), // 'user' | 'assistant'
+    content: text('content').notNull(),
+    /** Telemetría de costos (decisión 24). Solo en assistant. */
+    modelUsed: text('model_used'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    /** 'trial' | 'premium', solo en user (con qué plan se mandó). */
+    planAtSend: chatPlanEnum('plan_at_send'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('chat_messages_conversation_idx').on(t.conversationId, t.createdAt)],
+)
+
+/**
+ * Consumo premium por usuario y mes (decisión 14). La fila se lockea `FOR UPDATE`
+ * en la reserva TOCTOU-safe (decisión 13). Contador propio: si se contara desde
+ * `chat_messages`, borrar una conversación devolvería cupo (exploit del free).
+ */
+export const chatUsageMonthly = pgTable(
+  'chat_usage_monthly',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** `YYYY-MM` (patrón `google_api_usage`). */
+    month: text('month').notNull(),
+    used: integer('used').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.month] })],
+)
+
+/**
+ * Bonus de cupo (decisión 5): un mes-del-amigo es un INSERT, no tocar el plan de
+ * nadie. Cupo efectivo del mes = `ai.chat_quota_premium` + SUM(grants del user+mes).
+ */
+export const chatQuotaGrants = pgTable(
+  'chat_quota_grants',
+  {
+    id: serial('id').primaryKey(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    month: text('month').notNull(),
+    amount: integer('amount').notNull(),
+    /** 'mes-del-amigo-2026', etc. */
+    reason: text('reason').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('chat_quota_grants_user_month_idx').on(t.userId, t.month)],
+)
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -886,3 +1015,12 @@ export type NewSubscription = typeof subscriptions.$inferInsert
 export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect
 export type NewSubscriptionPayment = typeof subscriptionPayments.$inferInsert
 export type SubscriptionStatus = (typeof subscriptionStatusEnum.enumValues)[number]
+export type AiApiUsage = typeof aiApiUsage.$inferSelect
+export type ChatConversation = typeof chatConversations.$inferSelect
+export type NewChatConversation = typeof chatConversations.$inferInsert
+export type ChatMessage = typeof chatMessages.$inferSelect
+export type NewChatMessage = typeof chatMessages.$inferInsert
+export type ChatUsageMonthly = typeof chatUsageMonthly.$inferSelect
+export type ChatQuotaGrant = typeof chatQuotaGrants.$inferSelect
+export type ChatModo = (typeof chatModoEnum.enumValues)[number]
+export type ChatPlan = (typeof chatPlanEnum.enumValues)[number]

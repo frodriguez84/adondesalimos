@@ -1,6 +1,6 @@
 # Spec: Chat IA — "armá tu salida" (premium B2C)
 
-**Estado:** 🔵 Planned — decisiones cerradas (2026-07-25), en cola
+**Estado:** 🟡 Parcial — F1 (motor, cupo, endpoint) ✅ Implementado (2026-07-25); F2 (UI `/chat`) y F3 (modo shortlist en VOTACION) pendientes. QA F1: `docs/qa/AnalisisQA.md` § CHAT_IA F1
 **Prioridad:** Alta — es **lo que el premium B2C compra**. El spec 7 construyó el cobro; sin esto, `users.plan='premium'` vende votaciones ilimitadas y un botón no-op. Es la feature estrella del plan de ARS 7.000
 **Gate:** Ninguno de negocio (MONETIZACION ya cerró y solventa el costo de la API). Gate **operativo** antes del QA: crear la key en Anthropic Console y cargarla en `.env` (`ANTHROPIC_API_KEY`, server-only)
 **Bloquea:** nada

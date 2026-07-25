@@ -18,6 +18,7 @@
     "zones:assign": "tsx scripts/zones/assign.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@aws-sdk/client-s3": "^3.1092.0",
     "@hookform/resolvers": "^5.4.0",
     "@turf/turf": "^7.3.5",

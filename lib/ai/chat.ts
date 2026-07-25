@@ -1,0 +1,191 @@
+import type Anthropic from '@anthropic-ai/sdk'
+import { and, desc, eq, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { chatConversations, chatMessages, type ChatModo, type ChatPlan } from '@/lib/db/schema'
+import { getAnthropic } from './client'
+import { getChatModel } from './settings'
+import { buildSystemPrompt } from './prompts'
+import { BUSCAR_LUGARES_TOOL, ejecutarBuscarLugares } from './tools'
+import { enriquecerCitas } from './grounding'
+import { revertirReserva } from './cupo'
+import { logChatCall } from './logging'
+
+/**
+ * Orquestación del turno del chat (CHAT_IA, decisiones 11, 16, 18): arma el
+ * contexto, corre el loop de tools y streamea SSE. Devuelve un `ReadableStream`
+ * con eventos `data:{text}` (deltas), `data:{estado:'buscando'}` (mientras corre
+ * una tool), `data:{lugares:[...]}` (cards validadas al final) y `data:[DONE]`.
+ *
+ * Contexto por turno (decisión 16): system (cacheado) + últimos 12 mensajes
+ * user/assistant + el loop de tools del turno actual. Los bloques tool_use/
+ * tool_result de turnos viejos **no se re-envían** — el texto del assistant ya
+ * nombra los lugares, y el cupo mensual no debe dejar crecer el contexto de más.
+ */
+
+/** Ventana de historial (decisión 16). */
+const VENTANA = 12
+/** Cota anti-loop: nunca más de estas rondas de tools por turno. */
+const MAX_RONDAS_TOOL = 5
+/** Respuestas de chat, no ensayos (decisión 18). */
+const MAX_TOKENS = 1024
+
+export type TurnoArgs = {
+  conversationId: string
+  userId: string
+  esPrem: boolean
+  /** El mensaje del usuario que `reservarCupo` insertó (para revertir si falla). */
+  reservaMessageId: string
+  plan: ChatPlan
+}
+
+function sse(obj: unknown): Uint8Array {
+  return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`)
+}
+const DONE = new TextEncoder().encode('data: [DONE]\n\n')
+
+/** Los últimos 12 mensajes de la conversación como mensajes del SDK (texto plano). */
+async function cargarHistorial(conversationId: string): Promise<Anthropic.MessageParam[]> {
+  const filas = await db
+    .select({ role: chatMessages.role, content: chatMessages.content })
+    .from(chatMessages)
+    .where(eq(chatMessages.conversationId, conversationId))
+    .orderBy(desc(chatMessages.createdAt))
+    .limit(VENTANA)
+
+  return filas
+    .reverse()
+    .map((f) => ({ role: f.role as 'user' | 'assistant', content: f.content }))
+}
+
+/**
+ * Corre el turno y devuelve el stream SSE. Si Anthropic falla, revierte la reserva
+ * (mensaje + cupo, decisión 13) y emite un evento de error — el usuario ve un error
+ * amable y su mensaje no consumió cupo.
+ */
+export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
+  const { conversationId, userId, esPrem, reservaMessageId, plan } = args
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const anthropic = getAnthropic()
+      let fullText = ''
+      let inputTokens = 0
+      let outputTokens = 0
+      let cacheReadTokens = 0
+      const idsNuevos = new Set<string>()
+
+      try {
+        const [conv] = await db
+          .select({ modo: chatConversations.modo, seen: chatConversations.seenPlaceIds })
+          .from(chatConversations)
+          .where(eq(chatConversations.id, conversationId))
+          .limit(1)
+        const modo: ChatModo = conv?.modo ?? 'chat'
+        const seenPrevios = conv?.seen ?? []
+
+        const model = await getChatModel()
+        const system = buildSystemPrompt(modo)
+        const messages = await cargarHistorial(conversationId)
+
+        // Loop de tools del turno actual (decisión 2: tool-use nativo).
+        for (let ronda = 0; ronda < MAX_RONDAS_TOOL; ronda++) {
+          const stream = anthropic.messages.stream({
+            model,
+            max_tokens: MAX_TOKENS,
+            system,
+            tools: [BUSCAR_LUGARES_TOOL],
+            messages,
+          })
+
+          for await (const event of stream) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              fullText += event.delta.text
+              controller.enqueue(sse({ text: event.delta.text }))
+            }
+          }
+
+          const msg = await stream.finalMessage()
+          inputTokens += msg.usage.input_tokens
+          outputTokens += msg.usage.output_tokens
+          cacheReadTokens += msg.usage.cache_read_input_tokens ?? 0
+
+          if (msg.stop_reason !== 'tool_use') break
+
+          // Hay tools que ejecutar: se emite el estado y se corren.
+          messages.push({ role: 'assistant', content: msg.content })
+          controller.enqueue(sse({ estado: 'buscando' }))
+
+          const toolResults: Anthropic.ToolResultBlockParam[] = []
+          for (const bloque of msg.content) {
+            if (bloque.type !== 'tool_use') continue
+            if (bloque.name === 'buscar_lugares') {
+              const { resultados, ids } = await ejecutarBuscarLugares(bloque.input)
+              for (const id of ids) idsNuevos.add(id)
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: bloque.id,
+                content: JSON.stringify(resultados),
+              })
+            } else {
+              // Tool desconocida: se responde con error para que el modelo siga.
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: bloque.id,
+                content: 'Herramienta desconocida.',
+                is_error: true,
+              })
+            }
+          }
+          messages.push({ role: 'user', content: toolResults })
+        }
+
+        // Grounding (candado b) + enriquecido a cards. El set es la unión de lo ya
+        // visto en la conversación + lo devuelto este turno (decisión 17).
+        const setGrounding = new Set<string>([...seenPrevios, ...idsNuevos])
+        const { textoLimpio, lugares, violaciones } = await enriquecerCitas(fullText, setGrounding)
+
+        for (const idMalo of violaciones) {
+          console.warn(
+            JSON.stringify({
+              type: 'grounding_violation',
+              conversationId,
+              placeId: idMalo,
+            }),
+          )
+        }
+
+        if (lugares.length > 0) controller.enqueue(sse({ lugares }))
+
+        // Persistir el mensaje del assistant (texto ya validado) y actualizar la
+        // conversación: seen_place_ids = unión, updated_at fresco.
+        if (textoLimpio.trim().length > 0) {
+          await db.insert(chatMessages).values({
+            conversationId,
+            role: 'assistant',
+            content: textoLimpio,
+            modelUsed: model,
+            tokensIn: inputTokens,
+            tokensOut: outputTokens,
+          })
+        }
+        await db
+          .update(chatConversations)
+          .set({ seenPlaceIds: [...setGrounding], updatedAt: sql`now()` })
+          .where(eq(chatConversations.id, conversationId))
+
+        logChatCall({ model, plan, inputTokens, outputTokens, cacheReadTokens })
+
+        controller.enqueue(DONE)
+      } catch (err) {
+        // Error de la API (o nuestro): revertir el mensaje + cupo (decisión 13).
+        console.error('[chat] turno falló:', err)
+        await revertirReserva({ userId, esPrem, messageId: reservaMessageId }).catch((e) =>
+          console.error('[chat] revert falló:', e),
+        )
+        controller.enqueue(sse({ error: 'No pudimos procesar el mensaje. Probá de nuevo.' }))
+      } finally {
+        controller.close()
+      }
+    },
+  }) as unknown as ReadableStream<Uint8Array>
+}

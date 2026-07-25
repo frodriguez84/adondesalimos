@@ -24,6 +24,16 @@ import {
   PRECIO_B2B_ARS_KEY,
   PRECIO_B2C_ARS_KEY,
 } from '@/lib/billing/settings'
+import {
+  CHAT_MODEL_KEY,
+  CHAT_MONTHLY_CAP_KEY,
+  CHAT_QUOTA_PREMIUM_KEY,
+  CHAT_QUOTA_TRIAL_KEY,
+  DEFAULT_CHAT_MODEL,
+  DEFAULT_CHAT_MONTHLY_CAP,
+  DEFAULT_CHAT_QUOTA_PREMIUM,
+  DEFAULT_CHAT_QUOTA_TRIAL,
+} from '@/lib/ai/settings'
 
 /**
  * Seed idempotente de la taxonomía (105 filas) + los chips de Ocasión + los 2
@@ -93,6 +103,12 @@ async function main() {
       // ese es justamente el mecanismo (mismo criterio que el umbral de confidence).
       { key: PRECIO_B2B_ARS_KEY, value: DEFAULT_PRECIO_B2B_ARS },
       { key: PRECIO_B2C_ARS_KEY, value: DEFAULT_PRECIO_B2C_ARS },
+      // CHAT_IA (decisiones 3, 5, 6, 15): modelo, cupos y tope global del chat.
+      // `onConflictDoNothing` no pisa un valor ya editado a mano — el mecanismo.
+      { key: CHAT_MODEL_KEY, value: DEFAULT_CHAT_MODEL },
+      { key: CHAT_QUOTA_PREMIUM_KEY, value: DEFAULT_CHAT_QUOTA_PREMIUM },
+      { key: CHAT_QUOTA_TRIAL_KEY, value: DEFAULT_CHAT_QUOTA_TRIAL },
+      { key: CHAT_MONTHLY_CAP_KEY, value: DEFAULT_CHAT_MONTHLY_CAP },
     ])
     .onConflictDoNothing({ target: appSettings.key })
 
@@ -102,7 +118,7 @@ async function main() {
   console.log(`Total en la tabla: ${total}`)
   console.log(`Chips de Ocasión: ${chipsSembrados} (esperados ${TOTAL_CHIPS})`)
   console.log(
-    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}`,
+    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}`,
   )
 
   if (total !== TOTAL_TAGS) {

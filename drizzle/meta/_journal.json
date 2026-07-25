@@ -64,6 +64,13 @@
       "when": 1784928481027,
       "tag": "0008_short_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785021351776,
+      "tag": "0009_talented_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }
