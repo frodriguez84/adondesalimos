@@ -37,7 +37,13 @@ export async function registrarImpresiones(placeIds: string[]): Promise<void> {
   // Un lugar repetido en la misma página contaría doble. No debería pasar (la
   // query no repite), pero el upsert de abajo agrupa por (place_id, date) y un
   // duplicado en el mismo INSERT haría fallar el ON CONFLICT.
-  const unicos = [...new Set(placeIds)]
+  //
+  // `.sort()`: el upsert lockea las filas en el orden del VALUES. Esta tabla tiene
+  // varios escritores concurrentes (impresiones, destacados) que comparten filas;
+  // si cada uno lockea en distinto orden, dos requests simultáneos se deadlockean
+  // (40P01). Ordenar por place_id da un orden de locking global y estable → sin
+  // ciclos. Mismo criterio en `registrarDestacados`.
+  const unicos = [...new Set(placeIds)].sort()
 
   try {
     await db
@@ -89,6 +95,46 @@ export async function registrarDetailView(placeId: string): Promise<void> {
       })
   } catch (error) {
     console.error('[detail-view]', error)
+  }
+}
+
+/**
+ * Suma 1 a `featured_impressions` de cada lugar servido **destacado**, en la fila
+ * de hoy (MONETIZACION, decisión 20). Mismo criterio agregado que las impresiones:
+ * un contador por (lugar, día), sin datos por usuario. Es el contador que decide
+ * la rotación del destaque *y* el que alimenta la transparencia del panel F4
+ * ("destacada en X de las Y búsquedas donde apareció").
+ *
+ * Se cuelga del mismo batch `after()` que `registrarImpresiones`. No tira nunca:
+ * un contador perdido no puede tumbar la búsqueda que lo generó.
+ */
+export async function registrarDestacados(placeIds: string[]): Promise<void> {
+  if (placeIds.length === 0) return
+
+  // Un lugar repetido rompería el ON CONFLICT del mismo INSERT (mismo motivo que
+  // en `registrarImpresiones`). El bloque de destaque no debería repetir, pero se
+  // deduplica por las dudas. `.sort()` por el orden de locking global (ver
+  // `registrarImpresiones`): este writer comparte filas con las impresiones.
+  const unicos = [...new Set(placeIds)].sort()
+
+  try {
+    await db
+      .insert(placeImpressionsDaily)
+      .values(
+        unicos.map((placeId) => ({
+          placeId,
+          date: sql`current_date` as unknown as string,
+          featuredImpressions: 1,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [placeImpressionsDaily.placeId, placeImpressionsDaily.date],
+        set: {
+          featuredImpressions: sql`${placeImpressionsDaily.featuredImpressions} + excluded.featured_impressions`,
+        },
+      })
+  } catch (error) {
+    console.error('[destacados]', error)
   }
 }
 
@@ -151,13 +197,16 @@ export async function registrarTagsDeBusqueda(
     if (filasTags.length === 0) return
 
     // Un lugar repetido contaría doble en el mismo INSERT y rompería el
-    // ON CONFLICT (mismo motivo que en `registrarImpresiones`).
-    const lugares = [...new Set(placeIds)]
+    // ON CONFLICT (mismo motivo que en `registrarImpresiones`). Ordenar lugares y
+    // tags da un orden de locking (place_id, tag_id) global y estable → sin
+    // deadlocks entre búsquedas concurrentes (ver `registrarImpresiones`).
+    const lugares = [...new Set(placeIds)].sort()
+    const idsTag = filasTags.map((t) => t.id).sort((a, b) => a - b)
     const valores = lugares.flatMap((placeId) =>
-      filasTags.map((t) => ({
+      idsTag.map((tagId) => ({
         placeId,
         date: sql`current_date` as unknown as string,
-        tagId: t.id,
+        tagId,
         count: 1,
       })),
     )

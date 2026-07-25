@@ -21,7 +21,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Resumen |
 |------|---------|
-| [MONETIZACION](active/MONETIZACION.md) | Spec 7 — MercadoPago (4 fases): suscripción B2B por lugar (destaque + desglose) y premium B2C; enciende `users.plan` y `owner_plan`. **F1 (instrumentación + precios) ✅ · F2 (cobro MP) ✅ 2026-07-24**; F3 destaque · F4 desglose pendientes |
+| [MONETIZACION](active/MONETIZACION.md) | Spec 7 — MercadoPago (4 fases): suscripción B2B por lugar (destaque + desglose) y premium B2C; enciende `users.plan` y `owner_plan`. **F1 (instrumentación + precios) ✅ · F2 (cobro MP) ✅ 2026-07-24 · F3 (destaque) ✅ 2026-07-25**; F4 desglose pendiente |
 
 ## 🔵 Planned (`planned/`)
 

@@ -1,6 +1,6 @@
 # Spec: Monetización (MercadoPago)
 
-**Estado:** 🟢 Parcial — F1 (Instrumentación + precios) ✅ Implementado (2026-07-24); F2 (cobro MP) ✅ Implementado (2026-07-24); F3 (destaque) · F4 (desglose) pendientes. QA: `docs/qa/AnalisisQA.md` § MONETIZACION F1 y § MONETIZACION F2
+**Estado:** 🟢 Parcial — F1 (Instrumentación + precios) ✅ Implementado (2026-07-24); F2 (cobro MP) ✅ Implementado (2026-07-24); F3 (destaque) ✅ Implementado (2026-07-25); F4 (desglose) pendiente. QA: `docs/qa/AnalisisQA.md` § MONETIZACION F1, F2 y F3
 **Prioridad:** Alta — spec 7: es el modelo de negocio entero. Enciende el premium B2C que VOTACION dejó modelado y apagado, y el plan pago B2B que AUTH dejó gateado a mano. Sin esto, `users.plan` y `owner_plan` se cambian con UPDATE y no entra un peso
 **Gate:** Ninguno técnico. Operativo: crear la aplicación en MercadoPago (credenciales + webhook en el panel) y los usuarios de prueba del sandbox antes del QA de cobro
 **Bloquea:** spec 8 (Chat IA — decidido que va después de que la monetización exista para solventar el costo de la API)
@@ -212,7 +212,7 @@ sync manual, columnas `stripe_*`, `billing_provider`, plan IDs por env, rama IPN
 |------|---------|-----------------|
 | **1 — Instrumentación + precios** ✅ | Migración completa (todas las tablas/columnas de § Modelo) · taps con beacon en la ficha · tags por búsqueda en el `after()` · seed de precios · `/admin` Precios con historial | Tocar "cómo llegar" suma en `place_taps_daily`; una búsqueda filtrada suma en `place_tag_impressions_daily`; editar el precio en `/admin` queda en el historial y rige sin deploy — **implementada 2026-07-24** (`drizzle/0008`, `lib/billing/settings.ts`, `lib/search/impressions.ts`, `components/lugar/tap-link.tsx`, `app/api/lugar/[id]/tap`, `app/api/admin/settings`, `app/admin/precios-client.tsx`) |
 | **2 — Cobro (MP)** | `lib/billing/*` portado · checkout Bricks · `POST checkout`/`cancel` · webhook firmado · renovación idempotente · lazy check · tabs de suscripción en `/cuenta` y `/mi-negocio/[placeId]` · sync de flags · hooks de revocación/borrado · `/admin` Suscripciones | Sandbox end-to-end: comprador test paga B2C ⇒ `users.plan='premium'` al toque y los gates de VOTACION abren; paga B2B de un lugar ⇒ campos pagos editables en ese lugar y **no** en otro del mismo dueño; cancelar mantiene acceso hasta fin de período |
-| **3 — Destaque** | `buscarDestacados` (candidatos + rotación + contador) · bloque en la primera página con badge · dedupe · `featured_impressions` | Dos lugares pagos que matchean la misma búsqueda alternan el orden del bloque entre búsquedas; el orgánico de abajo no cambia; el badge se ve; bajar un plan lo saca al instante |
+| **3 — Destaque** ✅ | `buscarDestacados` (candidatos + rotación + contador) · bloque en la primera página con badge · dedupe · `featured_impressions` | Dos lugares pagos que matchean la misma búsqueda alternan el orden del bloque entre búsquedas; el orgánico de abajo no cambia; el badge se ve; bajar un plan lo saca al instante — **implementada 2026-07-25** (`lib/search/query.ts` `buscarDestacados`, `lib/search/impressions.ts` `registrarDestacados`, `components/shared/place-card.tsx` badge, `components/search/results-list.tsx`, `app/page.tsx` + `app/api/search/route.ts`) |
 | **4 — Desglose** | Sección de estadísticas paga en el panel (vistas · impresiones · taps · top filtros · vs mes anterior · destacada X de Y) gateada server-side | Un lugar `paid` ve el desglose con los datos acumulados desde F1; volver a `free` lo devuelve al teaser exacto de AUTH |
 
 ## Edge cases
@@ -267,10 +267,11 @@ sync manual, columnas `stripe_*`, `billing_provider`, plan IDs por env, rama IPN
 - [x] Cancelación diferida: cancelar deja acceso hasta `current_period_end`; pasado el fin +
       gracia, el lazy check baja el flag **sin que haya llegado ningún webhook** (test
       adelantando fechas) — **F2** (MONE-08, live + test)
-- [ ] Destaque: con ≥4 lugares `paid` que matchean, el bloque muestra exactamente 3 con badge
+- [x] Destaque: con ≥4 lugares `paid` que matchean, el bloque muestra exactamente 3 con badge
       "Destacado", arriba, solo en la primera página; la rotación alterna entre búsquedas
       (menor `featured_impressions` primero, test); un lugar `paid` que NO matchea los filtros
-      no aparece; el orden orgánico y "Ver N" no cambian; los pins del mapa tampoco
+      no aparece; el orden orgánico y "Ver N" no cambian; los pins del mapa tampoco — **F3**
+      (`buscarDestacados`/`registrarDestacados`; MONE-09/10/11/12, live + test)
 - [ ] Desglose: con `owner_plan='paid'` el panel muestra vistas · impresiones · taps por tipo ·
       top filtros · vs mes anterior · "destacada en X de Y"; con `free` responde exactamente el
       teaser de AUTH (gate en la query, test)

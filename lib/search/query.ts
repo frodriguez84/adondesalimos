@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
-import { placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
+import { placeImpressionsDaily, placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { publishedWhere } from '@/lib/db/visibility'
 import { GPS_RADIUS_KM, MAP_PIN_LIMIT, PAGE_SIZE, type SearchParams } from './params'
 
@@ -422,6 +422,87 @@ export async function searchPins(params: SearchParams): Promise<PinsResult> {
     })),
     truncated,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Destaque en búsqueda (MONETIZACION, decisiones 20-21)
+// ---------------------------------------------------------------------------
+
+/** Máximo de destacados por resultado (decisión 4). Se muestran los que haya (0-3). */
+const FEATURED_LIMIT = 3
+
+/**
+ * El bloque de hasta 3 lugares destacados que va **arriba** de la primera página
+ * de la lista (decisión 21). Solo lista, solo primera página: el mapa no destaca
+ * y "Ver N lugares" no cuenta esto (invariantes de la decisión 21) — este módulo
+ * no los toca, los sirve aparte.
+ *
+ * Candidatos (decisión 20): `owner_plan='paid'` ∩ **el `where` completo de la
+ * búsqueda**. La regla "solo si matchea los filtros" es la MISMA query que la
+ * lista orgánica —se reusa `construirWhere`, no se reimplementa—; se le suma la
+ * condición de plan. `construirWhere` ya incluye `publishedWhere`, así que un
+ * pago despublicado no se cuela.
+ *
+ * Rotación (decisión 20): el que MENOS salió destacado hoy va primero
+ * (`featured_impressions` ascendente), con desempate determinista por
+ * `md5(place_id || fecha)` — estable dentro del día, baraja entre días. El
+ * contador lo escribe `registrarDestacados` en el mismo `after()` de las
+ * impresiones; acá solo se lee.
+ *
+ * Baja de plan al instante: el candidato se elige por `owner_plan='paid'` en cada
+ * búsqueda, sin caché. `past_due` sigue `paid` durante los reintentos de MP
+ * (decisión 14) ⇒ sigue destacando, que es lo correcto: todavía no cayó.
+ */
+export async function buscarDestacados(params: SearchParams): Promise<SearchedPlace[]> {
+  const umbral = await getConfidenceThreshold()
+  const { where, usaGps } = await construirWhere(params, umbral)
+
+  const filas = await db
+    .select({
+      id: places.id,
+      name: places.name,
+      lat: places.lat,
+      lng: places.lng,
+      address: places.address,
+      locality: places.locality,
+      ...(usaGps ? { k_d: distKey(params.coords!.lat, params.coords!.lng) } : {}),
+    })
+    .from(places)
+    // Contador del día para ordenar por rotación. LEFT JOIN: un pago que todavía
+    // no salió destacado hoy no tiene fila — cuenta como 0 (COALESCE abajo).
+    .leftJoin(
+      placeImpressionsDaily,
+      and(
+        eq(placeImpressionsDaily.placeId, places.id),
+        eq(placeImpressionsDaily.date, sql`current_date`),
+      ),
+    )
+    .where(and(...where, eq(places.ownerPlan, 'paid')))
+    .orderBy(
+      sql`COALESCE(${placeImpressionsDaily.featuredImpressions}, 0) ASC`,
+      sql`md5(${places.id}::text || current_date::text) ASC`,
+    )
+    .limit(FEATURED_LIMIT)
+
+  // Las cards de destaque muestran lo mismo que las orgánicas (nombre, tags,
+  // zona): se arman con los mismos helpers, un par de queries para los ≤3.
+  const ids = filas.map((f) => f.id)
+  const [tagsPorLugar, zonaPorLugar] = await Promise.all([
+    tagsDeLugares(ids),
+    zonaPrimariaDeLugares(ids),
+  ])
+
+  return filas.map((f) => ({
+    id: f.id,
+    name: f.name,
+    lat: f.lat,
+    lng: f.lng,
+    address: f.address,
+    locality: f.locality,
+    zone: zonaPorLugar.get(f.id) ?? null,
+    tags: tagsPorLugar.get(f.id) ?? [],
+    distanceKm: usaGps ? Number((f as Record<string, unknown>).k_d as number) : null,
+  }))
 }
 
 /** Los tags de la página en una query, no una por card. */

@@ -1,9 +1,13 @@
 import { after } from 'next/server'
 
 import { checkSearchRateLimit } from '@/lib/middleware/rate-limit'
-import { registrarImpresiones, registrarTagsDeBusqueda } from '@/lib/search/impressions'
+import {
+  registrarDestacados,
+  registrarImpresiones,
+  registrarTagsDeBusqueda,
+} from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda } from '@/lib/search/params'
-import { searchPlaces } from '@/lib/search/query'
+import { buscarDestacados, searchPlaces, type SearchedPlace } from '@/lib/search/query'
 
 /**
  * `GET /api/search` — misma función de query que el server component de `/`.
@@ -25,24 +29,37 @@ export async function GET(request: Request) {
   // Sin criterios no se devuelve el catálogo entero (decisión 2): la primera
   // visita muestra cero resultados hasta que se elige zona.
   if (!tieneBusqueda(params)) {
-    return Response.json({ data: { places: [], nextCursor: null }, error: null })
+    return Response.json({ data: { places: [], nextCursor: null, featured: [] }, error: null })
   }
 
   try {
-    const resultado = await searchPlaces(params)
+    // El destaque va solo en la primera página (decisión 21): con `cursor` es una
+    // página interior. En este endpoint la primera página se pide para el modo GPS
+    // (el server no tiene las coordenadas) y para el scroll interior.
+    const [resultado, destacados] = await Promise.all([
+      searchPlaces(params),
+      params.cursor ? Promise.resolve<SearchedPlace[]>([]) : buscarDestacados(params),
+    ])
 
-    // Decisión 22: cada página que se sirve cuenta, no solo la primera. El
-    // scroll infinito muestra lugares nuevos y esos también fueron vistos. El
-    // mapa (`/api/search/pins`) NO cuenta: un pin no es una impresión de ficha.
-    if (resultado.places.length > 0) {
-      const ids = resultado.places.map((p) => p.id)
-      after(() => registrarImpresiones(ids))
+    // Decisión 22 + 20: cada página que se sirve cuenta, no solo la primera. El
+    // scroll infinito muestra lugares nuevos y esos también fueron vistos. Las
+    // impresiones cuentan orgánico ∪ destacados (un destacado fuera del orgánico
+    // igual apareció). El mapa (`/api/search/pins`) NO cuenta.
+    const idsVistos = [
+      ...new Set([...resultado.places.map((p) => p.id), ...destacados.map((d) => d.id)]),
+    ]
+    if (idsVistos.length > 0) {
+      after(() => registrarImpresiones(idsVistos))
       // Decisión 22b: "qué filtros te encontraron". +1 por tag activo (incluidos
       // los expandidos por chips) para cada lugar servido, en el mismo after().
-      after(() => registrarTagsDeBusqueda(ids, params.tags))
+      after(() => registrarTagsDeBusqueda(idsVistos, params.tags))
+    }
+    // Decisión 20: cada destacado servido suma +1 a `featured_impressions`.
+    if (destacados.length > 0) {
+      after(() => registrarDestacados(destacados.map((d) => d.id)))
     }
 
-    return Response.json({ data: resultado, error: null })
+    return Response.json({ data: { ...resultado, featured: destacados }, error: null })
   } catch (error) {
     // No se filtra el detalle al cliente: puede traer nombres de tablas o del
     // driver (regla global de seguridad).

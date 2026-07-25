@@ -15,7 +15,7 @@ import {
   type SearchParams,
 } from '@/lib/search/params'
 import { etiquetaDeTag, etiquetaDeZona, sugerir } from '@/lib/search/suggest'
-import type { SearchResult } from '@/lib/search/query'
+import type { SearchedPlace, SearchResult } from '@/lib/search/query'
 import { FiltersSheet } from './filters-sheet'
 import { OccasionChipsRow } from './occasion-chips'
 import { ResultsList } from './results-list'
@@ -49,9 +49,15 @@ type Props = {
   chips: OccasionChips
   /** Null cuando no hay búsqueda todavía (primera visita, decisión 2). */
   resultado: SearchResult | null
+  /**
+   * Bloque de destacados de la primera página (MONETIZACION, decisión 21). Solo
+   * afecta la lista: el mapa (`resultado`) y el conteo no lo ven. Vacío en GPS —
+   * ahí lo trae la API porque el server no tiene coordenadas.
+   */
+  destacados: SearchedPlace[]
 }
 
-export function SearchShell({ params, facetas, zonas, chips, resultado }: Props) {
+export function SearchShell({ params, facetas, zonas, chips, resultado, destacados }: Props) {
   const router = useRouter()
   const [zonaAbierta, setZonaAbierta] = React.useState(false)
   const [filtrosAbiertos, setFiltrosAbiertos] = React.useState(false)
@@ -248,6 +254,7 @@ export function SearchShell({ params, facetas, zonas, chips, resultado }: Props)
         <ResultsList
           initialPlaces={resultado.places}
           initialCursor={resultado.nextCursor}
+          initialDestacados={destacados}
           params={params}
           coords={coords}
           vacio={

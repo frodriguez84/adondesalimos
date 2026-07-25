@@ -16,6 +16,11 @@ export interface PlaceCardProps extends React.ComponentProps<'div'> {
   location?: string | null
   /** Distancia en km. Solo en modo "cerca de mí". */
   distanceKm?: number | null
+  /**
+   * Destaque B2B (MONETIZACION, decisión 21): la misma card con un badge visible
+   * y borde propio. No es una segunda card — solo prende el rótulo "Destacado".
+   */
+  destacado?: boolean
 }
 
 /**
@@ -32,6 +37,7 @@ function PlaceCard({
   tags = [],
   location,
   distanceKm,
+  destacado = false,
   className,
   ...props
 }: PlaceCardProps) {
@@ -40,11 +46,19 @@ function PlaceCard({
       data-slot="place-card"
       className={cn(
         'rounded-xl border border-border bg-card text-card-foreground transition-colors hover:border-muted-foreground/50',
+        // Borde propio del destaque: se distingue del orgánico sin ser otra card.
+        destacado && 'border-primary/60 hover:border-primary',
         className,
       )}
       {...props}
     >
       <Link href={`/lugar/${id}`} className="flex flex-col gap-2 p-4 outline-none">
+        {destacado && (
+          <span className="inline-flex w-fit items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+            Destacado
+          </span>
+        )}
+
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-base font-semibold leading-snug">{name}</h3>
           {typeof distanceKm === 'number' && (

@@ -9,9 +9,13 @@ import { RotatingHeadline } from '@/components/shared/rotating-headline'
 import { SearchShell } from '@/components/search/search-shell'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
 import { getOccasionChips } from '@/lib/search/chips'
-import { registrarImpresiones, registrarTagsDeBusqueda } from '@/lib/search/impressions'
+import {
+  registrarDestacados,
+  registrarImpresiones,
+  registrarTagsDeBusqueda,
+} from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda, type RawParams } from '@/lib/search/params'
-import { searchPlaces } from '@/lib/search/query'
+import { buscarDestacados, searchPlaces, type SearchedPlace } from '@/lib/search/query'
 
 /**
  * Home = Search (decisión 1). Server component: lee `searchParams` y consulta,
@@ -37,23 +41,40 @@ export default async function Home({
   //
   // Los catálogos van siempre: los sheets tienen que poder abrirse y ofrecer
   // zonas aunque todavía no haya búsqueda — es justamente la primera visita.
-  const [facetas, zonas, chips, resultado, session] = await Promise.all([
+  // El bloque de destacados va solo en la primera página (decisión 21): un deep
+  // link con `cursor` es una página interior y no lo lleva.
+  const mostrarDestacados = tieneBusqueda(params) && !params.cursor
+
+  const [facetas, zonas, chips, resultado, destacados, session] = await Promise.all([
     getFacetCatalog(),
     getZoneCatalog(),
     getOccasionChips(),
     tieneBusqueda(params) ? searchPlaces(params) : null,
+    mostrarDestacados ? buscarDestacados(params) : Promise.resolve<SearchedPlace[]>([]),
     auth.api.getSession({ headers: await headers() }).catch(() => null),
   ])
 
-  // Decisión 22. Va en `after` para que el contador no meta latencia en la
-  // pantalla: la respuesta sale y la escritura ocurre después. Solo los lugares
-  // de esta página — los que el usuario efectivamente vio.
-  if (resultado && resultado.places.length > 0) {
-    const ids = resultado.places.map((p) => p.id)
-    after(() => registrarImpresiones(ids))
+  // Decisión 22 + 20. Va en `after` para que el contador no meta latencia en la
+  // pantalla: la respuesta sale y la escritura ocurre después.
+  //
+  // Impresiones = lo que el usuario efectivamente vio = orgánico servido ∪
+  // destacados. Un destacado que no cae en el orgánico igual apareció; contarlo
+  // como impresión mantiene el invariante `featured_impressions ≤ impressions`
+  // del que sale la transparencia del panel F4 ("destacada en X de las Y
+  // búsquedas donde apareció", decisión 20).
+  const idsVistos = [
+    ...new Set([...(resultado?.places.map((p) => p.id) ?? []), ...destacados.map((d) => d.id)]),
+  ]
+  if (idsVistos.length > 0) {
+    after(() => registrarImpresiones(idsVistos))
     // Decisión 22b: "qué filtros te encontraron". +1 por tag activo (incluidos
     // los expandidos por chips) para cada lugar servido, en el mismo after().
-    after(() => registrarTagsDeBusqueda(ids, params.tags))
+    after(() => registrarTagsDeBusqueda(idsVistos, params.tags))
+  }
+  // Decisión 20: cada destacado servido suma +1 a `featured_impressions` (la
+  // rotación y la transparencia salen del mismo contador).
+  if (destacados.length > 0) {
+    after(() => registrarDestacados(destacados.map((d) => d.id)))
   }
 
   return (
@@ -81,6 +102,7 @@ export default async function Home({
         zonas={zonas}
         chips={chips}
         resultado={resultado}
+        destacados={destacados}
       />
 
       <footer className="mt-auto pt-4 text-xs text-muted-foreground">

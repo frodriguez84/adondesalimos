@@ -363,3 +363,35 @@ llega a la UI. Y el test tiene que **prohibir la fuga**, no fijarla: la aserció
 `expect(msg).not.toMatch(/APRO|comprador de prueba|\d{4} \d{4}/)`, no una que exija esas frases.
 Reafirma [[qa-en-vivo-encuentra-lo-que-los-tests-no]]: el copy solo se juzga leyéndolo, y un
 test escrito sobre el bug lo perpetúa.
+
+---
+
+## Un segundo escritor concurrente a la misma tabla necesita orden de locking, o deadlockea (2026-07-25 · MONETIZACION F3)
+
+**Qué pasó.** F3 sumó `registrarDestacados` como segundo `after()` que upsertea
+`place_impressions_daily`, tabla que ya escribía `registrarImpresiones`. Los dos batches
+multi-fila comparten filas (los destacados están en las dos listas) y las lockeaban en
+**distinto orden** — así que entre dos requests simultáneos cada transacción esperaba una fila
+que la otra tenía: **`deadlock detected (40P01)`**. Como el helper es best-effort
+(`try/catch` que loguea y sigue), la pantalla nunca falló, pero cada upsert deadlockeado
+**rollbackeaba su increment**. El `featured_impressions` venía corto en la QA y se lo atribuí a
+"latencia del `after()`" — era mitad latencia, mitad datos perdidos.
+
+**Por qué no lo cazó nada.** Los tests de integración corrían los helpers **en serie**: un
+upsert por vez nunca se pelea consigo mismo. El deadlock solo aparece con **concurrencia real**,
+que es exactamente lo que produce el server bajo tráfico (varios `after()` en paralelo) y lo que
+un test serial no modela. Lo vio el usuario en la **consola del server** durante el QA en vivo.
+
+**La regla.**
+
+1. **Todo upsert multi-fila sobre una tabla con más de un escritor concurrente ordena el batch
+   por su clave de conflicto** (acá `place_id`, o `(place_id, tag_id)`). Con un orden de locking
+   global y estable, dos transacciones que comparten filas las toman siempre en la misma
+   dirección → no hay ciclo. Es una línea (`.sort()`) y elimina la clase entera.
+2. **Un `try/catch` best-effort esconde un deadlock como si fuera un no-op.** "No rompe la
+   pantalla" no es "no perdió datos". Si el contador que no se puede reconstruir cae bajo un
+   catch silencioso, el error hay que **mirarlo** (consola/observabilidad), no solo tragarlo.
+3. **La concurrencia se testea con concurrencia.** La regresión (`destacados.integration.test.ts`)
+   dispara N upserts solapados en orden **opuesto** con `Promise.all` y afirma el conteo
+   **exacto** — un increment perdido por deadlock la hace fallar. Un test serial nunca la habría
+   visto. Reafirma [[qa-en-vivo-encuentra-lo-que-los-tests-no]].

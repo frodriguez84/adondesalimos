@@ -23,17 +23,31 @@ import type { SearchedPlace } from '@/lib/search/query'
 type Props = {
   initialPlaces: SearchedPlace[]
   initialCursor: string | null
+  /**
+   * El bloque de hasta 3 destacados (MONETIZACION, decisión 21). Solo primera
+   * página. En modo normal lo siembra el server; en GPS llega en la respuesta de
+   * la API (el server no tiene las coordenadas).
+   */
+  initialDestacados: SearchedPlace[]
   params: SearchParams
   coords: { lat: number; lng: number } | null
   /** Estado de 0 resultados: lo dibuja el shell, que tiene los chips a mano. */
   vacio: React.ReactNode
 }
 
-export function ResultsList({ initialPlaces, initialCursor, params, coords, vacio }: Props) {
+export function ResultsList({
+  initialPlaces,
+  initialCursor,
+  initialDestacados,
+  params,
+  coords,
+  vacio,
+}: Props) {
   const usaGps = params.gps && coords !== null
   const clave = serializeApiParams({ ...params, cursor: null }, coords)
 
   const [places, setPlaces] = React.useState(usaGps ? [] : initialPlaces)
+  const [destacados, setDestacados] = React.useState(usaGps ? [] : initialDestacados)
   const [cursor, setCursor] = React.useState(usaGps ? null : initialCursor)
   const [cargando, setCargando] = React.useState(usaGps)
   const [agotado, setAgotado] = React.useState(!usaGps && initialCursor === null)
@@ -51,6 +65,7 @@ export function ResultsList({ initialPlaces, initialCursor, params, coords, vaci
         .then((json) => {
           if (!vigente || !json.data) return
           setPlaces(json.data.places)
+          setDestacados(json.data.featured ?? [])
           setCursor(json.data.nextCursor)
           setAgotado(json.data.nextCursor === null)
         })
@@ -62,11 +77,12 @@ export function ResultsList({ initialPlaces, initialCursor, params, coords, vaci
     }
 
     setPlaces(initialPlaces)
+    setDestacados(initialDestacados)
     setCursor(initialCursor)
     setAgotado(initialCursor === null)
     setCargando(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave, initialPlaces, initialCursor])
+  }, [clave, initialPlaces, initialCursor, initialDestacados])
 
   const cargarMas = React.useCallback(async () => {
     if (cargando || agotado || !cursor) return
@@ -108,13 +124,32 @@ export function ResultsList({ initialPlaces, initialCursor, params, coords, vaci
     return () => obs.disconnect()
   }, [cargarMas, agotado])
 
-  if (places.length === 0) {
+  // Dedupe (decisión 21): un destacado que también cae en el orgánico no se
+  // dibuja dos veces. Se saca del orgánico en todas las páginas cargadas —más
+  // estricto que el mínimo del spec (que solo exige la primera), pero evita el
+  // duplicado que el spec tolera como "raro e inocuo".
+  const idsDestacados = new Set(destacados.map((d) => d.id))
+  const organicos = places.filter((p) => !idsDestacados.has(p.id))
+
+  if (organicos.length === 0 && destacados.length === 0) {
     return cargando ? <Esqueleto /> : <>{vacio}</>
   }
 
   return (
     <section className="flex flex-col gap-3">
-      {places.map((place) => (
+      {destacados.map((place) => (
+        <PlaceCard
+          key={`destacado-${place.id}`}
+          id={place.id}
+          name={place.name}
+          tags={tagsDestacados(place.tags)}
+          location={ubicacionDeCard(place)}
+          distanceKm={place.distanceKm}
+          destacado
+        />
+      ))}
+
+      {organicos.map((place) => (
         <PlaceCard
           key={place.id}
           id={place.id}
