@@ -59,6 +59,20 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       - [x] **Concatenación entre rondas de tool** (2026-07-26): el texto de cada ronda se pegaba al
         de la anterior sin separador. Se inserta `\n\n` antes del primer texto de una ronda posterior
         en `lib/ai/chat.ts`. Verificado en vivo: párrafos separados.
+      - [x] **Sobre-filtrado — estructura de prompt portada de StressPlan** (2026-07-26): la estructura
+        que StressPlan usa con el MISMO Haiku 4.5 es **pares contrastivos ✗/✓ por cada regla dura** +
+        imperativos en mayúscula + bloque de recencia al final. Portado a `lib/ai/prompts.ts`: (a) el
+        bullet de `tags` explicita la trampa del AND; (b) se sumó juegos/escape-room a la guía de TIPO
+        y ACTIVIDAD (antes no existían → el modelo improvisaba); (c) **REGLA CLAVE** nueva con el ✗/✓
+        exacto del caso escape-room + `grupos-grandes` ("hermanos y primos" = quiénes van, no una vibra
+        a filtrar); (d) búsqueda vacía → **reintento en silencio** aflojando ambiente antes de decir "no
+        hay", sin narrar el intento fallido (ataca también el síntoma #2); (e) bloque **ÚLTIMO CHEQUEO
+        ANTES DE BUSCAR** al final (recencia). Además, log `chat_tool_call` en `lib/ai/chat.ts` (input
+        de la tool + nº de resultados, sin PII) para debug basado en evidencia. Typecheck + tests
+        verdes. **Verificado en vivo (2026-07-26, Playwright/ngrok):** el repro exacto ("sala de escape
+        con hermanos y primos por Caballito/Almagro/Boedo") que antes daba 0 ahora devuelve las 4
+        escape rooms reales (Caballito ×3, Almagro/Boedo ×1) con sus cards. El sobre-filtrado quedó
+        resuelto sin cambiar de modelo → **NO hizo falta Sonnet 5** para este síntoma.
 - [ ] **Chat IA — copy del gate premium sin cupo acoplado a la fecha de reset (F2, nota 2026-07-25).**
       El banner "Se renueva el 1º del mes que viene" es **correcto hoy**: el cupo se cuenta por mes
       calendario (`chat_usage_monthly` keyed por `YYYY-MM`, `lib/ai/cupo.ts`), reset el 1º —

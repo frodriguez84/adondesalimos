@@ -131,6 +131,16 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
             if (bloque.type !== 'tool_use') continue
             if (bloque.name === 'buscar_lugares') {
               const { resultados, ids } = await ejecutarBuscarLugares(bloque.input)
+              // Evidencia para debug de calidad (sobre-filtrado): qué tags/zonas pidió el
+              // modelo y cuántos resultados dio. Sin PII (solo slugs del canon).
+              console.info(
+                JSON.stringify({
+                  type: 'chat_tool_call',
+                  conversationId,
+                  input: bloque.input,
+                  resultados: resultados.length,
+                }),
+              )
               for (const id of ids) idsNuevos.add(id)
               toolResults.push({
                 type: 'tool_result',
