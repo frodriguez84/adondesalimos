@@ -840,3 +840,35 @@ Ninguno. El traspaso chat → votación usa `sessionStorage` (clave `SHORTLIST_S
 | CHAT_IA-QA-10 | Typecheck · tests · build verdes | ✅ PASS | typecheck limpio · 441/441 · build verde con el server parado. |
 
 **Notas:** el traspaso chat→votación (sessionStorage, cosmético) tiene su doble red en `POST /api/votaciones` (`isPlacePublished`). Los criterios de comportamiento en vivo (CHAT-13/15) se verificaron con Playwright, no por lectura de código. Ningún hallazgo.
+
+## Investigación — "búsqueda por zona trae lugares de zonas no adyacentes" (2026-07-26)
+
+**Veredicto:** NO ES BUG. La data (`place_zones`), los scripts de zonas y el motor de
+búsqueda son correctos. El síntoma reportado es la **decisión 5 de ZONAS (buffer de
+búsqueda de 400 m) funcionando como se especificó**. Investigación read-only sobre el
+Postgres local + geometría con turf; cero cambios de comportamiento (decisión de Fer:
+solo documentar).
+
+El diagnóstico previo del BACKLOG partía de dos premisas falsas, ambas refutadas midiendo:
+(1) suponía `la-boca-barracas` = La Boca + Barracas; en realidad son **4 barrios** (+ Nueva
+Pompeya + Parque Patricios, `scripts/zones/composicion.ts:48`), que **sí** lindan con Boedo
+(almagro-boedo) y Parque Chacabuco (caballito, `composicion.ts:51`); (2) llamaba
+"geométricamente imposibles" a asignaciones que están **todas dentro de los 400 m** del
+borde de su zona.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| ZON-BUG-01 | Toda fila NO-primaria de `place_zones` está dentro de 400 m del borde exacto de su zona (si el buffer es correcto, no hay excepción) | ✅ PASS | Auditadas **12.122/12.122** filas midiendo distancia punto→borde con turf: `<=400 m` = 12.122 · `>400 m` = **0**. La tabla es geométricamente perfecta. |
+| ZON-BUG-02 | El caso reportado ("Parrilla el Nuevo Miguelito", primaria Caballito, en almagro-boedo y la-boca-barracas) es un borde real, no una asignación imposible | ✅ PASS | `[-58.4251, -34.6383]`: dentro de caballito (0 m); a **98 m** del borde de almagro-boedo; a **241 m** de la-boca-barracas. Esquina real Parque Chacabuco / Boedo / Nueva Pompeya. |
+| ZON-BUG-03 | El motor filtra fiel por `place_zones` (sin 2ª implementación de la regla ni fuga con tags) | ✅ PASS | `filtroDeZonas` (`lib/search/query.ts:170`) = `EXISTS place_zones WHERE slug IN (...) AND z.active`. AND entre facetas correcto; la card muestra la primaria vía `zonaPrimariaDeLugares:535`. |
+| ZON-BUG-04 | Repro `z=almagro-boedo t=parrilla`: los resultados con primaria foránea son todos de borde | ✅ PASS | 13/29 con primaria foránea, **todos entre 42 m y 396 m** del borde de almagro-boedo. Cero fuera de 400 m. |
+| ZON-BUG-05 | Repro `z=almagro-boedo t=escape-room`: los 2 "de más" (Caballito, Palermo) son de borde, no un fallo del AND (cierra el ítem `[QA — sin verificar]` del BACKLOG) | ✅ PASS | Escape Juniors Caballito a **359 m**; Club del Escape Palermo a **186 m**. Ambos dentro de 400 m ⇒ el buffer los explica. La afirmación vieja "a mucho más de 400 m" era una estimación visual, no medida. |
+
+**Por qué se percibe como error (no bloqueante, producto).** Las zonas chicas de CABA
+tienen un buffer proporcionalmente enorme: almagro-boedo mide 6,66 km² y su `polygon_search`
+12,05 km² (**+81 %**). Casi la mitad del área de búsqueda de una zona chica es el anillo de
+400 m de afuera ⇒ ~45 % de resultados con primaria en zona **adyacente**. Como la card
+muestra la primaria, se lee como resultado equivocado. Lever disponible si molesta en uso
+real: bajar `BUFFER_M` en `scripts/zones/load.ts:23` (con ~150 m, escape-room daría 1 y las
+parrillas foráneas caerían ~70 %) — es cambiar decisión 5 de un spec cerrado, queda como
+decisión de producto en el BACKLOG.

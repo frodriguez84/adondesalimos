@@ -115,33 +115,36 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       el reset dejara de ser calendario, el copy mentiría. Opción de robustez: wording sin fecha dura
       (p.ej. "el mes que viene tenés tus mensajes de nuevo"). No urge; es solo si se quiere desacoplar
       el texto de la implementación.
-- [ ] **🐛 BUG — La búsqueda por zona trae lugares de zonas NO adyacentes** (reportado por Fer,
-      2026-07-25; bug de **datos de ZONAS** —spec 2, done— que aflora en BUSQUEDA. **Merece
-      sesión propia**). **Repro:** `z=almagro-boedo t=parrilla` → 20 resultados, **9 con su
-      primaria en otra zona**: Caballito ×5, Botánico y Alto Palermo ×2, Recoleta ×1, La Boca y
-      Barracas ×1.
+- [x] **NO ES BUG — "búsqueda por zona trae lugares de zonas no adyacentes"** (investigado
+      2026-07-26; ver `docs/qa/AnalisisQA.md` § Investigación — zona no adyacente, IDs
+      ZON-BUG-01..05). **La data, los scripts y el motor son correctos.** El síntoma es la
+      **decisión 5 de ZONAS (buffer de búsqueda de 400 m) funcionando como se especificó.**
 
-      **No es el buffer de 400 m** (ZONAS dec.5, intencional y acotado a *bordes* adyacentes):
-      Almagro no linda con La Boca/Barracas. **Diagnóstico (read-only, 2026-07-25):** `place_zones`
-      tiene asignaciones **geométricamente imposibles** — p.ej. "Parrilla el Nuevo Miguelito"
-      (primaria Caballito) figura a la vez en *La Boca y Barracas + Almagro y Boedo + Caballito*,
-      tres zonas que no se tocan. **Descartado bug de unidades del buffer**: medido
-      `polygon_search / polygon` = 1.5–1.8× (400 m real, correcto).
+      **El diagnóstico previo estaba errado en dos premisas, ambas refutadas midiendo:**
+      (1) suponía `la-boca-barracas` = La Boca + Barracas; en realidad son **4 barrios**
+      (+ Nueva Pompeya + Parque Patricios, `scripts/zones/composicion.ts:48`), que **sí**
+      lindan con Boedo y con Parque Chacabuco (dentro de caballito, `composicion.ts:51`) — el
+      bbox de ~12 km "sospechoso" es correcto. (2) llamaba "geométricamente imposibles" a
+      asignaciones que están **todas dentro de los 400 m** del borde de su zona.
 
-      **A investigar (aguas arriba de la query — la búsqueda filtra fiel por `place_zones`):**
-      (a) geometría de algún polígono fuente en `data/zones/*.geojson` — `la-boca-barracas` tiene
-      un bbox de ~**12 km** de ancho, sospechoso; (b) `scripts/zones/assign.ts` (point-in-polygon
-      con turf contra `polygon_search`): ¿swap lng/lat en algún caso?, ¿acumula sin resetear entre
-      corridas?; (c) `polygon_search` con self-intersection o MultiPolygon que
-      `turf.booleanPointInPolygon` interpreta mal. **Dónde mirar:** `scripts/zones/build.ts`
-      (buffer), `scripts/zones/assign.ts` (asignación), `data/zones/*.geojson`, tabla `place_zones`.
-      **Pendiente de cuantificar** la escala (cuántos lugares con asignación cruzada). Impacto: la
-      calidad de resultados en toda CABA, no solo en bordes. **Segundo repro (Fer, 2026-07-26):**
-      buscar parrillas en Caballito + Almagro-Boedo también trae parrillas de otros barrios — mismo
-      síntoma, misma causa. El hallazgo viejo `[QA — sin verificar]` del escape-room (más abajo)
-      encaja en el mismo patrón: verificar en la sesión del fix si ese ítem se cierra junto.
-      **Priorizado #1 en la sesión de triaje del 2026-07-26** (ver `IDEAS.md` § Estado de la
-      conversación) → sesión propia Opus.
+      **Evidencia dura:** auditadas **12.122/12.122** filas no-primarias de `place_zones`, todas
+      ≤400 m del borde exacto de su zona (**cero** violaciones). "Parrilla el Nuevo Miguelito"
+      (primaria Caballito) está a 98 m de almagro-boedo y 241 m de la-boca-barracas — esquina
+      real, no imposible.
+
+      **Por qué se percibe como error (producto, no bug):** las zonas chicas de CABA tienen un
+      buffer proporcionalmente enorme (almagro-boedo: 6,66 km² exacta → 12,05 km² con buffer,
+      **+81 %**), así que ~45 % de los resultados tienen primaria en una zona **adyacente** y la
+      card muestra esa primaria. **Decisión de Fer 2026-07-26: documentar y no tocar** (el
+      comportamiento es el especificado). **Lever si molesta en uso real** → siguiente ítem.
+- [ ] **Producto — revisar el buffer de búsqueda de zonas (decisión 5 de ZONAS)** — abierto
+      2026-07-26 a partir de la investigación de arriba. Con 400 m fijos, casi la mitad del área
+      de búsqueda de una zona chica de CABA es el anillo de afuera ⇒ mucha "fuga" a zonas
+      adyacentes. Levers medidos: **bajar `BUFFER_M`** (`scripts/zones/load.ts:23`) — con ~150 m,
+      `z=almagro-boedo t=escape-room` daría **1** y las parrillas foráneas caerían ~70 %; o
+      **filtrar solo por primaria** (cero fuga, pierde el descubrimiento de borde de la decisión
+      5); o **mantener el buffer y arreglar la card** (etiquetar el match de borde). Cambia una
+      decisión de un spec cerrado (ZONAS done): es decisión de producto, no urge.
 - [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
       el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
       cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).
@@ -448,24 +451,29 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       permiso: esos 20 lugares suman impresión habiéndose visto un instante. Caso de borde de
       una métrica agregada; se arregla no registrando en el server cuando `params.gps` está
       prendido y todavía no hay coordenadas.
-- [ ] **[QA — sin verificar] El filtro de zona no restringe el resultado al cruzarlo con una
-      actividad** (BUSQUEDA, observado 2026-07-20). Repro: `/?z=almagro-boedo&t=escape-room`
-      (los dos filtros aplicados y visibles como chips activos) devuelve **3** escape rooms, no 1:
-      *Escape Games Almagro* (zona primaria Almagro y Boedo ✓), *Club del Escape Palermo*
-      (Palermo Soho ✗) y *Escape Juniors Caballito* (Caballito ✗). El motor dice hacer **AND
-      entre facetas** (`construirWhere`, `lib/search/query.ts`), así que debería dar solo los de
-      la zona. Palermo Soho y Caballito están a mucho más de 400 m de Almagro/Boedo, así que el
-      buffer de búsqueda no lo explica. **Causa sin diagnosticar** — candidatos: el filtro de zona
-      se cae al combinarse con tag, `filtroDeZonas` matchea filas de `place_zones` que no debería,
-      o esos lugares tienen una asignación de zona incorrecta. **NO tocar hasta la sesión de QA
-      de BÚSQUEDA** (decisión de Fer, 2026-07-20: no adelantarse). Encontrado de paso durante la
-      QA en vivo de FICHA F2.
+- [x] **RESUELTO (no era bug) — "el filtro de zona no restringe al cruzarlo con una actividad"**
+      (observado 2026-07-20; verificado 2026-07-26, `docs/qa/AnalisisQA.md` ZON-BUG-05). Repro
+      `/?z=almagro-boedo&t=escape-room` daba 3, no 1: *Club del Escape Palermo* y *Escape Juniors
+      Caballito* además del de Almagro. La afirmación "están a mucho más de 400 m" era una
+      **estimación visual, no medida** — al medir, Palermo está a **186 m** y Caballito a **359 m**
+      del borde de almagro-boedo, o sea **dentro del buffer de 400 m** (decisión 5). El AND entre
+      facetas es correcto; el buffer los explica. Mismo fenómeno que el ítem de arriba.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.
 
 ## Hecho
 
+- [x] **Investigación "zona no adyacente" → NO ERA BUG** (2026-07-26): lo priorizado #1 del triaje
+      resultó **no ser un bug**. `place_zones` es geométricamente correcta (auditadas 12.122/12.122
+      filas no-primarias, **todas** ≤400 m del borde de su zona); scripts (`build`/`load`/`assign`) y
+      motor de búsqueda correctos. El síntoma es la **decisión 5 de ZONAS (buffer 400 m) como se
+      especificó** — el diagnóstico previo asumía mal que `la-boca-barracas` eran 2 barrios (son 4,
+      lindan con Boedo/Caballito) y que las asignaciones eran "imposibles" (son de borde: 98 m/241 m).
+      De paso quedó **resuelto** el ítem viejo `[QA — sin verificar]` del escape-room (Palermo a 186 m,
+      Caballito a 359 m — dentro del buffer). **Decisión de Fer: documentar y no tocar.** Abierto el
+      ítem de producto "revisar el buffer de zonas" por si molesta en uso real. QA: `docs/qa/AnalisisQA.md`
+      § *Investigación — zona no adyacente* (ZON-BUG-01..05). Solo docs, sin cambio de código.
 - [x] **Spec 8 CHAT_IA — F3 (Modo shortlist en VOTACION) — CIERRA EL SPEC 8** (2026-07-26): la última
       pieza del chat premium, puro **cableado** (sin motor nuevo). Enciende el botón "Que la IA arme la
       shortlist" que VOTACION dejó no-op (decisión 18): `/votacion/nueva` navega a `/chat?modo=shortlist`

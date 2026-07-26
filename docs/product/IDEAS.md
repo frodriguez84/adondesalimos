@@ -908,7 +908,30 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 _Actualizado en la sesión de triaje (2026-07-26). Esta sección es lo primero que lee la
 sesión siguiente._
 
+### 🔧 Sesión Opus — cerrada (2026-07-26) · #1 DEL TRIAJE RESUELTO: NO ERA BUG
+
+Se investigó el "bug de zonas" (prioridad #1 de abajo). **Resultado: no es un bug.**
+`place_zones` es geométricamente correcta — auditadas 12.122/12.122 filas no-primarias,
+**todas ≤400 m** del borde de su zona; scripts y motor de búsqueda correctos. El síntoma es
+la **decisión 5 de ZONAS (buffer de 400 m) funcionando como se especificó**: las zonas chicas
+de CABA tienen un buffer proporcionalmente enorme (+81 % de área en almagro-boedo), así que
+~45 % de resultados tienen primaria en zona **adyacente**. El diagnóstico del triaje (abajo)
+asumía mal que `la-boca-barracas` eran 2 barrios (son 4, lindan con Boedo/Caballito) y que las
+asignaciones eran "imposibles". **Decisión de Fer: documentar y no tocar comportamiento.** Se
+abrió el ítem de producto "revisar buffer de zonas" en `BACKLOG.md` por si molesta en uso real.
+De paso quedó resuelto el ítem viejo del escape-room (mismo fenómeno). Detalle:
+`docs/qa/AnalisisQA.md` § *Investigación — zona no adyacente* (ZON-BUG-01..05).
+
+- ⏭️ **Próximo paso** (reemplaza al de abajo): el #1 está cerrado ⇒ sigue **#2, Plan de QA
+  integral en vivo** — y ahora **no hay "datos de zona rotos"** que generen falsos hallazgos,
+  así que la matriz corre sobre datos sanos.
+
 ### 🏁 Sesión de triaje — cerrada (2026-07-26) · RUMBO POST-SPEC-8 DECIDIDO
+
+> **Actualización 2026-07-26 (sesión Opus):** el #1 de esta cola ("Bug de zonas") se
+> investigó y **no era un bug** — ver la sesión de arriba. El diagnóstico de esta sección
+> (asignaciones "geométricamente imposibles", "el mismo bug") quedó **refutado midiendo**. La
+> cola sigue vigente desde el #2.
 
 Sesión de planificación (Fable, sin código ni specs). Contexto: specs 1-8 todos en `done/`,
 `planned/` vacío. Se priorizó la cola de trabajo con Fer:

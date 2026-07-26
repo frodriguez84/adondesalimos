@@ -395,3 +395,39 @@ un test serial no modela. Lo vio el usuario en la **consola del server** durante
    dispara N upserts solapados en orden **opuesto** con `Promise.all` y afirma el conteo
    **exacto** — un increment perdido por deadlock la hace fallar. Un test serial nunca la habría
    visto. Reafirma [[qa-en-vivo-encuentra-lo-que-los-tests-no]].
+
+## Un diagnóstico de geometría "a ojo" mandó una prioridad #1 entera por el camino equivocado (2026-07-26 · ZONAS)
+
+**Qué pasó.** Fer reportó que buscar parrillas por zona traía lugares de "zonas no
+adyacentes". Un diagnóstico read-only previo concluyó que `place_zones` tenía asignaciones
+**"geométricamente imposibles"** y lo priorizó como **bug #1** con sesión propia. Al
+investigar midiendo, **no había bug**: las 12.122 filas no-primarias estaban **todas ≤400 m**
+del borde de su zona — la decisión 5 (buffer de 400 m) funcionando como se especificó. La
+sesión #1 no arregló nada porque no había nada roto.
+
+**Causa raíz del diagnóstico errado.** Dos afirmaciones geométricas hechas **sin medir**:
+(1) "`la-boca-barracas` = La Boca + Barracas, y Almagro no linda con eso" — falso: la zona son
+**4 barrios** (incluye Nueva Pompeya + Parque Patricios), que **sí** lindan con Boedo y Parque
+Chacabuco. Bastaba abrir `composicion.ts:48`. (2) "Palermo y Caballito están a mucho más de
+400 m" (ítem del escape-room) — falso: 186 m y 359 m, dentro del buffer. Era una estimación
+visual sobre un mapa mental, no una distancia calculada.
+
+**Por qué no lo cazó nada.** El diagnóstico era read-only y "razonado", así que se leyó como
+confiable — pero razonar sobre geometría sin turf es adivinar. El bbox de ~12 km de
+la-boca-barracas se leyó como "sospechoso" cuando era **correcto** (4 barrios). Nadie corrió
+un `pointToLineDistance` hasta esta sesión; ahí el "bug" se evaporó en tres mediciones.
+
+**La regla.**
+
+1. **Una afirmación de distancia o adyacencia en un diagnóstico geométrico es un número, no
+   una intuición: se mide con turf (`pointToLineDistance`, `booleanPointInPolygon`) antes de
+   escribirla.** "Está lejos", "no linda", "es imposible" sobre coordenadas son hipótesis hasta
+   que hay un metraje al lado.
+2. **Antes de creerle a un diagnóstico que define la composición de un dato, abrir la fuente
+   de esa composición.** Acá `composicion.ts` decía en una línea que la zona eran 4 barrios; la
+   premisa entera del bug caía con leerla. Reafirma [[qa-en-vivo-encuentra-lo-que-los-tests-no]]:
+   la data real desmiente al relato.
+3. **Cuantificar la escala ANTES de causa-raíz y priorización.** El primer paso barato
+   (auditar las 12.122 filas: ¿cuántas violan el buffer?) habría dado **cero** y evitado
+   priorizar como #1 una sesión de fix de algo que no existía. Medir la escala primero es lo
+   que separa un bug de un malentendido.
