@@ -16,6 +16,16 @@ export const MIN_OPCIONES = 2
 export const MAX_OPCIONES = 5
 
 /**
+ * Traspaso de la shortlist armada por el chat IA → `/votacion/nueva` (CHAT_IA
+ * decisión 21). El chat guarda los lugares elegidos bajo esta clave de
+ * `sessionStorage` y navega; el picker los lee al montar y precarga los
+ * `elegidos`. `sessionStorage` (no query) evita una URL con N ids y no ensucia
+ * el historial. Los ids se **revalidan** server-side al crear (`isPlacePublished`,
+ * VOTACION d.12): la precarga es cosmética, la doble red está en el POST.
+ */
+export const SHORTLIST_STORAGE_KEY = 'adonde:shortlist-ia'
+
+/**
  * Cookie opaca por dispositivo del votante (decisión 7). Es **funcional** (dedupe
  * del voto), no analítica: no se cruza con métricas, no hay `user_id`, no rastrea
  * entre sitios. `httpOnly` + `SameSite=Lax`, larga duración, reutilizada entre

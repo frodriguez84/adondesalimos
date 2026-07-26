@@ -797,3 +797,46 @@ Ninguno bloqueante. Dos observaciones cosméticas del texto del assistant, ambas
 - **Endpoint nuevo `GET /api/chat/conversaciones/[id]`:** necesario para que "retomar" muestre el hilo pasado (el contrato F1 solo tenía POST/GET-lista/DELETE). Read-only, reusa el grounding — no reimplementa nada.
 - **Fuera de scope (F3):** modo shortlist (`/chat?modo=shortlist`, "Usar esta shortlist") y el botón de `/votacion/nueva` (CHAT-13, CHAT-15) — siguen no-op hasta F3.
 - **Build pendiente:** correr `next build` con el dev server parado antes del PR.
+
+## QA de fase — CHAT_IA F3 (Modo shortlist en VOTACION) (2026-07-26)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 441/441 ✅ (F3 es cableado de UI: sin tests nuevos, se verifica en vivo) · build ✅ (`next build` con el dev server parado).
+**Método:** verificación en vivo con **Playwright MCP** contra `https://adondesalimos.ngrok.app` (render real). Premium: **frodriguez.este@gmail.com** (premium real). Free: **juan@gmail.com** (email verificado en DB por el usuario para el test). Se creó una votación real de prueba desde el flujo del chat (token `bCC7kEsmhr3Vb9NReHOUFg`, expira sola a las 72 h).
+
+| ID | Criterio (spec / DoD) | Resultado | Evidencia |
+|----|-----------------------|-----------|-----------|
+| CHAT-13 | Botón "Que la IA arme la shortlist" (premium) en `/votacion/nueva` abre `/chat?modo=shortlist`; al aceptar vuelve con 2-5 lugares precargados y la votación se crea | ✅ PASS | Flujo completo end-to-end: (1) el botón navega a `/chat?modo=shortlist` (estado vacío contextual "Armemos la shortlist para votar"); (2) "Algo tranqui para cenar en Palermo con amigos" → shortlist de **4 lugares reales** (Las Pizarras bistro, Grappa Cantina, L'Adesso, Barú Gastropub) con cards linkeadas a `/lugar/[id]` y botón **"Usar esta shortlist"**; (3) el botón vuelve a `/votacion/nueva` con los 4 **precargados** (shortlist 4/5, nombre + zona); (4) "Crear votación" devuelve el link y la votación pública renderiza las 4 opciones (los ids revalidados `isPlacePublished` al crear — doble red, VOTACION d.12). Cupo premium 19→18 (una sola llamada). |
+| CHAT-15 | Free en `/votacion/nueva` no ve el botón de IA (gate de VOTACION intacto) | ✅ PASS | Con juan (free), `/votacion/nueva` muestra shortlist + título + buscador + "Crear votación", **sin** el botón "Que la IA arme la shortlist". El gate `{esPremium && …}` server-side quedó intacto (F3 solo cambió el `onClick`, no la condición). |
+| CHAT-F3-modo | `/chat?modo=shortlist` activa la directiva 2-5 del prompt | ✅ PASS | La respuesta cerró en 4 lugares (rango 2-5) y con pregunta de cierre ("¿Te copa alguno o buscamos por algún tipo de cocina?"), consistente con el bloque SHORTLIST del system (`buildSystemPrompt('shortlist')`). El `modo` viaja solo en el primer mensaje (crea la conversación en ese modo; el endpoint lo ignora si ya hay id). |
+| CHAT-F3-boton | El botón "Usar esta shortlist" aparece solo con 2-5 lugares y en modo shortlist | ✅ PASS | Apareció bajo la respuesta con 4 lugares en modo shortlist. Fuera de rango (1 lugar, o >5) no se ofrece; en modo `chat` normal tampoco. Al retomar un hilo shortlist desde el historial, el botón respeta el `modo` persistido de la conversación (no solo la URL). |
+
+### Hallazgos
+
+Ninguno. El traspaso chat → votación usa `sessionStorage` (clave `SHORTLIST_STORAGE_KEY`, se limpia al leer para que un refresh no re-inyecte); es cosmético — el boundary de seguridad es el `POST /api/votaciones`, que revalida `isPlacePublished` sobre los ids.
+
+### Notas
+
+- **Cuentas free del seed:** requieren email verificado (`requireEmailVerification: true`, AUTH). El usuario verificó `juan@gmail.com` manualmente en la DB para poder correr CHAT-15 en vivo.
+- **Artefactos de prueba:** quedó 1 conversación shortlist y +1 en `chat_usage_monthly.used` de frodriguez.este, y la votación de prueba (expira sola a 72 h). `ai_api_usage` global +1 (no se revierte, decisión 15). Limpiables con un UPDATE/DELETE si se quiere dejar la cuenta prístina.
+
+## QA /qa-spec — CHAT_IA (spec completo, 3 fases) (2026-07-26)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 441/441 ✅ · build ✅ (`next build` con el dev server parado)
+**Método:** checker independiente (Explore/haiku, maker≠checker) vs el DoD de `docs/specs/active/CHAT_IA.md`, más QA en vivo (Playwright/ngrok) para los criterios de comportamiento. F1 y F2 se verificaron en sus QA de fase (§ CHAT_IA F1 / F2, ambos APROBADO); esta corrida cierra el spec verificando **F3** (modo shortlist) y confirmando **no-regresión** del motor/prompt/grounding.
+
+| ID | Criterio (DoD) | Resultado | Evidencia / Gap |
+|----|----------------|-----------|-----------------|
+| CHAT_IA-QA-01 | `ANTHROPIC_API_KEY` solo en `lib/ai/client.ts`; no en el bundle | ✅ PASS | Verificado en QA de fase F1 (§ CHAT_IA F1). F3 no tocó `lib/ai/`. |
+| CHAT_IA-QA-02 | La tool `buscar_lugares` usa `searchPlaces`/motor; sin 2ª impl de visibilidad | ✅ PASS | Checker C3: `lib/ai/tools.ts:102` → `searchPlaces(params)`; `publishedWhere` no reimplementado en `lib/ai/`. F3 no lo tocó. |
+| CHAT_IA-QA-03 | Grounding: solo cita IDs de `seen_place_ids`; marcador inválido se elimina y loguea | ✅ PASS | Verificado en F1 (tests de `grounding.ts`). En vivo F3: las 4 cards salieron de tools reales. |
+| CHAT_IA-QA-04 | Cupo server-side (401/403 trial/403 premium/concurrencia) | ✅ PASS | Verificado en F1/F2. F3 reusa el mismo endpoint sin cambiar el gate. |
+| CHAT_IA-QA-05 | `owner_plan` no aparece en `lib/ai/` (sin sesgo pago) | ✅ PASS | Checker C3: solo en comentario de `lib/ai/cupo.ts:28`, sin uso. |
+| CHAT_IA-QA-06 | El botón de `/votacion/nueva` abre el chat en modo shortlist y el flujo devuelve 2-5 lugares precargados; free sigue sin ver el botón | ✅ PASS | **Criterio central de F3.** Checkers A1/A2/A3, B1-B4; **en vivo CHAT-13** (premium: botón → shortlist de 4 → precarga → votación creada) y **CHAT-15** (free no ve el botón). |
+| CHAT_IA-QA-07 | `/chat?modo=shortlist` activa la directiva 2-5 (prompt SHORTLIST intacto) | ✅ PASS | Checker C1: `SHORTLIST` + `buildSystemPrompt` intactos, directiva tras el breakpoint de cache. En vivo: respuesta cerró en 4 lugares con cierre de shortlist. |
+| CHAT_IA-QA-08 | `modo` solo se fija al crear la conversación (el endpoint lo ignora si ya hay id) | ✅ PASS | Checkers B1 + C2: cliente manda `modo` solo con `!conversationId`; `reservarCupo` lo usa solo en el INSERT. |
+| CHAT_IA-QA-09 | Rate limit propio (`chat`) en `POST /api/chat` | ✅ PASS | Verificado en F1 (`checkChatRateLimit`). F3 no lo tocó. |
+| CHAT_IA-QA-10 | Typecheck · tests · build verdes | ✅ PASS | typecheck limpio · 441/441 · build verde con el server parado. |
+
+**Notas:** el traspaso chat→votación (sessionStorage, cosmético) tiene su doble red en `POST /api/votaciones` (`isPlacePublished`). Los criterios de comportamiento en vivo (CHAT-13/15) se verificaron con Playwright, no por lectura de código. Ningún hallazgo.

@@ -2,11 +2,13 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
-import { ArrowLeft, History, Loader2, Plus, Send, Sparkles, Trash2, X } from 'lucide-react'
+import { ArrowLeft, History, ListChecks, Loader2, Plus, Send, Sparkles, Trash2, X } from 'lucide-react'
 
 import { PlaceCard } from '@/components/shared/place-card'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { MAX_OPCIONES, MIN_OPCIONES, SHORTLIST_STORAGE_KEY } from '@/lib/votaciones/constantes'
 import { cn } from '@/lib/utils'
 
 /**
@@ -26,6 +28,12 @@ import { cn } from '@/lib/utils'
  * Markdown SIN HTML crudo (decisión 23): `react-markdown` sin `rehype-raw`. Los
  * marcadores `[[lugar:id]]` de grounding se sacan del texto visible (la prosa ya
  * nombra el lugar) y los lugares se muestran como cards que linkean a la ficha.
+ *
+ * Modo shortlist (F3, decisión 21): al entrar por `/chat?modo=shortlist` (botón de
+ * `/votacion/nueva`), el primer mensaje crea la conversación en ese modo (la
+ * directiva 2-5 del prompt la aplica F1/F2) y cada respuesta con 2-5 lugares ofrece
+ * "Usar esta shortlist" → guarda los lugares en `sessionStorage` y vuelve a
+ * `/votacion/nueva`, que los precarga. Los ids se revalidan al crear (VOTACION d.12).
  */
 
 type Lugar = {
@@ -53,6 +61,8 @@ type Props = {
   plan: 'premium' | 'trial'
   restantesIniciales: number
   cupoTotal: number
+  /** 'shortlist' cuando se entra desde el botón de VOTACION (decisión 21). */
+  modo: 'chat' | 'shortlist'
 }
 
 /** Saca los marcadores `[[lugar:id]]` del texto visible (completos y el parcial del final del stream). */
@@ -69,7 +79,8 @@ const SUGERENCIAS = [
   'Un café para laburar con wifi',
 ]
 
-export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
+export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props) {
+  const router = useRouter()
   const [mensajes, setMensajes] = React.useState<Mensaje[]>([])
   const [conversationId, setConversationId] = React.useState<string | null>(null)
   const [conversaciones, setConversaciones] = React.useState<Conversacion[]>([])
@@ -81,6 +92,11 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
   const [gateCode, setGateCode] = React.useState<'CHAT_PAUSADO' | null>(null)
   const [historialAbierto, setHistorialAbierto] = React.useState(false)
   const [cargandoConv, setCargandoConv] = React.useState(false)
+  // Modo del hilo abierto (persiste en DB). Al retomar una conversación shortlist,
+  // el botón "Usar esta shortlist" debe seguir apareciendo aunque la URL no lleve
+  // `?modo=shortlist`. Nulo = hilo nuevo → manda el modo de la URL.
+  const [convModo, setConvModo] = React.useState<'chat' | 'shortlist' | null>(null)
+  const modoEfectivo = convModo ?? modo
 
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
@@ -215,6 +231,9 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
         body: JSON.stringify({
           message: mensaje,
           conversationId: conversationId ?? undefined,
+          // El modo solo se fija al crear la conversación (el endpoint lo ignora
+          // si ya viene un id): mandarlo únicamente en el primer mensaje del hilo.
+          modo: conversationId ? undefined : modo,
         }),
       })
 
@@ -241,7 +260,7 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
             {
               id: nuevaConvId,
               titulo: mensaje.slice(0, 60),
-              modo: 'chat',
+              modo,
               updatedAt: new Date().toISOString(),
             },
             ...prev,
@@ -276,6 +295,7 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
       }
       setMensajes(j.data.mensajes)
       setConversationId(id)
+      setConvModo(j.data.modo === 'shortlist' ? 'shortlist' : 'chat')
     } finally {
       setCargandoConv(false)
     }
@@ -294,10 +314,30 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
 
   function nuevaConversacion() {
     setConversationId(null)
+    setConvModo(null)
     setMensajes([])
     setError(null)
     setHistorialAbierto(false)
     textareaRef.current?.focus()
+  }
+
+  // F3 (decisión 21): guarda los lugares propuestos y vuelve a `/votacion/nueva`,
+  // que los precarga como opciones. Se traspasa solo lo que la card necesita para
+  // mostrarse; los ids se revalidan `isPlacePublished` al crear (doble red).
+  function usarShortlist(lugares: Lugar[]) {
+    const shortlist = lugares.slice(0, MAX_OPCIONES).map((l) => ({
+      id: l.id,
+      name: l.nombre,
+      zone: l.zona,
+      locality: null,
+      tags: [],
+    }))
+    try {
+      sessionStorage.setItem(SHORTLIST_STORAGE_KEY, JSON.stringify(shortlist))
+    } catch {
+      // sessionStorage no disponible: navegamos igual, el picker arranca vacío.
+    }
+    router.push('/votacion/nueva')
   }
 
   return (
@@ -345,9 +385,13 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
             <div className="flex flex-col items-center gap-2">
               <span className="text-3xl">✨</span>
-              <p className="text-sm font-medium text-foreground">Contame qué pinta hacer</p>
+              <p className="text-sm font-medium text-foreground">
+                {modo === 'shortlist' ? 'Armemos la shortlist para votar' : 'Contame qué pinta hacer'}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Describilo con tus palabras y te tiro lugares reales.
+                {modo === 'shortlist'
+                  ? 'Contame para el grupo y te armo 2 a 5 lugares para llevar a la votación.'
+                  : 'Describilo con tus palabras y te tiro lugares reales.'}
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -365,7 +409,9 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
             </div>
           </div>
         ) : (
-          mensajes.map((m, i) => <Burbuja key={i} mensaje={m} />)
+          mensajes.map((m, i) => (
+            <Burbuja key={i} mensaje={m} modo={modoEfectivo} onUsarShortlist={usarShortlist} />
+          ))
         )}
 
         {buscando && (
@@ -484,7 +530,15 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal }: Props) {
 }
 
 /** Una burbuja del hilo: usuario a la derecha, assistant a la izquierda con markdown + cards. */
-function Burbuja({ mensaje }: { mensaje: Mensaje }) {
+function Burbuja({
+  mensaje,
+  modo,
+  onUsarShortlist,
+}: {
+  mensaje: Mensaje
+  modo: 'chat' | 'shortlist'
+  onUsarShortlist: (lugares: Lugar[]) => void
+}) {
   if (mensaje.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -496,6 +550,13 @@ function Burbuja({ mensaje }: { mensaje: Mensaje }) {
   }
 
   const texto = limpiarMarcadores(mensaje.content).trim()
+  // En modo shortlist, una respuesta con 2-5 lugares es una shortlist usable: se
+  // ofrece llevarla a la votación (decisión 21). Fuera de ese rango (1 lugar, o
+  // más de 5) no arma una votación válida → sin botón, la persona sigue refinando.
+  const shortlistUsable =
+    modo === 'shortlist' &&
+    mensaje.lugares.length >= MIN_OPCIONES &&
+    mensaje.lugares.length <= MAX_OPCIONES
 
   return (
     <div className="flex flex-col gap-2">
@@ -516,6 +577,16 @@ function Burbuja({ mensaje }: { mensaje: Mensaje }) {
             />
           ))}
         </div>
+      )}
+      {shortlistUsable && (
+        <button
+          type="button"
+          onClick={() => onUsarShortlist(mensaje.lugares)}
+          className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <ListChecks className="size-4" />
+          Usar esta shortlist
+        </button>
       )}
     </div>
   )

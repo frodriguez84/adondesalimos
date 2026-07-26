@@ -429,3 +429,28 @@ congelado en `subscriptions.amount_ars` al contratar.
 - **Fuera de v1 (en BACKLOG):** descuento multi-local B2B · subir el precio a suscriptores vivos
   (MP no tiene camino confirmado, `MP_INFLATION_PRICING` sin resolver en StressPlan) · trials/plan
   anual · comprobantes AFIP · panel de sync manual de MP.
+
+---
+
+## Chat IA — "armá tu salida" {#chat_ia}
+
+**Spec:** [`docs/specs/done/CHAT_IA.md`](../specs/done/CHAT_IA.md) · ✅ Implementado (2026-07-26)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — CHAT_IA (spec completo, 3 fases)* — APROBADO, 10 criterios PASS (+ QA de fase F1/F2/F3)
+
+**Qué hace:** el chat conversacional premium (`/chat`) que traduce lenguaje natural a **lugares reales del catálogo publicado** — la feature estrella del plan de ARS 7.000. Multi-turno, con cupo mensual, tope global de gasto que degrada, y modelo intercambiable sin deploy. Enciende además el botón "Que la IA arme la shortlist" que VOTACION dejó modelado (decisión 18).
+
+**Alcance implementado (3 fases):**
+
+- **F1 — Motor, cupo y endpoint** (`lib/ai/*`): `client.ts` (singleton `@anthropic-ai/sdk`, único que lee `ANTHROPIC_API_KEY`) · `settings.ts` (claves `ai.*` runtime) · `prompts.ts` (system con taxonomía + zonas + guía; `buildSystemPrompt(modo)`) · `tools.ts` (`buscar_lugares` delega en `searchPlaces` — candado a del grounding) · `grounding.ts` (valida `[[lugar:id]]` contra `seen_place_ids` — candado b) · `cupo.ts` (reserva TOCTOU-safe con `FOR UPDATE`, tope global `ai_api_usage`, revert si la IA falla) · `chat.ts` (loop de tools + streaming SSE). `POST /api/chat` con rate limit `chat`. Migración `drizzle/0009_talented_pete_wisdom.sql` (4 tablas + `users.chat_trial_used` + seeds `ai.*`).
+- **F2 — UI `/chat`** (`app/chat/`): `page.tsx` (gate por sesión inline, sin login = CTA) + `chat-client.tsx` (SSE reader, cards con link a ficha, historial retomar/borrar, estados de gating, markdown sin HTML crudo). Endpoint extra `GET /api/chat/conversaciones/[id]` para retomar el hilo con cards re-enriquecidas. Entrada "Chat IA" en el menú de cuenta.
+- **F3 — Modo shortlist en VOTACION** (cableado, sin motor nuevo): `/chat?modo=shortlist` (el `page.tsx` lee el query y lo pasa al cliente; el cliente manda `modo` solo al crear la conversación) · botón **"Usar esta shortlist"** en respuestas con 2-5 lugares → guarda la shortlist en `sessionStorage` (`SHORTLIST_STORAGE_KEY`) y vuelve a `/votacion/nueva`, que la **precarga** como opciones · el botón de `/votacion/nueva` deja de ser no-op (abre el chat en modo shortlist), sigue gateado a premium. El traspaso es cosmético: los ids se revalidan `isPlacePublished` al crear (doble red, VOTACION d.12).
+
+**Decisiones espina (la línea entre gratis y pago):** grounding con **doble candado** (tool-use nativo + validación server de cada cita — la IA no puede alucinar ni inducida) · **modelo en `app_settings`** (`ai.chat_model`, hoy `claude-sonnet-5` — el A/B del 2026-07-26 mostró que Haiku narra el retry de la tool; swap por UPDATE sin deploy) · cupo mensual con reset + grants (`chat_quota_grants`) · tope global por SKU que **degrada** (503, no factura; bajar a 0 = kill switch) · consumo contado aparte de `chat_messages` (borrar conversación no devuelve cupo) · prompt caching · sin sesgo pago (`owner_plan` no participa).
+
+**Archivos clave:** `lib/ai/{client,settings,prompts,tools,grounding,cupo,chat,logging}.ts` · `app/chat/{page,chat-client}.tsx` · `app/api/chat/route.ts` · `app/api/chat/conversaciones/[id]/route.ts` · `app/votacion/nueva/nueva-client.tsx` (precarga + botón) · `lib/votaciones/constantes.ts` (`SHORTLIST_STORAGE_KEY`) · `drizzle/0009_talented_pete_wisdom.sql`.
+
+**Lo que hay que saber para el próximo spec:**
+
+- **El chat es una fuente más de shortlist, no un bypass**: la votación sigue validando `isPlacePublished` al crear. Cualquier flujo que precargue lugares debe apoyarse en esa doble red, no confiar en el traspaso del cliente.
+- **El modelo se cambia con un UPDATE** (`ai.chat_model`), no con deploy — mismo patrón que umbral/precios/topes Google. El seed sigue en Haiku (fallback); **manda el runtime**.
+- **Fuera de v1 (en BACKLOG):** wizard guiado · sesión de tuning de prompt/voz (Chat IA F1) · memoria entre conversaciones · recomendaciones del chat como métrica propia (sin mezclar con impresiones B2B).

@@ -21,6 +21,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
   - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea. **Único DoD de AUTH sin cerrar** (deferral aceptado, ver spec § DoD)
 - [x] **Votación en grupo** — el loop viral: shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado → spec: `docs/specs/done/VOTACION.md`. **Las 3 fases cerradas ✅ 2026-07-22** (F1 crear+gate · F2 votar+vivo · F3 cierre+panel). [Resumen](../archive/SPECS_ARCHIVO.md#votacion)
 - [x] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH → spec: `docs/specs/done/MONETIZACION.md`. **Las 4 fases cerradas ✅ 2026-07-25** (F1 instrumentación + precios · F2 cobro MP · F3 destaque · F4 desglose). [Resumen](../archive/SPECS_ARCHIVO.md#monetizacion)
+- [x] **Chat IA "armá tu salida"** — chat premium (`/chat`) que traduce lenguaje natural a lugares reales del catálogo; **enciende el botón "la IA arma la shortlist" de VOTACION**. Tool-use con doble candado de grounding, cupo mensual + tope global que degrada, modelo en `app_settings` → spec: `docs/specs/done/CHAT_IA.md`. **Las 3 fases cerradas ✅ 2026-07-26** (F1 motor/cupo/endpoint · F2 UI `/chat` · F3 modo shortlist en VOTACION). [Resumen](../archive/SPECS_ARCHIVO.md#chat_ia)
 
 ## Mejoras futuras (fuera de v1)
 
@@ -460,6 +461,21 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Spec 8 CHAT_IA — F3 (Modo shortlist en VOTACION) — CIERRA EL SPEC 8** (2026-07-26): la última
+      pieza del chat premium, puro **cableado** (sin motor nuevo). Enciende el botón "Que la IA arme la
+      shortlist" que VOTACION dejó no-op (decisión 18): `/votacion/nueva` navega a `/chat?modo=shortlist`
+      (gate premium intacto, `{esPremium && …}`); el chat crea la conversación en ese modo (manda `modo`
+      solo en el primer mensaje, el endpoint lo ignora si ya hay id) y la directiva 2-5 del prompt
+      SHORTLIST ya existía (F1); cada respuesta con 2-5 lugares muestra **"Usar esta shortlist"** →
+      guarda la lista en `sessionStorage` (`SHORTLIST_STORAGE_KEY`, nueva constante) y vuelve a
+      `/votacion/nueva`, que la **precarga** como opciones. El traspaso es cosmético — los ids se
+      revalidan `isPlacePublished` al crear (doble red, VOTACION d.12). Al retomar un hilo shortlist del
+      historial, el botón respeta el `modo` **persistido** de la conversación, no solo la URL. Archivos:
+      `app/chat/{page,chat-client}.tsx`, `app/votacion/nueva/nueva-client.tsx`, `lib/votaciones/constantes.ts`.
+      **QA:** typecheck · 441 tests · build verdes; checkers independientes (Explore/haiku) todos PASS +
+      **en vivo (Playwright/ngrok):** CHAT-13 (premium: botón → shortlist de 4 lugares reales → precarga →
+      votación creada) y CHAT-15 (free no ve el botón). Veredicto **APROBADO** — `docs/qa/AnalisisQA.md`
+      § *QA /qa-spec — CHAT_IA (spec completo, 3 fases)*. [Resumen](../archive/SPECS_ARCHIVO.md#chat_ia)
 - [x] **Spec 7 MONETIZACION — F4 (Desglose de estadísticas) — CIERRA EL SPEC 7** (2026-07-25): la
       segunda feature que **vende** el B2B, montada sobre el teaser que AUTH dejó ("N visitas este
       mes"). `desgloseEstadisticas` (`lib/negocio/query.ts`) **gateado server-side por

@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { MapPin, Plus, Search, Sparkles, X } from 'lucide-react'
 
 import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
-import { MAX_OPCIONES, MIN_OPCIONES } from '@/lib/votaciones/constantes'
+import { MAX_OPCIONES, MIN_OPCIONES, SHORTLIST_STORAGE_KEY } from '@/lib/votaciones/constantes'
 import type { SearchedPlace } from '@/lib/search/query'
 
 /**
@@ -22,6 +23,7 @@ import type { SearchedPlace } from '@/lib/search/query'
 type PlaceElegido = Pick<SearchedPlace, 'id' | 'name' | 'zone' | 'locality' | 'tags'>
 
 export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [resultados, setResultados] = useState<SearchedPlace[]>([])
   const [buscando, setBuscando] = useState(false)
@@ -30,6 +32,41 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
+
+  // Precarga desde el chat IA (CHAT_IA F3, decisión 21): si venimos del botón
+  // "Usar esta shortlist", el chat dejó los lugares en `sessionStorage`. Se cargan
+  // como elegidos una sola vez y se limpia la clave (un refresh no re-inyecta). Los
+  // ids se revalidan `isPlacePublished` al crear (VOTACION d.12) — esto es cosmético.
+  useEffect(() => {
+    let crudo: string | null = null
+    try {
+      crudo = sessionStorage.getItem(SHORTLIST_STORAGE_KEY)
+      if (crudo) sessionStorage.removeItem(SHORTLIST_STORAGE_KEY)
+    } catch {
+      return
+    }
+    if (!crudo) return
+    try {
+      const datos: unknown = JSON.parse(crudo)
+      if (!Array.isArray(datos)) return
+      const precarga: PlaceElegido[] = datos
+        .filter(
+          (p): p is { id: string; name: string } & Record<string, unknown> =>
+            !!p && typeof p.id === 'string' && typeof p.name === 'string',
+        )
+        .slice(0, MAX_OPCIONES)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          zone: typeof p.zone === 'string' ? p.zone : null,
+          locality: typeof p.locality === 'string' ? p.locality : null,
+          tags: Array.isArray(p.tags) ? (p.tags as PlaceElegido['tags']) : [],
+        }))
+      if (precarga.length > 0) setElegidos(precarga)
+    } catch {
+      // JSON corrupto: se ignora, el picker arranca vacío.
+    }
+  }, [])
 
   // Búsqueda con debounce: el picker no consulta en cada tecla.
   useEffect(() => {
@@ -165,12 +202,13 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
         />
       </label>
 
-      {/* Premium: "que la IA arme la shortlist" (decisión 18). Modelado y gateado,
-          pero apagado — en v1 no llama a ninguna IA. Free no lo ve. */}
+      {/* Premium: "que la IA arme la shortlist" (VOTACION d.18 → encendido en
+          CHAT_IA F3, decisión 21). Abre el chat en modo shortlist; al aceptar una
+          lista, el chat vuelve acá con los lugares precargados. Free no lo ve. */}
       {esPremium && (
         <button
           type="button"
-          onClick={() => setError('La shortlist por IA llega pronto. Por ahora, elegí a mano.')}
+          onClick={() => router.push('/chat?modo=shortlist')}
           className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-primary/50 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
         >
           <Sparkles className="size-4" />

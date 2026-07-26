@@ -21,7 +21,17 @@ import { ChatClient } from './chat-client'
 export const metadata: Metadata = { title: 'Chat IA — ¿A dónde salimos?' }
 export const dynamic = 'force-dynamic'
 
-export default async function ChatPage() {
+export default async function ChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ modo?: string }>
+}) {
+  // Modo shortlist (CHAT_IA F3, decisión 21): entrada desde el botón de
+  // `/votacion/nueva`. Solo cambia la directiva del prompt y muestra el botón
+  // "Usar esta shortlist"; todo lo demás es el mismo chat y el mismo cupo.
+  const { modo } = await searchParams
+  const modoChat = modo === 'shortlist' ? 'shortlist' : 'chat'
+
   const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
 
   if (!session?.user) {
@@ -61,6 +71,7 @@ export default async function ChatPage() {
       plan={premium ? 'premium' : 'trial'}
       restantesIniciales={cupo.restantes}
       cupoTotal={cupo.cupo}
+      modo={modoChat}
     />
   )
 }
