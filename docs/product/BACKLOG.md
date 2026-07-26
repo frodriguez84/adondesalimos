@@ -73,6 +73,31 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
         con hermanos y primos por Caballito/Almagro/Boedo") que antes daba 0 ahora devuelve las 4
         escape rooms reales (Caballito ×3, Almagro/Boedo ×1) con sus cards. El sobre-filtrado quedó
         resuelto sin cambiar de modelo → **NO hizo falta Sonnet 5** para este síntoma.
+      - [x] **A/B de modelo Haiku 4.5 vs Sonnet 5 — narración de tools y voz** (2026-07-26): variable
+        controlada = solo el modelo (swap por `app_settings`, MISMO prompt en ambos). 3 casos idénticos
+        en conversaciones frescas, verificados en vivo (Playwright/ngrok, cuenta premium con cupo 30).
+        **Resultado:**
+        - **Caso narración** ("Somos como 20… cumpleaños en Palermo"): **Haiku NARRA el retry**
+          ("parecería que no hay lugares tagueados para grupos grandes… Pero te hago una búsqueda más
+          abierta…"). **Sonnet NO narra**: tira las 5 opciones directo y cierra con "así te afino la
+          búsqueda".
+        - **Caso voz** ("che, ¿me tirás algo tranqui para charlar por Villa Crespo?"): **Haiku vuelve a
+          narrar** ("Uh, con ese filtro no salió nada. Probemos sin 'tranqui'…"). **Sonnet hace un pivot
+          elegante** sin exponer el mecanismo ("No hay mucho bar puramente en Villa Crespo, pero sí
+          buenos cafés para charlar tranqui…") + voz más rica ("piolas", "ahí nomás", "¿Te sirve?").
+        - **Regresión escape-room** (no debía romperse): **ambos ✅** devuelven las 4 salas reales sin
+          narrar (la búsqueda acierta al primer tiro → no hay retry que narrar).
+        **Diagnóstico:** la narración se dispara SOLO cuando la 1ª búsqueda vuelve vacía y el modelo
+        reintenta; la instrucción negativa "reintentá en silencio" (✗/✓ del prompt) **no es confiable en
+        Haiku** — es el límite que la decisión 3 del spec previó. Sonnet respeta la instrucción y además
+        maneja la voz sin desliz. **Costo:** Sonnet ≈ **3×** por token (Haiku $1/$5, Sonnet $3/$15 in/out
+        por millón, `lib/ai/logging.ts`); el system prompt cacheado abarata el input, el delta lo domina
+        el output. **Recomendación:** Sonnet mejora claramente los DOS síntomas abiertos (no-narración +
+        voz) sin romper la regresión; si la voz/prolijidad es prioridad de producto, el swap lo justifica
+        (se cambia con un UPDATE, sin deploy). Alternativa si se quiere seguir en Haiku por costo: NO hay
+        palanca de prompt confiable para la narración en modelo chico — quedaría suprimir el retry
+        automático (menos cobertura de sobre-filtrado) o tolerar la narración. **Decisión de costo/producto
+        pendiente de Fer** — modelo revertido a Haiku tras el test.
 - [ ] **Chat IA — copy del gate premium sin cupo acoplado a la fecha de reset (F2, nota 2026-07-25).**
       El banner "Se renueva el 1º del mes que viene" es **correcto hoy**: el cupo se cuenta por mes
       calendario (`chat_usage_monthly` keyed por `YYYY-MM`, `lib/ai/cupo.ts`), reset el 1º —

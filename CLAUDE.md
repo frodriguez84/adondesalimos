@@ -142,6 +142,14 @@ regla. `operating_status` hoy no filtra nada (Overture lo entrega NULL en todo A
 por lugar y día. **Agregado puro**: sin `user_id`, sin cookies, sin IP. Es el histórico que
 vende el B2B (spec 7) y no se puede reconstruir después.
 
+### Modelo del chat IA (CHAT_IA)
+El default vigente es **Sonnet 5** (`claude-sonnet-5`), no Haiku — decidido con el A/B del
+2026-07-26: Haiku narraba el retry de la tool y deslizaba la voz al reintentar tras una búsqueda
+vacía (instrucción negativa poco confiable en modelo chico); Sonnet lo arregla a ~3× el costo/token,
+aceptado como prioridad de voz/producto. El model id vive en `app_settings` (`ai.chat_model`): el
+swap es un UPDATE sin deploy. El seed de `lib/ai/settings.ts` sigue en Haiku (fallback) — **manda el
+runtime**. El porqué entero está en el spec (decisión 3) y en `docs/product/BACKLOG.md`.
+
 ---
 
 ## Convenciones de código

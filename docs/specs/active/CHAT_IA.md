@@ -60,7 +60,7 @@ las 9-24 son diseño de este spec.
 |---|----------|
 | 1 | **Scope v1 = chat `/chat` + botón de VOTACION** (2026-07-25). Un solo backend con dos entradas. Wizard fuera (ver § Qué NO es) |
 | 2 | **Grounding con doble candado — la regla de oro.** (a) La IA consulta el catálogo **solo vía tool-use nativo**: una tool `buscar_lugares` que ejecuta el motor real de `lib/search` (mismo `construirWhere`, que ya incluye `publishedWhere`) — la IA nunca "sabe" lugares, los busca. (b) El server **valida cada lugar citado** en la respuesta contra el conjunto de IDs que las tools devolvieron en esa conversación: un ID no visto se descarta y se loguea. La IA no puede inventar ni aunque un prompt injection se lo pida |
-| 3 | **Modelo: Haiku 4.5** (`claude-haiku-4-5`), decidido 2026-07-25 con costos del skill `claude-api` a la vista (~ARS 150/premium/mes ≈ 2% del plan, ya validado en IDEAS). El model id vive en **`app_settings`** (`ai.chat_model`) — pasar a **Sonnet 5** (`claude-sonnet-5`) es un UPDATE sin deploy, mismo patrón que umbral/precios/topes Google. Si la clave falta o es inválida se cae al default del seed |
+| 3 | **Modelo: ~~Haiku 4.5~~ → Sonnet 5 (`claude-sonnet-5`), default vigente desde 2026-07-26.** Nació en Haiku 4.5 (`claude-haiku-4-5`, decidido 2026-07-25 con costos a la vista, ~ARS 150/premium/mes). El A/B del 2026-07-26 (ver `BACKLOG.md` § SESIÓN DEDICADA — Chat IA) mostró que Haiku **narra el retry de la tool** y desliza voz al reintentar tras una búsqueda vacía — la instrucción negativa "reintentá en silencio" no es confiable en modelo chico. Sonnet 5 arregla los dos síntomas sin romper la regresión de sobre-filtrado, a ~3× el costo/token (aceptado por Fer: la voz/prolijidad es prioridad de producto). El model id vive en **`app_settings`** (`ai.chat_model`) — el swap es un UPDATE sin deploy, mismo patrón que umbral/precios/topes Google. Si la clave falta o es inválida se cae al default del seed (`DEFAULT_CHAT_MODEL` en `lib/ai/settings.ts`, todavía `claude-haiku-4-5` — el runtime manda; ver nota) |
 | 4 | **Un solo módulo habla con Anthropic: `lib/ai/`** (server-only). `ANTHROPIC_API_KEY` se lee solo en `lib/ai/client.ts`; nunca llega al bundle (mismo criterio que `lib/google/places.ts`, `lib/billing/mercadopago.ts`, `lib/storage/r2.ts`). SDK oficial `@anthropic-ai/sdk` |
 | 5 | **Cupo premium: 30 mensajes/mes** (IDEAS, "no regalemos"). Modelo `cupo_del_plan` vs `otorgados_este_mes`: el cupo base vive en `app_settings` (`ai.chat_quota_premium`) y los bonus son filas en `chat_quota_grants` (user, mes, cantidad, motivo) — un bonus estacional es un INSERT, no tocar el plan de nadie. Cupo efectivo del mes = setting + SUM(grants del mes) |
 | 6 | **Probadita free: 3 mensajes, una única vez (de por vida), con login** (2026-07-25). Sin login no hay chat — el cupo necesita identidad (y empuja el registro). El cupo de probadita también es setting (`ai.chat_quota_trial`). Se usó → CTA a premium, nunca un error crudo |
@@ -129,7 +129,7 @@ ai_api_usage                                         -- espejo de google_api_usa
   month / sku ('chat_messages') / count — PK (month, sku)
 
 app_settings (seed, editables desde /admin):
-  ai.chat_model          = 'claude-haiku-4-5'
+  ai.chat_model          = 'claude-haiku-4-5'         -- seed; runtime pisado a 'claude-sonnet-5' (decisión 3, A/B 2026-07-26)
   ai.chat_quota_premium  = 30
   ai.chat_quota_trial    = 3
   ai.chat_monthly_cap    = 5000                      -- holgado; 0 = kill switch
