@@ -905,8 +905,45 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de specs 6 (2026-07-25). Esta sección es lo primero que lee la
+_Actualizado en la sesión de triaje (2026-07-26). Esta sección es lo primero que lee la
 sesión siguiente._
+
+### 🏁 Sesión de triaje — cerrada (2026-07-26) · RUMBO POST-SPEC-8 DECIDIDO
+
+Sesión de planificación (Fable, sin código ni specs). Contexto: specs 1-8 todos en `done/`,
+`planned/` vacío. Se priorizó la cola de trabajo con Fer:
+
+- ✅ **Hallazgo que ordena el triaje: el "bug de búsqueda" reportado por Fer (Caballito +
+  Almagro-Boedo → parrillas de otros barrios) y el bug de zonas del BACKLOG son EL MISMO
+  bug.** La búsqueda filtra fiel por `place_zones`; lo roto son las asignaciones
+  geométricamente imposibles de esa tabla (diagnóstico read-only 2026-07-25). Una sesión,
+  no dos. El repro nuevo quedó anotado en la entrada del bug en `BACKLOG.md`.
+- ✅ **ORDEN DECIDIDO (Fer, 2026-07-26):**
+  1. **Bug de zonas** — sesión propia (Opus): cuantificar escala, causa raíz en
+     `zones:build`/`assign` o GeoJSON fuente, re-correr asignación, test de regresión.
+     Corte verificable → apto loop fix→re-verify.
+  2. **Plan de QA integral en vivo** — matriz rol × feature en
+     `docs/qa/PLAN_QA_INTEGRAL.md` y ejecución. Va después del fix de zonas (una matriz
+     sobre datos de zona rotos da falsos hallazgos). Lo no probado es el CRUCE de
+     features, no cada spec contra sí mismo.
+  3. **Observabilidad de costos en `/admin`** — tablero sobre `ai_api_usage` /
+     `google_api_usage` (hoy solo por SQL; el chat corre con Sonnet 5 a 3×). Puede
+     absorber el sugeridor de precio premium según dólar (BACKLOG 2026-07-26).
+  4. **Pulido UX/UI + a11y + performance mobile** — después del QA integral, sobre sus
+     hallazgos. Tracks ya anotados que entran acá: header de marca global, filtro
+     fantasma, resize de fotos en el browser.
+  5. **Spec de curaduría (candidato a spec 9)** — Ambiente (0,9%) y Momento (0,6%) casi
+     vacíos siendo EL diferencial; 8 chips de Ocasión apagados; Precio con 0 filas.
+     Especificar herramienta de curaduría en `/admin` para que la carga manual sea viable.
+- ✅ **PRODUCCIÓN FUERA DE LA COLA** (decisión explícita de Fer: "no tengo apuro, puedo
+  esperar todo el tiempo del mundo"). No se planifica ni se le dedica sesión; se retoma
+  solo a pedido. Cuando se retome arrastra su paquete entero: hosting/Neon/dominio,
+  SEO/OG/sitemap, términos + privacidad, import fresco de Overture.
+- 📌 **Decisiones de producto pendientes que no urgen** (sin sesión asignada): fotos al
+  revocar reclamo (recomendación del checkbox ya escrita), zonas faltantes del conurbano
+  (8,4% — decidir con datos del QA integral), botón Google OAuth (gate: crear las
+  credenciales).
+- ⏭️ **Próximo paso**: sesión Opus para el bug de zonas.
 
 ### 🏁 Sesión de specs 6 — cerrada (2026-07-25) · SPEC 8 CHAT_IA ESCRITO
 

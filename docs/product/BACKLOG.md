@@ -136,7 +136,12 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       `turf.booleanPointInPolygon` interpreta mal. **Dónde mirar:** `scripts/zones/build.ts`
       (buffer), `scripts/zones/assign.ts` (asignación), `data/zones/*.geojson`, tabla `place_zones`.
       **Pendiente de cuantificar** la escala (cuántos lugares con asignación cruzada). Impacto: la
-      calidad de resultados en toda CABA, no solo en bordes.
+      calidad de resultados en toda CABA, no solo en bordes. **Segundo repro (Fer, 2026-07-26):**
+      buscar parrillas en Caballito + Almagro-Boedo también trae parrillas de otros barrios — mismo
+      síntoma, misma causa. El hallazgo viejo `[QA — sin verificar]` del escape-room (más abajo)
+      encaja en el mismo patrón: verificar en la sesión del fix si ese ítem se cierra junto.
+      **Priorizado #1 en la sesión de triaje del 2026-07-26** (ver `IDEAS.md` § Estado de la
+      conversación) → sesión propia Opus.
 - [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
       el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
       cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).
