@@ -24,6 +24,15 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **💵 /admin — sugeridor de precio premium según el dólar (idea Fer, 2026-07-26).**
+      Banner/widget en `/admin` que consulte **`dolarito.ar` (dólar OFICIAL)** y, cuando el dólar
+      supere un umbral, sugiera el nuevo precio ARS del plan premium según la **regla de piso**
+      (`precio_ARS ≥ dólar × 3`, ver `docs/product/COSTOS-IA-Y-PRECIO-PREMIUM.md`). Objetivo: que el
+      precio no quede por debajo del costo (API Claude se paga en USD, el peso se devalúa). Disparador
+      hoy: dólar ~2.333 → ARS 7.000 toca el piso. **Consideraciones de implementación:** cachear la
+      cotización (no pegarle a dolarito.ar en cada render), degradar si la fuente cae (mostrar último
+      valor conocido, nunca bloquear `/admin`), y que sea **sugerencia** — el precio lo cambia Fer a
+      mano, no automático. Ver análisis completo en `COSTOS-IA-Y-PRECIO-PREMIUM.md`.
 - [ ] **🎯 SESIÓN DEDICADA — Chat IA: calidad de búsqueda y voz (tuning de prompt, F1).**
       Descubierto en el QA en vivo de F2 (2026-07-26, Fer testeando). Son todos comportamientos del
       **modelo (Haiku 4.5)**, no de la UI ni del motor. Juntar en una sesión propia, con contexto
