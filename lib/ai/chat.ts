@@ -98,10 +98,20 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
             messages,
           })
 
+          // El texto de esta ronda se pega al de la anterior sin separador
+          // ("…para después.Uh, sin resultados…"): el modelo escribe, corre una tool
+          // y sigue escribiendo, y los fragmentos se concatenan. Un salto de párrafo
+          // antes del primer texto de una ronda posterior los separa.
+          let primerTextoDeRonda = true
           for await (const event of stream) {
             if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-              fullText += event.delta.text
-              controller.enqueue(sse({ text: event.delta.text }))
+              let texto = event.delta.text
+              if (primerTextoDeRonda && ronda > 0 && fullText.length > 0 && !fullText.endsWith('\n')) {
+                texto = '\n\n' + texto
+              }
+              primerTextoDeRonda = false
+              fullText += texto
+              controller.enqueue(sse({ text: texto }))
             }
           }
 

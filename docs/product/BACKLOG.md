@@ -24,15 +24,41 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Mejoras futuras (fuera de v1)
 
-- [ ] **Chat IA — pulido del texto del assistant (cosmético, detectado en QA F2 2026-07-25).**
-      Observaciones del motor/prompt (F1), no de la UI: (a) cuando el modelo escribe texto,
-      llama a una tool y sigue escribiendo, los fragmentos se **pegan sin separador**
-      ("…Palermo.Hmm, sin resultados…") — es el acumulado de `fullText` en `lib/ai/chat.ts` (meter
-      un `\n\n` entre rondas de tool); (b) el modelo **a veces narra su uso de tools** ("Uh, me
-      tiró resultados de Palermo… Probemos de nuevo"), contra la guía del system prompt; (c) se le
-      escapa **slang no rioplatense** ("te late" es mexicano; debería ser "¿te copa?"/"¿te va?") —
-      reforzar el voseo/lunfardo en `lib/ai/prompts.ts` con una lista corta de qué NO usar. Ninguna
-      bloquea; mejoran la prolijidad y la voz del producto.
+- [ ] **🎯 SESIÓN DEDICADA — Chat IA: calidad de búsqueda y voz (tuning de prompt, F1).**
+      Descubierto en el QA en vivo de F2 (2026-07-26, Fer testeando). Son todos comportamientos del
+      **modelo (Haiku 4.5)**, no de la UI ni del motor. Juntar en una sesión propia, con contexto
+      limpio, porque es iterativo.
+
+      **Síntomas observados:**
+      1. **Sobre-filtrado que pierde resultados reales (el más grave).** "Lugares para ir con
+         hermanos y primos… una sala de escape… en Caballito/Almagro/Boedo" → el chat dijo "no hay
+         escape rooms". **Pero SÍ hay** (Caballito 3, Almagro-Boedo 1, publicadas y bien tagueadas:
+         `club-de-juegos`+`escape-room`). **Causa raíz** (diagnosticada en DB, no adivinada): el
+         modelo sumó un tag de ambiente (`grupos-grandes`, por "hermanos y primos") al `escape-room`;
+         como entre facetas es **AND** y **ninguna escape room tiene tags de ambiente**, dio 0. El
+         motor hizo lo correcto; el modelo pidió mal. Se agrava porque la guía "CÓMO ELEGIR LOS TAGS"
+         del system prompt **no menciona escape rooms/juegos** → el modelo queda sin andarivel.
+      2. **Narra su uso de tools** ("Uh, me tiró resultados de Palermo… Probemos de nuevo"), contra
+         la guía del prompt.
+      3. **Slang no rioplatense** ("te late") y **frases inventadas** ("te doy un toque ahí") —
+         mitigado ya (ver sub-items) pero no 100% en modelo chico.
+
+      **Plan (idea de Fer, 2026-07-26):** ANTES de evaluar cambiar de modelo, **revisar cómo se
+      estructuran los prompts en StressPlan** (usa el mismo Haiku 4.5 y NO tiene estos problemas) y
+      portar esa estructura al chat. Recién si con esa estructura sigue fallando, evaluar **Sonnet 5**
+      (swap por `app_settings`, decisión 3 del spec, sin deploy). Fixes concretos candidatos: guía de
+      escape-room/juegos en el prompt; regla fuerte de "si nombran una actividad puntual, filtrá por
+      ESE tag + zona y NO sumes ambiente"; considerar loguear el input de la tool (`buscar_lugares`)
+      para debug basado en evidencia, no en conjeturas.
+      - [x] **Voz/slang** (2026-07-25/26): reforzado el system prompt para evitar "boludo" y slang
+        no rioplatense. Se **quitó** la mención de "te late" del prompt (priming: nombrar la palabra
+        prohibida la inducía) y se pasó a **lista blanca positiva** de muletillas porteñas + regla de
+        no inventar modismos ("te doy un toque ahí"). "che" sí, "boludo" no. `lib/ai/prompts.ts` § TONO.
+        **Ojo (Haiku):** la instrucción negativa no es 100% confiable en un modelo chico; si la voz
+        importa mucho, evaluar Sonnet 5 (swap por `app_settings`, decisión 3, sin deploy).
+      - [x] **Concatenación entre rondas de tool** (2026-07-26): el texto de cada ronda se pegaba al
+        de la anterior sin separador. Se inserta `\n\n` antes del primer texto de una ronda posterior
+        en `lib/ai/chat.ts`. Verificado en vivo: párrafos separados.
 - [ ] **Chat IA — copy del gate premium sin cupo acoplado a la fecha de reset (F2, nota 2026-07-25).**
       El banner "Se renueva el 1º del mes que viene" es **correcto hoy**: el cupo se cuenta por mes
       calendario (`chat_usage_monthly` keyed por `YYYY-MM`, `lib/ai/cupo.ts`), reset el 1º —
