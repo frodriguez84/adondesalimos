@@ -7,14 +7,15 @@ import { getChatModel } from './settings'
 import { buildSystemPrompt } from './prompts'
 import { BUSCAR_LUGARES_TOOL, ejecutarBuscarLugares } from './tools'
 import { enriquecerCitas } from './grounding'
-import { revertirReserva } from './cupo'
+import { resumenCupo, revertirReserva } from './cupo'
 import { logChatCall } from './logging'
 
 /**
  * Orquestación del turno del chat (CHAT_IA, decisiones 11, 16, 18): arma el
  * contexto, corre el loop de tools y streamea SSE. Devuelve un `ReadableStream`
  * con eventos `data:{text}` (deltas), `data:{estado:'buscando'}` (mientras corre
- * una tool), `data:{lugares:[...]}` (cards validadas al final) y `data:[DONE]`.
+ * una tool), `data:{lugares:[...]}` (cards validadas al final), `data:{restantes}`
+ * (cupo restante tras el turno, para el contador en vivo de F2) y `data:[DONE]`.
  *
  * Contexto por turno (decisión 16): system (cacheado) + últimos 12 mensajes
  * user/assistant + el loop de tools del turno actual. Los bloques tool_use/
@@ -174,6 +175,16 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
           .where(eq(chatConversations.id, conversationId))
 
         logChatCall({ model, plan, inputTokens, outputTokens, cacheReadTokens })
+
+        // Cupo restante tras consumir este turno (F2): el cliente pinta el
+        // contador en vivo sin re-fetch. `resumenCupo` lee `used` ya incrementado
+        // por la reserva, así que refleja lo que queda después de este mensaje.
+        try {
+          const { restantes } = await resumenCupo(userId, esPrem)
+          controller.enqueue(sse({ restantes }))
+        } catch (e) {
+          console.error('[chat] resumenCupo falló:', e)
+        }
 
         controller.enqueue(DONE)
       } catch (err) {

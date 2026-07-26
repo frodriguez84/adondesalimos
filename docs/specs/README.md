@@ -21,7 +21,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| [CHAT_IA](active/CHAT_IA.md) | Spec 8 — chat con IA "armá tu salida" (`/chat`) + enciende el botón "la IA arma la shortlist" de VOTACION. Tool-use sobre el motor de búsqueda con doble candado de grounding; Haiku 4.5 con model id en `app_settings`; cupo 30/mes premium + probadita 3 de por vida; topes por SKU que degradan | 🟡 Parcial — **F1 (motor, cupo, endpoint) ✅ 2026-07-25**; F2 (UI `/chat`) y F3 (shortlist) pendientes |
+| [CHAT_IA](active/CHAT_IA.md) | Spec 8 — chat con IA "armá tu salida" (`/chat`) + enciende el botón "la IA arma la shortlist" de VOTACION. Tool-use sobre el motor de búsqueda con doble candado de grounding; Haiku 4.5 con model id en `app_settings`; cupo 30/mes premium + probadita 3 de por vida; topes por SKU que degradan | 🟡 Parcial — **F1 (motor, cupo, endpoint) ✅ y F2 (UI `/chat`) ✅ 2026-07-25**; F3 (shortlist) pendiente |
 
 ## 🔵 Planned (`planned/`)
 

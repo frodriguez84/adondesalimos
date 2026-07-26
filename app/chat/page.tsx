@@ -1,0 +1,66 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { headers } from 'next/headers'
+
+import { auth } from '@/lib/auth'
+import { esPremium } from '@/lib/votaciones/planes'
+import { resumenCupo } from '@/lib/ai/cupo'
+import { ChatClient } from './chat-client'
+
+/**
+ * `/chat` — chat IA "armá tu salida" (CHAT_IA F2). Server component con gate por
+ * sesión inline (AUTH decisión 9; mismo patrón que `/votacion/nueva`).
+ *
+ * **Sin login NO se redirige**: se muestra una pantalla de bienvenida con CTA a
+ * ingresar (CHAT-01, decisión 20) — es la feature estrella del premium, conviene
+ * venderla antes de pedir cuenta. Con sesión, el gating real es server-side en cada
+ * request de `/api/chat`; acá solo se calcula el estado inicial para pintar el
+ * contador y el CTA correcto sin un fetch extra (decisión 20).
+ */
+
+export const metadata: Metadata = { title: 'Chat IA — ¿A dónde salimos?' }
+export const dynamic = 'force-dynamic'
+
+export default async function ChatPage() {
+  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+
+  if (!session?.user) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-6 px-4 py-8 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <span className="text-4xl">✨</span>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Chat IA para salir</h1>
+          <p className="text-sm text-muted-foreground">
+            Contale qué pinta —“algo tranqui con mi vieja en Palermo el domingo”— y te tira lugares
+            reales, al toque. Necesitás una cuenta para arrancar.
+          </p>
+        </div>
+        <div className="flex w-full flex-col gap-2">
+          <Link
+            href="/login?callbackUrl=/chat"
+            className="rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Ingresar para chatear
+          </Link>
+          <Link
+            href="/"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            ← Volver
+          </Link>
+        </div>
+      </main>
+    )
+  }
+
+  const premium = await esPremium(session.user.id)
+  const cupo = await resumenCupo(session.user.id, premium)
+
+  return (
+    <ChatClient
+      plan={premium ? 'premium' : 'trial'}
+      restantesIniciales={cupo.restantes}
+      cupoTotal={cupo.cupo}
+    />
+  )
+}

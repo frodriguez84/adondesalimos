@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { Sparkles } from 'lucide-react'
 import { signOut } from '@/lib/auth/client'
 
 type Props = { user: { name: string | null; email: string } | null }
@@ -21,6 +22,9 @@ type Props = { user: { name: string | null; email: string } | null }
  * VOTACION suma "Armar votación" y "Mis votaciones" (decisión / rutas): visibles
  * para todo usuario con sesión, con el mismo criterio que "Mi negocio" — la
  * pantalla destino resuelve el caso vacío, no se pre-consulta acá.
+ *
+ * CHAT_IA (F2) suma "Chat IA": visible para todo usuario con sesión; el gate de
+ * plan (probadita free vs premium) lo resuelve `/chat` server-side, no acá.
  */
 export function AccountMenu({ user }: Props) {
   const [open, setOpen] = useState(false)
@@ -74,6 +78,15 @@ export function AccountMenu({ user }: Props) {
             <p className="truncate text-sm font-medium text-foreground">{user.name || 'Mi cuenta'}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
+          <Link
+            href="/chat"
+            role="menuitem"
+            className="flex items-center gap-1.5 px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            onClick={() => setOpen(false)}
+          >
+            <Sparkles className="size-4 text-primary" />
+            Chat IA
+          </Link>
           <Link
             href="/votacion/nueva"
             role="menuitem"

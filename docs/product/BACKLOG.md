@@ -24,6 +24,22 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **Chat IA — pulido del texto del assistant (cosmético, detectado en QA F2 2026-07-25).**
+      Observaciones del motor/prompt (F1), no de la UI: (a) cuando el modelo escribe texto,
+      llama a una tool y sigue escribiendo, los fragmentos se **pegan sin separador**
+      ("…Palermo.Hmm, sin resultados…") — es el acumulado de `fullText` en `lib/ai/chat.ts` (meter
+      un `\n\n` entre rondas de tool); (b) el modelo **a veces narra su uso de tools** ("Uh, me
+      tiró resultados de Palermo… Probemos de nuevo"), contra la guía del system prompt; (c) se le
+      escapa **slang no rioplatense** ("te late" es mexicano; debería ser "¿te copa?"/"¿te va?") —
+      reforzar el voseo/lunfardo en `lib/ai/prompts.ts` con una lista corta de qué NO usar. Ninguna
+      bloquea; mejoran la prolijidad y la voz del producto.
+- [ ] **Chat IA — copy del gate premium sin cupo acoplado a la fecha de reset (F2, nota 2026-07-25).**
+      El banner "Se renueva el 1º del mes que viene" es **correcto hoy**: el cupo se cuenta por mes
+      calendario (`chat_usage_monthly` keyed por `YYYY-MM`, `lib/ai/cupo.ts`), reset el 1º —
+      **desacoplado** de la fecha de cobro de MercadoPago (que cae cualquier día). Riesgo latente: si
+      el reset dejara de ser calendario, el copy mentiría. Opción de robustez: wording sin fecha dura
+      (p.ej. "el mes que viene tenés tus mensajes de nuevo"). No urge; es solo si se quiere desacoplar
+      el texto de la implementación.
 - [ ] **🐛 BUG — La búsqueda por zona trae lugares de zonas NO adyacentes** (reportado por Fer,
       2026-07-25; bug de **datos de ZONAS** —spec 2, done— que aflora en BUSQUEDA. **Merece
       sesión propia**). **Repro:** `z=almagro-boedo t=parrilla` → 20 resultados, **9 con su

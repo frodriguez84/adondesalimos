@@ -765,3 +765,35 @@ La decisión 12 del spec asumía que "el system prompt con taxonomía+zonas+guí
 - **Pendiente para F2/F3 (fuera de scope de F1):** UI en `/chat` (CHAT-02, CHAT-11, CHAT-12, CHAT-13, CHAT-15 dependen de pantalla) y el modo shortlist de VOTACION. F1 dejó el motor, el cupo y el endpoint listos y verificados por API.
 - **Build pendiente:** con el dev server levantado, `next build` comparte `.next` y rompe (lección BUSQUEDA). Correr con el server parado antes del PR.
 - **Costo real validado:** los mensajes de prueba consumieron Haiku 4.5 real. `tokens_in≈7367 / tokens_out≈362` por turno con tools; con caching el `input` cae a ~325 + el read cacheado.
+
+## QA de fase — CHAT_IA F2 (UI `/chat`) (2026-07-25)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 441/441 ✅ (F2 es UI: sin tests nuevos, se verifica en vivo) · build ⏳ pendiente (dev server del usuario levantado en 5178 — `next build` comparte `.next` y rompe; se corre con el server parado, lección BUSQUEDA).
+**Método:** verificación en vivo con **Playwright MCP** contra `https://adondesalimos.ngrok.app` (render real). Premium: **frodriguez.este@gmail.com** (premium real). Free: **hugo@gmail.com** (free). Para el gate premium-sin-cupo se pasó hugo a `premium` con `chat_usage_monthly.used=30` por UPDATE y **se revirtió a `free` al cerrar**; todos los contadores y conversaciones de prueba (trial de hugo, uso de frodriguez) **borrados** al final. El `ai_api_usage` global NO se revierte por diseño (decisión 15) — refleja las 5 llamadas reales a Haiku.
+
+| ID | Criterio (spec / DoD) | Resultado | Evidencia |
+|----|-----------------------|-----------|-----------|
+| CHAT-01 | Sin login entra a `/chat` → pantalla login/CTA | ✅ PASS | Sin sesión, `/chat` renderiza la bienvenida (headline "Chat IA para salir" + copy rioplatense) con CTA "Ingresar para chatear" → `/login?callbackUrl=/chat`. No redirige: muestra el CTA (decisión 20). |
+| CHAT-02 | Free logueado manda 3 mensajes; contador baja 3→0; el 4º gatea con CTA premium | ✅ PASS | hugo (trial): contador "Te quedan 3"→2→1→0 en vivo (evento SSE `{restantes}`). Agotado: banner **"Usaste tus mensajes de prueba"** + CTA **"Hacerme premium"** (→`/cuenta`), input y sugerencias deshabilitados. DB: `chat_trial_used=3`. El 4º no se envía (el cliente lo bloquea preventivamente; el 403 server-side ya se validó en F1). |
+| CHAT-03 | Premium pide lugares → cards reales con link a la ficha | ✅ PASS | "parrilla tranqui en Palermo" → 4 cards (Don Julio, Lo de Jesus, La Cabrera, Bulls BBQ), cada una con tags (Restaurante/Parrilla), zona (Palermo Soho) y link a `/lugar/[id]` (reusa `PlaceCard`). |
+| CHAT-04 | Refinar en el mismo hilo → re-búsqueda coherente | ✅ PASS | "más barato" en el mismo hilo → estado "Buscando lugares…", re-buscó y (sin parrillas baratas en Palermo) **propuso otras zonas sin inventar**. Contador 29→28. |
+| CHAT-06 | Premium sin cupo → gate `CUPO_AGOTADO` claro | ✅ PASS | hugo forzado premium con `used=30`: al cargar `/chat`, "Te quedan 0 de 30" + banner **"Llegaste al tope del mes / Se renueva el 1º del mes que viene"** (sin CTA, correcto — premium no upgradea), input y sugerencias deshabilitados. |
+| CHAT-11 | Retomar una conversación → resuelve contra los lugares ya vistos | ✅ PASS | Nueva conversación (hilo limpio) → historial → clic en la conversación previa: el hilo **completo** se reconstruye desde DB (mensajes user + assistant + **cards enriquecidas** con link a ficha) vía el `GET /api/chat/conversaciones/[id]` nuevo (reusa `validarGrounding` + `cardsPorIds`). Contador intacto. |
+| CHAT-12 | Borrar una conversación → desaparece; el cupo usado no cambia | ✅ PASS | Borrar desde el historial → sale de la lista y limpia el hilo abierto. DB antes/después: `chat_usage_monthly.used=2` **sin cambio**; 0 conversaciones. Borrar contenido nunca devuelve cupo (decisión 14). |
+| CHAT-14 | Streaming: texto progresivo + estado "buscando" | ✅ PASS | El texto del assistant aparece en vivo (deltas SSE); "Buscando lugares…" con spinner mientras corre la tool; cards al final. |
+| CHAT-UI-header | Entrada al chat en el header | ✅ PASS | "Chat IA" (con ✨) es el primer ítem del menú de cuenta, visible para todo usuario logueado (el gate de plan lo resuelve `/chat`). |
+| CHAT-UI-md | Markdown sin HTML crudo (decisión 23) | ✅ PASS | Respuestas con **bold** y listas renderizadas por `react-markdown` (sin `rehype-raw`); los marcadores `[[lugar:id]]` se sacan del texto visible y el lugar se muestra como card. |
+
+### Hallazgos
+
+Ninguno bloqueante. Dos observaciones cosméticas del texto del assistant, ambas de **F1** (motor/prompt), no de la UI — anotadas en `BACKLOG.md`:
+- **Concatenación sin separador entre rondas de tool:** cuando el modelo escribe texto, llama a una tool y sigue escribiendo, los fragmentos se pegan sin espacio ("…Palermo.Hmm, sin resultados…"). Es el acumulado de `fullText` en `lib/ai/chat.ts`.
+- **El modelo a veces narra su uso de tools** ("Uh, me tiró resultados de Palermo… Probemos de nuevo"), en contra de la guía del system prompt. Ajuste de prompt (F1).
+
+### Notas
+
+- **Cambio permitido en `lib/ai/chat.ts`:** se agregó el evento SSE `{restantes}` al final del turno exitoso (previsto por el handoff) — el contador del cliente baja en vivo sin re-fetch.
+- **Endpoint nuevo `GET /api/chat/conversaciones/[id]`:** necesario para que "retomar" muestre el hilo pasado (el contrato F1 solo tenía POST/GET-lista/DELETE). Read-only, reusa el grounding — no reimplementa nada.
+- **Fuera de scope (F3):** modo shortlist (`/chat?modo=shortlist`, "Usar esta shortlist") y el botón de `/votacion/nueva` (CHAT-13, CHAT-15) — siguen no-op hasta F3.
+- **Build pendiente:** correr `next build` con el dev server parado antes del PR.

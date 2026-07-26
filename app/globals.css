@@ -71,3 +71,40 @@
     @apply font-sans;
   }
 }
+
+/* Markdown del chat IA (CHAT_IA F2, decisión 23): react-markdown sin HTML crudo.
+   El preflight de Tailwind resetea p/ul/strong; acá se les devuelve el espaciado
+   mínimo para que la respuesta se lea como texto, sin sumar el plugin typography. */
+.prose-chat > :first-child {
+  margin-top: 0;
+}
+.prose-chat > :last-child {
+  margin-bottom: 0;
+}
+.prose-chat p {
+  margin: 0.5rem 0;
+}
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li {
+  margin: 0.15rem 0;
+}
+.prose-chat strong {
+  font-weight: 600;
+}
+.prose-chat em {
+  font-style: italic;
+}
+.prose-chat a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
