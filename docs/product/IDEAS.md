@@ -905,8 +905,35 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de triaje (2026-07-26). Esta sección es lo primero que lee la
+_Actualizado en la sesión de curaduría (2026-07-27). Esta sección es lo primero que lee la
 sesión siguiente._
+
+### 📝 Sesión Fable — (2026-07-27) · #5 DE LA COLA: SPEC 9 CURADURIA ESCRITO
+
+Sesión de volcado/discusión (Fable, sin código). Entrega: **`docs/specs/planned/CURADURIA.md`**
+— spec 9, decisiones cerradas con Fer en la charla y registrado en el manifiesto.
+
+- ✅ **Reencuadre del objetivo (acordado):** no "subir el % de cobertura" sino **prender los
+  9 chips de Ocasión objetivo en las 46 zonas** — los chips se prenden solos al llenar tags
+  (BUSQUEDA dec. 25), y la métrica de cierre es una query, no una opinión.
+- ✅ **Decisión de Fer — parejo territorial:** todo AMBA, no "top zonas de CABA"; el
+  conurbano no es catálogo de segunda. Resuelto sin explotar el universo con **cuota por
+  zona** (~40 × 46 ≈ 1.840 lugares, ~5-7 h asistidas). Medido en la base (2026-07-27):
+  15.661 publicados con Tipo relevante a chips; zona mínima Las Cañitas 60 (banca la cuota);
+  Quilmes 504 > San Telmo 234; **~98% con web/redes** en las 4 regiones (el insumo del LLM
+  es parejo).
+- ✅ **Mecanismo:** batch offline (script) con LLM que sugiere Ambiente/Momento/Actividad
+  leyendo Overture + el sitio/IG del lugar — **prohibido Google como insumo** (ToS) — y cola
+  de confirmación en `/admin` (tab "Curaduría", molde PULIDO). Nada se auto-aplica;
+  `source='admin'` sobrevive re-import. **Decisión de Fer: toda sugerencia con evidencia
+  citada** (cita + URL; costo extra ~US$1-2). Modelo en `app_settings` (`ai.curation_model`,
+  seed Haiku); corrida completa ~US$10-15.
+- ✅ **Precio fuera de scope** (sin fuente automatizable); solo campo opcional al pasar en la
+  cola. La faceta sigue oculta y reaparece sola (dec. 27 de BUSQUEDA).
+- 📌 **Señalado al pasar:** el ítem "zonas faltantes del conurbano (8,4%)" sube de relevancia
+  con la promesa de paridad territorial — no bloquea este spec, hereda el ángulo nuevo.
+- ⏭️ **Próximo paso:** implementar CURADURIA (sesión Opus, fases del spec: F1 batch → F2 cola
+  → F3 corrida completa con piloto Villa Crespo + Quilmes antes de habilitar el resto).
 
 ### 📊 Sesión Fable — cerrada (2026-07-26) · #3 DE LA COLA: COSTOS_ADMIN CERRADO ENTERO
 
