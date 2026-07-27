@@ -25,7 +25,9 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-_(ninguno)_
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [COSTOS_ADMIN](planned/COSTOS_ADMIN.md) | Mini-spec — tablero de costos en `/admin` (chat IA en USD por tokens/modelo, Google por SKU vs cap con alerta 80/100%, vs mes anterior, cupo del chat) + sugeridor de precio premium según el dólar oficial (regla piso ≥ dólar × 3, solo sugerencia). Read-only, sin schema nuevo. | 🔵 Decisiones cerradas (2026-07-26) |
 
 ## ⚫ Done (`done/`)
 

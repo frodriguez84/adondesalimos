@@ -908,6 +908,26 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 _Actualizado en la sesión de triaje (2026-07-26). Esta sección es lo primero que lee la
 sesión siguiente._
 
+### 📊 Sesión Fable — #3 DE LA COLA: COSTOS_ADMIN ESPECIFICADO (2026-07-26)
+
+Sesión de decisiones + autoría del mini-spec de observabilidad de costos (#3 de la cola).
+**Entrega: `docs/specs/planned/COSTOS_ADMIN.md`** — decisiones cerradas con Fer, registrado
+en el manifiesto.
+
+- ✅ **Decisiones de Fer (2026-07-26):** mini-spec (no spec 9 formal, ese slot queda para
+  curaduría) · el **sugeridor de precio según dólar entra acá** (absorbe el ítem del BACKLOG,
+  anotado allá) · los 4 bloques del tablero van todos (chat USD por modelo, Google por SKU vs
+  cap, vs mes anterior, cupo del chat) · alerta amarilla al 80%, roja al 100%.
+- ✅ **Hallazgo que corrige el handoff:** `calcularCosto` NO existe como función — los
+  precios viven inline en `logChatCall` (`lib/ai/logging.ts:9-42`), que solo hace
+  `console.log`. El spec (decisión 2) extrae `calcularCostoUsd` + precios como export puro.
+- ✅ **Precios verificados, no de memoria:** Anthropic vía skill `claude-api` (Haiku $1/$5,
+  Sonnet $3/$15; hay intro $2/$10 hasta 2026-08-31 — se mantiene el sticker, conservador);
+  Google vía spec FICHA (details $20/1.000, photos $7/1.000, 1.000 gratis/mes c/u).
+- ⏭️ **Próximo paso:** implementar `COSTOS_ADMIN.md` (delegar al subagente `implementador`
+  desde esta sesión, o sesión Opus aparte) → `/qa-spec` → checklist de cierre. Después sigue
+  el #4 de la cola (pulido UX/UI).
+
 ### 🔧 Sesión Opus — cerrada (2026-07-26) · #1 DEL TRIAJE RESUELTO: NO ERA BUG
 
 Se investigó el "bug de zonas" (prioridad #1 de abajo). **Resultado: no es un bug.**

@@ -26,6 +26,9 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 ## Mejoras futuras (fuera de v1)
 
 - [ ] **💵 /admin — sugeridor de precio premium según el dólar (idea Fer, 2026-07-26).**
+      → **Absorbido por el mini-spec [`COSTOS_ADMIN`](../specs/planned/COSTOS_ADMIN.md)**
+      (decisión Fer, 2026-07-26): entra como bloque del tablero de costos de `/admin`
+      (decisiones 8-10 del spec). Se tilda cuando cierre ese spec.
       Banner/widget en `/admin` que consulte **`dolarito.ar` (dólar OFICIAL)** y, cuando el dólar
       supere un umbral, sugiera el nuevo precio ARS del plan premium según la **regla de piso**
       (`precio_ARS ≥ dólar × 3`, ver `docs/product/COSTOS-IA-Y-PRECIO-PREMIUM.md`). Objetivo: que el
