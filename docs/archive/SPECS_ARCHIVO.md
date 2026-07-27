@@ -518,3 +518,41 @@ del dólar oficial (dolarapi.com, cache ~1 h, degradable sin romper la page) + r
 - **Nota de método**: el click sintético de Playwright no disparaba el submit del form del
   chat (sin error visible); se resolvió con `element.click()` vía `page.evaluate`. Anotado
   para la próxima sesión de QA en `/chat`.
+
+## Curaduría asistida de Ambiente/Momento/Actividad {#curaduria}
+
+**Spec:** [`docs/specs/done/CURADURIA.md`](../specs/done/CURADURIA.md) · ✅ Implementado (2026-07-27)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — CURADURIA (F1 + F2)* + § *QA de fase — CURADURIA F3* — APROBADO (F1/F2: 12 criterios con 2 checkers + verificación en vivo con Playwright + piloto aprobado por Fer · F3: auto-apply verificado en DB + cobertura medida · typecheck/468 tests verdes · build pendiente por server levantado)
+
+**Qué hace:** spec #9 (#5 de la cola post-spec-8). Batch offline con LLM que **sugiere** tags de
+Ambiente/Momento/Actividad **con evidencia citada** (cita + URL), leyendo la web pública del
+lugar — cero Google, fijado por test. Prende los chips de Ocasión que dependían de las facetas
+ralas (Ambiente 0,9% · Momento 0,6% antes del spec).
+
+**Alcance implementado (3 fases):**
+
+- **F1 — Batch** (`scripts/curar.ts`, `lib/curation/*`): migración `place_tag_suggestions`
+  (evidencia + URL + estado `pending`/`accepted`/`rejected`, unique `(place_id,tag_id)`),
+  settings `curation.zone_quota`/`ai.curation_model`. Selección por zona (publicados · Tipo
+  relevante a chips · **sin reclamo aprobado** · orden contacto→confidence · cuota 40). Fetch
+  educado del sitio propio; sugeridor LLM por tool-use forzado con validación de slug en el
+  borde. Reporte de tokens/US$ por corrida.
+- **F2 — Cola en `/admin`** (`lib/curation/query.ts`/`acciones.ts`, tab "Curaduría"): flujo
+  one-at-a-time por zona, evidencia inline, aceptar/corregir (`source='admin'`)/rechazar,
+  Precio opcional, teclado-first (Enter/R). Gate `sesionAdmin`. Aceptar escribe `place_tags`
+  que sobrevive al re-import (CATALOGO decisión 17).
+- **F3 — Corrida completa autónoma** (decisión 13): `guardarSugerencias` **auto-aplica** las
+  sugerencias nuevas **con evidencia** a `place_tags` (`admin` + `accepted`); las **sin
+  evidencia** quedan `pending` para la cola. Las 46 zonas corridas con **Sonnet 5** por tandas:
+  **~1.840 lugares, 1.149 tags auto-aplicados, 2.811 pending, US$17,62**. Cobertura: **5/9 chips
+  objetivo prendidos** (de 1/9 antes; `cumpleanos` 0→42 zonas es el gran salto), **46/46 zonas**
+  con ≥1 chip. Los 4 en 0 = dato base no curable (Precio, Cocina, Actividad rara — decisión 12).
+
+**Reglas que dejó (ver `CLAUDE.md` § lógica de negocio y el spec):**
+- **Solo `place_tags`, nunca las columnas base de `places`** (el re-import las pisa).
+- **Auto-apply aditivo, protegido por `.returning()`**: solo se auto-aplican las filas que el
+  `onConflictDoNothing` realmente insertó — una sugerencia ya `accepted`/`rejected` por Fer no
+  se re-aplica jamás. Divergencia declarada de `guardarCuraduria`: se reusa su escritura a
+  `place_tags`, no su `delete` previo (que en una corrida aditiva borraría tandas anteriores).
+- **Modelo en `app_settings.ai.curation_model`** (runtime, swap sin deploy): quedó en
+  `claude-sonnet-5` tras la corrida; el seed sigue en Haiku (fallback).

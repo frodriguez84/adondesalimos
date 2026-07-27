@@ -926,9 +926,15 @@ criterios que no se declaran por lectura de código; queda solo el gate de calid
   de otro rubro). Las 59 sin evidencia son límite de **fetch** (37/80 sin web), no del modelo.
   **Recomendación: seguir en Haiku** para la corrida completa (Sonnet ~3× costo no arregla el
   fetch; el chequeo humano atrapa las contradicciones). Detalle en `AnalisisQA.md` § CURADURIA.
-- ✅ **Fer aprobó el piloto (2026-07-27).** F1+F2 → **APROBADO**; se sigue con **Haiku**.
-- ⏭️ **Próximo paso (F3), HABILITADO:** sesión Opus nueva — correr `npm run curar` sobre las 44
-  zonas restantes por tandas + medir cobertura (9 chips × 46 zonas) + reporte final por zona.
+- ✅ **Fer aprobó el piloto (2026-07-27).** F1+F2 → **APROBADO**.
+- 🆕 **Decisión 13 — corrida completa AUTÓNOMA (Fer 2026-07-27):** curar TODO sin confirmación por
+  lugar. **Con evidencia → auto-aplica** a `place_tags`; **sin evidencia → queda `pending`** (no
+  se auto-mete ni se descarta). **Modelo: Sonnet** (sin red humana, mejor razonamiento; ~US$15
+  toda la curaduría, trivial). Amend de la decisión 8 solo para la corrida masiva.
+- ⏭️ **Próximo paso (F3), sesión Opus nueva:** (1) **cambio chico de código** — el batch escribe
+  las con-evidencia a `place_tags`+`accepted` (reusa `guardarCuraduria`); (2) setear
+  `ai.curation_model`=Sonnet; (3) correr las 44 zonas por tandas; (4) medir cobertura (9 chips ×
+  46 zonas) + reporte por zona; (5) `/close-spec`.
 - 🗒️ **Nota:** durante el QA se curaron 9 sugerencias reales (Salgado, McDonald's, Cafe Crespín,
   Parrilla Julio) — quedan en la DB. Cola: pending 120 · accepted 5 · rejected 4. `app_settings`
   sin tocar.

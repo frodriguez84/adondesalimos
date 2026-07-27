@@ -1120,3 +1120,115 @@ prefiere Sonnet igual).
   dev para que Fer termine de revisarlos en `/admin` → tab Curaduría. No se limpiaron.
 - **Costo del piloto**: US$0,22 con Haiku para 80 lugares → proyección de la corrida completa
   (~1.840 lugares) ≈ US$5, consistente con la estimación del spec (~US$10-15, conservadora).
+
+---
+
+## QA de fase — CURADURIA F3 (corrida completa autónoma, Sonnet) (2026-07-27)
+
+**Veredicto:** **APROBADO** — las 46 zonas procesadas con el batch autónomo (decisión 13); el
+auto-apply de sugerencias con evidencia verificado en vivo contra la DB; cobertura medida y
+documentada honestamente (decisión 12). **Modelo: Sonnet** (`claude-sonnet-5`, vía
+`app_settings.ai.curation_model` — swap sin deploy).
+**Verificación técnica:** typecheck ✅ · tests 468/468 ✅ (2 nuevos: `lib/curation/__tests__/auto-apply.integration.test.ts`) · **build pendiente** (server de Fer levantado; se corre con el server parado — lección BUSQUEDA, `.next` compartido).
+**Método:** cambio de código (auto-apply en `guardarSugerencias`) + corrida por tandas
+(canario + 5 tandas + re-curación de las 2 zonas piloto), verificación en Postgres tras cada
+paso, y medición de cobertura con `scripts/cobertura-chips.ts` (reusa `countPlaces`, el mismo
+motor que la home).
+
+### Cambio de código (decisión 13)
+
+`lib/curation/suggestions.ts` — `guardarSugerencias` ahora, **en una transacción**: (1) upsertea
+las sugerencias con `onConflictDoNothing` sobre el unique `(place_id, tag_id)`; (2) de las
+**recién insertadas con evidencia**, las escribe a `place_tags` (`source='admin'`,
+`onConflictDoNothing`) y marca las sugerencias `accepted`; (3) las **sin evidencia** quedan
+`pending`. Devuelve `{ nuevas, autoAplicadas }` para el reporte del batch.
+
+- **Protección de lo ya revisado:** solo se auto-aplican las filas del `.returning()` (las que
+  el `onConflictDoNothing` realmente insertó). Una sugerencia que ya existía —`accepted` o
+  `rejected` por Fer en el piloto— **no** vuelve en `.returning()`, así que jamás se re-aplica.
+- **Divergencia declarada de `guardarCuraduria`:** se reutiliza su criterio de **escritura** a
+  `place_tags` (admin + `onConflictDoNothing`), pero **no** su `delete` previo de admin. Ese
+  borrado sirve al "corregir/destildar" de la cola (reemplazo total); en la corrida autónoma
+  **aditiva** borraría tags auto-aplicados en tandas anteriores de la misma zona.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| CUR-F3-01 | Test: con-evidencia → `place_tags` admin + `accepted`; sin-evidencia → `pending`, `place_tags` intacta | ✅ PASS | `auto-apply.integration.test.ts` (2 tests, contra DB real): split verificado + idempotencia (re-correr no re-aplica) |
+| CUR-F3-02 | Auto-apply en vivo (canario Las Cañitas) | ✅ PASS | 40 lugares → 13 con evidencia → **13 `place_tags` admin + 13 `accepted`**, 52 sin evidencia → `pending`. Verificado en Postgres |
+| CUR-F3-03 | Re-curación de zonas piloto no pisa lo revisado por Fer (decisión de la sesión) | ✅ PASS | Villa Crespo conserva **5 `accepted` + 4 `rejected`** (Haiku, piloto) exactos tras re-correr con Sonnet; 94 pares "ya existían (no se pisaron)"; Sonnet solo **agregó** (23 auto-aplicadas + 82 pending nuevas) |
+| CUR-F3-04 | Batch idempotente | ✅ PASS | `onConflictDoNothing` sobre el unique; el test CUR-F3-01 re-corre y devuelve `nuevas=0, autoAplicadas=0`, estado idéntico |
+| CUR-F3-05 | Reporte de tokens/US$ por corrida | ✅ PASS | Cada tanda reporta procesados, con/sin evidencia, nuevas, **auto-aplicadas**, pending, tokens y costo (`calcularCostoUsd`, pricing Sonnet $3/$15) |
+| CUR-F3-06 | Cobertura: 9 chips objetivo × 46 zonas | ✅ PASS (documentado) | Ver matriz abajo. **5/9 chips prendidos** en ≥1 zona; **46/46 zonas** con ≥1 chip. Los 4 en 0 = dato base no curable (decisión 12) |
+
+### Corrida — números globales
+
+| Tanda | Zonas | Lugares | Sug. generadas | Auto-aplicadas | Pending (sin evi) | Costo US$ |
+|-------|-------|---------|----------------|----------------|-------------------|-----------|
+| Canario | las-canitas | 40 | 65 | 13 | 52 | 0,36 |
+| 1 | adrogue…chacarita (9) | 360 | 787 | 218 | 569 | 3,46 |
+| 2 | devoto…martinez (9) | 360 | 661 | 177 | 484 | 3,28 |
+| 3 | merlo…palermo-hollywood (9) | 360 | 841 | 249 | 592 | 3,54 |
+| 4 | palermo-soho…san-isidro (9) | 360 | 847 | 339 | 508 | 3,62 |
+| 5 | san-justo…villa-urquiza (7) | 280 | 534 | 130 | 404 | 2,57 |
+| 6 | villa-crespo + quilmes (re-cura) | 80 | 199 (94 ya existían) | 23 | 82 | 0,79 |
+| **Total** | **46 zonas** | **~1.840** | **~3.934** | **1.149** | — | **17,62** |
+
+**Estado final en DB:** `accepted` **1.154** (1.149 auto-aplicadas Sonnet + 5 del piloto manual
+de Fer) · `rejected` **4** (piloto) · `pending` **2.811** (sin evidencia, disponibles para la
+cola manual de `/admin`) · **`place_tags` `source='admin'`: 1.156** en **288 lugares**. Costo
+real **US$17,62** (estimación del spec ~US$14-15 con Sonnet; +18%, sin anomalías — lineal ~US$0,38/zona).
+
+### Cobertura — 9 chips objetivo × 46 zonas (DoD F3)
+
+`scripts/cobertura-chips.ts` cuenta con `countPlaces` (motor real, `z=<zona>&t=<tags del chip>`);
+"prendido" = ≥1 publicado, idéntico a lo que ve el usuario (BUSQUEDA decisión 25).
+
+**Resumen por chip (zonas con resultados):**
+
+| Chip objetivo | Zonas con resultados | Antes (baseline 2026-07-20) |
+|---------------|----------------------|------------------------------|
+| `salir-a-bailar` | **46/46** | ya vivo (boliche+dj, no requiere curaduría) |
+| `cumpleanos` | **42/46** | 0 → **la curaduría lo prendió** (grupos-grandes + reserva-necesaria, Ambiente) |
+| `after-office` | **10/46** | 0 → prendido (happy-hour, Momento) |
+| `salida-con-chongo` | **2/46** | 0 → prendido (romántico + hasta-tarde) |
+| `primera-cita` | **1/46** | 0 → prendido (Villa Crespo, piloto) |
+| `salida-con-amigos` | 0/46 | bloqueado por `precio-2` (Precio) |
+| `cena-familiar` | 0/46 | bloqueado por `bodegon` (Cocina) |
+| `plan-tranqui` | 0/46 | bloqueado por `juegos-de-mesa` (Actividad) |
+| `merienda` | 0/46 | bloqueado por `pasteleria` (Cocina) |
+
+**Resultado producto: de 1/9 chips vivos → 5/9.** `cumpleanos` es el gran salto (0→42 zonas): sus
+tags son Ambiente puro (`grupos-grandes` 78 lugares, `reserva-necesaria` 108), la faceta que
+estaba al 0,9% y que este spec fue a llenar.
+
+**Los 4 chips en 0 — dato base no curable (decisión 12, no bloquea):** ninguno depende de
+Ambiente/Momento/Actividad faltante; cada uno exige un tag de una faceta que el batch **no** cura:
+
+- **`salida-con-amigos`** = Tipo AND `grupos-grandes` AND **`precio-2`**. `precio-2` = **1 lugar**;
+  Precio no lo sugiere el LLM (sin fuente automatizable, decisión "Qué NO es").
+- **`plan-tranqui`** = Tipo AND `tranqui` AND **`juegos-de-mesa`**. `juegos-de-mesa` = **2 lugares**;
+  Actividad que casi nadie publica en su web (el fetch no la encuentra → ningún modelo la infiere).
+- **`merienda`** = `cafe` AND `merienda` AND **`pasteleria`**. `pasteleria` es **Cocina** (viene del
+  import, decisión 6 no la toca) y tiene **0 lugares**.
+- **`cena-familiar`** = `restaurante` AND **`bodegon`** AND `kids-friendly` AND `cena`. `bodegon` es
+  **Cocina**, así que ANDea (achica) en vez de sumarse al Tipo: exige que un restaurante sea
+  además bodegón, kids-friendly y de cena a la vez → intersección vacía.
+
+Los dos últimos (`merienda`, `cena-familiar`) además son un **artefacto de diseño del chip**: la
+Cocina en la lista de tags achica en vez de ampliar. No es un hueco de curaduría — se anota en
+`BACKLOG` como refinamiento de la semilla de chips (redefinir sin la Cocina, o con Cocina en OR
+con el Tipo). Fuera del scope de este spec.
+
+### Notas de F3
+
+- **2.811 sugerencias `pending`** (sin evidencia) quedan en la cola de `/admin` → Curaduría para
+  revisión manual opcional (decisión 13: no se auto-aplican, tampoco se descartan). Son inferencia
+  por nombre/categoría — 43% de los lugares no tienen web alcanzable (Instagram bloquea scraping).
+- **Distribución de auto-aplicadas por faceta** (las 1.149 con evidencia): dominan Momento y
+  Ambiente; Actividad casi no se movió (mismo hallazgo del piloto — requiere que el sitio la
+  mencione explícitamente, y pocos lo hacen).
+- **Zonas piloto (Villa Crespo + Quilmes)** se re-curaron con Sonnet de forma **aditiva** (decisión
+  de la sesión): sus datos Haiku (accepted/rejected/pending de Fer) quedan intactos; Sonnet solo
+  sumó lo nuevo con evidencia. No se borró nada del piloto.
+- **`ai.curation_model`** quedó en `claude-sonnet-5` (era `claude-haiku-4-5`). Revertir es el mismo
+  UPDATE. El seed de `lib/curation/settings.ts` sigue en Haiku (fallback) — manda el runtime.

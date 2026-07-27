@@ -7,14 +7,15 @@ import { cargarVocabulario, sugerirTags } from '@/lib/curation/sugeridor'
 import { guardarSugerencias } from '@/lib/curation/suggestions'
 
 /**
- * Batch offline de curaduría (CURADURIA, F1). Corre por zona/s pasadas por
+ * Batch offline de curaduría (CURADURIA, F1/F3). Corre por zona/s pasadas por
  * argumento; sin usuario esperando. Para cada lugar seleccionado (decisión 3):
  * lee la web pública, le pide tags al LLM con evidencia (decisión 5) y **upsertea
  * solo filas nuevas** (nunca pisa lo ya revisado, decisión 8).
  *
- * No auto-aplica nada: solo escribe `place_tag_suggestions` en estado `pending`.
- * La confirmación humana (F2, la cola de `/admin`) es lo único que toca
- * `place_tags`.
+ * Auto-apply (decisión 13, corrida masiva autónoma): las sugerencias nuevas **con
+ * evidencia** se escriben a `place_tags` (`source='admin'`) y quedan `accepted`;
+ * las **sin evidencia** quedan `pending` en la cola de `/admin` para revisión
+ * manual. La lógica vive en `guardarSugerencias`.
  *
  * Uso:
  *   npx tsx scripts/curar.ts villa-crespo quilmes
@@ -42,6 +43,7 @@ async function main() {
   let lugaresSinEvidencia = 0
   let sugerenciasGeneradas = 0
   let sugerenciasNuevas = 0
+  let sugerenciasAutoAplicadas = 0
   let tokensIn = 0
   let tokensOut = 0
 
@@ -69,13 +71,14 @@ async function main() {
       tokensOut += to
       sugerenciasGeneradas += sugerencias.length
 
-      const nuevas = await guardarSugerencias(lugar.id, sugerencias, model)
+      const { nuevas, autoAplicadas } = await guardarSugerencias(lugar.id, sugerencias, model)
       sugerenciasNuevas += nuevas
+      sugerenciasAutoAplicadas += autoAplicadas
       lugaresProcesados++
 
       const conEvi = sugerencias.filter((s) => s.evidence).length
       console.log(
-        `  · ${lugar.name} — ${sugerencias.length} sugerencias (${conEvi} con evidencia, ${nuevas} nuevas)`,
+        `  · ${lugar.name} — ${sugerencias.length} sugerencias (${conEvi} con evidencia, ${nuevas} nuevas, ${autoAplicadas} auto-aplicadas)`,
       )
     }
   }
@@ -88,6 +91,8 @@ async function main() {
   console.log(`Sugerencias generadas: ${sugerenciasGeneradas}`)
   console.log(`Sugerencias nuevas persistidas: ${sugerenciasNuevas}`)
   console.log(`  · ya existían (no se pisaron): ${sugerenciasGeneradas - sugerenciasNuevas}`)
+  console.log(`  · auto-aplicadas a place_tags (con evidencia → accepted): ${sugerenciasAutoAplicadas}`)
+  console.log(`  · quedaron pending (sin evidencia): ${sugerenciasNuevas - sugerenciasAutoAplicadas}`)
   console.log(`Tokens: in ${tokensIn} · out ${tokensOut}`)
   console.log(`Costo estimado: US$${costoUsd.toFixed(4)} (modelo ${model})`)
   console.log('────────────────────────────────────────────')

@@ -501,3 +501,32 @@ de `click`, aunque el DOM reporte el elemento como clickeable.
 `onClick` crítico) que no reaccione a `browser_click` sin error visible: no asumir que el flujo
 está roto — probar `element.click()` vía `page.evaluate`/`browser_run_code_unsafe` antes de
 diagnosticar un bug de la app.
+
+## Un auto-apply "aditivo" que reusa un `delete`-then-insert de reemplazo borra lo de la tanda anterior (2026-07-27 · CURADURIA F3)
+
+**Qué pasó.** La decisión 13 pidió que el batch masivo, además de guardar sugerencias,
+**auto-aplicara** las que tienen evidencia a `place_tags` (`source='admin'`, `accepted`),
+"reusando el criterio de `guardarCuraduria`". Esa función —la de la cola manual— hace
+`delete` de todas las tags `admin` de las facetas editables y **reinserta** solo las tildadas:
+es semántica de **reemplazo total**, correcta ahí porque el humano re-envía el set completo
+(el "corregir/destildar"). Copiar ese `delete` tal cual al batch habría sido un bug silencioso:
+la corrida es **por zona y por tanda**, y una zona se puede correr de nuevo (idempotencia) o
+en tandas que comparten lugares. El `delete` global de admin habría **borrado los tags
+auto-aplicados en una corrida anterior** del mismo lugar antes de reinsertar solo los de la
+corrida actual.
+
+**Qué lo resolvió.** Se reusó solo la mitad segura del criterio: la **escritura** a `place_tags`
+(admin + `onConflictDoNothing`, para que una fila `import` gane si ya está), **sin** el `delete`.
+El auto-apply es puramente **aditivo** y se apoya en el `.returning()` del upsert de sugerencias:
+solo se aplican las filas que el `onConflictDoNothing` realmente insertó. Una sugerencia que ya
+existía —`accepted` o `rejected` por Fer en el piloto— no vuelve en `.returning()`, así que jamás
+se re-aplica ni pisa una decisión humana. Verificado en vivo: re-curar las 2 zonas piloto con
+Sonnet dejó sus 5 `accepted` + 4 `rejected` (Haiku) exactos y solo **agregó** lo nuevo.
+
+**Cómo evitarlo la próxima vez.** "Reusar el criterio de X" no es "copiar la función X entera".
+Cuando una función tiene semántica de **reemplazo** (delete-then-insert sobre un set que el
+llamador re-declara completo) y se la quiere reusar en un contexto **aditivo/idempotente**,
+separar la parte de escritura de la parte de borrado, y declarar la divergencia explícitamente
+(quedó en el docstring de `lib/curation/suggestions.ts` y en el QA). La señal de que estás en
+contexto aditivo: el mismo registro se puede procesar más de una vez (re-corridas, tandas que
+solapan) sin que el llamador re-declare el estado deseado completo.

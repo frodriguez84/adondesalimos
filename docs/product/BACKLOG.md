@@ -399,11 +399,20 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       trgm que pedía la decisión 14 — evita un fetch por tecla y a esa escala el trigrama no
       cambia lo que el usuario ve. Si el catálogo de tags crece un orden de magnitud, mover a
       un endpoint con `word_similarity`, que es lo que ya usa la búsqueda por nombre de lugar.
-- [ ] **Los 8 chips de Ocasión objetivo siguen apagados** (BUSQUEDA F3, 2026-07-20). Están
-      sembrados en `occasion_chips` y se prenden **solos** en cuanto sus tags tengan lugares
-      (decisión 25: es un conteo, no `active`). Dependen de la carga de Ambiente/Momento/Precio
-      — es el mismo trabajo de curaduría que ya está anotado arriba, y este es su primer
-      beneficiario visible. Ver spec BUSQUEDA § *Curaduría V1 de chips*.
+- [~] **Chips de Ocasión objetivo — 5/9 prendidos tras CURADURIA** (BUSQUEDA F3 → CURADURIA F3,
+      2026-07-27). La corrida de curaduría prendió `cumpleanos` (0→42 zonas), `after-office`
+      (0→10), `salida-con-chongo` (0→2) y `primera-cita` (0→1); con `salir-a-bailar` (ya vivo) son
+      **5/9**. Los **4 restantes en 0 no son curables** por Ambiente/Momento/Actividad: dependen de
+      facetas que el batch no toca — `salida-con-amigos` (`precio-2`, Precio, 1 lugar),
+      `plan-tranqui` (`juegos-de-mesa`, Actividad, 2 lugares), `merienda`/`cena-familiar` (Cocina).
+      Ver `docs/qa/AnalisisQA.md` § *CURADURIA F3* (decisión 12: documentado, no bloquea).
+- [ ] **Refinar la semilla de 2 chips donde la Cocina ANDea en vez de sumar** (hallazgo CURADURIA
+      F3, 2026-07-27). `merienda` = `cafe` AND `merienda` AND **`pasteleria`** (Cocina, 0 lugares) y
+      `cena-familiar` = `restaurante` AND **`bodegon`** (Cocina) AND `kids-friendly` AND `cena`: como
+      Cocina es su propia faceta, el motor la cruza con **AND** (achica) en vez de OR con el Tipo.
+      Estos dos chips no pueden prender como están definidos, sin importar la curaduría. Fix: en
+      `lib/db/chips.ts` sacar el tag de Cocina o moverlo a un OR con el Tipo (requiere revisar la
+      semántica AND-entre-facetas de BUSQUEDA decisión 13). Es diseño de chip, no dato faltante.
 - [ ] **"Cenar afuera" devuelve 11.438 lugares en AMBA** (BUSQUEDA F3, 2026-07-20). Es el
       riesgo "devuelve 8.000 lugares" que IDEAS ya anotaba. En una zona concreta da 262-527,
       que es como se usa de verdad (la home pide zona primero), así que no bloquea. Se afina
@@ -439,20 +448,24 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
-- [~] **Spec 9 CURADURIA — F1 (batch) + F2 (cola en /admin) implementadas** (2026-07-27): el #5
-      de la cola post-spec-8. **F1**: migración `place_tag_suggestions` (evidencia + URL + estado,
-      unique `(place_id,tag_id)`), settings `curation.zone_quota`/`ai.curation_model`, selección
-      por zona (publicados · Tipo relevante a chips · sin reclamo aprobado · orden contacto→
-      confidence), fetch educado del sitio propio (**cero Google**, fijado por test), sugeridor LLM
-      con **evidencia citada** (tool-use forzado) y upsert que no pisa lo revisado; script
+- [x] **Spec 9 CURADURIA — cerrado entero (F1 + F2 + F3)** (2026-07-27): el #5 de la cola
+      post-spec-8. **F1**: migración `place_tag_suggestions` (evidencia + URL + estado, unique
+      `(place_id,tag_id)`), settings `curation.zone_quota`/`ai.curation_model`, selección por zona
+      (publicados · Tipo relevante a chips · sin reclamo aprobado · orden contacto→confidence),
+      fetch educado del sitio propio (**cero Google**, fijado por test), sugeridor LLM con
+      **evidencia citada** (tool-use forzado) y upsert que no pisa lo revisado; script
       `npm run curar <zona>...` con reporte de tokens/US$. **F2**: quinta tab "Curaduría" tras el
       gate `sesionAdmin`, cola one-at-a-time por zona con evidencia visible, aceptar/corregir
-      (`source='admin'`) / rechazar, Precio opcional, teclado-first (Enter/R). **Piloto real
-      corrido** (Villa Crespo + Quilmes): 80 lugares, 129 sugerencias, US$0,22 con Haiku. QA: 2
-      checkers independientes (F1 C1-C6 + F2 C7-C12 PASS) + verificación en vivo en DB +
-      typecheck/466 tests verdes. **Pendiente: F3** (corrida de las 46 zonas) con **gate de piloto**
-      — Fer revisa Villa Crespo + Quilmes en `/admin` antes de habilitar el resto (decisión 11).
-      Spec en `docs/specs/active/CURADURIA.md` (parcial) · QA: `docs/qa/AnalisisQA.md` § *CURADURIA*
+      (`source='admin'`) / rechazar, Precio opcional, teclado-first (Enter/R). Piloto (Villa Crespo
+      + Quilmes) **aprobado por Fer** (decisión 11). **F3 — corrida completa autónoma** (decisión
+      13): `guardarSugerencias` auto-aplica lo **con evidencia** a `place_tags` (`admin`+`accepted`,
+      aditivo y protegido por `.returning()`), lo **sin evidencia** queda `pending`. Las 46 zonas
+      con **Sonnet 5** por tandas: **~1.840 lugares, 1.149 tags auto-aplicados, 2.811 pending,
+      US$17,62**. Cobertura: **5/9 chips objetivo prendidos** (de 1/9; `cumpleanos` 0→42 zonas),
+      **46/46 zonas** con ≥1 chip; los 4 en 0 = dato base no curable (decisión 12). QA: 2 checkers
+      (F1/F2) + verificación en vivo + F3 verificada en DB + cobertura medida; typecheck/468 tests
+      verdes (build pendiente por server levantado). Spec en `docs/specs/done/CURADURIA.md` ·
+      [Resumen](../archive/SPECS_ARCHIVO.md#curaduria) · QA: `docs/qa/AnalisisQA.md` § *CURADURIA*
 - [x] **Mini-spec PULIDO — pulido UX/UI + reestructura de /admin** (2026-07-27): el #4 de la
       cola post-spec-8, alcance cerrado con Fer → spec → implementación → QA → cierre en una
       sesión. Dos frentes sobre hallazgos del QA integral: (a) **pulido UX** — filtro fantasma
