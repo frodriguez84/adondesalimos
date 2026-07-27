@@ -930,7 +930,10 @@ de precio según dólar, QA APROBADO (resumen: `SPECS_ARCHIVO.md#costos_admin`).
   de integración del cupo borra la fila real de `ai_api_usage` → ítem en BACKLOG + lección.
 - ⏭️ **Próximo paso:** #4 de la cola — pulido UX/UI + a11y + performance mobile (sobre los
   hallazgos del QA integral; tracks ya anotados: header de marca global, filtro fantasma,
-  resize de fotos en el browser).
+  resize de fotos en el browser). **Scope agregado por Fer (2026-07-26): reestructurar
+  `/admin`** — separar Precios / Suscripciones / Costos / Cola de aprobación (hoy son
+  secciones apiladas en una sola page y con el tablero de costos quedó largo); tabs u otra
+  estructura, y el orden, a decidir en esa sesión.
 
 ### 🔧 Sesión Opus — cerrada (2026-07-26) · #1 DEL TRIAJE RESUELTO: NO ERA BUG
 
