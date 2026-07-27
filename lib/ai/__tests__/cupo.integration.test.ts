@@ -26,7 +26,14 @@ import { CupoError, resumenCupo, reservarCupo, revertirReserva } from '../cupo'
  * borrar contenido no devuelve cupo.
  *
  * Baja los cupos vía `app_settings` para no tener que consumir 30 mensajes por
- * test, y restaura todo al terminar. Limpia sus usuarios y su fila de `ai_api_usage`.
+ * test, y restaura todo al terminar. Limpia sus usuarios.
+ *
+ * `ai_api_usage` (sku `chat_messages`) es la fila del **mes calendario real** —
+ * el contador del kill switch global (decisión 15) que también alimenta el
+ * tablero de COSTOS_ADMIN. Las reservas la incrementan y los tests la resetean
+ * entre casos, pero borrarla de cuajo perdería el conteo real del mes. Por eso se
+ * hace **snapshot en `beforeAll` y restore en `afterAll`**: la suite deja el
+ * contador real exactamente como lo encontró.
  */
 
 const PREFIJO = '__test_cupo__'
@@ -43,6 +50,8 @@ let hayDb = true
 let premId = ''
 let freeId = ''
 const settingsOriginales = new Map<string, unknown>()
+// Conteo real de `ai_api_usage` del mes en curso al arrancar (null = no había fila).
+let usoGlobalOriginal: number | null = null
 
 async function setSetting(key: string, value: unknown) {
   await db
@@ -64,6 +73,28 @@ async function limpiarUsoGlobal() {
   await db.delete(aiApiUsage).where(and(sql`${aiApiUsage.month} = ${MES}`, eq(aiApiUsage.sku, 'chat_messages')))
 }
 
+async function snapshotUsoGlobal() {
+  const [row] = await db
+    .select({ count: aiApiUsage.count })
+    .from(aiApiUsage)
+    .where(and(sql`${aiApiUsage.month} = ${MES}`, eq(aiApiUsage.sku, 'chat_messages')))
+  usoGlobalOriginal = row?.count ?? null
+}
+
+/** Borra lo que dejaron los tests y devuelve la fila real a su valor de arranque. */
+async function restaurarUsoGlobal() {
+  await limpiarUsoGlobal()
+  if (usoGlobalOriginal !== null) {
+    await db
+      .insert(aiApiUsage)
+      .values({ month: MES as unknown as string, sku: 'chat_messages', count: usoGlobalOriginal })
+      .onConflictDoUpdate({
+        target: [aiApiUsage.month, aiApiUsage.sku],
+        set: { count: sql`excluded.count` },
+      })
+  }
+}
+
 async function usadosPremium(): Promise<number> {
   const [row] = await db
     .select({ used: chatUsageMonthly.used })
@@ -82,6 +113,7 @@ beforeAll(async () => {
   for (const k of [CHAT_QUOTA_PREMIUM_KEY, CHAT_QUOTA_TRIAL_KEY, CHAT_MONTHLY_CAP_KEY]) {
     await snapshotSetting(k)
   }
+  await snapshotUsoGlobal()
   await limpiarUsuarios()
   const [prem] = await db
     .insert(users)
@@ -101,7 +133,7 @@ afterAll(async () => {
     if (v !== null) await setSetting(k, v)
   }
   await limpiarUsuarios()
-  await limpiarUsoGlobal()
+  await restaurarUsoGlobal()
 })
 
 beforeEach(async () => {

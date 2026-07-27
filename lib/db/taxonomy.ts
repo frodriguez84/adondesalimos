@@ -85,7 +85,9 @@ export const COCINA_HIJOS: SeedTag[] = [
   { slug: 'hamburguesas', name: 'Hamburguesas', parent: 'americana' },
   { slug: 'bbq-costillas', name: 'BBQ / costillas', parent: 'americana' },
 
-  // `pasteleria` se mantiene aunque no haya panaderías: la necesita el chip Merienda.
+  // `pasteleria` es un tag de Cocina válido aunque hoy no tenga lugares; se
+  // mantiene por completitud de la taxonomía (ya no lo usa ningún chip: al ser
+  // Cocina ANDea y cero-eaba la Merienda — ver `lib/db/chips.ts`).
   { slug: 'pasteleria', name: 'Pastelería', parent: 'dulce-y-cafe' },
   { slug: 'cafe-especialidad', name: 'Café de especialidad', parent: 'dulce-y-cafe' },
 

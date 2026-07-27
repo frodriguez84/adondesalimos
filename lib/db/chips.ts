@@ -99,10 +99,13 @@ export const CHIPS_OBJETIVO: readonly ChipSeed[] = [
     tags: ['bar', 'restaurante', 'patio-gastronomico', 'grupos-grandes', 'reserva-necesaria'],
   },
   {
+    // Sin `bodegon`: es Cocina, su propia faceta, así que el motor lo cruza con
+    // AND (achica) en vez de sumarlo al Tipo. Con `bodegon` el chip daba 0 sí o
+    // sí (hallazgo CURADURIA F3). Queda restaurante + kids-friendly + cena.
     slug: 'cena-familiar',
     name: 'Cena familiar',
     inHome: false,
-    tags: ['restaurante', 'bodegon', 'kids-friendly', 'cena'],
+    tags: ['restaurante', 'kids-friendly', 'cena'],
   },
   {
     slug: 'plan-tranqui',
@@ -111,10 +114,12 @@ export const CHIPS_OBJETIVO: readonly ChipSeed[] = [
     tags: ['cafe', 'bar', 'tranqui', 'juegos-de-mesa'],
   },
   {
+    // Sin `pasteleria`: es Cocina (0 lugares) y ANDea igual que `bodegon` arriba.
+    // Queda cafe + merienda, que sí conviven (mismo Tipo) y prenden.
     slug: 'merienda',
     name: 'Merienda',
     inHome: false,
-    tags: ['cafe', 'merienda', 'pasteleria'],
+    tags: ['cafe', 'merienda'],
   },
 ]
 

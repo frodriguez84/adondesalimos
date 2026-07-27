@@ -37,8 +37,12 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       cotización (no pegarle a dolarito.ar en cada render), degradar si la fuente cae (mostrar último
       valor conocido, nunca bloquear `/admin`), y que sea **sugerencia** — el precio lo cambia Fer a
       mano, no automático. Ver análisis completo en `COSTOS-IA-Y-PRECIO-PREMIUM.md`.
-- [ ] **🧪 Test de integración del cupo borra el contador real del tope global (hallazgo del
-      tablero de costos, 2026-07-26).** `lib/ai/__tests__/cupo.integration.test.ts:64` hace
+- [x] **🧪 Test de integración del cupo borra el contador real del tope global (hallazgo del
+      tablero de costos, 2026-07-26).** **Resuelto ✅ 2026-07-27** (batch limpieza post-CURADURIA):
+      `snapshotUsoGlobal()` en `beforeAll` + `restaurarUsoGlobal()` en `afterAll` — la suite deja
+      la fila del mes real exactamente como la encontró (no sirve mes sintético: `reservarCupo`
+      escribe siempre `current_date`). Verificado: centinela 99 en `ai_api_usage`, corrida la suite,
+      quedó en 99; antes lo borraba. `lib/ai/__tests__/cupo.integration.test.ts:64` hace
       `db.delete(aiApiUsage)` de la fila del **mes calendario real** como setup/cleanup: cada
       corrida de la suite contra el Postgres de dev resetea el contador del kill switch
       (CHAT_IA decisión 15). Lo expuso el tablero de COSTOS_ADMIN en su primer render (cupo
@@ -385,34 +389,47 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       de Overture casi no las llena — la decisión 20 del spec lo anticipaba, la magnitud no.
       Son el diferencial del producto y hoy están casi vacías: es la carga de curaduría más
       grande pendiente. Ver la medición en el spec BUSQUEDA § *Medición de cobertura*.
-- [ ] **`zone_aliases` tiene 4 filas: el autocompletar por alias casi no tiene con qué**
-      (BUSQUEDA, 2026-07-20). Villa Ortúzar, Balvanera, San Nicolás y Villa Devoto son todos
-      los alias de las 46 zonas. El mecanismo funciona (verificado en F2), pero cubre 4
-      barrios. Cargar alias es curaduría barata y de alto impacto en la búsqueda: los barrios
-      absorbidos por un merge de zona son los que la gente tipea. Ver la nota de BUSQ-05 en el
-      spec. **Son 3, no 4** (BUSQUEDA F3, 2026-07-20): al verificarlos uno por uno se vio que
-      *Villa Devoto* matchea por nombre de zona ("Villa Devoto y Villa del Parque"), así que su
-      fila de alias es redundante. Los que agregan capacidad son Villa Ortúzar, Balvanera y
-      San Nicolás.
+- [x] **`zone_aliases` tiene 4 filas: el autocompletar por alias casi no tiene con qué**
+      (BUSQUEDA, 2026-07-20). **Resuelto ✅ 2026-07-27** (batch limpieza): se cargaron **74 alias
+      nuevos** (78 en total) barrio/localidad → zona, **validados por dato** (query de coordenadas
+      contra `place_zones`, no a ojo — corrigió varias corazonadas: Turdera es Temperley no Lomas,
+      Villa Bosch es Caseros no San Martín, La Paternal es Villa del Parque no Chacarita). Fer los
+      revisó/aprobó por región; Gerli→Lanús (empate 14/14) y Florida descartado (colisión con la
+      peatonal). Se cruzó con la propuesta de 2 IAs externas. Quedaron **fuera**: localidades del
+      conurbano profundo sin cobertura de zona (González Catán, Longchamps, Hudson…), y los hitos/
+      POIs (ver ítem nuevo abajo). En `lib/zones/canon.ts` § ALIASES.
+- [ ] **Alias de hitos/POIs (Movistar Arena, Unicenter, DOT, La Rural, Puerto de Frutos…)**
+      (batch limpieza, 2026-07-27). Eje distinto de los barrios: son puntos de referencia que la
+      gente tipea muchísimo y hay cientos. Merece una pasada propia y deliberada (no meter un puñado
+      suelto). Mapear cada hito → zona que lo contiene, mismo criterio data-backed que los barrios.
+- [ ] **Alias de CABA sistemáticos desde el GeoJSON oficial de BA Data** (idea de Fer, 2026-07-27).
+      CABA publica los límites de sus 48 barrios como GeoJSON abierto
+      (`data.buenosaires.gob.ar/dataset/barrios`, WGS84). Cruzándolo con las 46 zonas vía **turf**
+      (mismo stack que `lib/zones/`, sin Python) se podrían generar los alias de CABA completos y
+      correctos por solapamiento de polígonos. Límites: es solo CABA (el conurbano necesita otra
+      fuente) y NO trae los nombres informales de más búsqueda (Palermo Soho/Viejo, Barrio Chino,
+      Las Cañitas no existen ahí — esos se siguen curando a mano). Sumaría una atribución en `/legales`.
 - [ ] **Sugerencias del campo de texto sin trgm** (BUSQUEDA, 2026-07-20). F2 matchea tags y
       zonas con substring sin acentos sobre el catálogo en memoria (~150 items), en vez del
       trgm que pedía la decisión 14 — evita un fetch por tecla y a esa escala el trigrama no
       cambia lo que el usuario ve. Si el catálogo de tags crece un orden de magnitud, mover a
       un endpoint con `word_similarity`, que es lo que ya usa la búsqueda por nombre de lugar.
-- [~] **Chips de Ocasión objetivo — 5/9 prendidos tras CURADURIA** (BUSQUEDA F3 → CURADURIA F3,
-      2026-07-27). La corrida de curaduría prendió `cumpleanos` (0→42 zonas), `after-office`
-      (0→10), `salida-con-chongo` (0→2) y `primera-cita` (0→1); con `salir-a-bailar` (ya vivo) son
-      **5/9**. Los **4 restantes en 0 no son curables** por Ambiente/Momento/Actividad: dependen de
-      facetas que el batch no toca — `salida-con-amigos` (`precio-2`, Precio, 1 lugar),
-      `plan-tranqui` (`juegos-de-mesa`, Actividad, 2 lugares), `merienda`/`cena-familiar` (Cocina).
+- [~] **Chips de Ocasión objetivo — 7/9 prendidos** (BUSQUEDA F3 → CURADURIA F3 → batch limpieza,
+      2026-07-27). La curaduría prendió `cumpleanos` (0→42 zonas), `after-office` (0→10),
+      `salida-con-chongo` (0→2) y `primera-cita` (0→1); con `salir-a-bailar` (ya vivo) fueron **5/9**.
+      El batch de limpieza (sacar el tag de Cocina que ANDeaba) prendió `merienda` (0→45) y
+      `cena-familiar` (0→44) → **7/9**. Los **2 restantes en 0 no son curables** por
+      Ambiente/Momento/Actividad — dependen de facetas que el batch no toca: `salida-con-amigos`
+      (`precio-2`, Precio, 1 lugar) y `plan-tranqui` (`juegos-de-mesa`, Actividad, 2 lugares).
       Ver `docs/qa/AnalisisQA.md` § *CURADURIA F3* (decisión 12: documentado, no bloquea).
-- [ ] **Refinar la semilla de 2 chips donde la Cocina ANDea en vez de sumar** (hallazgo CURADURIA
-      F3, 2026-07-27). `merienda` = `cafe` AND `merienda` AND **`pasteleria`** (Cocina, 0 lugares) y
-      `cena-familiar` = `restaurante` AND **`bodegon`** (Cocina) AND `kids-friendly` AND `cena`: como
-      Cocina es su propia faceta, el motor la cruza con **AND** (achica) en vez de OR con el Tipo.
-      Estos dos chips no pueden prender como están definidos, sin importar la curaduría. Fix: en
-      `lib/db/chips.ts` sacar el tag de Cocina o moverlo a un OR con el Tipo (requiere revisar la
-      semántica AND-entre-facetas de BUSQUEDA decisión 13). Es diseño de chip, no dato faltante.
+- [x] **Refinar la semilla de 2 chips donde la Cocina ANDea en vez de sumar** (hallazgo CURADURIA
+      F3, 2026-07-27). **Resuelto ✅ 2026-07-27** (batch limpieza): en `lib/db/chips.ts` se sacó
+      `pasteleria` de `merienda` (→ `cafe`+`merienda`) y `bodegon` de `cena-familiar` (→
+      `restaurante`+`kids-friendly`+`cena`). Reseed dirigido (DELETE `chip_tags` de los 2 chips +
+      `db:seed`, porque `sembrarChips` no reescribe tags de un chip existente). Cobertura: ambos
+      pasaron de 0 a **45/46 y 44/46 zonas** → chips vivos **5/9 → 7/9**. Comentario stale de
+      `pasteleria` en `taxonomy.ts` corregido. `pasteleria` queda en la taxonomía (tag válido, no
+      lo usa ningún chip).
 - [ ] **"Cenar afuera" devuelve 11.438 lugares en AMBA** (BUSQUEDA F3, 2026-07-20). Es el
       riesgo "devuelve 8.000 lugares" que IDEAS ya anotaba. En una zona concreta da 262-527,
       que es como se usa de verdad (la home pide zona primero), así que no bloquea. Se afina
@@ -458,6 +475,16 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Batch de limpieza post-CURADURIA — 3 fixes chicos** (2026-07-27, sesión Opus): (1) **test
+      de cupo** — dejó de borrar la fila real de `ai_api_usage` del mes en curso; ahora snapshot en
+      `beforeAll` + restore en `afterAll` (verificado con centinela 99). (2) **2 chips que ANDeaban
+      Cocina** — se sacó `pasteleria` de `merienda` y `bodegon` de `cena-familiar` + reseed dirigido;
+      chips vivos **5/9 → 7/9** (`merienda` 0→45 zonas, `cena-familiar` 0→44). (3) **alias de
+      barrios** — **74 nuevos** (78 total) barrio/localidad → zona, validados por dato (query de
+      coordenadas contra `place_zones`; corrigió varias corazonadas y descartó localidades sin
+      cobertura), aprobados por Fer región por región. Verificado end-to-end en `sugerir()`.
+      Typecheck + 468 tests verdes. Build queda pendiente (server levantado). Registrado en QA
+      (`AnalisisQA.md`). Sin PR todavía.
 - [x] **Spec 9 CURADURIA — cerrado entero (F1 + F2 + F3)** (2026-07-27): el #5 de la cola
       post-spec-8. **F1**: migración `place_tag_suggestions` (evidencia + URL + estado, unique
       `(place_id,tag_id)`), settings `curation.zone_quota`/`ai.curation_model`, selección por zona

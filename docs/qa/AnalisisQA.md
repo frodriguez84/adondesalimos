@@ -1219,6 +1219,12 @@ Cocina en la lista de tags achica en vez de ampliar. No es un hueco de curadurí
 `BACKLOG` como refinamiento de la semilla de chips (redefinir sin la Cocina, o con Cocina en OR
 con el Tipo). Fuera del scope de este spec.
 
+> **Actualización (batch limpieza, 2026-07-27):** se aplicó el refinamiento — se sacó `pasteleria`
+> de `merienda` y `bodegon` de `cena-familiar` en `lib/db/chips.ts` + reseed dirigido. Ambos chips
+> pasaron de **0 a 45/46 y 44/46 zonas**. **Chips vivos: 5/9 → 7/9.** Quedan en 0 solo
+> `salida-con-amigos` (`precio-2`) y `plan-tranqui` (`juegos-de-mesa`), que sí son dato base no
+> curable. Medido con `scripts/cobertura-chips.ts`.
+
 ### Notas de F3
 
 - **Cierre de la cola — bulk-accept de las `pending` (decisión de Fer, 2026-07-27, post-cierre).**
