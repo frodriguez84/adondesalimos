@@ -49,10 +49,12 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       0/5.000 con 20 mensajes reales del mes). Fix chico: guardar y restaurar el valor previo,
       o testear contra un mes sintético. Ver `docs/qa/AnalisisQA.md` § QA manual COSTOS_ADMIN
       → Observación.
-- [ ] **🎯 SESIÓN DEDICADA — Chat IA: calidad de búsqueda y voz (tuning de prompt, F1).**
-      Descubierto en el QA en vivo de F2 (2026-07-26, Fer testeando). Son todos comportamientos del
-      **modelo (Haiku 4.5)**, no de la UI ni del motor. Juntar en una sesión propia, con contexto
-      limpio, porque es iterativo.
+- [x] **🎯 SESIÓN DEDICADA — Chat IA: calidad de búsqueda y voz (tuning de prompt, F1).**
+      **Cerrada ✅ 2026-07-27** (Sonnet 5 adoptado + fix de la trampa de `precio` + guard de multi-búsqueda,
+      verificado por eval y en vivo — ver sub-ítems). Los 3 criterios (no narrar · voz · no sobre-filtrar)
+      se cumplen; no queda defecto abierto. El tuning fino de voz es iterable siempre, pero sin issue pendiente.
+      Descubierto en el QA en vivo de F2 (2026-07-26, Fer testeando). Eran comportamientos del
+      **modelo**, no de la UI ni del motor. Se trató en sesión propia con contexto limpio, por ser iterativo.
 
       **Síntomas observados:**
       1. **Sobre-filtrado que pierde resultados reales (el más grave).** "Lugares para ir con
@@ -121,8 +123,33 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
         voz) sin romper la regresión; si la voz/prolijidad es prioridad de producto, el swap lo justifica
         (se cambia con un UPDATE, sin deploy). Alternativa si se quiere seguir en Haiku por costo: NO hay
         palanca de prompt confiable para la narración en modelo chico — quedaría suprimir el retry
-        automático (menos cobertura de sobre-filtrado) o tolerar la narración. **Decisión de costo/producto
-        pendiente de Fer** — modelo revertido a Haiku tras el test.
+        automático (menos cobertura de sobre-filtrado) o tolerar la narración.
+        **DECISIÓN DE FER (posterior al test):** se adoptó **Sonnet 5** como default del chat — el swap
+        se aplicó en `app_settings` (`ai.chat_model = "claude-sonnet-5"`, confirmado en runtime el
+        2026-07-27). La voz/prolijidad se priorizó sobre el costo. La línea previa ("revertido a Haiku
+        tras el test") describía el estado inmediato del A/B, no la decisión final. Registrado también en
+        `CLAUDE.md` § Modelo del chat IA y en la memoria [[chat-modelo-sonnet]].
+      - [x] **Tuning sobre Sonnet 5 + fix de la trampa de `precio`** (sesión dedicada, 2026-07-27):
+        con el default ya en Sonnet 5, se corrió un banco de eval (reusa prompt+tool+motor reales, imprime
+        los tool-inputs que elige el modelo + nº de resultados + texto — la evidencia que pedía este ítem,
+        sin gastar cupo) sobre 6 casos. **Confirmado:** los 3 criterios de la sesión (no narrar el mecanismo ·
+        voz rioplatense sin slang inventado · no sobre-filtrar) **se cumplen con Sonnet + el prompt** en los 6
+        casos — el síntoma de narración/voz quedó cerrado por la decisión Sonnet. **Hallazgo nuevo con
+        evidencia (no cubierto por el A/B):** la faceta `precio` está **muerta** en el catálogo
+        (`precio-1=0, precio-2=1, precio-3=0, precio-4=0` en toda la base), pero el prompt **empujaba**
+        `precio-1/2` para "barato/económico" → por el AND entre facetas, cualquier consulta con "barato" caía
+        a 0 y forzaba un retry (misma clase de sobre-filtrado que escape-room, en la frase más común que existe).
+        **Fix (`lib/ai/prompts.ts`):** (a) la guía de PRECIO ahora dice explícito que no se filtra por precio
+        (faceta sin cargar) y que "barato" se maneja en el texto, no como filtro; (b) el ejemplo "parrilla barata"
+        se corrigió para NO mandar `precio-1`; (c) bullet en ÚLTIMO CHEQUEO: sacar cualquier `precio-*` antes de
+        buscar. **Verificado (eval):** "parrilla barata" y "algo barato" pasaron de 2 rondas (precio→0 + retry) a
+        **1 ronda** limpia; escape-room/grupos/tranqui sin regresión. **Guard extra (caso 6):** el modelo partía
+        `[bar,cerveceria]` en 3 búsquedas aunque la 1ª ya alcanzaba (mismo faceta = ya suman OR); se agregó una
+        línea en CÓMO REFINAR que lo baja de 3 a 1-2 búsquedas (mejora soft de latencia/costo, sin tocar
+        correctitud). **Verificado en vivo** (Playwright/ngrok, cuenta premium): "parrilla barata en Caballito"
+        (4 cards, texto maneja el precio con gracia, sin narrar) y regresión escape-room (3 salas, tags
+        `Club de juegos`+`Escape room`, sin ambiente, sin narrar). typecheck + tests `lib/ai` (19/19) verdes.
+        **Nota:** el motor NO se tocó — el arreglo es que el modelo pida bien (prompt), como manda la sesión.
 - [ ] **Chat IA — copy del gate premium sin cupo acoplado a la fecha de reset (F2, nota 2026-07-25).**
       El banner "Se renueva el 1º del mes que viene" es **correcto hoy**: el cupo se cuenta por mes
       calendario (`chat_usage_monthly` keyed por `YYYY-MM`, `lib/ai/cupo.ts`), reset el 1º —
