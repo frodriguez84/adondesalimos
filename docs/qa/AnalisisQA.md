@@ -1037,8 +1037,10 @@ persistentes — solo lectura en Precios/Suscripciones/Costos durante el recorri
 
 ## QA /qa-spec — CURADURIA (F1 + F2, parcial) (2026-07-27)
 
-**Veredicto:** PARCIAL — pendiente QA en vivo (piloto con Fer) + F3 (corrida completa) fuera de
-scope de la sesión.
+**Veredicto:** **APROBADO (F1 + F2)** — flujo humano completo verificado en vivo (2026-07-27,
+Opus + Playwright, ver subsección "Verificación en vivo") y **Fer aprobó el piloto el 2026-07-27**
+(CUR-QA-12 ✅). Con eso queda **habilitada F3** (corrida de las 44 zonas restantes) para una sesión
+Opus nueva — modelo **Haiku** (recomendación aceptada). F3 abre su propia sección de QA al cerrar.
 **Verificación técnica:** typecheck ✅ · tests 466/466 ✅ · build pendiente (server de Fer
 levantado; se corre con el server parado — lección BUSQUEDA, `.next` compartido).
 **Método:** dos checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD
@@ -1054,19 +1056,67 @@ búsqueda → chip) quedan para el piloto con Fer (decisión 11).
 | CUR-QA-03 | Toda sugerencia con `evidence` + `source_url`, o marcada sin evidencia; una corrida nueva no pisa `accepted`/`rejected` | ✅ PASS | Piloto en DB: 129 sugerencias, **70 con evidencia + URL** (los 70 con cita tienen URL), 59 sin evidencia (`evidence` null). `lib/curation/suggestions.ts` usa `onConflictDoNothing` sobre el unique. CUR-08 verificado en vivo: re-insertar un par existente devolvió `nuevas=0`, la fila quedó intacta (`evidence` NO pisado) |
 | CUR-QA-04 | El script reporta procesados, sugerencias, tokens in/out y costo USD | ✅ PASS | Reporte real del piloto: `Lugares procesados: 80 · Sugerencias generadas: 129 · Tokensin 176011 out 9284 · Costo US$0.2224 (claude-haiku-4-5)`. `scripts/curar.ts` usa `calcularCostoUsd` (`lib/ai/logging.ts`) |
 | CUR-QA-05 | Solo se sugieren Ambiente/Momento/Actividad (decisión 6); nada de Tipo/Cocina/Precio | ✅ PASS | Distribución en DB del piloto: `momento` 77 · `ambiente` 48 · `actividad` 4 · (tipo/cocina/precio = 0). Vocabulario acotado a `FACETAS_SUGERIBLES` en `lib/curation/sugeridor.ts` + validado en el borde (slug inventado se descarta) |
-| CUR-QA-06 | Tab "Curaduría" (5ta) tras el gate `sesionAdmin` (no-admin → 404); endpoints con gate 403 | ✅ PASS (código) / ⏳ vivo | `app/admin/page.tsx` (`sesionAdmin` + `notFound()`) + `tabs.tsx` sin segundo gate; `app/api/admin/curaduria/route.ts` (GET) y `[placeId]/route.ts` (POST) verifican `sesionAdmin` → 403. El 404 en vivo para no-admin queda para el recorrido con Fer (CUR-02) |
-| CUR-QA-07 | Aceptar escribe `place_tags` `source='admin'`; rechazar no toca `place_tags`; corregir tildar/destildar; Precio opcional default "no sé" | ✅ PASS (código) / ⏳ vivo | `lib/curation/acciones.ts`: `guardarCuraduria` borra solo admin de las facetas editables y reinserta las elegidas como `admin` (`onConflictDoNothing`), resuelve pendientes accepted/rejected; `rechazarLugar` solo marca `rejected`. Precio validado contra faceta `precio`, default null. Falta CUR-03/04 en vivo (que el tag aceptado aparezca en ficha/búsqueda) |
-| CUR-QA-08 | Un tag aceptado aparece en la ficha y filtra en la búsqueda sin deploy; el chip que depende se prende solo | ⏳ PENDIENTE (vivo) | Requiere el piloto con Fer: aceptar en la cola → abrir ficha → filtrar en búsqueda → ver el chip prenderse (BUSQUEDA dec. 25). No se declara por lectura de código |
+| CUR-QA-06 | Tab "Curaduría" (5ta) tras el gate `sesionAdmin` (no-admin → 404); endpoints con gate 403 | ✅ PASS (código + **vivo**) | `app/admin/page.tsx` (`sesionAdmin` + `notFound()`) + `tabs.tsx` sin segundo gate. **En vivo (CUR-02):** `/admin` deslogueado → 404; logueado como `pepe@gmail.com` (no-admin) → 404; `GET /api/admin/curaduria?zona=…` con sesión no-admin → **403** `FORBIDDEN`. Admin (`frodriguez.este@gmail.com`) sí entra (200) |
+| CUR-QA-07 | Aceptar escribe `place_tags` `source='admin'`; rechazar no toca `place_tags`; corregir tildar/destildar; Precio opcional default "no sé" | ✅ PASS (código + **vivo**) | `lib/curation/acciones.ts` verificado contra DB en vivo. **Aceptar (CUR-03):** Salgado Alimentos → `tranqui` quedó `place_tags source='admin'`, sugerencia `accepted`+`reviewed_at`. **Rechazar (CUR-04):** McDonald's → 3 sugerencias `rejected`, `place_tags` sin cambios (solo `restaurante`/import). **Tildar:** Cafe Crespín → se agregó `tranqui` (no sugerido) como admin. **Destildar:** Parrilla Julio → destildé `cena` pre-tildada → `place_tags` con `almuerzo`/admin y **sin** `cena`; sugerencias `almuerzo=accepted`, `cena=rejected`. **Precio:** Cafe Crespín $$  → escribió `precio-2`/admin (default "No sé" no escribe nada) |
+| CUR-QA-08 | Un tag aceptado aparece en la ficha y filtra en la búsqueda sin deploy; el chip que depende se prende solo | ✅ PASS (**vivo**) | **Ficha:** `/lugar/<Salgado>` muestra "Tranqui" bajo "QUÉ VAS A ENCONTRAR". **Búsqueda:** `/?z=villa-crespo&t=tranqui` devuelve a Salgado con el chip de filtro "Tranqui" activo (Villa Crespo pasó de 0→1 en `tranqui`). **Chip (CUR-05):** curé Cafe Crespín = `cafe`(import)+`tranqui`+`precio-2` → el chip **`primera-cita`** [(bar/café/rest) AND (tranqui/romántico) AND precio-2] pasó de 0 matches (apagado) a **1 → visible bajo "Ver más"** sin deploy (BUSQUEDA dec. 25, conteo en runtime) |
 | CUR-QA-09 | Lugar con reclamo aprobado: el batch lo saltea (CUR-06) | ✅ PASS | En vivo: de los 52 lugares con sugerencias, 0 tienen `place_claims status='approved'`. La exclusión es `NOT EXISTS` en la selección |
-| CUR-QA-10 | Lugar sin web/redes: la sugerencia sale igual "sin evidencia" y la UI la distingue (CUR-07) | ✅ PASS (código+datos) / ⏳ UI vivo | 37 de 80 lugares sin evidencia web; sus sugerencias quedan con `evidence` null. La UI las marca con badge "sin evidencia" (`app/admin/curaduria-client.tsx`). Render del badge queda para el recorrido con Fer |
+| CUR-QA-10 | Lugar sin web/redes: la sugerencia sale igual "sin evidencia" y la UI la distingue (CUR-07) | ✅ PASS (código + datos + **UI vivo**) | 37 de 80 lugares sin evidencia web; sus sugerencias quedan con `evidence` null. **En vivo:** McDonald's mostró sus 3 sugerencias (Kids friendly / Almuerzo / Cena) con el badge **"sin evidencia"** renderizado, distinguidas de las que tienen cita + link "fuente" |
 | CUR-QA-11 | Re-import no pisa lo curado (`source='admin'` sobrevive) | ✅ PASS | Test nuevo en `lib/claims/__tests__/import-dueno.integration.test.ts`: una tag `source='admin'` en un lugar **sin** dueño sobrevive a `reemplazarTagsDeImport` (solo borra `source='import'`). 3/3 verde |
-| CUR-QA-12 | Piloto (2 zonas) revisado con Fer antes de habilitar la corrida completa | ⏳ PENDIENTE (Fer) | El batch corrió Villa Crespo + Quilmes; la revisión de calidad de prompt/evidencia/velocidad la hace Fer en la tab (decisión 11). Gate de F3 |
+| CUR-QA-12 | Piloto (2 zonas) revisado con Fer antes de habilitar la corrida completa | ✅ PASS | **Fer aprobó el piloto el 2026-07-27** tras el recorrido en vivo (calidad ~68/70 fiel, velocidad OK). Se sigue con **Haiku** para la corrida completa (recomendación aceptada). Gate de F3 levantado |
+
+### Verificación en vivo (piloto, Opus + Playwright, 2026-07-27)
+
+Recorrido punta a punta contra `https://adondesalimos.ngrok.app` (server de Fer) + verificación
+en el Postgres de dev tras cada acción. Cierra los criterios de flujo humano que no se declaran
+por lectura de código. **Teclado-first:** `Enter` guarda + avanza y `R` rechaza + avanza —
+ambos verificados (Salgado se aceptó con Enter, McDonald's se rechazó con R).
+
+**Curaduría real hecha en la sesión** (queda en la DB — son decisiones reales, no descartables):
+
+| Lugar | Acción | Resultado en DB |
+|-------|--------|-----------------|
+| Salgado Alimentos | Aceptar `tranqui` (Enter) | `place_tags` +`tranqui`/admin; sug. accepted |
+| McDonald's | Rechazar (R) | 3 sug. rejected; `place_tags` intacta |
+| Cafe Crespín | Aceptar desayuno/almuerzo/merienda + tildar `tranqui` + Precio $$ | +5 tags admin (`tranqui`,`precio-2`,3 momento) |
+| Parrilla Julio | Aceptar `almuerzo`, destildar `cena` (Enter) | +`almuerzo`/admin; `cena` rejected, no escrita |
+
+Estado final de la cola: **pending 120 · accepted 5 · rejected 4 = 129** (nada perdido).
+`app_settings` sin tocar (`curation.zone_quota`=40, `ai.curation_model`=`claude-haiku-4-5`).
+
+### Revisión de calidad del piloto (insumo del gate — decisión de Fer, CUR-QA-12)
+
+**Fidelidad de la evidencia (70 sugerencias con cita):** ~**68/70 fieles** — la cita respalda el
+tag. Dos claras a corregir/rechazar en la cola:
+- **El buen sabor africano → `abre-domingos`** con cita *"Domingos, Lunes y Martes: Cerrado"* — la
+  evidencia **contradice** el tag (el modelo citó bien pero concluyó al revés).
+- **Diversion → `musica-en-vivo`** con *"SHOW EN VIVO DE DAMAS GRATIS"* — no es música en vivo
+  (local de otro rubro). Estirón menor aparte: `wifi-trabajar` inferido de "CLAVE WIFI: …".
+
+**Las 59 sin evidencia** son inferencia por nombre/categoría (tipo McDonald's). No es una
+limitación del modelo sino de **cobertura de fetch**: 37 de 80 lugares no tienen web alcanzable
+(Instagram bloquea scraping anónimo, sin sitio propio). Ahí ningún modelo agrega evidencia que la
+web no dio.
+
+**Distribución:** `momento` 77 · `ambiente` 48 · `actividad` 4. Actividad casi no se movió —
+esperable: requiere que el sitio mencione la actividad explícitamente (música, juegos) y pocos lo
+hacen. El despegue de Actividad del Tipo (decisión 6) es marginal con esta cobertura de fetch.
+
+**Velocidad:** con las sugerencias pre-tildadas + evidencia inline + Enter/R, un lugar limpio se
+resuelve en ~2-3 s (mirada + Enter); uno que necesita corrección, ~10-15 s. El objetivo de
+5-10 s/lugar es realista.
+
+**Recomendación Haiku vs Sonnet (la decide Fer):** el 70/129 con evidencia ya está ~97% fiel con
+Haiku; la mitad débil es la sin-evidencia, que es un problema de **fetch/fuente que Sonnet no
+arregla**. Subir a Sonnet (~3× costo, ~US$40 vs ~US$13 la corrida completa) compra poco. La
+recomendación es **seguir en Haiku** para la corrida completa; el chequeo humano de 5-10 s/lugar
+en la cola atrapa barato las contradicciones raras (swap por `ai.curation_model` sin deploy si Fer
+prefiere Sonnet igual).
 
 ### Notas
 
 - **F3 (corrida de las 46 zonas) no se ejecutó** a propósito: tiene gate de piloto (decisión 11).
-  El batch y la cola están listos; falta la revisión de Fer sobre Villa Crespo + Quilmes.
-- **Datos del piloto persistidos** (129 sugerencias `pending`) — quedan en la DB de dev para que
-  Fer los revise en `/admin` → tab Curaduría. No se limpiaron (son el insumo del siguiente paso).
+  El batch y la cola están listos; falta el **OK explícito de Fer** sobre la calidad de arriba.
+- **Datos del piloto persistidos** (120 sugerencias `pending` tras la sesión) — quedan en la DB de
+  dev para que Fer termine de revisarlos en `/admin` → tab Curaduría. No se limpiaron.
 - **Costo del piloto**: US$0,22 con Haiku para 80 lugares → proyección de la corrida completa
   (~1.840 lugares) ≈ US$5, consistente con la estimación del spec (~US$10-15, conservadora).

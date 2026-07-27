@@ -905,8 +905,33 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de implementación de CURADURIA F1+F2 (2026-07-27). Esta sección es lo
+_Actualizado en la sesión de QA en vivo del piloto de CURADURIA (2026-07-27). Esta sección es lo
 primero que lee la sesión siguiente._
+
+### 🔬 Sesión Opus — (2026-07-27) · QA EN VIVO DEL PILOTO CURADURIA · GATE PENDIENTE (OK de Fer)
+
+Sesión de QA en vivo (Opus + Playwright) del flujo humano de la tab Curaduría. Cierra todos los
+criterios que no se declaran por lectura de código; queda solo el gate de calidad, que es de Fer.
+
+- ✅ **Flujo humano completo verificado en vivo** (contra `adondesalimos.ngrok.app` + DB):
+  gate 404 no-admin (deslogueado/logueado/API 403) · **aceptar** (Salgado→`tranqui`, aparece en
+  ficha y filtra en búsqueda) · **rechazar** (McDonald's, `place_tags` intacta) · **tildar/
+  destildar** (Parrilla Julio: `cena` destildada no se escribe, queda `rejected`) · **Precio**
+  ($$→`precio-2`) · **badge "sin evidencia"** (McDonald's) · **teclado Enter/R** · **chip se
+  prende**: curé Cafe Crespín → el chip `primera-cita` pasó de apagado a visible sin deploy.
+  QA doc actualizado (CUR-QA-06/07/08/10 → ✅ vivo). Veredicto: **F1+F2 técnicamente aprobado;
+  sube a APROBADO con el OK de Fer** (CUR-QA-12).
+- 🔎 **Revisión de calidad (para el gate de Fer):** evidencia ~**68/70 fiel**; 2 a corregir en la
+  cola (El buen sabor africano `abre-domingos` contradice su cita; Diversion `musica-en-vivo` es
+  de otro rubro). Las 59 sin evidencia son límite de **fetch** (37/80 sin web), no del modelo.
+  **Recomendación: seguir en Haiku** para la corrida completa (Sonnet ~3× costo no arregla el
+  fetch; el chequeo humano atrapa las contradicciones). Detalle en `AnalisisQA.md` § CURADURIA.
+- ✅ **Fer aprobó el piloto (2026-07-27).** F1+F2 → **APROBADO**; se sigue con **Haiku**.
+- ⏭️ **Próximo paso (F3), HABILITADO:** sesión Opus nueva — correr `npm run curar` sobre las 44
+  zonas restantes por tandas + medir cobertura (9 chips × 46 zonas) + reporte final por zona.
+- 🗒️ **Nota:** durante el QA se curaron 9 sugerencias reales (Salgado, McDonald's, Cafe Crespín,
+  Parrilla Julio) — quedan en la DB. Cola: pending 120 · accepted 5 · rejected 4. `app_settings`
+  sin tocar.
 
 ### 🔧 Sesión Opus — (2026-07-27) · CURADURIA F1 + F2 IMPLEMENTADAS · FALTA F3 (gate de piloto)
 
