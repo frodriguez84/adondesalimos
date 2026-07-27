@@ -872,3 +872,61 @@ muestra la primaria, se lee como resultado equivocado. Lever disponible si moles
 real: bajar `BUFFER_M` en `scripts/zones/load.ts:23` (con ~150 m, escape-room daría 1 y las
 parrillas foráneas caerían ~70 %) — es cambiar decisión 5 de un spec cerrado, queda como
 decisión de producto en el BACKLOG.
+
+---
+
+## QA integral — cruces rol × feature (2026-07-26)
+
+**Veredicto:** APROBADO — 10 cruces ejecutados en vivo, todos PASS; 1 observación de diseño
+(INT-05) y 1 nota de orden no bloqueante (INT-14) para el BACKLOG. Cero bugs.
+**Alcance:** los CRUCES rol × feature que ningún `/qa-spec` individual tocó — lo que vive
+ENTRE specs (ver `docs/qa/PLAN_QA_INTEGRAL.md`). **No re-corre** el DoD de cada spec (todos
+ya APROBADO arriba). IDs nuevos `INT-NN`.
+**Método:** Playwright MCP + `fetch` con sesión real contra `https://adondesalimos.ngrok.app`
+(dev server del usuario en 5178) + consultas directas al Postgres (Docker, 5439) para verificar
+estado. Setup de flags de QA (`owner_plan='paid'`, `users.plan='premium'`, votaciones) con
+`UPDATE` documentado y **revertido al cerrar** (OK explícito de Fer para tocar la DB de dev).
+Cuentas: `frodriguez.este@gmail.com` (premium+admin+dueño de Kansas), `juan`/`hugo@gmail.com`
+(free). Kansas Grill & Bar = `6323f392-d42f-4d27-8f3f-8b51e2b3cd44`.
+
+| ID | Cruce (rol × feature) | Resultado | Evidencia / Nota |
+|----|-----------------------|-----------|------------------|
+| INT-12 | Anónimo × gates (chat/votación/mi-negocio/admin) | ✅ PASS | Sin sesión: `/chat` → CTA "Ingresar para chatear" (`/login?callbackUrl=/chat`), input ausente, `POST /api/chat` → **401 NO_SESSION**; `/admin` → **404** (oculta su existencia a no-admins, no 403); `/mi-negocio/[id]` → redirect a `/login`; `POST /api/votaciones` → **401** "Iniciá sesión para armar una votación"; `PATCH /api/admin/settings` → **403**. Votar como invitado ya cubierto (VOT-05). Todos los gates consistentes |
+| INT-14 | Dueño/usuario logueado × panel AJENO (aislamiento) | ✅ PASS | juan (free, no dueño) contra Kansas (dueño: frodriguez): **lectura** `/mi-negocio/[Kansas]` → **404** (lo oculta); **escritura** `PATCH /content` con payload válido → **403 NO_AUTORIZADO** "No podés editar este lugar" (`verificarDueno` es el 1er paso de `guardarContenido`). Verificado en DB: la descripción de Kansas quedó intacta (el intento "HACK juan" no escribió nada). **Nota de orden (no bug, → BACKLOG):** el route valida la forma **antes** que ownership, así que un payload basura devuelve 400 (no 403) — igual no escribe; solo un payload bien-formado alcanza el 403 |
+| INT-15 | Admin × panel de un lugar que NO es suyo | ✅ PASS | frodriguez (admin) → `/mi-negocio/[lugar no propio]` → **404**. El admin **no** saltea el gate por-dueño de `/mi-negocio`; su omnisciencia es por `/admin`, no por el panel del dueño. Expectativa resuelta y documentada (la tensión "el admin ve todo" vs `esDuenoDe` se resuelve a favor del aislamiento del panel) |
+| INT-10 | Anónimo × ficha de un lugar PAID (extras pagos) | ✅ PASS | Kansas puesto en `owner_plan='paid'` con contenido pago: la ficha pública muestra al anónimo los tres extras — descripción ("SOBRE EL LUGAR…"), `news` ("Happy hour…") y link "Ver la carta". La ficha pública refleja el plan del dueño |
+| INT-11 | Ocultar≠borrar en la ficha al bajar de paid a free | ✅ PASS | Bajado Kansas a `owner_plan='free'` + recargar (anónimo): descripción, `news` y "Ver la carta" **desaparecen**; las filas de `place_owner_content` siguen en DB (`description is not null` = true). Ocultar sin borrar, confirmado end-to-end sobre la ficha pública |
+| INT-01 | Premium B2C + dueño paid en la MISMA cuenta (coexistencia) | ✅ PASS | frodriguez (`users.plan='premium'`) + Kansas `owner_plan='paid'`: su `/mi-negocio/[Kansas]` muestra el desglose pago **y** el chat premium funciona (INT-04) — los dos ejes conviven sin interferir. `users.plan` y `places.owner_plan` son ortogonales |
+| INT-02 | `owner_plan='paid'` NO desbloquea el chat | ✅ PASS (código) | El gate del chat es `esPremium(session.user.id)` = lee **solo** `users.plan`; `owner_plan` no aparece en `lib/ai/` (CHAT_IA-QA-05, único hit es un comentario en `cupo.ts:28`). Pagar el B2B no regala el chat. No se corrió con un dueño-paid-no-premium en vivo por ser candado estructural de código; la ortogonalidad quedó demostrada por INT-01 |
+| INT-03 | Premium B2C que NO es dueño no ve superficie B2B | ✅ PASS (mecanismo) | Cubierto por el mecanismo de INT-15: `/mi-negocio/[id]` es por-dueño → un premium no-dueño recibe 404 en cualquier panel. Su superficie premium vive en `/cuenta` |
+| INT-04 | Chat IA NO le da ventaja al que paga (sin sesgo pago) | ✅ PASS | Con Kansas `paid`, el chat ("parrilla en Las Cañitas") devolvió Kansas **junto a** dos parrillas no-pagas (Parrilla SecreTiTo, GARD), **sin** concepto "Destacado/featured" en la respuesta. Kansas sale por relevancia (es parrilla en Las Cañitas), no por pagar. Confirmado en código: la tool llama solo `searchPlaces` (orgánico), nunca `buscarDestacados` ([tools.ts:102](../../lib/ai/tools.ts#L102)); el orden ignora `owner_plan` |
+| INT-05 | El chat NO cuenta impresiones/vistas para el B2B | ✅ PASS (observación) | Los 3 lugares mostrados por el chat (incl. Kansas) siguieron con `impressions=0` / `featured=0` del día tras la consulta; Kansas mantuvo sus 2 `detail_views` (de las fichas de INT-10/11, no del chat). `lib/ai/tools.ts` no importa `registrarImpresiones`/`registrarDestacados`. **Decisión de diseño para Fer (→ BACKLOG):** un lugar mostrado en el chat no suma en las estadísticas que vende el B2B. No es un bug — es un hueco de captura de métrica |
+| INT-08 | Votación × downgrade premium→free con activas colgando | ✅ PASS | hugo (premium) creó **2** votaciones activas (201 c/u) → bajado a `free` → crear una 3ra → **409 LIMITE_ACTIVA** "Ya tenés una votación activa…". Las 2 preexistentes siguen `status=open` y vigentes (el downgrade **no** las cierra). Transición consistente: sin loophole, sin pérdida de datos, el gate free cuenta las activas heredadas del período premium |
+| INT-07 | Free agota trial → paga premium (MP real) → recupera el chat | ✅ PASS | juan (free) consumió los 3 mensajes de prueba (contador 2→1→0) → 4º → **403 TRIAL_AGOTADO** + UI "Usaste tus mensajes de prueba" con CTA "Hacerme premium"→`/cuenta`, input deshabilitado. **Pago real en el sandbox de MP** (Fer, Card Payment Brick, $7.000 B2C): `users.plan='premium'`, sub `active` `amount_ars=7000` `place_id=null`. Recargar `/chat`: el gate del trial **flipeó al cupo mensual "Te quedan 30"**, input habilitado, un mensaje nuevo → 200 (restantes 29) con lugares reales. El upgrade rige sin deploy (el gate lee `users.plan` por request, `esPremium`). Cierra también el eje "premium real de MP" de INT-06. Limpieza: sub cancelada (`POST /api/billing/cancel` → preapproval MP + revert local a free/trial 0) |
+
+### Cruces no ejecutados en esta tanda (registrados, no bloquean el veredicto)
+
+- **INT-06 (loop premium real MP → chat shortlist → votación):** cubierto en lo esencial por
+  CHAT-13 (§ CHAT_IA F3, verificado en vivo con premium real) + INT-04 (el chat de un premium
+  real funciona) + INT-07 (el pago real de MP sí produce el premium que habilita el chat). No se
+  re-corrió el flujo shortlist completo end-to-end. Bajo riesgo.
+
+### Falso positivo cazado (lección de método)
+
+El primer intento de INT-12 marcó "anónimo puede usar el chat" (POST /api/chat → 200 + respuesta
+de IA real, contador 3→2). **Era falso:** el browser de Playwright arrastraba la **sesión de
+`juan`** de la QA de CHAT F3, y la vista `request-headers` de Playwright **redacta el header
+`cookie`**, así que parecía anónimo. Verificado con `GET /api/auth/get-session` (→ `juan@gmail.com`)
+y con el código del route (devuelve 401 sin `session.user`). **Regla que sale de esto:** en QA en
+vivo, el estado "anónimo" se confirma con `/api/auth/get-session`, nunca con `document.cookie` (no
+ve httpOnly) ni con la vista de headers (redacta la cookie); limpiar sesión con `POST
+/api/auth/sign-out` antes de cualquier prueba de gate. Registrado en `LECCIONES_APRENDIDAS.md`.
+
+### Limpieza
+
+Todo el estado de QA revertido y verificado en DB: Kansas `owner_plan='free'` + campos pagos a
+NULL, hugo `plan='free'`, votaciones `QA INT-08*` borradas (cascada), `chat_trial_used` de juan
+reseteado a 0, sesión del browser cerrada. **INT-07:** la suscripción premium de juan (pago real
+de sandbox) se canceló con `POST /api/billing/cancel` (cancela el preapproval en MP) + revert
+local a `plan='free'` / sub `canceled` / `chat_trial_used=0`, para que ninguna reconciliación lazy
+lo reactive. Estado final: los 4 usuarios en su plan original, cero artefactos de prueba.

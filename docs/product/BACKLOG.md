@@ -145,6 +145,23 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       **filtrar solo por primaria** (cero fuga, pierde el descubrimiento de borde de la decisión
       5); o **mantener el buffer y arreglar la card** (etiquetar el match de borde). Cambia una
       decisión de un spec cerrado (ZONAS done): es decisión de producto, no urge.
+- [ ] **El chat IA no cuenta impresiones/vistas para las estadísticas del dueño** (QA integral
+      INT-05, 2026-07-26). Un lugar mostrado como card en el chat premium **no** suma en
+      `place_impressions_daily` (ni `impressions` ni `detail_views`): `lib/ai/tools.ts` usa
+      `searchPlaces` pero no llama a `registrarImpresiones`. Verificado en vivo: los 3 lugares que
+      el chat devolvió quedaron en `impressions=0`. **No es un bug** — es un hueco de captura de
+      métrica: la visibilidad que da el chat es invisible para el desglose que vende el B2B
+      (MONE F4). **Decisión de producto de Fer:** ¿las vistas del chat deberían contar para el
+      dueño? Si sí, agregar `registrarImpresiones(ids)` en el `after()` del turno de chat (mismo
+      patrón que búsqueda/ficha, agregado puro sin user_id). Cruce F5×F8 que ningún spec tocó.
+- [ ] **`/api/mi-negocio/[placeId]/content` valida la forma antes de chequear ownership** (QA
+      integral INT-14, 2026-07-26). El route corre `contenidoSchema.safeParse` **antes** de llamar
+      a `guardarContenido` (que es donde `verificarDueno` rechaza al no-dueño con 403). Consecuencia
+      benigna: un no-dueño con payload mal-formado recibe **400** en vez de **403** — igual **no
+      escribe nada** (el 403 llega en cuanto el payload es válido; verificado en vivo). No hay fuga
+      de seguridad; es solo que el código de error no distingue "no sos dueño" de "mandaste
+      cualquier cosa" hasta que el payload es válido. Si molesta para claridad de API, mover el
+      chequeo de ownership antes de la validación de forma. Cosmético.
 - [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
       el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
       cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).

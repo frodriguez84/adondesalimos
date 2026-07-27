@@ -35,6 +35,34 @@ import contaba filas insertadas, no campos poblados. Todo verde.
 
 ---
 
+## En QA en vivo, "anónimo" se confirma server-side, no con `document.cookie` (2026-07-26 · QA integral)
+
+**Qué pasó.** El primer chequeo del gate anónimo del chat dio un falso positivo alarmante:
+`POST /api/chat` devolvió **200 + respuesta de IA real** y el contador bajó 3→2, "probando" que
+un anónimo podía usar el chat premium. Estuve a un paso de reportar un bypass de seguridad.
+
+**Causa raíz.** El browser de Playwright MCP **persiste la sesión** entre corridas de QA: quedaba
+logueada la cuenta `juan` de la QA de CHAT F3 (cookie de auth **httpOnly**). Dos señales
+engañaron: `document.cookie` daba `[]` (no ve cookies httpOnly) y la vista `request-headers` de
+Playwright **redacta el header `cookie`** — así que la request "parecía" anónima por los dos lados
+que miré primero.
+
+**Cómo se cazó.** Grounding en el código del route (`app/api/chat/route.ts`: devuelve 401 si
+`!session?.user` — si dio 200, hay sesión) + `GET /api/auth/get-session` → `juan@gmail.com`. El
+código no mentía; mi premisa de "anónimo" sí.
+
+**Qué hacer distinto:**
+
+1. **El estado de sesión se verifica con `/api/auth/get-session`**, nunca con `document.cookie`
+   (ciego a httpOnly) ni con la vista de headers de Playwright (redacta la cookie).
+2. **Antes de cualquier prueba de gate anónimo, limpiar sesión** con `POST /api/auth/sign-out` y
+   confirmar `session == null`. El browser de QA no arranca limpio.
+3. **Un 200 donde el código dice 401 es, por defecto, un problema de premisa del test**, no un
+   bug del server — verificar la premisa antes de escribir el hallazgo (misma disciplina que
+   "un campo puede mentir fila por fila").
+
+---
+
 ## Sondear el schema real antes de escribir la query (2026-07-20 · CATALOGO)
 
 **Qué pasó (bien).** Antes de escribir el import se corrió un `DESCRIBE` contra el parquet
