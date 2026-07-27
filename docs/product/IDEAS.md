@@ -905,8 +905,37 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de curaduría (2026-07-27). Esta sección es lo primero que lee la
-sesión siguiente._
+_Actualizado en la sesión de implementación de CURADURIA F1+F2 (2026-07-27). Esta sección es lo
+primero que lee la sesión siguiente._
+
+### 🔧 Sesión Opus — (2026-07-27) · CURADURIA F1 + F2 IMPLEMENTADAS · FALTA F3 (gate de piloto)
+
+Sesión de implementación (Opus). Entrega: **el batch de curaduría (F1) y la cola en `/admin`
+(F2)** del spec 9, con el spec movido a `docs/specs/active/CURADURIA.md` (parcial).
+
+- ✅ **F1 — batch**: migración `place_tag_suggestions` (evidencia + URL + estado); settings
+  `curation.zone_quota` (40) / `ai.curation_model` (seed Haiku, manda runtime); selección por
+  zona (decisión 3, con `TIPO_RELEVANTE_CHIPS` derivado del canon); fetch educado del sitio
+  propio (**prohibido Google, fijado por test**); sugeridor LLM con **evidencia citada**
+  (tool-use forzado); upsert `onConflictDoNothing` que no pisa lo revisado. Script
+  `npm run curar <zona>...` con reporte de tokens/US$.
+- ✅ **F2 — cola**: quinta tab "Curaduría" (molde PULIDO, mismo gate `sesionAdmin`); flujo por
+  zona one-at-a-time con evidencia al lado; aceptar/corregir escribe `place_tags source='admin'`,
+  rechazar no toca `place_tags`; Precio opcional (default "no sé"); teclado-first (Enter/R).
+- ✅ **Piloto corrido** (Villa Crespo + Quilmes): **80 lugares · 129 sugerencias · US$0,22** con
+  Haiku (37 sin evidencia web; 70 con cita+URL). Datos `pending` quedan en la DB de dev para que
+  Fer los revise. Proyección corrida completa ≈ US$5 (spec estimaba US$10-15, conservador).
+- ✅ **QA**: typecheck + 466 tests verdes; 2 checkers independientes (F1 C1-C6, F2 C7-C12 PASS);
+  verificación en vivo en DB (evidencia, facetas correctas, CUR-06=0 reclamos, CUR-08
+  idempotencia). Registrado en `docs/qa/AnalisisQA.md` § CURADURIA (veredicto **PARCIAL —
+  pendiente QA en vivo**).
+- ⏭️ **Próximo paso (F3)**: **Fer revisa el piloto en `/admin` → tab Curaduría** (calidad de
+  prompt/evidencia + velocidad de tildado). Si aprueba, correr `npm run curar` sobre las 44 zonas
+  restantes por tandas y medir cobertura (9 chips × 46 zonas). Lo que se aprenda ajusta el prompt
+  sin re-migrar. **No arrancar F3 sin la revisión de Fer** (decisión 11, gate de piloto).
+- 📌 **Abierto para el piloto**: ¿el ratio 70/129 con evidencia es suficiente, o conviene subir a
+  Sonnet para la corrida completa? (swap por `ai.curation_model`, sin deploy). Decisión de Fer
+  tras ver la calidad real en la tab.
 
 ### 📝 Sesión Fable — (2026-07-27) · #5 DE LA COLA: SPEC 9 CURADURIA ESCRITO
 

@@ -71,6 +71,13 @@
       "when": 1785021351776,
       "tag": "0009_talented_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785163708813,
+      "tag": "0010_wealthy_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

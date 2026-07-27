@@ -1,6 +1,8 @@
 # Spec: CURADURIA — carga asistida de Ambiente/Momento/Actividad (spec 9)
 
-**Estado:** 🔵 Planned — decisiones cerradas con Fer (2026-07-27), en cola de implementación
+**Estado:** 🟡 Parcial (2026-07-27) — F1 (batch + migración) ✅ · F2 (cola en `/admin`) ✅ ·
+F3 (corrida completa de las 46 zonas) pendiente, con gate de piloto (decisión 11: Fer revisa
+Villa Crespo + Quilmes antes de habilitar el resto). QA: `docs/qa/AnalisisQA.md § CURADURIA`.
 **Prioridad:** Alta — #5 de la cola post-spec-8 (IDEAS § Estado de la conversación). Ambiente
 (0,9%) y Momento (0,6%) son EL diferencial del producto y están casi vacíos; 8 de los 9 chips
 de Ocasión objetivo siguen apagados por esto.

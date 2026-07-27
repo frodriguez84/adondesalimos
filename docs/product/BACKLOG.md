@@ -439,6 +439,20 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [~] **Spec 9 CURADURIA — F1 (batch) + F2 (cola en /admin) implementadas** (2026-07-27): el #5
+      de la cola post-spec-8. **F1**: migración `place_tag_suggestions` (evidencia + URL + estado,
+      unique `(place_id,tag_id)`), settings `curation.zone_quota`/`ai.curation_model`, selección
+      por zona (publicados · Tipo relevante a chips · sin reclamo aprobado · orden contacto→
+      confidence), fetch educado del sitio propio (**cero Google**, fijado por test), sugeridor LLM
+      con **evidencia citada** (tool-use forzado) y upsert que no pisa lo revisado; script
+      `npm run curar <zona>...` con reporte de tokens/US$. **F2**: quinta tab "Curaduría" tras el
+      gate `sesionAdmin`, cola one-at-a-time por zona con evidencia visible, aceptar/corregir
+      (`source='admin'`) / rechazar, Precio opcional, teclado-first (Enter/R). **Piloto real
+      corrido** (Villa Crespo + Quilmes): 80 lugares, 129 sugerencias, US$0,22 con Haiku. QA: 2
+      checkers independientes (F1 C1-C6 + F2 C7-C12 PASS) + verificación en vivo en DB +
+      typecheck/466 tests verdes. **Pendiente: F3** (corrida de las 46 zonas) con **gate de piloto**
+      — Fer revisa Villa Crespo + Quilmes en `/admin` antes de habilitar el resto (decisión 11).
+      Spec en `docs/specs/active/CURADURIA.md` (parcial) · QA: `docs/qa/AnalisisQA.md` § *CURADURIA*
 - [x] **Mini-spec PULIDO — pulido UX/UI + reestructura de /admin** (2026-07-27): el #4 de la
       cola post-spec-8, alcance cerrado con Fer → spec → implementación → QA → cierre en una
       sesión. Dos frentes sobre hallazgos del QA integral: (a) **pulido UX** — filtro fantasma

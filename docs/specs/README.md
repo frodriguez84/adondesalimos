@@ -21,13 +21,13 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| _(ninguno)_ | | |
+| [CURADURIA](active/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola de confirmación en `/admin` (tab nueva). Cuota pareja de ~40 lugares × 46 zonas (~1.840); objetivo = prender los 9 chips de Ocasión. Precio fuera de scope. | 🟡 Parcial — F1 (batch) + F2 (cola) ✅; F3 (corrida completa) pendiente |
 
 ## 🔵 Planned (`planned/`)
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| [CURADURIA](planned/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola de confirmación en `/admin` (tab nueva). Cuota pareja de ~40 lugares × 46 zonas (~1.840); objetivo = prender los 9 chips de Ocasión. Precio fuera de scope. | 🔵 Decisiones cerradas (2026-07-27) |
+| _(ninguno)_ | | |
 
 ## ⚫ Done (`done/`)
 

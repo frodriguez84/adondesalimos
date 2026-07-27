@@ -8,8 +8,10 @@ import { claimsPorEstado } from '@/lib/claims/query'
 import { getHistorialPrecios, getPreciosActuales } from '@/lib/billing/settings'
 import { getSuscripcionesAdmin } from '@/lib/billing/admin'
 import { getCostosChat, getCupoChat, getSugerenciaPrecio, getUsoGoogle } from '@/lib/admin/costos'
+import { zonasConCola } from '@/lib/curation/query'
 import { ColaClient } from './cola-client'
 import { CostosAdmin, SugeridorPrecio } from './costos'
+import { CuraduriaClient } from './curaduria-client'
 import { PreciosClient } from './precios-client'
 import { SuscripcionesAdmin } from './suscripciones'
 import { AdminTabs } from './tabs'
@@ -45,6 +47,7 @@ export default async function AdminPage() {
     usoGoogle,
     cupoChat,
     sugerencia,
+    zonasCuraduria,
   ] = await Promise.all([
     claimsPorEstado('pending'),
     claimsPorEstado('approved'),
@@ -55,6 +58,7 @@ export default async function AdminPage() {
     getUsoGoogle(),
     getCupoChat(),
     getSugerenciaPrecio(),
+    zonasConCola(),
   ])
 
   return (
@@ -84,6 +88,7 @@ export default async function AdminPage() {
             </div>
           </div>
         }
+        curaduria={<CuraduriaClient zonasIniciales={zonasCuraduria} />}
       />
     </main>
   )

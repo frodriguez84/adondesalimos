@@ -119,4 +119,29 @@ describe.runIf(process.env.DATABASE_URL)('el re-import y el dueño', () => {
     // El otro sí sigue a Overture.
     expect(await tagsDe(sinDueno)).toEqual([tagNueva])
   })
+
+  // CURADURIA (DoD): lo que acepta la cola queda con `source='admin'` y tiene que
+  // sobrevivir a un re-import igual que lo del dueño — sin reclamo aprobado de por
+  // medio. El re-import solo borra `source='import'`, así que la tag curada persiste.
+  it('preserva una tag source=admin (curaduría) aunque el lugar no tenga dueño', async () => {
+    if (!hayDb) return
+
+    const [curado] = await db
+      .insert(places)
+      .values({ source: 'overture', name: `${PREFIJO} curado admin`, lat: -34.6, lng: -58.4, confidence: 0.8 })
+      .returning({ id: places.id })
+
+    // Estado inicial: una tag de import + una tag curada (admin), como tras aceptar
+    // una sugerencia en la cola.
+    await db.insert(placeTags).values([
+      { placeId: curado.id, tagId: tagVieja, source: 'import' },
+      { placeId: curado.id, tagId: tagNueva, source: 'admin' },
+    ])
+
+    // Re-import: la categoría ahora mapea a `tagVieja` de nuevo (da igual cuál).
+    await reemplazarTagsDeImport([curado.id], [{ placeId: curado.id, tagId: tagVieja }])
+
+    // La curada (admin) sigue; la de import se reemplazó pero volvió a entrar.
+    expect(await tagsDe(curado.id)).toEqual([tagVieja, tagNueva].sort((a, b) => a - b))
+  })
 })

@@ -15,7 +15,8 @@
     "import:overture": "tsx scripts/import-overture.ts",
     "zones:build": "tsx scripts/zones/build.ts",
     "zones:load": "tsx scripts/zones/load.ts",
-    "zones:assign": "tsx scripts/zones/assign.ts"
+    "zones:assign": "tsx scripts/zones/assign.ts",
+    "curar": "tsx scripts/curar.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

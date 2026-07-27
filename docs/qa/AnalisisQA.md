@@ -1032,3 +1032,41 @@ próxima sesión de QA en `/chat` con Playwright.
 **Limpieza:** foto de prueba borrada de R2 + `place_photos`; impresiones de los 3 lugares del
 chat revertidas a 0; sesión de browser cerrada. Sin cambios de precio ni de `owner_plan`
 persistentes — solo lectura en Precios/Suscripciones/Costos durante el recorrido.
+
+---
+
+## QA /qa-spec — CURADURIA (F1 + F2, parcial) (2026-07-27)
+
+**Veredicto:** PARCIAL — pendiente QA en vivo (piloto con Fer) + F3 (corrida completa) fuera de
+scope de la sesión.
+**Verificación técnica:** typecheck ✅ · tests 466/466 ✅ · build pendiente (server de Fer
+levantado; se corre con el server parado — lección BUSQUEDA, `.next` compartido).
+**Método:** dos checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD
+de `docs/specs/active/CURADURIA.md` (F1 y F2), más verificación en vivo contra el Postgres local
+tras correr el **piloto real** (`npm run curar villa-crespo quilmes`): 80 lugares, 129
+sugerencias, US$0,22 con Haiku. Los criterios de flujo humano en `/admin` (aceptar → ficha/
+búsqueda → chip) quedan para el piloto con Fer (decisión 11).
+
+| ID | Criterio (DoD / QA manual del spec) | Resultado | Evidencia / Gap |
+|----|-------------------------------------|-----------|-----------------|
+| CUR-QA-01 | Migración `place_tag_suggestions` + settings aplica limpio; seed idempotente de los 2 settings | ✅ PASS | `drizzle/0010_wealthy_mad_thinker.sql` aplicada (`db:migrate` OK); tabla con enum `suggestion_status`, unique `(place_id,tag_id)`, índice por status (`lib/db/schema.ts`). `db:seed` inserta `curation.zone_quota`=40 y `ai.curation_model`=`claude-haiku-4-5` con `onConflictDoNothing` (`scripts/seed.ts`) |
+| CUR-QA-02 | El batch respeta cuota/zona, selecciona por decisión 3, **excluye reclamo aprobado**, **no importa `lib/google/`** ni lee `google_place_id` | ✅ PASS | `lib/curation/seleccion.ts`: `publishedWhere` + zona primaria + `TIPO_RELEVANTE_CHIPS` + `NOT EXISTS` de claim aprobado + orden contacto→confidence + `.limit(cuota)`. Candado Google fijado por test (`lib/curation/__tests__/curation.test.ts`: cero imports `from '...lib/google'`, cero `google_place_id`/`googlePlaceId`) |
+| CUR-QA-03 | Toda sugerencia con `evidence` + `source_url`, o marcada sin evidencia; una corrida nueva no pisa `accepted`/`rejected` | ✅ PASS | Piloto en DB: 129 sugerencias, **70 con evidencia + URL** (los 70 con cita tienen URL), 59 sin evidencia (`evidence` null). `lib/curation/suggestions.ts` usa `onConflictDoNothing` sobre el unique. CUR-08 verificado en vivo: re-insertar un par existente devolvió `nuevas=0`, la fila quedó intacta (`evidence` NO pisado) |
+| CUR-QA-04 | El script reporta procesados, sugerencias, tokens in/out y costo USD | ✅ PASS | Reporte real del piloto: `Lugares procesados: 80 · Sugerencias generadas: 129 · Tokensin 176011 out 9284 · Costo US$0.2224 (claude-haiku-4-5)`. `scripts/curar.ts` usa `calcularCostoUsd` (`lib/ai/logging.ts`) |
+| CUR-QA-05 | Solo se sugieren Ambiente/Momento/Actividad (decisión 6); nada de Tipo/Cocina/Precio | ✅ PASS | Distribución en DB del piloto: `momento` 77 · `ambiente` 48 · `actividad` 4 · (tipo/cocina/precio = 0). Vocabulario acotado a `FACETAS_SUGERIBLES` en `lib/curation/sugeridor.ts` + validado en el borde (slug inventado se descarta) |
+| CUR-QA-06 | Tab "Curaduría" (5ta) tras el gate `sesionAdmin` (no-admin → 404); endpoints con gate 403 | ✅ PASS (código) / ⏳ vivo | `app/admin/page.tsx` (`sesionAdmin` + `notFound()`) + `tabs.tsx` sin segundo gate; `app/api/admin/curaduria/route.ts` (GET) y `[placeId]/route.ts` (POST) verifican `sesionAdmin` → 403. El 404 en vivo para no-admin queda para el recorrido con Fer (CUR-02) |
+| CUR-QA-07 | Aceptar escribe `place_tags` `source='admin'`; rechazar no toca `place_tags`; corregir tildar/destildar; Precio opcional default "no sé" | ✅ PASS (código) / ⏳ vivo | `lib/curation/acciones.ts`: `guardarCuraduria` borra solo admin de las facetas editables y reinserta las elegidas como `admin` (`onConflictDoNothing`), resuelve pendientes accepted/rejected; `rechazarLugar` solo marca `rejected`. Precio validado contra faceta `precio`, default null. Falta CUR-03/04 en vivo (que el tag aceptado aparezca en ficha/búsqueda) |
+| CUR-QA-08 | Un tag aceptado aparece en la ficha y filtra en la búsqueda sin deploy; el chip que depende se prende solo | ⏳ PENDIENTE (vivo) | Requiere el piloto con Fer: aceptar en la cola → abrir ficha → filtrar en búsqueda → ver el chip prenderse (BUSQUEDA dec. 25). No se declara por lectura de código |
+| CUR-QA-09 | Lugar con reclamo aprobado: el batch lo saltea (CUR-06) | ✅ PASS | En vivo: de los 52 lugares con sugerencias, 0 tienen `place_claims status='approved'`. La exclusión es `NOT EXISTS` en la selección |
+| CUR-QA-10 | Lugar sin web/redes: la sugerencia sale igual "sin evidencia" y la UI la distingue (CUR-07) | ✅ PASS (código+datos) / ⏳ UI vivo | 37 de 80 lugares sin evidencia web; sus sugerencias quedan con `evidence` null. La UI las marca con badge "sin evidencia" (`app/admin/curaduria-client.tsx`). Render del badge queda para el recorrido con Fer |
+| CUR-QA-11 | Re-import no pisa lo curado (`source='admin'` sobrevive) | ✅ PASS | Test nuevo en `lib/claims/__tests__/import-dueno.integration.test.ts`: una tag `source='admin'` en un lugar **sin** dueño sobrevive a `reemplazarTagsDeImport` (solo borra `source='import'`). 3/3 verde |
+| CUR-QA-12 | Piloto (2 zonas) revisado con Fer antes de habilitar la corrida completa | ⏳ PENDIENTE (Fer) | El batch corrió Villa Crespo + Quilmes; la revisión de calidad de prompt/evidencia/velocidad la hace Fer en la tab (decisión 11). Gate de F3 |
+
+### Notas
+
+- **F3 (corrida de las 46 zonas) no se ejecutó** a propósito: tiene gate de piloto (decisión 11).
+  El batch y la cola están listos; falta la revisión de Fer sobre Villa Crespo + Quilmes.
+- **Datos del piloto persistidos** (129 sugerencias `pending`) — quedan en la DB de dev para que
+  Fer los revise en `/admin` → tab Curaduría. No se limpiaron (son el insumo del siguiente paso).
+- **Costo del piloto**: US$0,22 con Haiku para 80 lugares → proyección de la corrida completa
+  (~1.840 lugares) ≈ US$5, consistente con la estimación del spec (~US$10-15, conservadora).

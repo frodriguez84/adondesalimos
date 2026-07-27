@@ -965,6 +965,59 @@ export const chatQuotaGrants = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Curaduría asistida — spec CURADURIA
+// ---------------------------------------------------------------------------
+
+/** Estado de una sugerencia en la cola (CURADURIA, decisión 7). */
+export const suggestionStatusEnum = pgEnum('suggestion_status', [
+  'pending',
+  'accepted',
+  'rejected',
+])
+
+/**
+ * Sugerencias de tags que el batch offline propone y Fer confirma en `/admin`
+ * (CURADURIA, decisiones 5, 7 y 8). Tabla propia y no `place_tags` directo: el LLM
+ * **sugiere**, solo la confirmación humana escribe el catálogo. Queda auditoría de
+ * qué propuso el modelo vs qué se aceptó, y una corrida nueva no pisa lo revisado.
+ *
+ * Cada sugerencia lleva su **evidencia** (cita textual + URL de la fuente,
+ * decisión 5). `evidence` null = el modelo infirió sin fuente citable ("sin
+ * evidencia"): se puede aceptar igual, pero la UI lo distingue.
+ *
+ * `unique(place_id, tag_id)` + el upsert `onConflictDoNothing` del batch son el
+ * candado de "nunca pisar una fila ya revisada" (decisión 8, DoD): re-correr el
+ * batch solo **agrega** sugerencias nuevas.
+ */
+export const placeTagSuggestions = pgTable(
+  'place_tag_suggestions',
+  {
+    id: serial('id').primaryKey(),
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    tagId: integer('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+    status: suggestionStatusEnum('status').notNull().default('pending'),
+    /** Cita textual de la fuente. Null = sugerencia sin evidencia (decisión 5). */
+    evidence: text('evidence'),
+    /** URL de dónde salió la cita (el sitio propio del lugar o su red). */
+    sourceUrl: text('source_url'),
+    /** El model id con el que se generó (telemetría de calidad por corrida). */
+    modelUsed: text('model_used').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    /** Cuándo Fer la aceptó o rechazó. Null mientras `pending`. */
+    reviewedAt: timestamp('reviewed_at'),
+  },
+  (t) => [
+    uniqueIndex('place_tag_suggestions_place_tag_idx').on(t.placeId, t.tagId),
+    // La cola de `/admin` filtra por `status = 'pending'`, que son pocas.
+    index('place_tag_suggestions_status_idx').on(t.status),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -1024,3 +1077,6 @@ export type ChatUsageMonthly = typeof chatUsageMonthly.$inferSelect
 export type ChatQuotaGrant = typeof chatQuotaGrants.$inferSelect
 export type ChatModo = (typeof chatModoEnum.enumValues)[number]
 export type ChatPlan = (typeof chatPlanEnum.enumValues)[number]
+export type PlaceTagSuggestion = typeof placeTagSuggestions.$inferSelect
+export type NewPlaceTagSuggestion = typeof placeTagSuggestions.$inferInsert
+export type SuggestionStatus = (typeof suggestionStatusEnum.enumValues)[number]
