@@ -25,9 +25,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Qué es | Estado |
-|------|--------|--------|
-| [COSTOS_ADMIN](planned/COSTOS_ADMIN.md) | Mini-spec — tablero de costos en `/admin` (chat IA en USD por tokens/modelo, Google por SKU vs cap con alerta 80/100%, vs mes anterior, cupo del chat) + sugeridor de precio premium según el dólar oficial (regla piso ≥ dólar × 3, solo sugerencia). Read-only, sin schema nuevo. | 🔵 Decisiones cerradas (2026-07-26) |
+_(ninguno)_
 
 ## ⚫ Done (`done/`)
 
@@ -42,3 +40,4 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 | [HOME_IDENTIDAD](done/HOME_IDENTIDAD.md) | Mini-spec — home + identidad: paleta real (naranja `#FF8A00` / fondo azulado), wordmark en el header, estado vacío con hero + headline rotativo, y favicon del logomark. [Resumen](../archive/SPECS_ARCHIVO.md#home_identidad) · ✅ 2026-07-23 |
 | [MONETIZACION](done/MONETIZACION.md) | Spec 7 — MercadoPago (4 fases): instrumentación + precios en DB · cobro (Bricks, webhook, suscripciones por lugar) · destaque en búsqueda · desglose de estadísticas pago. Enciende `users.plan` (B2C) y `owner_plan` (B2B). [Resumen](../archive/SPECS_ARCHIVO.md#monetizacion) · ✅ 2026-07-25 |
 | [CHAT_IA](done/CHAT_IA.md) | Spec 8 — chat con IA "armá tu salida" (`/chat`) premium + enciende el botón "la IA arma la shortlist" de VOTACION. 3 fases: motor/cupo/endpoint · UI `/chat` · modo shortlist. Tool-use sobre el motor con doble candado de grounding; modelo en `app_settings` (Sonnet 5); cupo 30/mes + probadita 3; topes por SKU que degradan. [Resumen](../archive/SPECS_ARCHIVO.md#chat_ia) · ✅ 2026-07-26 |
+| [COSTOS_ADMIN](done/COSTOS_ADMIN.md) | Mini-spec — tablero de costos en `/admin`: chat IA en USD por tokens/modelo, Google por SKU vs cap (alerta 80/100%/apagado), vs mes anterior, cupo del chat; + sugeridor de precio premium según el dólar oficial (piso ≥ dólar × 3, solo sugerencia). Read-only, sin schema nuevo. [Resumen](../archive/SPECS_ARCHIVO.md#costos_admin) · ✅ 2026-07-26 |

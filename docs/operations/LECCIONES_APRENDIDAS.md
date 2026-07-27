@@ -459,3 +459,21 @@ un `pointToLineDistance` hasta esta sesión; ahí el "bug" se evaporó en tres m
    (auditar las 12.122 filas: ¿cuántas violan el buffer?) habría dado **cero** y evitado
    priorizar como #1 una sesión de fix de algo que no existía. Medir la escala primero es lo
    que separa un bug de un malentendido.
+
+## Un test de integración que "limpia" la tabla del mes real borra datos de verdad (2026-07-26 · COSTOS_ADMIN)
+
+**Qué pasó.** El primer render del tablero de costos mostró el cupo del chat en 0/5.000 con 20
+mensajes assistant reales en el mes. No era bug del tablero: `cupo.integration.test.ts:64` hace
+`db.delete(aiApiUsage)` de la fila del **mes calendario real** como setup/cleanup, así que cada
+corrida de la suite contra el Postgres de dev resetea el contador del kill switch (CHAT_IA
+decisión 15). La suite había corrido dos veces ese día después del QA del chat.
+
+**Causa raíz.** El test usa la clave natural real (`to_char(current_date,'YYYY-MM')` + sku) en
+vez de una clave sintética, y su "limpieza" no distingue filas propias de filas de producción-dev.
+241 tests verdes y el contador mentía — variante nueva de "el QA en vivo encuentra lo que los
+tests no": esta vez lo encontró un **tablero**, mirando la tabla que los tests pisan.
+
+**Cómo evitarlo.** Tests de integración que escriben tablas compartidas: (a) clave sintética que
+no colisione con datos reales (un mes imposible), o (b) guardar y restaurar el valor previo en
+setup/teardown. Nunca `delete` por la clave del período corriente. El fix puntual quedó como ítem
+en BACKLOG § Mejoras futuras.

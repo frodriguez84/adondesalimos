@@ -454,3 +454,33 @@ congelado en `subscriptions.amount_ars` al contratar.
 - **El chat es una fuente más de shortlist, no un bypass**: la votación sigue validando `isPlacePublished` al crear. Cualquier flujo que precargue lugares debe apoyarse en esa doble red, no confiar en el traspaso del cliente.
 - **El modelo se cambia con un UPDATE** (`ai.chat_model`), no con deploy — mismo patrón que umbral/precios/topes Google. El seed sigue en Haiku (fallback); **manda el runtime**.
 - **Fuera de v1 (en BACKLOG):** wizard guiado · sesión de tuning de prompt/voz (Chat IA F1) · memoria entre conversaciones · recomendaciones del chat como métrica propia (sin mezclar con impresiones B2B).
+
+## Costos en /admin — observabilidad + sugeridor de precio {#costos_admin}
+
+**Spec:** [`docs/specs/done/COSTOS_ADMIN.md`](../specs/done/COSTOS_ADMIN.md) · ✅ Implementado (2026-07-26)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — COSTOS_ADMIN* + § *QA manual — COSTOS_ADMIN en vivo* — APROBADO (6 criterios de código PASS con 3 checkers independientes · 7/8 en vivo con Playwright + UPDATEs revertibles · typecheck/tests 460/460/build verdes)
+
+**Qué hace:** sección "Costos" read-only en `/admin` (mini-spec, #3 de la cola post-spec-8):
+gasto del chat IA en USD del mes por modelo (Σ tokens de `chat_messages` × precios — nunca
+desde `ai_api_usage`, que cuenta requests), Google Places por SKU vs cap con alerta
+(amarillo ≥80% / rojo ≥100% / "apagado" si cap=0), comparación vs mes anterior, y cupo del
+chat vs `ai.chat_monthly_cap`. Absorbe el sugeridor de precio premium del BACKLOG: cotización
+del dólar oficial (dolarapi.com, cache ~1 h, degradable sin romper la page) + regla de piso
+`precio_ARS ≥ dólar × 3` — banner con precio sugerido (millar hacia arriba) solo-sugerencia.
+
+**Alcance implementado:**
+
+- **`lib/ai/logging.ts`**: `PRECIOS_POR_MODELO` + `calcularCostoUsd` extraídos como exports
+  puros (antes inline); `logChatCall` los reusa con salida idéntica.
+- **`lib/admin/costos.ts`** (nuevo, server-only): helpers puros (`costoGoogleUsd` con tier
+  gratis 1.000, `estadoAlerta`, `pisoArs`, `precioSugerido`, `evaluarPiso`) + agregados
+  `getCostosChat` / `getUsoGoogle` / `getCupoChat` / `getSugerenciaPrecio`. Precios Google:
+  details $20/1.000, photos $7/1.000 (fuente: FICHA dec. 11/14).
+- **`app/admin/costos.tsx`** (nuevo): `CostosAdmin` + `SugeridorPrecio`, server components
+  read-only estilo `suscripciones.tsx`; `Intl.NumberFormat` es-AR, copy rioplatense.
+- **`app/admin/page.tsx`**: 4 agregados sumados al `Promise.all` + 2 secciones; gate
+  `sesionAdmin → notFound()` intacto.
+- **Tests**: 19 nuevos (aritmética pura: costo por modelo, fallback, tokens null/0, tier
+  gratis, umbrales, piso, redondeo). Candados de costo intactos (verificado por git diff).
+- **Hallazgo del primer render**: el test de integración del cupo borra la fila del mes real
+  de `ai_api_usage` (kill switch reseteado en dev) → ítem en BACKLOG.

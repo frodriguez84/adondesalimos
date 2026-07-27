@@ -930,3 +930,60 @@ reseteado a 0, sesión del browser cerrada. **INT-07:** la suscripción premium 
 de sandbox) se canceló con `POST /api/billing/cancel` (cancela el preapproval en MP) + revert
 local a `plan='free'` / sub `canceled` / `chat_trial_used=0`, para que ninguna reconciliación lazy
 lo reactive. Estado final: los 4 usuarios en su plan original, cero artefactos de prueba.
+
+## QA /qa-spec — COSTOS_ADMIN (2026-07-26)
+
+**Veredicto:** PARCIAL — pendiente QA en vivo
+**Verificación técnica:** typecheck EXIT 0 · tests 460/460 PASS (49 archivos) · build **pendiente**
+(dev server levantado en 5178 — candado del `.next` compartido; se corre al cierre con el server parado)
+**Método:** checkers independientes (Explore/haiku, read-only) vs DoD de
+`docs/specs/active/COSTOS_ADMIN.md`. Los criterios de render (sección visible, colores de alerta,
+estados del sugeridor) quedan "requiere QA en vivo": el código está verificado, la pantalla no.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| COSTOS_ADMIN-QA-01 | `calcularCostoUsd` + precios exportados; `logChatCall` los reusa sin cambio de salida; tests (modelo, fallback, tokens null/0) | ✅ PASS | `lib/ai/logging.ts:17-37` (exports), `:47` (reuso), JSON idéntico (`.toFixed(6)`); tests `lib/ai/__tests__/logging.test.ts:11-38` |
+| COSTOS_ADMIN-QA-02 | `lib/admin/costos.ts` con los 4 agregados + tests de aritmética pura | ✅ PASS | `getCostosChat` (:135-170, `model_used IS NOT NULL`, nunca `ai_api_usage`), `getUsoGoogle` (:191-225, tier gratis 1.000), `getCupoChat` (:242-262), `getSugerenciaPrecio` (:313-317); tests `lib/admin/__tests__/costos.test.ts:1-102` |
+| COSTOS_ADMIN-QA-03 | Sección "Costos" en `/admin`: chat USD por modelo, Google por SKU, cupo — mes actual y anterior | ✅ PASS (código) — render en vivo pendiente | `app/admin/page.tsx:43-53` (Promise.all), `:77-80` (secciones); `app/admin/costos.tsx:59-161` (tablas y card, server components sin `'use client'`); gate `notFound()` intacto (page.tsx:31) |
+| COSTOS_ADMIN-QA-04 | Alertas: amarillo ≥80%, rojo ≥100%, "apagado" si cap=0 | ✅ PASS (código) — render en vivo pendiente | `estadoAlerta` `lib/admin/costos.ts:69-75`; mapeo CSS `app/admin/costos.tsx:32-38`; aplicado a SKUs (:130-131) y cupo (:154-155); tests de umbrales `costos.test.ts:48-65` |
+| COSTOS_ADMIN-QA-05 | Sugeridor: cotización cacheada ~1 h + degradación; banner si `precio_b2c < dólar × 3`; línea de margen si cubre | ✅ PASS (código) — estados en vivo pendientes | `cotizacionOficial` `lib/admin/costos.ts:271-299` (dolarapi oficial, `AbortSignal.timeout(3000)`, cache proceso, degrada a último valor o `null`, nunca lanza); `evaluarPiso` (:103-112), redondeo al millar (:83-85); UI de los 3 estados `app/admin/costos.tsx:171-215` |
+| COSTOS_ADMIN-QA-06 | Candados de costo intactos (places.ts, field masks, motor chat, topes) | ✅ PASS | `git diff --name-only HEAD`: cero archivos prohibidos tocados; `lib/google/__tests__/places.test.ts` sin modificar y verde; diff de `logging.ts` = solo la extracción de la decisión 2 |
+| COSTOS_ADMIN-QA-07 | Verificación técnica: typecheck + tests + build | 🟡 PARCIAL | typecheck EXIT 0 y 460/460 tests re-corridos por el orquestador (no confiando en el implementador); **build pendiente** — dev server levantado (netstat: PID en 5178) |
+| COSTOS_ADMIN-QA-08 | QA en vivo sobre ngrok (gate admin, render con datos reales, estados de alerta con UPDATEs revertibles) | ⏳ REQUIERE QA EN VIVO | Procedimiento: login admin → `/admin` § Costos; forzar 80%/100%/cap=0 con UPDATEs a `google_api_usage`/`app_settings` y revertir; bajar `billing.precio_b2c_ars` para forzar el banner del sugeridor y revertir; cubre COSTOS_ADMIN-01..08 del spec |
+
+## QA manual — COSTOS_ADMIN en vivo (2026-07-26)
+
+Ejecutado por ngrok con Playwright + UPDATEs revertibles en el Postgres de Docker (todos
+revertidos y verificados al final). Cierra el pendiente "requiere QA en vivo" de la sección
+/qa-spec de arriba (COSTOS_ADMIN-QA-03/04/05/08). Screenshots de estado normal y estados
+forzados tomados durante la sesion (evidencia transitoria, no versionada).
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| COSTOS_ADMIN-01 | Costo chat del mes | ✅ PASS | Pantalla: Haiku 12.420/2.875 → US$ 0,03 · Sonnet 12.082/5.131 → US$ 0,11 · Total US$ 0,14. Idéntico al cálculo manual sobre SQL (0,026795 y 0,113211). Mes anterior US$ 0,00 (sin datos, correcto) |
+| COSTOS_ADMIN-02 | Google por SKU | ✅ PASS | details 43 / photos 26 de 5.000 (1%), US$ 0,00 ambos (≤1.000 ⇒ tier gratis descontado), leyenda del tier visible |
+| COSTOS_ADMIN-03 | Alerta 80% / 100% / apagado | ✅ PASS | Forzado con UPDATEs: details=4.100 → "82%" en ámbar (computed lab ~ amber-600) · photos=5.100 → "102%" en rojo · cap photos=0 → cap "—" y consumo "apagado". Revertido |
+| COSTOS_ADMIN-04 | Cupo chat | ✅ PASS (con observación) | Muestra 0 de 5.000 (0%) — fiel a la tabla. Ver observación abajo: la tabla está vacía por el cleanup del test de integración, no por bug del tablero |
+| COSTOS_ADMIN-05 | Sugeridor — cubre | ✅ PASS | "El precio cubre el piso (1,5× el piso de $ 4.560). Dólar oficial $ 1.520 (cotización del 26/07/26) · precio vigente $ 7.000." Cotización en vivo de dolarapi = la referencia del doc de costos |
+| COSTOS_ADMIN-06 | Sugeridor — piso tocado | ✅ PASS | Con `billing.precio_b2c_ars=4000` (piso 1.520×3=4.560): "Ojo: el precio quedó por debajo del piso. Sugerido: $ 5.000 (piso $ 4.560). Cambialo a mano en la sección Precios de arriba." Redondeo al millar correcto. Revertido a 7.000 |
+| COSTOS_ADMIN-07 | Fuente de dólar caída | 🟡 VERIFICADO POR CÓDIGO | No practicable en vivo sin cortar la red del server. Cubierto por código (try/catch + cache + `AbortSignal.timeout(3000)`, nunca lanza — `lib/admin/costos.ts:271-299`) y por el estado "no pudimos consultar" de la UI (`app/admin/costos.tsx:171-178`) |
+| COSTOS_ADMIN-08 | Gate admin | ✅ PASS | Sign-out por `POST /api/auth/sign-out`, anónimo confirmado con `GET /api/auth/get-session` → `null` (lección del falso positivo de INT-12), `GET /admin` → **404** |
+
+**Veredicto en vivo:** PASS (7/8 en vivo, 1 por código con justificación). **Pendiente del
+cierre: solo el `next build`** (dev server levantado durante toda la sesión — candado del
+`.next` compartido).
+
+### Observación (fuera de scope del spec, registrada para triaje)
+
+**El test de integración del cupo borra el contador real del tope global.**
+`lib/ai/__tests__/cupo.integration.test.ts:64` hace `db.delete(aiApiUsage)` de la fila del
+**mes calendario real** (sku `chat_messages`) como setup/cleanup. Cada corrida de la suite
+contra el Postgres de dev resetea el contador del kill switch (decisión 15 de CHAT_IA) — por
+eso el tablero mostró 0 de 5.000 con 20 mensajes assistant reales del mes. El tablero es fiel
+a la tabla; lo que miente es la tabla después de correr los tests. Primer hallazgo del
+tablero en su primer render. Fix sugerido (para otra sesión): que el test guarde y restaure
+el valor previo, o use un mes sintético que no colisione con el real. Anotado en BACKLOG.
+
+**Addendum (2026-07-26, mismo cierre):** `next build` corrido con el dev server parado →
+**verde** (todas las rutas compiladas, `/admin` dinámica). Con esto COSTOS_ADMIN-QA-07 de la
+sección /qa-spec pasa de PARCIAL a ✅ y el veredicto global del spec queda **APROBADO**.

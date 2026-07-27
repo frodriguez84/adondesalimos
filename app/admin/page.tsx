@@ -7,7 +7,9 @@ import { sesionAdmin } from '@/lib/auth/sesion'
 import { claimsPorEstado } from '@/lib/claims/query'
 import { getHistorialPrecios, getPreciosActuales } from '@/lib/billing/settings'
 import { getSuscripcionesAdmin } from '@/lib/billing/admin'
+import { getCostosChat, getCupoChat, getSugerenciaPrecio, getUsoGoogle } from '@/lib/admin/costos'
 import { ColaClient } from './cola-client'
+import { CostosAdmin, SugeridorPrecio } from './costos'
 import { PreciosClient } from './precios-client'
 import { SuscripcionesAdmin } from './suscripciones'
 
@@ -28,12 +30,26 @@ export default async function AdminPage() {
   const admin = await sesionAdmin(await headers())
   if (!admin) notFound()
 
-  const [pendientes, aprobados, precios, historial, suscripciones] = await Promise.all([
+  const [
+    pendientes,
+    aprobados,
+    precios,
+    historial,
+    suscripciones,
+    costosChat,
+    usoGoogle,
+    cupoChat,
+    sugerencia,
+  ] = await Promise.all([
     claimsPorEstado('pending'),
     claimsPorEstado('approved'),
     getPreciosActuales(),
     getHistorialPrecios(),
     getSuscripcionesAdmin(),
+    getCostosChat(),
+    getUsoGoogle(),
+    getCupoChat(),
+    getSugerenciaPrecio(),
   ])
 
   return (
@@ -56,6 +72,16 @@ export default async function AdminPage() {
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold tracking-tight text-foreground">Suscripciones</h2>
         <SuscripcionesAdmin suscripciones={suscripciones} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Costos</h2>
+        <CostosAdmin chat={costosChat} google={usoGoogle} cupo={cupoChat} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Sugeridor de precio</h2>
+        <SugeridorPrecio sugerencia={sugerencia} />
       </section>
 
       <section className="flex flex-col gap-4">

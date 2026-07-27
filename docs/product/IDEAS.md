@@ -908,11 +908,12 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 _Actualizado en la sesión de triaje (2026-07-26). Esta sección es lo primero que lee la
 sesión siguiente._
 
-### 📊 Sesión Fable — #3 DE LA COLA: COSTOS_ADMIN ESPECIFICADO (2026-07-26)
+### 📊 Sesión Fable — cerrada (2026-07-26) · #3 DE LA COLA: COSTOS_ADMIN CERRADO ENTERO
 
-Sesión de decisiones + autoría del mini-spec de observabilidad de costos (#3 de la cola).
-**Entrega: `docs/specs/planned/COSTOS_ADMIN.md`** — decisiones cerradas con Fer, registrado
-en el manifiesto.
+Sesión completa en un ciclo: decisiones con Fer → mini-spec → implementación (subagente
+`implementador`/Opus) → QA (/qa-spec + en vivo) → build → checklist de cierre.
+**Entrega: `docs/specs/done/COSTOS_ADMIN.md` ✅** — tablero de costos en `/admin` + sugeridor
+de precio según dólar, QA APROBADO (resumen: `SPECS_ARCHIVO.md#costos_admin`).
 
 - ✅ **Decisiones de Fer (2026-07-26):** mini-spec (no spec 9 formal, ese slot queda para
   curaduría) · el **sugeridor de precio según dólar entra acá** (absorbe el ítem del BACKLOG,
@@ -924,9 +925,12 @@ en el manifiesto.
 - ✅ **Precios verificados, no de memoria:** Anthropic vía skill `claude-api` (Haiku $1/$5,
   Sonnet $3/$15; hay intro $2/$10 hasta 2026-08-31 — se mantiene el sticker, conservador);
   Google vía spec FICHA (details $20/1.000, photos $7/1.000, 1.000 gratis/mes c/u).
-- ⏭️ **Próximo paso:** implementar `COSTOS_ADMIN.md` (delegar al subagente `implementador`
-  desde esta sesión, o sesión Opus aparte) → `/qa-spec` → checklist de cierre. Después sigue
-  el #4 de la cola (pulido UX/UI).
+- ✅ **Implementado y cerrado en la misma sesión** (implementador/Opus + QA en vivo con
+  Playwright y UPDATEs revertidos + build verde). Hallazgo bonus del primer render: el test
+  de integración del cupo borra la fila real de `ai_api_usage` → ítem en BACKLOG + lección.
+- ⏭️ **Próximo paso:** #4 de la cola — pulido UX/UI + a11y + performance mobile (sobre los
+  hallazgos del QA integral; tracks ya anotados: header de marca global, filtro fantasma,
+  resize de fotos en el browser).
 
 ### 🔧 Sesión Opus — cerrada (2026-07-26) · #1 DEL TRIAJE RESUELTO: NO ERA BUG
 

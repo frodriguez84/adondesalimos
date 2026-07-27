@@ -25,10 +25,10 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Mejoras futuras (fuera de v1)
 
-- [ ] **💵 /admin — sugeridor de precio premium según el dólar (idea Fer, 2026-07-26).**
-      → **Absorbido por el mini-spec [`COSTOS_ADMIN`](../specs/planned/COSTOS_ADMIN.md)**
-      (decisión Fer, 2026-07-26): entra como bloque del tablero de costos de `/admin`
-      (decisiones 8-10 del spec). Se tilda cuando cierre ese spec.
+- [x] **💵 /admin — sugeridor de precio premium según el dólar (idea Fer, 2026-07-26).**
+      → **Implementado como parte del mini-spec `COSTOS_ADMIN` ✅ 2026-07-26** (decisiones
+      8-10 del spec): cotización oficial cacheada + regla de piso + banner solo-sugerencia.
+      [Resumen](../archive/SPECS_ARCHIVO.md#costos_admin)
       Banner/widget en `/admin` que consulte **`dolarito.ar` (dólar OFICIAL)** y, cuando el dólar
       supere un umbral, sugiera el nuevo precio ARS del plan premium según la **regla de piso**
       (`precio_ARS ≥ dólar × 3`, ver `docs/product/COSTOS-IA-Y-PRECIO-PREMIUM.md`). Objetivo: que el
@@ -37,6 +37,14 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       cotización (no pegarle a dolarito.ar en cada render), degradar si la fuente cae (mostrar último
       valor conocido, nunca bloquear `/admin`), y que sea **sugerencia** — el precio lo cambia Fer a
       mano, no automático. Ver análisis completo en `COSTOS-IA-Y-PRECIO-PREMIUM.md`.
+- [ ] **🧪 Test de integración del cupo borra el contador real del tope global (hallazgo del
+      tablero de costos, 2026-07-26).** `lib/ai/__tests__/cupo.integration.test.ts:64` hace
+      `db.delete(aiApiUsage)` de la fila del **mes calendario real** como setup/cleanup: cada
+      corrida de la suite contra el Postgres de dev resetea el contador del kill switch
+      (CHAT_IA decisión 15). Lo expuso el tablero de COSTOS_ADMIN en su primer render (cupo
+      0/5.000 con 20 mensajes reales del mes). Fix chico: guardar y restaurar el valor previo,
+      o testear contra un mes sintético. Ver `docs/qa/AnalisisQA.md` § QA manual COSTOS_ADMIN
+      → Observación.
 - [ ] **🎯 SESIÓN DEDICADA — Chat IA: calidad de búsqueda y voz (tuning de prompt, F1).**
       Descubierto en el QA en vivo de F2 (2026-07-26, Fer testeando). Son todos comportamientos del
       **modelo (Haiku 4.5)**, no de la UI ni del motor. Juntar en una sesión propia, con contexto
@@ -484,6 +492,18 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Mini-spec COSTOS_ADMIN — tablero de costos en /admin + sugeridor de precio** (2026-07-26):
+      el #3 de la cola post-spec-8, spec → implementación → QA → cierre en una sesión (Fable
+      orquestando + subagente implementador). Sección "Costos" read-only: chat IA en USD del mes
+      por modelo (Σ tokens de `chat_messages` × precios extraídos como `calcularCostoUsd`), Google
+      por SKU vs cap con alerta (80% amarillo / 100% rojo / cap=0 apagado), vs mes anterior, cupo
+      del chat. Absorbe el sugeridor de precio del BACKLOG: dólar oficial (dolarapi, cache ~1 h,
+      degradable) + piso `≥ dólar × 3` con banner solo-sugerencia. QA: 6 criterios de código PASS
+      (3 checkers) + 7/8 en vivo (Playwright + UPDATEs revertidos) + typecheck/460 tests/build
+      verdes. **Bonus:** el primer render del tablero expuso que el test de integración del cupo
+      borra la fila real de `ai_api_usage` (ítem nuevo en Mejoras futuras).
+      [Resumen](../archive/SPECS_ARCHIVO.md#costos_admin) · QA: `docs/qa/AnalisisQA.md`
+      § *COSTOS_ADMIN*
 - [x] **Investigación "zona no adyacente" → NO ERA BUG** (2026-07-26): lo priorizado #1 del triaje
       resultó **no ser un bug**. `place_zones` es geométricamente correcta (auditadas 12.122/12.122
       filas no-primarias, **todas** ≤400 m del borde de su zona); scripts (`build`/`load`/`assign`) y
