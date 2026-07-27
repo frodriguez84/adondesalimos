@@ -905,8 +905,35 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de QA en vivo del piloto de CURADURIA (2026-07-27). Esta sección es lo
+_Actualizado en la sesión de cierre de CURADURIA F3 + decisiones (2026-07-27). Esta sección es lo
 primero que lee la sesión siguiente._
+
+### 🧭 Sesión Opus — (2026-07-27) · CURADURIA F3 CERRADO + DECISIONES DE RUMBO
+
+Sesión Opus: se cerró **CURADURIA F3** (corrida autónoma con Sonnet, 46 zonas, 1.149 tags
+auto-aplicados + bulk-accept del resto de la cola → 0 pending, 3.967 tags admin en 1.202 lugares;
+5/9 chips vivos, after-office y cumpleanos en las 46 zonas). Con eso **los 9 specs numerados están
+todos cerrados**. Después se tomaron decisiones de rumbo (sin implementar):
+
+- 🟥 **Google OAuth → DIFERIDO** (Fer, 2026-07-27). Único DoD abierto de AUTH. Motivo: el que se
+  loguea hoy es mayormente **dueño de negocio** (motivado, se registra por email igual) + admin; el
+  consumidor masivo que gana con "entrar con Google" casi no se loguea (buscar/votar no piden
+  cuenta). El backend ya lo soporta condicional por env → agregarlo después cuesta lo mismo.
+  **Gatillo para retomarlo:** funnel real de signups (premium/chat) o lanzamiento público.
+- 🟢 **Próximo trabajo = batch de limpieza, y DESPUÉS la sesión de tuning del Chat IA** (orden por
+  dependencia: el chat se apoya en tags/chips/motor; primero se deja firme el piso de datos, después
+  se afina el modelo encima). El batch: (1) **fix del test de cupo** que borra el contador del mes
+  real; (2) **refinar 2 chips** (`merienda`/`cena-familiar`) sacándoles el tag de **Cocina** que
+  ANDea (probable +2 chips → 7/9); (3) **cargar alias de barrios** (hoy 3 útiles en
+  `lib/zones/canon.ts` § ALIASES). Los tres son chicos e independientes.
+- 🟦 **Hosting/prod = Neon + Vercel — DECIDIDO pero BAJÍSIMA PRIORIDAD** (Fer ya corre
+  turnia.com.ar así). No urge nada. Cuando se lance, tres cosas propias de esta app: (a) **migrar
+  el catálogo del Postgres de dev a Neon** (`pg_dump`/restore — nada del catálogo/curaduría está en
+  el seed, ver gotcha en `CLAUDE.md`); (b) el **rate-limit en memoria** de `lib/middleware/` no
+  sirve en serverless → store compartido (Upstash/Vercel KV, como turnia); (c) **pooling** de Neon
+  (endpoint pooled / driver serverless). Env vars a Vercel, chau ngrok.
+- 🗒️ **Nota post-cierre:** Fer revisó parte de la cola a mano y decidió **aceptar en masa** el resto
+  (2.356) en vez de una por una. Reversible (`evidence IS NULL` + `source='admin'`).
 
 ### 🔬 Sesión Opus — (2026-07-27) · QA EN VIVO DEL PILOTO CURADURIA · GATE PENDIENTE (OK de Fer)
 

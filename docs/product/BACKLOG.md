@@ -18,7 +18,7 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Búsqueda + filtros** — home/search, motor en Postgres, chips de Ocasión en DB, mapa MapLibre → spec: `docs/specs/done/BUSQUEDA.md`. **Las 3 fases cerradas ✅ 2026-07-20**. [Resumen](../archive/SPECS_ARCHIVO.md#busqueda)
 - [x] **Ficha** — `/lugar/[id]`, primer uso de Google en vivo → spec: `docs/specs/done/FICHA.md`. **Las 3 fases cerradas ✅ 2026-07-20** (F1 ficha propia · F2 Google en vivo · F3 foto/atribución). [Resumen](../archive/SPECS_ARCHIVO.md#ficha)
 - [x] **Auth + roles + reclamo de negocio** — better-auth (patrón StressPlan), reclamo/alta con cola en `/admin`, panel "Mi negocio", fotos a R2, horarios propios → spec: `docs/specs/done/AUTH.md`. **Las 4 fases cerradas ✅ 2026-07-22** (F1 auth base · F2 reclamo + alta + cola · F3 panel + contenido · F4 horarios propios). [Resumen](../archive/SPECS_ARCHIVO.md#auth)
-  - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea. **Único DoD de AUTH sin cerrar** (deferral aceptado, ver spec § DoD)
+  - [ ] **Botón de Google OAuth (F1, diferido)** — la config de better-auth ya lo soporta condicional por env (`GOOGLE_CLIENT_*`); falta la UI del botón + exponer el flag al cliente. Se difirió a pedido (2026-07-20): foco en email/password robusto primero. Sin creds no se testea. **Único DoD de AUTH sin cerrar** (deferral aceptado, ver spec § DoD). **Ratificado diferido (Fer, 2026-07-27):** el que se loguea hoy es mayormente dueño de negocio (se registra por email igual) + admin; el consumidor que gana con OAuth casi no se loguea. Backend ya listo → agregarlo después cuesta lo mismo. **Gatillo: funnel real de signups (premium/chat) o lanzamiento público.**
 - [x] **Votación en grupo** — el loop viral: shortlist de 2-5 lugares, voto anónimo por cookie, resultados en vivo, cierre/desempate del creador, expiración lazy 72 h; premium modelado y apagado → spec: `docs/specs/done/VOTACION.md`. **Las 3 fases cerradas ✅ 2026-07-22** (F1 crear+gate · F2 votar+vivo · F3 cierre+panel). [Resumen](../archive/SPECS_ARCHIVO.md#votacion)
 - [x] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH → spec: `docs/specs/done/MONETIZACION.md`. **Las 4 fases cerradas ✅ 2026-07-25** (F1 instrumentación + precios · F2 cobro MP · F3 destaque · F4 desglose). [Resumen](../archive/SPECS_ARCHIVO.md#monetizacion)
 - [x] **Chat IA "armá tu salida"** — chat premium (`/chat`) que traduce lenguaje natural a lugares reales del catálogo; **enciende el botón "la IA arma la shortlist" de VOTACION**. Tool-use con doble candado de grounding, cupo mensual + tope global que degrada, modelo en `app_settings` → spec: `docs/specs/done/CHAT_IA.md`. **Las 3 fases cerradas ✅ 2026-07-26** (F1 motor/cupo/endpoint · F2 UI `/chat` · F3 modo shortlist en VOTACION). [Resumen](../archive/SPECS_ARCHIVO.md#chat_ia)
@@ -445,6 +445,16 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.
+- [ ] **🌐 Hosting/prod = Neon + Vercel — BAJÍSIMA PRIORIDAD** (decidido por Fer 2026-07-27; ya
+      corre turnia.com.ar con ese stack). No urge; es lo único que separa "todo implementado" de
+      "usable en producción". Checklist propio de esta app cuando se lance: **(a)** migrar el
+      catálogo del Postgres de dev a Neon vía `pg_dump`/restore — nada del catálogo/zonas/curaduría
+      está en el seed (ver gotcha en `CLAUDE.md` § Cicatrices reales); **(b)** el rate-limit en
+      memoria de `lib/middleware/` no sirve en serverless → mover a store compartido (Upstash/Vercel
+      KV, como turnia); **(c)** pooling de Neon (endpoint *pooled* o driver `@neondatabase/serverless`);
+      **(d)** env vars a Vercel (Google Places, Anthropic, R2, MercadoPago), chau ngrok. Los scripts
+      offline (`curar`/`import-overture`/`zones`) siguen corriendo local contra Neon. Sin cron
+      (expiración de votaciones lazy 72 h).
 
 ## Hecho
 
