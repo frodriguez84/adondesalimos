@@ -1221,9 +1221,16 @@ con el Tipo). Fuera del scope de este spec.
 
 ### Notas de F3
 
-- **2.811 sugerencias `pending`** (sin evidencia) quedan en la cola de `/admin` → Curaduría para
-  revisión manual opcional (decisión 13: no se auto-aplican, tampoco se descartan). Son inferencia
-  por nombre/categoría — 43% de los lugares no tienen web alcanzable (Instagram bloquea scraping).
+- **Cierre de la cola — bulk-accept de las `pending` (decisión de Fer, 2026-07-27, post-cierre).**
+  Tras el cierre del spec, Fer revisó parte de la cola a mano (aceptó ~460, rechazó ~0) y decidió
+  **aceptar en masa el resto** en vez de revisar 2.356 a mano una por una. Se marcaron todas las
+  `pending` como `accepted` y se escribieron a `place_tags` (`source='admin'`) — mismo mecanismo
+  que el auto-apply, en transacción. Estado final de la cola: **`accepted` 3.965 · `rejected` 4 ·
+  `pending` 0**; `place_tags` `source='admin'` **3.967 en 1.202 lugares** (era 288). Se aceptó
+  también lo **sin evidencia** (inferencia por nombre/categoría): saldo positivo para una app aún
+  no productiva y **reversible** (`evidence IS NULL` + `source='admin'` las identifica).
+  Impacto en cobertura: `after-office` 10→**46/46** zonas y `cumpleanos` 42→**46/46**; siguen
+  **5/9** chips vivos (el bulk no prende chips nuevos — los 4 en 0 dependen de datos no curables).
 - **Distribución de auto-aplicadas por faceta** (las 1.149 con evidencia): dominan Momento y
   Ambiente; Actividad casi no se movió (mismo hallazgo del piloto — requiere que el sitio la
   mencione explícitamente, y pocos lo hacen).

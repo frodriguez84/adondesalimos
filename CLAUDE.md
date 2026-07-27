@@ -207,6 +207,15 @@ Cicatrices reales — gotchas que sorprenden:
 - **`operating_status` viene `'open'` para todos**: no filtra lugares cerrados todavía (H-2).
 - **Commits que solo tocan `docs/` usan `spec(...)`/`docs:`, nunca `feat`** (ver arriba
   § Prefijos de commit). Un `feat` implica que hay código.
+- **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
+  `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
+  Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o
+  recreación de la base (`db:migrate` sobre una base limpia, borrar el volumen de Docker, montar
+  otra máquina) **los pierde** y el seed NO los regenera. Recuperarlos = re-correr
+  `npm run curar` sobre las 46 zonas (~US$17 con Sonnet) **o** restaurar un dump. Antes de
+  cualquier operación destructiva sobre la base, **hacer `pg_dump` primero**. Mismo criterio para
+  cualquier dato de admin/dueño/votación que no nazca del seed. Ver `docs/qa/AnalisisQA.md`
+  § CURADURIA F3 → *Cierre de la cola*.
 
 ---
 
