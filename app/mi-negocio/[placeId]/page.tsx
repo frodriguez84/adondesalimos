@@ -10,6 +10,7 @@ import { getPrecioB2bArs } from '@/lib/billing/settings'
 import { estadoSuscripcionB2B } from '@/lib/billing/estado'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
 import { DesglosePanel } from '@/components/negocio/desglose-panel'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { EditorClient } from './editor-client'
 
 /**
@@ -45,6 +46,8 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      <BrandHeader />
+
       <header className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="min-w-0 truncate text-2xl font-bold tracking-tight text-foreground">

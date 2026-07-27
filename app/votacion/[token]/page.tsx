@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 
 import { VOTER_COOKIE } from '@/lib/votaciones/constantes'
 import { getVotacionPublica, votoDelDispositivo } from '@/lib/votaciones/query'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { VotacionPublicaCliente } from './votacion-client'
 
 /**
@@ -66,6 +67,8 @@ export default async function VotacionPage({
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      <BrandHeader />
+
       <header className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

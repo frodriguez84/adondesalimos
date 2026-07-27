@@ -21,6 +21,36 @@ import type { OwnerPlan } from '@/lib/db/schema'
  */
 
 const TIPOS_INPUT = 'image/jpeg,image/png,image/webp'
+const LADO_MAYOR_MAX = 1600
+
+/**
+ * Redimensiona en el browser antes de subir (BACKLOG, 2026-07-21): una foto de
+ * celular son ~4000 px / 3-5 MB y el slot de la ficha muestra ~1250 px físicos —
+ * se estaba subiendo y bajando 10-20x más grande de lo necesario. Si algo falla
+ * (browser sin `createImageBitmap`, canvas bloqueado, etc.) devuelve el archivo
+ * original: el resize es un optimizador, no un boundary de seguridad — el límite
+ * de 5 MB y la validación de tipo del server no cambian.
+ */
+async function redimensionar(archivo: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(archivo)
+    const escala = Math.min(1, LADO_MAYOR_MAX / Math.max(bitmap.width, bitmap.height))
+    if (escala === 1) return archivo
+
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * escala)
+    canvas.height = Math.round(bitmap.height * escala)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return archivo
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85))
+    if (!blob) return archivo
+    return new File([blob], archivo.name.replace(/\.\w+$/, '.webp'), { type: 'image/webp' })
+  } catch {
+    return archivo
+  }
+}
 
 export function FotosEditor({
   placeId,
@@ -44,8 +74,9 @@ export function FotosEditor({
     setError(null)
     setSubiendo(true)
     try {
+      const optimizada = await redimensionar(archivo)
       const form = new FormData()
-      form.append('foto', archivo)
+      form.append('foto', optimizada)
       const res = await fetch(`/api/mi-negocio/${placeId}/photos`, { method: 'POST', body: form })
       const json = await res.json()
       if (!res.ok) {

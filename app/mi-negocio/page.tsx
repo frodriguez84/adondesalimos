@@ -6,6 +6,7 @@ import { Eye, ImageIcon, Store } from 'lucide-react'
 
 import { auth } from '@/lib/auth'
 import { misLugares } from '@/lib/negocio/query'
+import { BrandHeader } from '@/components/shared/brand-header'
 
 /**
  * `/mi-negocio` — la lista de lugares con reclamo aprobado del usuario
@@ -27,6 +28,8 @@ export default async function MiNegocioPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      <BrandHeader />
+
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Mi negocio</h1>
         <Link

@@ -477,3 +477,27 @@ tests no": esta vez lo encontró un **tablero**, mirando la tabla que los tests 
 no colisione con datos reales (un mes imposible), o (b) guardar y restaurar el valor previo en
 setup/teardown. Nunca `delete` por la clave del período corriente. El fix puntual quedó como ítem
 en BACKLOG § Mejoras futuras.
+
+## El click sintético de Playwright puede no disparar un `<form onSubmit>` sin dar error (2026-07-27 · PULIDO)
+
+**Qué pasó.** En el QA en vivo de `/chat`, `browser_click` sobre el botón "Enviar" (y sobre los
+chips de sugerencia con `onClick={() => enviar(s)}`) no disparaba ningún `POST /api/chat`: sin
+error de consola, sin overlay bloqueando, el botón aparecía habilitado en la screenshot, y
+`document.elementFromPoint` sobre el centro del botón confirmaba que no había nada tapándolo.
+Varios reintentos (re-snapshot, `Escape` + click con `force:true`, `Enter` en el textarea)
+tampoco dispararon el request.
+
+**Qué lo resolvió.** Despachar el click directamente en la página con
+`page.evaluate(() => btn.click())` (vía `browser_run_code_unsafe`) sí disparó el `onClick`/
+`onSubmit` de React y el `POST /api/chat` salió con 200. El mismo flujo funciona con un click
+real de usuario — no es un bug de la app ni del componente.
+
+**Causa probable (no confirmada).** El click sintético de CDP en este entorno (ngrok + una
+extensión de Kaspersky inyectando scripts en la página, visible en `browser_network_requests`)
+puede no completar el ciclo `pointerdown`/`pointerup` que React espera para el evento sintético
+de `click`, aunque el DOM reporte el elemento como clickeable.
+
+**Cómo evitarlo la próxima vez.** En QA en vivo de `/chat` (o cualquier form con `onSubmit`/
+`onClick` crítico) que no reaccione a `browser_click` sin error visible: no asumir que el flujo
+está roto — probar `element.click()` vía `page.evaluate`/`browser_run_code_unsafe` antes de
+diagnosticar un bug de la app.

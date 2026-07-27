@@ -484,3 +484,37 @@ del dólar oficial (dolarapi.com, cache ~1 h, degradable sin romper la page) + r
   gratis, umbrales, piso, redondeo). Candados de costo intactos (verificado por git diff).
 - **Hallazgo del primer render**: el test de integración del cupo borra la fila del mes real
   de `ai_api_usage` (kill switch reseteado en dev) → ítem en BACKLOG.
+
+## Pulido UX/UI + reestructura de /admin {#pulido}
+
+**Spec:** [`docs/specs/done/PULIDO.md`](../specs/done/PULIDO.md) · ✅ Implementado (2026-07-27)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — PULIDO* + § *QA manual — PULIDO en vivo* — APROBADO (6 criterios de código PASS con checkers independientes · 7/7 en vivo con Playwright + UPDATEs revertidos · typecheck/460 tests/build verdes)
+
+**Qué hace:** mini-spec #4 de la cola post-spec-8, dos frentes sobre hallazgos del QA integral
+(2026-07-26): pulido de UX (4 tracks del backlog) + reestructura de `/admin` en tabs.
+
+**Alcance implementado:**
+
+- **Filtro fantasma** (`components/search/search-shell.tsx`): `ChipsActivos` dibuja un chip
+  removible para todo tag en la URL aunque el catálogo no le dé label (fallback al slug
+  legible en vez de saltearlo).
+- **Header de marca**: `components/shared/brand-header.tsx` (nuevo) suma el `Wordmark` en
+  ficha, `/cuenta`, `/mi-negocio` (lista y editor) y `/votacion/[token]`, sin romper los
+  headers propios de cada página.
+- **Resize de fotos del dueño** (`app/mi-negocio/[placeId]/fotos-editor.tsx`): redimensiona
+  a webp ≤1600px de lado mayor en el browser antes del POST (verificado en vivo: 267 KB →
+  17,5 KB). El límite de 5 MB y la validación server-side no cambiaron.
+- **INT-05** (`lib/ai/chat.ts`): el chat suma impresiones (`registrarImpresiones`) de los
+  lugares efectivamente citados/mostrados al final de cada turno — mismo agregado puro que
+  búsqueda/ficha.
+- **INT-14** (`lib/negocio/acciones.ts` + `app/api/mi-negocio/[placeId]/content/route.ts`):
+  `verificarDueno` exportado y llamado ANTES de validar la forma del payload — un no-dueño
+  siempre recibe 403, sin importar si mandó datos bien formados.
+- **`/admin` en tabs** (`app/admin/tabs.tsx`, nuevo): tabs client-side sobre una sola ruta,
+  orden Cola de aprobación → Precios → Suscripciones → Costos (Sugeridor de precio agrupado
+  en Costos). El gate `sesionAdmin` y el `Promise.all` de datos siguen solos en
+  `app/admin/page.tsx`; los patrones existentes de cada sección (client + `router.refresh()`
+  vs server read-only) no cambiaron internamente.
+- **Nota de método**: el click sintético de Playwright no disparaba el submit del form del
+  chat (sin error visible); se resolvió con `element.click()` vía `page.evaluate`. Anotado
+  para la próxima sesión de QA en `/chat`.

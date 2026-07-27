@@ -8,6 +8,7 @@ import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
 import { TapLink } from '@/components/lugar/tap-link'
 import { buttonVariants } from '@/components/ui/button'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { ubicacionDeCard } from '@/lib/search/card'
 import { registrarDetailView } from '@/lib/search/impressions'
 import { cn } from '@/lib/utils'
@@ -96,6 +97,8 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 pb-28 pt-4">
+      <BrandHeader />
+
       <FichaActions nombre={place.name} />
 
       {/* Google en vivo (F2/F3): el shell cliente envuelve la foto (arriba), el

@@ -156,23 +156,15 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       **filtrar solo por primaria** (cero fuga, pierde el descubrimiento de borde de la decisión
       5); o **mantener el buffer y arreglar la card** (etiquetar el match de borde). Cambia una
       decisión de un spec cerrado (ZONAS done): es decisión de producto, no urge.
-- [ ] **El chat IA no cuenta impresiones/vistas para las estadísticas del dueño** (QA integral
-      INT-05, 2026-07-26). Un lugar mostrado como card en el chat premium **no** suma en
-      `place_impressions_daily` (ni `impressions` ni `detail_views`): `lib/ai/tools.ts` usa
-      `searchPlaces` pero no llama a `registrarImpresiones`. Verificado en vivo: los 3 lugares que
-      el chat devolvió quedaron en `impressions=0`. **No es un bug** — es un hueco de captura de
-      métrica: la visibilidad que da el chat es invisible para el desglose que vende el B2B
-      (MONE F4). **Decisión de producto de Fer:** ¿las vistas del chat deberían contar para el
-      dueño? Si sí, agregar `registrarImpresiones(ids)` en el `after()` del turno de chat (mismo
-      patrón que búsqueda/ficha, agregado puro sin user_id). Cruce F5×F8 que ningún spec tocó.
-- [ ] **`/api/mi-negocio/[placeId]/content` valida la forma antes de chequear ownership** (QA
-      integral INT-14, 2026-07-26). El route corre `contenidoSchema.safeParse` **antes** de llamar
-      a `guardarContenido` (que es donde `verificarDueno` rechaza al no-dueño con 403). Consecuencia
-      benigna: un no-dueño con payload mal-formado recibe **400** en vez de **403** — igual **no
-      escribe nada** (el 403 llega en cuanto el payload es válido; verificado en vivo). No hay fuga
-      de seguridad; es solo que el código de error no distingue "no sos dueño" de "mandaste
-      cualquier cosa" hasta que el payload es válido. Si molesta para claridad de API, mover el
-      chequeo de ownership antes de la validación de forma. Cosmético.
+- [x] **El chat IA no cuenta impresiones/vistas para las estadísticas del dueño** (QA integral
+      INT-05, 2026-07-26). **Resuelto ✅ 2026-07-27** en el mini-spec `PULIDO`: `lib/ai/chat.ts`
+      llama `registrarImpresiones` sobre los lugares efectivamente citados al final de cada
+      turno, mismo patrón agregado que búsqueda/ficha. [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
+- [x] **`/api/mi-negocio/[placeId]/content` valida la forma antes de chequear ownership** (QA
+      integral INT-14, 2026-07-26). **Resuelto ✅ 2026-07-27** en el mini-spec `PULIDO`:
+      `verificarDueno` exportado de `lib/negocio/acciones.ts` y llamado en el route ANTES del
+      `safeParse` — un no-dueño recibe 403 sin importar la forma del payload.
+      [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
 - [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
       el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
       cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).
@@ -255,18 +247,11 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
       Se solapa con la tarea de identidad — conviene hacerlos **juntos como una sola pasada**:
       el mini-spec sería *"home + identidad"* (estado vacío con onda + logo + swap de paleta).
-- [ ] **Header de marca global — llevar el wordmark fuera del Home** (UX/marca, 2026-07-23,
-      surgido en la QA de HOME_IDENTIDAD). Tras aplicar la paleta se verificó que **está bien
-      aplicada en toda la app** (naranja `#FF8A00` + fondo azulado, botones por token, cero
-      ámbar residual). Pero la **marca** (el wordmark) vive **solo en el Home**: navegando a la
-      ficha, `/cuenta`, `/votacion/[token]` o "Mi negocio" no hay presencia de marca, y por eso
-      "se siente" menos aplicado aunque el color sí cambió. El lever correcto **no es recolorear
-      controles** (IDENTIDAD prohíbe gradiente en botones — compite con el contenido), sino un
-      **header compartido con el `Wordmark`** (`components/shared/wordmark.tsx`, ya existe) en
-      las páginas clave. **Track de UX, mini-spec propio** (decisión de Fer 2026-07-23: no
-      mezclarlo con HOME_IDENTIDAD). A diseñar: dónde sí y dónde no, y cómo convive con los
-      headers propios de cada página (la ficha ya tiene su barra volver/compartir; la votación
-      su "VOTACIÓN / Inicio"). No hardcodear: reusar el componente y los tokens.
+- [x] **Header de marca global — llevar el wordmark fuera del Home** (UX/marca, 2026-07-23,
+      surgido en la QA de HOME_IDENTIDAD). **Resuelto ✅ 2026-07-27** en el mini-spec `PULIDO`:
+      `components/shared/brand-header.tsx` (nuevo) suma el `Wordmark` en ficha, `/cuenta`,
+      `/mi-negocio` (lista y editor) y `/votacion/[token]`, arriba del header propio de cada
+      página, sin recolorear controles. [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
 - [ ] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
       2026-07-21). Los subqueries de `filtrosDeTags` y `filtroDeZonas` interpolan
       `${places.id}`, que Drizzle renderiza como `"id"` **sin el nombre de la tabla**. Hoy
@@ -311,31 +296,12 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       la ficha usa la primera como portada, pero el editor no deja arrastrar: hoy el orden es
       el de subida y para cambiar la portada hay que borrar y volver a subir. Drag & drop o
       un botón "poner de portada".
-- [ ] **Las fotos se guardan tal cual las sube el dueño** (AUTH F3, 2026-07-21; encuadre
-      corregido el mismo día). Hasta 5 MB por foto, sin redimensionar ni recomprimir. Una
-      foto de celular son ~4000 px y 3-5 MB; el slot de la ficha es `aspect-[4/3]` dentro de
-      `max-w-md` menos el padding = **416 px CSS**, o sea ~1250 px físicos en una pantalla 3x.
-      Se guarda 10-20x más grande de lo que se muestra. **FICHA ya había resuelto esto para el
-      otro lado**: `PHOTO_MAX_WIDTH = 1200` en `lib/google/places.ts` pide la foto de Google
-      justo a esa medida. Las del dueño no siguen ese criterio.
-
-      ⚠️ **El costo NO es de infraestructura** (la primera versión de este ítem decía
-      "storage y transferencia que se pagan por nada" — mal en las dos puntas). El **egress de
-      R2 es gratis**, que es la razón por la que el spec eligió R2 (decisión 16), y el storage
-      es plata que no existe: 100 lugares pagos × 15 fotos × 4 MB ≈ 6 GB ≈ **menos de USD 0,10
-      por mes**. Recomprimir para ahorrar eso no se justifica.
-
-      **El costo real lo paga el usuario, y por eso el ítem vale igual**: bajar 4 MB por foto
-      con datos móviles, en el momento exacto en que la app tiene que ser rápida (alguien
-      parado en la calle decidiendo dónde entrar). Y del lado del dueño, subir 5 MB con mala
-      señal es donde el upload tarda o falla.
-
-      **Recomendación: redimensionar en el browser antes de subir** (canvas →
-      `toBlob('image/webp')`, tope ~1600 px de lado mayor). Arregla **las dos puntas de una**:
-      el dueño sube 200 KB en vez de 5 MB y el que mira la ficha baja 200 KB. `sharp`
-      server-side solo arregla la mitad —la bajada— y encima suma una dependencia nativa
-      pesada al build de Vercel. Dejar el límite de 5 MB y la validación server-side como
-      están: el cliente no es un boundary de seguridad, solo un optimizador.
+- [x] **Las fotos se guardan tal cual las sube el dueño** (AUTH F3, 2026-07-21; encuadre
+      corregido el mismo día). **Resuelto ✅ 2026-07-27** en el mini-spec `PULIDO`:
+      `app/mi-negocio/[placeId]/fotos-editor.tsx` redimensiona en el browser antes de subir
+      (canvas → `toBlob('image/webp')`, tope 1600 px de lado mayor) — verificado en vivo: JPEG
+      de 267 KB / 3000×2000 → webp de 17,5 KB. Límite de 5 MB y validación server-side sin
+      cambios (el cliente no es boundary de seguridad). [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
 - [ ] **El bbox de AMBA está escrito dos veces** (AUTH F2, 2026-07-21). `BBOX` en
       `scripts/import-overture.ts` (qué se importa) y `AMBA_BBOX` en `lib/claims/validacion.ts`
       (hasta dónde puede llegar el pin de un alta) son el mismo rectángulo. Hoy no divergen,
@@ -447,33 +413,14 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       búsqueda de 18.993 paginada de a 20. No rompe nada y el resultado es honesto, pero
       contradice el espíritu de la decisión 2 ("zona es el gesto default"). Decidir si el chip
       abre el selector de zona en vez de buscar.
-- [ ] **Filtro fantasma: un tag activo con 0 lugares queda inquitable y cero-ea la búsqueda**
-      (BUSQUEDA, observado 2026-07-23 durante la QA de HOME_IDENTIDAD). Repro: entrar a
-      `/?t=fiesta-tematica` (tag `active=true`, facet *actividad*, **0 lugares**; es uno de los
-      4 tags del chip "Salir a bailar", junto con `boliche`/`dj`/`salsa-bachata` que sí tienen
-      lugares). Síntomas: la búsqueda devuelve **0 resultados**, el badge de "Filtros" cuenta 1,
-      pero **no hay chip removible ni entrada en el sheet** para sacarlo — solo se saca editando
-      la URL a mano.
-
-      **Causa raíz — motor y catálogo no coinciden.** `filtrosDeTags` (`lib/search/query.ts`)
-      filtra por `eq(tags.active, true)` sin mirar el conteo de lugares, así que honra el tag y
-      arma su `EXISTS` (que con 0 lugares no matchea a nadie ⇒ 0 resultados). El catálogo
-      (`getFacetCatalog`, decisión 27) **esconde** los tags con 0 lugares, así que
-      `etiquetaDeTag` devuelve `null` y `ChipsActivos` hace `if (!label) continue` (no dibuja
-      chip) y el `FiltersSheet` no lo lista. Lo que el motor aplica, la UI no lo puede mostrar
-      ni sacar. Vía el chip "Salir a bailar" queda enmascarado (los otros 3 tags traen
-      resultados); el caso pelado en la URL lo destapa. **Contradice la decisión 15 del spec
-      ("lo que se aplica se ve") y el invariante de que la URL es el estado y todo lo que está
-      en ella se puede revertir.**
-
-      **Recomendación: garantizar que TODO tag en `params.tags` tenga chip removible.**
-      `ChipsActivos` debería dibujar un chip para cualquier slug de la URL aunque el catálogo no
-      le dé label —cayendo al nombre del tag o al slug crudo— en vez de saltearlo. Es el arreglo
-      robusto (la URL manda; nada aplicado puede quedar sin forma de sacarse). Alternativa más
-      débil: alinear `filtrosDeTags` con el catálogo y descartar también los tags con 0 lugares
-      —evita el 0 resultados pero deja el badge fantasma en 1—. La primera resuelve las dos
-      puntas. Cambio quirúrgico en `search-shell.tsx` (`ChipsActivos`), con test de regresión
-      (tag en URL sin lugares ⇒ chip removible presente).
+- [x] **Filtro fantasma: un tag activo con 0 lugares queda inquitable y cero-ea la búsqueda**
+      (BUSQUEDA, observado 2026-07-23 durante la QA de HOME_IDENTIDAD). **Resuelto ✅ 2026-07-27**
+      en el mini-spec `PULIDO`, con el arreglo robusto recomendado: `ChipsActivos`
+      (`components/search/search-shell.tsx`) dibuja un chip removible para todo slug de
+      `params.tags` aunque el catálogo no le dé label (fallback al slug legible en vez de
+      `continue`). Verificado en vivo con `/?t=fiesta-tematica`. Sin test de regresión propio —
+      el proyecto no tiene infraestructura de tests de componentes (todos los tests son sobre
+      `lib/`); queda cubierto por el QA en vivo. [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
 - [ ] **Sobreconteo de impresiones con `gps=1` + zonas en la URL** (BUSQUEDA F3, 2026-07-20).
       El server renderiza por zona (no tiene coordenadas) y el cliente reemplaza al obtener
       permiso: esos 20 lugares suman impresión habiéndose visto un instante. Caso de borde de
@@ -492,6 +439,19 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Mini-spec PULIDO — pulido UX/UI + reestructura de /admin** (2026-07-27): el #4 de la
+      cola post-spec-8, alcance cerrado con Fer → spec → implementación → QA → cierre en una
+      sesión. Dos frentes sobre hallazgos del QA integral: (a) **pulido UX** — filtro fantasma
+      (`ChipsActivos` dibuja chip removible con fallback de label), header de marca
+      (`BrandHeader`/`Wordmark` en ficha, `/cuenta`, `/mi-negocio` lista+editor, `/votacion/[token]`),
+      resize de fotos del dueño a webp ≤1600px en el browser (267 KB → 17,5 KB verificado en
+      vivo), INT-05 (el chat ahora cuenta impresiones de los lugares citados) e INT-14
+      (ownership antes que validación de forma en `/content`, 403 no 400); (b) **`/admin` en
+      tabs** — client-side sobre una sola ruta, gate único en `page.tsx`, orden Cola → Precios →
+      Suscripciones → Costos (Sugeridor agrupado en Costos). QA: 6 criterios de código PASS
+      (checkers independientes) + 7/7 en vivo (Playwright + UPDATEs revertidos) +
+      typecheck/460 tests/build verdes. [Resumen](../archive/SPECS_ARCHIVO.md#pulido) · QA:
+      `docs/qa/AnalisisQA.md` § *PULIDO*
 - [x] **Mini-spec COSTOS_ADMIN — tablero de costos en /admin + sugeridor de precio** (2026-07-26):
       el #3 de la cola post-spec-8, spec → implementación → QA → cierre en una sesión (Fable
       orquestando + subagente implementador). Sección "Costos" read-only: chat IA en USD del mes

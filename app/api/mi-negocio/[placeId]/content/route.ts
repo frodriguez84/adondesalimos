@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { guardarContenido } from '@/lib/negocio/acciones'
+import { guardarContenido, verificarDueno } from '@/lib/negocio/acciones'
 import { contenidoSchema } from '@/lib/negocio/validacion'
 
 /**
@@ -7,9 +7,14 @@ import { contenidoSchema } from '@/lib/negocio/validacion'
  * dueño (decisiones 13 y 15), más los tres campos pagos cuando el plan los
  * habilita (decisiones 17 y 18).
  *
- * Adaptador fino: sesión inline (decisión 9) → validación de forma → acción de
- * dominio. La propiedad y el gating por plan los resuelve `acciones.ts`: acá no
- * hay ninguna regla de negocio que se pueda desincronizar.
+ * Adaptador fino: sesión inline (decisión 9) → ownership → validación de forma →
+ * acción de dominio. El gating por plan lo resuelve `acciones.ts`: acá no hay
+ * ninguna regla de negocio que se pueda desincronizar.
+ *
+ * Ownership ANTES que la forma del payload (PULIDO, INT-14): antes, un no-dueño
+ * con un payload mal formado recibía 400 en vez de 403 (`guardarContenido`
+ * verifica ownership recién adentro). No había fuga —nunca escribía—, pero el
+ * código de error no distinguía "no sos dueño" de "mandaste cualquier cosa".
  *
  * Sin rate limit propio: exige sesión y solo puede tocar un lugar que ya es del
  * usuario. El cupo de la decisión 23 cubre lo abierto (auth, claims, fotos).
@@ -33,6 +38,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ pl
   }
 
   const { placeId } = await params
+
+  const dueno = await verificarDueno(session.user.id, placeId)
+  if (!dueno.ok) {
+    return Response.json(
+      { data: null, error: { message: dueno.message, code: dueno.code } },
+      { status: STATUS_POR_CODIGO[dueno.code] ?? 400 },
+    )
+  }
 
   let body: unknown
   try {

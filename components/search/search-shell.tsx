@@ -336,6 +336,11 @@ function GrupoSugerencias({
  * aplica se ve). Es también el rescate del estado de 0 resultados: el usuario
  * saca de acá lo que sobra sin abrir ningún sheet.
  */
+/** Slug legible cuando el catálogo no da label (tag sin lugares, escondido). */
+function etiquetaFallback(slug: string): string {
+  return slug.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase())
+}
+
 function ChipsActivos({
   params,
   facetas,
@@ -368,11 +373,11 @@ function ChipsActivos({
   }
 
   for (const slug of params.tags) {
-    // Un tag desactivado por curaduría no tiene label: no se dibuja el chip,
-    // pero el filtro sigue en la URL y el motor ya lo ignora. Un link viejo no
-    // rompe la pantalla.
-    const label = etiquetaDeTag(slug, facetas)
-    if (!label) continue
+    // Un tag sin lugares queda escondido del catálogo (`etiquetaDeTag` da null),
+    // pero el motor lo sigue aplicando (filtro fantasma, BACKLOG): sin chip no hay
+    // forma de sacarlo salvo editando la URL a mano. Todo tag en la URL tiene que
+    // poder quitarse, con o sin label del catálogo.
+    const label = etiquetaDeTag(slug, facetas) ?? etiquetaFallback(slug)
     chips.push({
       key: `t-${slug}`,
       label,

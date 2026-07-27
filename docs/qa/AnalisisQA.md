@@ -987,3 +987,48 @@ el valor previo, o use un mes sintético que no colisione con el real. Anotado e
 **Addendum (2026-07-26, mismo cierre):** `next build` corrido con el dev server parado →
 **verde** (todas las rutas compiladas, `/admin` dinámica). Con esto COSTOS_ADMIN-QA-07 de la
 sección /qa-spec pasa de PARCIAL a ✅ y el veredicto global del spec queda **APROBADO**.
+
+## QA /qa-spec — PULIDO (2026-07-27)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck EXIT 0 · tests 460/460 PASS (49 archivos) · build verde (server parado, `/admin` compiló dinámica)
+**Método:** checkers independientes (Explore/haiku, read-only, maker≠checker) vs DoD de `docs/specs/active/PULIDO.md`. Los criterios en vivo (filtro fantasma, wordmark visible, resize real, impresiones en DB, 403, tabs renderizadas) ya están verificados en vivo abajo — no quedan pendientes.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| PULIDO-QA-01 | Filtro fantasma: chip removible con fallback de label | ✅ PASS | `components/search/search-shell.tsx:340-342` (`etiquetaFallback`), `:380` (`etiquetaDeTag(slug, facetas) ?? etiquetaFallback(slug)`, sin `continue`) |
+| PULIDO-QA-02 | Wordmark en ficha, `/cuenta`, `/votacion/[token]`, Mi negocio (lista+editor) | ✅ PASS | `components/shared/brand-header.tsx` + import/render en `app/lugar/[id]/page.tsx:100`, `app/cuenta/cuenta-client.tsx:19`, `app/votacion/[token]/page.tsx:70`, `app/mi-negocio/page.tsx:31`, `app/mi-negocio/[placeId]/page.tsx:49` |
+| PULIDO-QA-03 | Resize a webp ≤1600px antes del POST de fotos | ✅ PASS | `app/mi-negocio/[placeId]/fotos-editor.tsx:24` (`LADO_MAYOR_MAX=1600`), `:34-53` (`redimensionar`, `canvas.toBlob('image/webp', 0.85)`), `:77` (`redimensionar(archivo)` antes de armar el FormData); `lib/storage/r2.ts` (`MAX_BYTES`, `TIPOS_PERMITIDOS`) sin tocar |
+| PULIDO-QA-04 | Chat suma impresiones de los lugares citados/mostrados | ✅ PASS | `lib/ai/chat.ts:10` (import), `:179-186` (`registrarImpresiones(lugares.map(l => l.id))`, solo sobre `lugares` de `enriquecerCitas`, no sobre `idsNuevos` crudo) |
+| PULIDO-QA-05 | `PATCH /content`: ownership antes que forma → 403 no 400 | ✅ PASS | `lib/negocio/acciones.ts:38` (`export async function verificarDueno`), `app/api/mi-negocio/[placeId]/content/route.ts:2` (import), `:42-48` (chequeo antes del `safeParse` de línea 60+) |
+| PULIDO-QA-06 | `/admin` en tabs, gate único, orden Cola/Precios/Suscripciones/Costos | ✅ PASS | `app/admin/page.tsx:35-36` (gate único) `:72-87` (`AdminTabs` con children ya renderizados); `app/admin/tabs.tsx:17-22` (orden, sin gate/fetch propio); sin rutas nuevas bajo `app/admin/*/page.tsx`; `cola-client.tsx`/`precios-client.tsx`/`suscripciones.tsx`/`costos.tsx` sin reescritura interna |
+| PULIDO-QA-07 | Verificación técnica: typecheck + tests + build | ✅ PASS | Re-corridos por el orquestador (no confiando en la implementación): EXIT 0, 460/460, build verde con server parado |
+
+## QA manual — PULIDO en vivo (2026-07-27)
+
+**Veredicto:** PASS 7/7 en vivo. Typecheck (EXIT 0), tests (460/460) y `next build` (con el
+dev server parado) todos verdes — `/admin` compiló como ruta dinámica, sin errores.
+**Método:** Playwright MCP contra `https://adondesalimos.ngrok.app` + consultas directas al
+Postgres de dev (Docker, 5439) para verificar/revertir estado. Cuentas: `frodriguez.este@gmail.com`
+(admin+dueño de Kansas+premium), `juan@gmail.com` (free, no dueño).
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| PULIDO-01 | `/?t=fiesta-tematica` (tag sin lugares) | ✅ PASS | Aparece chip "Quitar Fiesta tematica" (fallback de label); clic navega a `/` sin el tag |
+| PULIDO-02 | Wordmark fuera del Home | ✅ PASS | Presente y clickeable a `/` en ficha (Kansas), `/cuenta`, `/mi-negocio` (lista y editor) y `/votacion/[token]` público; headers propios de cada página intactos |
+| PULIDO-03 | Subir foto de celular (~4 MB) en Mi negocio | ✅ PASS | JPEG de prueba 3000×2000/267 KB → subido como `.webp` de **17,5 KB** (`Content-Type: image/webp`, verificado con `curl -I` sobre la URL de R2). Foto de prueba borrada al terminar |
+| PULIDO-04 | Chat premium: pedir "una birra por Villa Crespo", recibir 3 cards | ✅ PASS | `place_impressions_daily.impressions` de los 3 lugares mostrados (70 30 Bar, Sigue al Conejo Blanco, La Ferneteria) subió a 1 tras el turno. Revertido a 0 al terminar |
+| PULIDO-05 | `PATCH /content` de Kansas como juan (no dueño) con payload roto (`{estoNoEsUnCampoValido:123}`) | ✅ PASS | 403 `NO_AUTORIZADO` "No podés editar este lugar" (antes del fix hubiera sido 400) |
+| PULIDO-06 | `/admin` como admin: tabs Cola/Precios/Suscripciones/Costos | ✅ PASS | Orden correcto, cada tab renderiza sus datos reales (cola con Kansas aprobado, precios editables, tabla de suscripciones, costos + Sugeridor de precio agrupado en la misma tab) |
+| PULIDO-07 | `/admin` sin sesión | ✅ PASS | Sign-out confirmado con `GET /api/auth/get-session` → `null` (lección de INT-12); `/admin` → **404** |
+
+**Nota de método:** el click sintético de Playwright (`browser_click`) no disparó el submit
+del form del chat (`/chat`) pese a que el botón/chip aparecía habilitado — sin error de
+consola, sin overlay bloqueando, sin request de red. Se resolvió despachando el click con
+`element.click()` vía `page.evaluate`, que sí disparó el `POST /api/chat`. No es un bug de la
+app (el mismo flujo funciona con click real del usuario); quedó como nota de método para la
+próxima sesión de QA en `/chat` con Playwright.
+
+**Limpieza:** foto de prueba borrada de R2 + `place_photos`; impresiones de los 3 lugares del
+chat revertidas a 0; sesión de browser cerrada. Sin cambios de precio ni de `owner_plan`
+persistentes — solo lectura en Precios/Suscripciones/Costos durante el recorrido.

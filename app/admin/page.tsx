@@ -12,15 +12,20 @@ import { ColaClient } from './cola-client'
 import { CostosAdmin, SugeridorPrecio } from './costos'
 import { PreciosClient } from './precios-client'
 import { SuscripcionesAdmin } from './suscripciones'
+import { AdminTabs } from './tabs'
 
 /**
  * `/admin` — cola de aprobación (AUTH, decisión 22) + Precios y Suscripciones
- * read-only (MONETIZACION, decisión 26). El resto del admin (umbral, cupos, stats)
- * sigue en BACKLOG a propósito.
+ * read-only (MONETIZACION, decisión 26) + Costos (COSTOS_ADMIN). El resto del
+ * admin (umbral, curaduría) sigue en BACKLOG a propósito.
  *
  * Gate inline con `ADMIN_EMAIL` (decisión 8) y **404, no 403**: para cualquiera
  * que no sea el admin, esta ruta no existe. Con `ADMIN_EMAIL` sin setear no hay
  * admin posible — nunca un panel abierto por default.
+ *
+ * Tabs sobre una sola ruta (PULIDO, decisión 2): este sigue siendo el único
+ * lugar con el gate y el `Promise.all` — `AdminTabs` es puramente presentación
+ * sobre los datos ya resueltos acá.
  */
 
 export const metadata: Metadata = { title: 'Admin — ¿A dónde salimos?' }
@@ -64,30 +69,22 @@ export default async function AdminPage() {
         </Link>
       </header>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Precios</h2>
-        <PreciosClient precios={precios} historial={historial} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Suscripciones</h2>
-        <SuscripcionesAdmin suscripciones={suscripciones} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Costos</h2>
-        <CostosAdmin chat={costosChat} google={usoGoogle} cupo={cupoChat} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Sugeridor de precio</h2>
-        <SugeridorPrecio sugerencia={sugerencia} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Cola de aprobación</h2>
-        <ColaClient pendientes={pendientes} aprobados={aprobados} />
-      </section>
+      <AdminTabs
+        cola={<ColaClient pendientes={pendientes} aprobados={aprobados} />}
+        precios={<PreciosClient precios={precios} historial={historial} />}
+        suscripciones={<SuscripcionesAdmin suscripciones={suscripciones} />}
+        costos={
+          <div className="flex flex-col gap-6">
+            <CostosAdmin chat={costosChat} google={usoGoogle} cupo={cupoChat} />
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Sugeridor de precio
+              </h3>
+              <SugeridorPrecio sugerencia={sugerencia} />
+            </div>
+          </div>
+        }
+      />
     </main>
   )
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth/client'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
+import { BrandHeader } from '@/components/shared/brand-header'
 import type { EstadoSuscripcion } from '@/lib/billing/estado'
 
 type Props = {
@@ -15,6 +16,8 @@ type Props = {
 export function CuentaClient({ user, suscripcion, precioB2cArs }: Props) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-8">
+      <BrandHeader />
+
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Mi cuenta</h1>
         <Link href="/" className="text-sm text-muted-foreground transition-colors hover:text-primary">

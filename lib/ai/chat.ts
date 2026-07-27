@@ -7,6 +7,7 @@ import { getChatModel } from './settings'
 import { buildSystemPrompt } from './prompts'
 import { BUSCAR_LUGARES_TOOL, ejecutarBuscarLugares } from './tools'
 import { enriquecerCitas } from './grounding'
+import { registrarImpresiones } from '@/lib/search/impressions'
 import { resumenCupo, revertirReserva } from './cupo'
 import { logChatCall } from './logging'
 
@@ -175,7 +176,14 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
           )
         }
 
-        if (lugares.length > 0) controller.enqueue(sse({ lugares }))
+        if (lugares.length > 0) {
+          controller.enqueue(sse({ lugares }))
+          // INT-05 (PULIDO): un lugar mostrado como card en el chat es tan
+          // "impresión" como uno mostrado en la búsqueda — mismo agregado puro,
+          // solo los efectivamente citados/mostrados (no todo lo que devolvió
+          // una tool y el modelo descartó).
+          void registrarImpresiones(lugares.map((l) => l.id))
+        }
 
         // Persistir el mensaje del assistant (texto ya validado) y actualizar la
         // conversación: seen_place_ids = unión, updated_at fresco.

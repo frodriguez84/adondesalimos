@@ -928,12 +928,15 @@ de precio según dólar, QA APROBADO (resumen: `SPECS_ARCHIVO.md#costos_admin`).
 - ✅ **Implementado y cerrado en la misma sesión** (implementador/Opus + QA en vivo con
   Playwright y UPDATEs revertidos + build verde). Hallazgo bonus del primer render: el test
   de integración del cupo borra la fila real de `ai_api_usage` → ítem en BACKLOG + lección.
-- ⏭️ **Próximo paso:** #4 de la cola — pulido UX/UI + a11y + performance mobile (sobre los
-  hallazgos del QA integral; tracks ya anotados: header de marca global, filtro fantasma,
-  resize de fotos en el browser). **Scope agregado por Fer (2026-07-26): reestructurar
-  `/admin`** — separar Precios / Suscripciones / Costos / Cola de aprobación (hoy son
-  secciones apiladas en una sola page y con el tablero de costos quedó largo); tabs u otra
-  estructura, y el orden, a decidir en esa sesión.
+- ✅ **#4 de la cola — mini-spec PULIDO, cerrado entero (2026-07-27)**: pulido UX/UI (filtro
+  fantasma, header de marca global, resize de fotos en el browser, INT-05, INT-14) +
+  reestructura de `/admin` en tabs client-side (Cola → Precios → Suscripciones → Costos, gate
+  único). QA en vivo 7/7 + 6 checkers independientes + build verde.
+  [Resumen](../archive/SPECS_ARCHIVO.md#pulido) · spec: `docs/specs/done/PULIDO.md`.
+- ⏭️ **Próximo paso: #5 de la cola** — spec de curaduría (candidato a spec 9): Ambiente (0,9%)
+  y Momento (0,6%) casi vacíos siendo el diferencial del producto; 8 chips de Ocasión
+  apagados; Precio con 0 filas. Especificar herramienta de curaduría en `/admin` para que la
+  carga manual sea viable.
 
 ### 🔧 Sesión Opus — cerrada (2026-07-26) · #1 DEL TRIAJE RESUELTO: NO ERA BUG
 

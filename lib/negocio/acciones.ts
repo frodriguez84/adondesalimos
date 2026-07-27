@@ -29,8 +29,13 @@ const fallo = (code: string, message: string) => ({ ok: false as const, code, me
 /** Un id manoseado en la URL no puede llegar a una query sobre una columna uuid. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** El lugar existe y es de este usuario. Devuelve el plan, que decide todo lo demás. */
-async function verificarDueno(
+/**
+ * El lugar existe y es de este usuario. Devuelve el plan, que decide todo lo
+ * demás. Exportada (PULIDO, INT-14): el route de `/content` la llama ANTES de
+ * validar la forma del payload, para que un no-dueño reciba 403 siempre, sin
+ * importar si mandó datos bien formados.
+ */
+export async function verificarDueno(
   userId: string,
   placeId: string,
 ): Promise<Resultado<{ plan: OwnerPlan }>> {
