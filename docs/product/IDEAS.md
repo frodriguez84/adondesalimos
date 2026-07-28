@@ -905,8 +905,44 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de cierre de CURADURIA F3 + decisiones (2026-07-27). Esta sección es lo
+_Actualizado en la sesión de tuning del Chat IA + triaje de v2 (2026-07-27). Esta sección es lo
 primero que lee la sesión siguiente._
+
+### 🎨 Sesión Opus — (2026-07-27) · TUNING CHAT IA CERRADO + TRIAJE DE LA PRÓXIMA TANDA (v2)
+
+Sesión Opus dedicada. Dos cosas:
+
+**1. Tuning del Chat IA — CERRADO** (commit `e16c6a9`). Con el default ya en **Sonnet 5**, se
+confirmó con un banco de eval (reusa prompt+tool+motor reales) que los 3 criterios (no narrar ·
+voz rioplatense · no sobre-filtrar) **se cumplen**. Fix nuevo con evidencia: la faceta `precio`
+está **muerta** (0 lugares) pero el prompt empujaba `precio-1/2` → todo "barato" caía a 0; se
+corrigió el prompt (no filtrar por precio) + guard para no partir una faceta en varias búsquedas.
+Verificado por eval y en vivo. El ítem del BACKLOG quedó cerrado. **No queda defecto abierto** en
+el chat; el tuning fino de voz es iterable siempre.
+
+**2. Triaje de la próxima tanda de features (v2) — DECIDIDO el orden, PENDIENTE la autoría.** La
+cola obligatoria quedó vacía (9 specs + CURADURIA + chat, todo cerrado). Se ordenaron 5 ideas del
+BACKLOG § Mejoras futuras. **No son specs iguales:**
+
+- 🟩 **Favoritos / listas guardadas** → spec completo (tablas + gate free 1 lista / premium varias
+  server-side + botón guardar en card/ficha). La apuesta grande (retención + gancho premium).
+- 🟩 **Sugerir lugar en una votación** → spec completo (extiende VOTACION: quién agrega, grounding
+  contra el catálogo real, schema, UI en la página de voto).
+- 🟨 **Abierto ahora** → mini-spec. **OJO:** no es "solo mostrar el tag" — `abierto-ahora` tiene
+  20 lugares y es un concepto COMPUTADO (hora + horarios). La decisión tag-curado-vs-computado
+  (Google en vivo cuesta $; el dueño ya carga horarios en AUTH F4) **ES** el spec.
+- 🟨 **Rotación de chips de Ocasión por día/hora** → mini-spec (config día/hora→orden vs hardcode).
+- 🟦 **Alias POIs (Movistar Arena, Unicenter…) + CABA sistemáticos desde GeoJSON de BA Data** →
+  **NO es spec**, es tarea de datos aditiva a `lib/zones/canon.ts` § ALIASES.
+
+**✅ Orden decidido por Fer = MOMENTUM / quick wins:** (1) Alias POIs/CABA · (2) Abierto ahora ·
+(3) Favoritos · (4) Sugerir-en-votación · (5) Rotación de chips.
+
+**⏭️ Próximo paso:** la **autoría de los specs es tarea de Fable** (regla de modelo). Abrir una
+sesión Fable con el prompt de continuación que se dejó en el chat de esta sesión (scaffold en
+`planned/` + escribir decisiones/DoD de cada uno, en el orden de arriba). La tarea de datos (alias)
+no necesita spec y puede arrancar en una sesión Opus/implementación cuando se quiera — es el
+quick-win #1.
 
 ### 🧭 Sesión Opus — (2026-07-27) · CURADURIA F3 CERRADO + DECISIONES DE RUMBO
 
