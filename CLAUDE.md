@@ -243,6 +243,7 @@ existe. Pasó de verdad al empezar BÚSQUEDA. Desde 2026-07-20:
 | `feat(NOMBRE):` | Implementación. Si el spec tiene fases, nombrar la fase (`F1 —`) | `lib/`, `app/`, `drizzle/`… |
 | `docs:` | Documentación que no es un spec (backlog, lecciones, archivo) | solo `docs/` |
 | `fix(NOMBRE):` | Corrección sobre un feature ya implementado | código |
+| `chore:` | Tooling / infra / mantenimiento que no es feature de producto (scripts de dev, backup, config, npm scripts, reglas de trabajo) | `scripts/`, `package.json`, `.gitignore`, `CLAUDE.md`… |
 
 **Regla:** si el commit no toca código, no puede empezar con `feat`.
 
@@ -311,6 +312,40 @@ criterio objetivo.
 
 Skills que dan el criterio: `/qa-spec`, `/close-spec`, `/consistency-check`, `/check` y el
 hook pre-commit (`.claude/hooks/pre-commit-gate.sh`).
+
+---
+
+## Paralelismo y orquestación — cuándo sugerir fan-out
+
+**Regla de iniciativa (pedido de Fer, 2026-07-27): el humano no tiene por qué saber cuándo
+conviene paralelizar — eso lo sugiere Claude, y Fer decide sí/no.** Ante una tarea "fan-out",
+Claude **propone explícitamente** correrla con subagentes en paralelo o un workflow, con una
+línea de costo/beneficio, ANTES de arrancar en secuencia. No la lanza sin OK (mismo criterio
+que git): sugiere, Fer aprueba.
+
+**Qué es fan-out (sugerir):** repetición independiente sobre muchos ítems (curar/procesar N
+zonas o N lugares), auditoría multi-archivo (los specs contra el código), scaffoldear varios
+specs de una, cazar un bug con varios verificadores adversariales, generar y comparar N enfoques
+de diseño. **Qué NO lo es (secuencial y directo):** una edición de 1-2 archivos, una pregunta,
+un fix puntual. Ante la duda, si el trabajo es "lo mismo × N ítems independientes", se sugiere.
+
+---
+
+## Redes de seguridad — mantenimiento (correr, no olvidar)
+
+Dos activos manuales (creados 2026-07-27). Toda sesión debe saber que existen y cuándo usarlos:
+
+- **Backup de la base** — `scripts/backup-db.sh` (`npm run backup:db`, requiere Git Bash). Hace
+  `pg_dump` del Postgres de dev a `backups/` (gitignoreado — es data). **Correlo ANTES de
+  cualquier operación destructiva sobre la base** (`db:migrate` sobre base limpia, borrar el
+  volumen de Docker, cambiar de máquina) — la curaduría (~3.967 tags) NO está en git ni en el
+  seed (ver § Notas importantes). Restore: `gunzip -c backups/<archivo>.sql.gz | docker exec -i
+  adondesalimos_db psql -U adondesalimos -d adondesalimos`.
+- **Termómetro de calidad de búsqueda del chat** — `scripts/eval-chat.ts` (`npm run eval:chat`).
+  Corre casos reales contra prompt+tool+motor+Sonnet, imprime los tool-inputs y **chequea que no
+  vuelva la trampa de `precio` ni el sobre-filtrado de escape-room**. **Cuesta tokens reales
+  (Sonnet).** Correlo después de tocar `lib/ai/prompts.ts` o cuando cambie la densidad del
+  catálogo (curaduría nueva).
 
 ---
 

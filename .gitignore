@@ -43,3 +43,7 @@ docs/qa/*.local.md
 
 # MCP local del proyecto (tooling de dev/QA; cada quien decide si lo activa)
 .mcp.json
+
+# Dumps de la base (scripts/backup-db.sh) — son DATA (traen la curaduría y hashes de
+# contraseñas de usuarios de prueba). Nunca al repo; la durabilidad es local/offsite.
+backups/
