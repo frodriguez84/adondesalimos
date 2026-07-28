@@ -294,6 +294,10 @@ El volcado de ideas de producto lleva varias tandas de conversación. Estas regl
    Es lo primero que lee la sesión siguiente.
 5. **Antes de cerrar una tanda, aplicar el registro obligatorio** (regla global): si algo se
    decidió, se escribe. Si no está escrito, no existió.
+6. **Retro de 3 líneas al cerrar la sesión** en `docs/operations/RETRO.md` (arriba de todo,
+   más reciente primero): *qué salió bien · qué frenó · qué cambiar*. El método que se mejora
+   solo le gana al método fijo: cada sesión deja al sistema un poco mejor que la anterior. Es el
+   loop que cierra las encuestas de fin de sesión (antes se perdían con el chat).
 
 ---
 
@@ -349,6 +353,39 @@ Dos activos manuales (creados 2026-07-27). Toda sesión debe saber que existen y
 
 ---
 
+## Reversibilidad — calibrá el cuidado al radio de explosión
+
+**"Infalible" no es "nunca falla": es "cada error, chico y visible".** El cuidado que merece
+una decisión se calibra por si es **reversible**, no por su tamaño aparente:
+
+- **Puerta de ida y vuelta** (reversible: un prompt, un copy, un color, una feature detrás de
+  flag, un setting de `app_settings`) → decidir rápido, iterar, NO sobre-especear. La ceremonia
+  de más acá cuesta velocidad gratis.
+- **Puerta de ida** (difícil de revertir: un schema que ya tiene data real, un precio, una URL
+  pública/SEO, borrar o pisar datos, un re-import que pisa columnas) → frenar, especear en serio,
+  **backup primero** (`npm run backup:db`), confirmar con Fer.
+
+El error a evitar es tratar todo con el mismo ritual. Antes de una tarea con efecto en la base,
+en producción o de cara al usuario: nombrar en una línea si es de ida o de ida y vuelta, y actuar
+en consecuencia. (Esta misma regla aplica a editar el CLAUDE.md **global** vs el del proyecto: el
+global toca todos los proyectos → radio grande; ante la duda, cambio acá y se promueve después.)
+
+## Una regla, un dueño
+
+**Cada regla de negocio vive en un solo módulo, y nadie la reimplementa.** Es el invariante que
+hace que un agente pueda mantener este código sin romperlo: si el vocabulario y las reglas viven
+en un único lugar, una sesión no puede divergir en silencio. Ya es así y hay que defenderlo:
+`lib/db/visibility.ts` (qué se publica), `lib/google/places.ts` (única puerta a Google),
+`lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/ai/settings.ts` (claves de
+runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base).
+
+- Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
+- Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de
+  **máxima prioridad** (se unifica hacia el dueño único), porque dos copias driftean y la que
+  quede desactualizada miente. Señalarlo apenas se ve, aunque el arreglo vaya como paso aparte.
+
+---
+
 ## Documentación — dónde está cada cosa
 
 | Necesitás… | Leé… |
@@ -361,3 +398,4 @@ Dos activos manuales (creados 2026-07-27). Toda sesión debe saber que existen y
 | Specs implementados (resumen) | `docs/archive/SPECS_ARCHIVO.md` (cuando exista) |
 | QA + IDs trazables | `docs/qa/AnalisisQA.md` (cuando exista) |
 | Pendientes | `docs/product/BACKLOG.md` |
+| Retro por sesión (qué mejorar del método) | `docs/operations/RETRO.md` |
