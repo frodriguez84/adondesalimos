@@ -41,8 +41,13 @@ export type SugerenciaLLM = {
 
 export type ResultadoSugerencia = {
   sugerencias: SugerenciaLLM[]
+  /** Tokens de entrada **no** cacheados. El total de input suma los dos de abajo. */
   tokensIn: number
   tokensOut: number
+  /** Prefijo servido desde el caché (se cobra ~0,1×). */
+  cacheReadTokens: number
+  /** Prefijo escrito al caché: la primera llamada de la corrida (se cobra 1,25×). */
+  cacheCreationTokens: number
 }
 
 /** Máximo de tokens de la respuesta: son unas pocas sugerencias, no un ensayo. */
@@ -98,7 +103,12 @@ const SUGERIR_TAGS_TOOL: Anthropic.Tool = {
   },
 }
 
-function systemPrompt(vocab: TagSugerible[]): string {
+/**
+ * Exportada para poder **medirla**: el system se cachea (ver `sugerirTags`) y el
+ * caching falla en silencio si el prefijo no llega al mínimo del modelo. Sin
+ * acceso a la función no hay forma de verificar ese umbral.
+ */
+export function systemPrompt(vocab: TagSugerible[]): string {
   const porFaceta = new Map<string, TagSugerible[]>()
   for (const t of vocab) {
     const actual = porFaceta.get(t.facet) ?? []
@@ -178,7 +188,22 @@ export async function sugerirTags(
   const msg = await anthropic.messages.create({
     model,
     max_tokens: MAX_TOKENS,
-    system: systemPrompt(vocab),
+    // El system es IDÉNTICO en las ~1.840 llamadas de una corrida (el vocabulario
+    // no cambia), así que se cachea: un write y el resto reads a 0,1× (mismo
+    // criterio que `lib/ai/prompts.ts`). Sin esto la corrida de CURADURIA F3
+    // reprocesó el prefijo a precio pleno 1.840 veces — ~US$6 de los US$17,62.
+    // El orden de render es `tools` → `system`, así que este único breakpoint
+    // cachea la tool también: no hace falta un segundo `cache_control`.
+    //
+    // ⚠️ MEDIDO (2026-07-29, `count_tokens`): el system son **1.260 tokens** con
+    // Sonnet 5 contra un mínimo cacheable de 1.024 — 23% de margen, poco. Por
+    // debajo del mínimo el caching **falla en silencio** (`cache_creation_input_
+    // tokens: 0`, sin error). Dos formas de romperlo sin darse cuenta:
+    //   1. Achicar el vocabulario o las reglas del prompt.
+    //   2. Bajar `ai.curation_model` a Haiku 4.5 — su mínimo es 4.096 y el mismo
+    //      texto le da 958 tokens (tokenizer distinto): NUNCA cachearía.
+    // Si tocás alguna de las dos, volvé a medir antes de asumir el ahorro.
+    system: [{ type: 'text', text: systemPrompt(vocab), cache_control: { type: 'ephemeral' } }],
     tools: [SUGERIR_TAGS_TOOL],
     tool_choice: { type: 'tool', name: 'sugerir_tags' },
     messages: [{ role: 'user', content: userPrompt(place, evidencia) }],
@@ -213,5 +238,7 @@ export async function sugerirTags(
     sugerencias,
     tokensIn: msg.usage.input_tokens,
     tokensOut: msg.usage.output_tokens,
+    cacheReadTokens: msg.usage.cache_read_input_tokens ?? 0,
+    cacheCreationTokens: msg.usage.cache_creation_input_tokens ?? 0,
   }
 }

@@ -5,6 +5,43 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## El prompt caching falla en silencio, y los tokens de caché no son gratis (2026-07-29 · mail de Anthropic)
+
+**Qué pasó.** Llegó un mail de Anthropic avisando "tu cache hit rate es bajo, podrías ahorrar hasta
+un 54%". Al medirlo: el **chat ya cacheaba bien** (8.776 tokens de prefijo, 8× sobre el mínimo) y
+gasta ~US$0,11 al mes — el 54% de eso son centavos. El gasto real estaba en otro lado: el
+**sugeridor de curaduría** pasaba el system como string plano sin `cache_control`, y ese system es
+idéntico en las ~1.840 llamadas de una corrida. Se reprocesó a precio pleno 1.840 veces.
+
+**Dos cosas que no son obvias y que costaron plata cada una:**
+
+1. **Hay un mínimo cacheable, y por debajo el caching no cachea *sin avisar*.** No hay error:
+   `cache_creation_input_tokens` vuelve en 0 y la factura llega igual. El mínimo **depende del
+   modelo y no es monotónico** (Sonnet 5: 1.024 · Haiku 4.5: 4.096). Medido, el system del
+   sugeridor da **1.260 tokens en Sonnet 5** — cachea, con solo 23% de margen — y **958 en Haiku**
+   (tokenizer distinto), donde nunca alcanzaría los 4.096. O sea: **bajar `ai.curation_model` a
+   Haiku "para ahorrar" apagaría el caching en silencio y saldría más caro por el otro lado.**
+2. **`input_tokens` es el remanente NO cacheado.** El total de entrada es
+   `input + cache_read + cache_creation`. Un read cuesta 0,1× y un write 1,25×: **no son gratis**.
+   Todo cálculo de costo que sume solo `input_tokens` **subestima** en cuanto empieza a cachear —
+   le pasaba al log del chat y al reporte de `npm run curar`, los dos arreglados acá.
+
+**Qué hacer distinto:**
+
+1. **Si un prompt se repite entre llamadas, cachealo — y medí el prefijo con `count_tokens`
+   (gratis) antes de dar el ahorro por hecho.** Escribí el número y la fecha en el código: es un
+   umbral que se cruza al recortar un prompt, y nadie lo va a recordar.
+2. **Cualquier cálculo de costo tiene que recibir los tokens de caché**, no solo input/output.
+   `calcularCostoUsd` (dueño único del costo) ahora los toma como parámetros opcionales.
+3. **Un reporte de costo debería delatar su propia rotura.** `npm run curar` ahora imprime el
+   ahorro vs. no cachear y grita si hubo **cero** lecturas de caché en toda la corrida — el
+   síntoma exacto de que el prefijo cayó por debajo del mínimo.
+4. **Un mail de alerta de un proveedor es una hipótesis, no un diagnóstico.** Este tenía razón en
+   el ratio y apuntaba a un gasto que ya había ocurrido y no se repite. Medir primero **dónde**
+   está el gasto evitó optimizar la parte que costaba centavos.
+
+---
+
 ## Un comentario del código puede tener razón y el dato contradecirlo, sin que nada falle (2026-07-29 · autoría de v2)
 
 **Qué pasó.** `lib/db/taxonomy.ts:157` dice, desde CATALOGO, que el tag `abierto-ahora` *"se

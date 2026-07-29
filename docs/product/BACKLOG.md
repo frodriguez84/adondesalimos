@@ -42,6 +42,19 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **El tablero de costos de `/admin` subestima el gasto del chat: no cuenta los tokens de
+      caché** (hallazgo 2026-07-29, a raíz del mail de Anthropic sobre cache hit rate). La API
+      reporta `input_tokens` como el remanente **no** cacheado — el total de entrada es
+      `input + cache_read + cache_creation` — y `chat_messages` solo persiste `tokens_in`/
+      `tokens_out`. Como los reads se cobran a 0,1×, el costo mostrado en `/admin` queda por
+      **debajo** del real. El log por llamada ya quedó arreglado (`logChatCall` ahora pasa
+      `cacheReadTokens` a `calcularCostoUsd`), pero el tablero lee de la base y ahí el dato no
+      existe. **Fix: dos columnas nuevas en `chat_messages`** (`cache_read_tokens`,
+      `cache_creation_tokens`) + escribirlas en `lib/ai/chat.ts` (que ya las tiene a mano, línea
+      122) + pasarlas en `lib/admin/costos.ts`. Es aditivo, pero es **migración sobre una tabla
+      con datos reales** → correr `npm run backup:db` antes. Las filas viejas quedan en `null`,
+      que `calcularCostoUsd` ya trata como 0.
+
 - [x] **💵 /admin — sugeridor de precio premium según el dólar (idea Fer, 2026-07-26).**
       → **Implementado como parte del mini-spec `COSTOS_ADMIN` ✅ 2026-07-26** (decisiones
       8-10 del spec): cotización oficial cacheada + regla de piso + banner solo-sugerencia.

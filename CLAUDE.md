@@ -142,6 +142,17 @@ regla. `operating_status` hoy no filtra nada (Overture lo entrega NULL en todo A
 por lugar y día. **Agregado puro**: sin `user_id`, sin cookies, sin IP. Es el histórico que
 vende el B2B (spec 7) y no se puede reconstruir después.
 
+### Prompt caching de Anthropic — el mínimo es una trampa silenciosa
+Los dos prompts que se repiten entre llamadas se cachean con `cache_control`: el del chat
+(`lib/ai/prompts.ts`, 8.776 tokens de prefijo) y el del sugeridor de curaduría
+(`lib/curation/sugeridor.ts`, **1.260**). **Por debajo del mínimo cacheable el caching no cachea y
+NO avisa** (`cache_creation_input_tokens: 0`, sin error). El mínimo **depende del modelo**: Sonnet 5
+= 1.024 · Haiku 4.5 = 4.096. Consecuencia concreta: **bajar `ai.curation_model` a Haiku apagaría el
+caching del sugeridor en silencio** (ese texto le da 958 tokens, ni cerca de 4.096). Si recortás un
+prompt o cambiás de modelo, re-medí con `count_tokens` (es gratis). Y `input_tokens` es el remanente
+**no** cacheado: todo costo se calcula con `calcularCostoUsd` pasándole también los tokens de caché
+(read 0,1× · write 1,25×) — omitirlos **subestima**. Ver `docs/operations/LECCIONES_APRENDIDAS.md`.
+
 ### Modelo del chat IA (CHAT_IA)
 El default vigente es **Sonnet 5** (`claude-sonnet-5`), no Haiku — decidido con el A/B del
 2026-07-26: Haiku narraba el retry de la tool y deslizaba la voz al reintentar tras una búsqueda

@@ -10,9 +10,15 @@ import type { ChatModo } from '@/lib/db/schema'
  * `buscar_lugares`. Un slug inexistente no rompe: `filtrosDeTags` ya lo ignora.
  *
  * Es contenido estable ⇒ se cachea (decisión 12). El bloque base (guía + taxonomía
- * + zonas) supera holgado el mínimo de 4096 tokens que exige Haiku 4.5, y lleva el
- * `cache_control`; la directiva de modo (shortlist) va **después** del breakpoint,
- * así el prefijo grande se cachea igual en los dos modos.
+ * + zonas) lleva el `cache_control`; la directiva de modo (shortlist) va **después**
+ * del breakpoint, así el prefijo grande se cachea igual en los dos modos.
+ *
+ * **Medido (2026-07-29, `count_tokens`):** el prefijo cacheable son **8.776 tokens**
+ * (system 8.020 + la tool `buscar_lugares`) con Sonnet 5, el default vigente, cuyo
+ * mínimo cacheable es **1.024** — 8× de margen. También supera los 4.096 de Haiku
+ * 4.5, que era el default cuando se escribió esto. Por debajo del mínimo el caching
+ * **falla en silencio** (`cache_creation_input_tokens: 0`, sin error), así que si
+ * algún día se recorta este prompt a la mitad, volver a medir.
  *
  * El copy de cara al usuario va en **argentino rioplatense** (voseo). El texto de
  * este prompt es la instrucción interna, no lo que ve el usuario.

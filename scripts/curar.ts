@@ -46,6 +46,10 @@ async function main() {
   let sugerenciasAutoAplicadas = 0
   let tokensIn = 0
   let tokensOut = 0
+  // El system se cachea (ver `sugerirTags`): estos NO están en `tokensIn` y hay
+  // que contarlos aparte, o el costo reportado sale más bajo que el real.
+  let cacheReadTokens = 0
+  let cacheCreationTokens = 0
 
   for (const slug of zonasArg) {
     const zoneId = await zonaIdPorSlug(slug)
@@ -61,14 +65,17 @@ async function main() {
       const evidencia = await recolectarEvidencia(lugar)
       if (evidencia.length === 0) lugaresSinEvidencia++
 
-      const { sugerencias, tokensIn: ti, tokensOut: to } = await sugerirTags(
-        lugar,
-        evidencia,
-        vocab,
-        model,
-      )
+      const {
+        sugerencias,
+        tokensIn: ti,
+        tokensOut: to,
+        cacheReadTokens: cr,
+        cacheCreationTokens: cc,
+      } = await sugerirTags(lugar, evidencia, vocab, model)
       tokensIn += ti
       tokensOut += to
+      cacheReadTokens += cr
+      cacheCreationTokens += cc
       sugerenciasGeneradas += sugerencias.length
 
       const { nuevas, autoAplicadas } = await guardarSugerencias(lugar.id, sugerencias, model)
@@ -83,7 +90,15 @@ async function main() {
     }
   }
 
-  const costoUsd = calcularCostoUsd(model, tokensIn, tokensOut)
+  const costoUsd = calcularCostoUsd(model, tokensIn, tokensOut, cacheReadTokens, cacheCreationTokens)
+  // Lo que habría costado el mismo trabajo sin cachear el system: todo el prefijo
+  // a precio pleno. Es el número que justifica el `cache_control` — y el canario
+  // de que el caching dejó de funcionar (si el ahorro es 0, no cacheó nada).
+  const costoSinCache = calcularCostoUsd(
+    model,
+    tokensIn + cacheReadTokens + cacheCreationTokens,
+    tokensOut,
+  )
 
   console.log('\n─── Reporte ────────────────────────────────')
   console.log(`Lugares procesados: ${lugaresProcesados}`)
@@ -94,7 +109,16 @@ async function main() {
   console.log(`  · auto-aplicadas a place_tags (con evidencia → accepted): ${sugerenciasAutoAplicadas}`)
   console.log(`  · quedaron pending (sin evidencia): ${sugerenciasNuevas - sugerenciasAutoAplicadas}`)
   console.log(`Tokens: in ${tokensIn} · out ${tokensOut}`)
+  console.log(`  · caché: ${cacheReadTokens} leídos (0,1×) · ${cacheCreationTokens} escritos (1,25×)`)
   console.log(`Costo estimado: US$${costoUsd.toFixed(4)} (modelo ${model})`)
+  if (cacheReadTokens === 0 && lugaresProcesados > 1) {
+    console.log('  ⚠ CERO lecturas de caché en toda la corrida: el system NO se está cacheando.')
+    console.log('    Revisá el mínimo cacheable del modelo (ver el comentario en sugeridor.ts).')
+  } else {
+    const ahorro = costoSinCache - costoUsd
+    const pct = costoSinCache > 0 ? (ahorro / costoSinCache) * 100 : 0
+    console.log(`  · sin cachear el system habría salido US$${costoSinCache.toFixed(4)} → ahorro ${pct.toFixed(0)}%`)
+  }
   console.log('────────────────────────────────────────────')
 }
 
