@@ -905,8 +905,65 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de tuning del Chat IA + triaje de v2 (2026-07-27). Esta sección es lo
+_Actualizado en la sesión de autoría de los specs de v2 (2026-07-29). Esta sección es lo
 primero que lee la sesión siguiente._
+
+### ✍️ Sesión de autoría — (2026-07-29) · LOS 4 SPECS DE v2 ESCRITOS · CERO CÓDIGO
+
+Sesión de autoría pura (el prompt pedía Fable; corrió en **Opus** porque Fer fijó el modelo por
+defecto — sin consecuencia práctica, pero queda anotado). Se escribieron los **4 specs de v2** en
+`docs/specs/planned/`, en el orden de momentum decidido el 2026-07-27, más el registro en el
+manifiesto y en el BACKLOG (donde ahora vive la **cola de v2** explícita).
+
+**Lo primero que hay que saber: no hay una línea de código nueva.** Los cuatro son `planned/`.
+
+**Las tres decisiones de fondo, resueltas por Fer con la evidencia a la vista** (se midió el
+Postgres de dev antes de preguntar, no se conjeturó):
+
+1. **Abierto ahora → F1 franja + F2 real gateada.** El concepto es **computado** (hora +
+   horarios), y las tres fuentes posibles se midieron: el tag curado `abierto-ahora` está en **20
+   lugares** y **miente por construcción** (booleano estático para algo que depende de la hora);
+   los **horarios propios de dueño** —la única fuente exacta, gratis y persistible— están en **1**
+   lugar; **Google en vivo** sale **~US$0,64 por página de 20** y no es cacheable, así que rompía
+   la disciplina de costos de FICHA por dos lados. Decisión: **F1** = chip **«Para ahora»** que
+   filtra por la franja horaria actual (TZ AR) usando los tags de Momento que la curaduría sí
+   llenó (`cena` 670 · `almuerzo` 605 · `merienda` 251 · `desayuno` 272 · madrugada 176), con el
+   **copy como parte del contrato**: promete "a esta hora", nunca "abierto". **F2** = abierto real
+   con `estaAbierto()`, escrita entera pero **gateada en ≥ 50 lugares publicados con horarios
+   cargados**. Y el spec **retira el tag `abierto-ahora`** (`active=false`, reversible, sin borrar
+   las 20 filas). Hallazgo lateral: no se puede pedir "franja **Y** abre-domingos" porque los dos
+   tags son de la faceta Momento y el motor hace **OR dentro de faceta** — es la misma trampa
+   AND/OR que causó el sobre-filtrado del chat.
+2. **Sugerir en una votación → puede cualquiera con el link.** Techo duro de **8** opciones (el
+   creador sigue poniendo 2-5 al crear), **2 sugerencias por dispositivo**, el creador puede quitar
+   sugerencias (no sus originales) y **apagar** las sugerencias de su votación
+   (`polls.allow_suggestions`). **Nunca texto libre**: solo un `place_id` publicado validado
+   server-side. Se descartó la moderación previa porque mata el momentum (si el creador no mira el
+   celular, la sugerencia muere). **Este spec revierte la decisión 2 de VOTACION** — al cerrarlo hay
+   que anotar la reversión en `done/VOTACION.md` para que nadie lea el spec cerrado como vigente.
+3. **Rotación de chips → `app_settings` (`chips.schedule`)**, no una tabla nueva: el dueño único de
+   la config de runtime ya existe, cero migración, se cambia con un UPDATE. Criterio duro del spec:
+   un setting mal tipeado **no puede romper la home** (degrada al orden por `sort`).
+
+**FAVORITOS** (la apuesta grande) no tenía decisión abierta y salió con los patrones del proyecto:
+dos tablas (`place_lists` + `place_list_items`), gate **server-side desde el día 1**, bajar de plan
+**oculta y no borra** (mismo invariante que el contenido pago del dueño), el botón entra a
+`PlaceCard` como **slot** para que la card siga siendo presentación pura, página propia
+`/mis-lugares` (coherente con `/mis-votaciones`), y la métrica agregada **`saves` se empieza a
+contar ya** porque sacar un favorito borra la fila y ese histórico no se reconstruye.
+
+**Confirmado que los alias POIs/CABA NO necesitan spec** — es tarea de datos aditiva a
+`lib/zones/canon.ts` § ALIASES, y sigue siendo el **quick-win #1** de implementación.
+
+**⏭️ Próximo paso:** implementar. El orden es el de la cola de v2 del BACKLOG: (1) alias POIs/CABA
+(sin spec, sesión Opus cuando se quiera) · (2) **ABIERTO_AHORA F1** (mini-spec, una sesión: un
+módulo puro nuevo, un cambio chico en `lib/search/chips.ts`, un UPDATE y dos tests) · (3) FAVORITOS
+· (4) SUGERIR_EN_VOTACION · (5) CHIPS_ROTACION. Al arrancar cualquiera de los cuatro: **moverlo de
+`planned/` a `active/`** si va a tomar más de una sesión (regla del ciclo de vida) y actualizar el
+manifiesto. **No hay nada más que decidir de producto** para arrancar.
+
+**Pendiente de la sesión:** el commit (solo `docs/` → prefijo `spec(...)`), que espera el OK de Fer.
+No corresponde typecheck/tests/build: no se tocó código.
 
 ### 🎨 Sesión Opus — (2026-07-27) · TUNING CHAT IA CERRADO + TRIAJE DE LA PRÓXIMA TANDA (v2)
 

@@ -9,6 +9,21 @@ cambiar" se implementó, se dice dónde (commit, archivo). No es un diario largo
 
 ---
 
+## 2026-07-29 · Autoría de los 4 specs de v2 (Opus, sesión pedida para Fable)
+
+- **Qué salió bien:** medir la base **antes** de preguntar cambió la decisión central. "Abierto
+  ahora" parecía un mini-spec de un chip; los conteos (tag curado en 20 lugares · horarios de dueño
+  en **1** · Google ~US$0,64 por página) mostraron que el tag *miente por construcción* y
+  convirtieron la pregunta en una decisión de producto con números. Sin esa medición el spec habría
+  salido plausible y equivocado.
+- **Qué frenó:** presenté 3 decisiones como un menú de opciones equivalentes, sin marcar cuál
+  recomendaba — Fer canceló el `AskUserQuestion` y lo pidió explícito. **Lección:** el criterio lo
+  aporto yo, el sí/no lo aporta él (mismo reparto que la regla de fan-out); un menú neutro le
+  devuelve el trabajo. Guardado en memoria (`recomendar-siempre-en-las-opciones`).
+- **Qué cambiar:** que los specs de `planned/` **citen la medición y su fecha** (como quedó en
+  ABIERTO_AHORA § Evidencia medida). Un número sin fecha envejece mal y el gate de F2 depende de
+  volver a medirlo. Candidato a regla si se repite en el próximo spec con gate.
+
 ## 2026-07-27 · Tuning Chat IA + triaje v2 + redes de seguridad (Opus)
 
 - **Qué salió bien:** diagnóstico con evidencia, no conjetura — un banco de eval (reusa

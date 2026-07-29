@@ -23,6 +23,23 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [x] **Monetización (MercadoPago)** — mucho reuso de StressPlan. **Enciende el premium que VOTACION dejó modelado** (`users.plan`) y el `owner_plan` de AUTH → spec: `docs/specs/done/MONETIZACION.md`. **Las 4 fases cerradas ✅ 2026-07-25** (F1 instrumentación + precios · F2 cobro MP · F3 destaque · F4 desglose). [Resumen](../archive/SPECS_ARCHIVO.md#monetizacion)
 - [x] **Chat IA "armá tu salida"** — chat premium (`/chat`) que traduce lenguaje natural a lugares reales del catálogo; **enciende el botón "la IA arma la shortlist" de VOTACION**. Tool-use con doble candado de grounding, cupo mensual + tope global que degrada, modelo en `app_settings` → spec: `docs/specs/done/CHAT_IA.md`. **Las 3 fases cerradas ✅ 2026-07-26** (F1 motor/cupo/endpoint · F2 UI `/chat` · F3 modo shortlist en VOTACION). [Resumen](../archive/SPECS_ARCHIVO.md#chat_ia)
 
+### Cola de v2 — post-cierre de los 9 specs numerados
+
+Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **escribieron** el
+2026-07-29 (sesión de autoría); ninguno tiene código todavía. El detalle de cada uno está en
+§ Mejoras futuras, con link al spec.
+
+- [ ] **1 · Alias POIs + CABA sistemáticos** — **no es spec**, tarea de datos (`lib/zones/canon.ts`
+      § ALIASES). El quick-win: puede arrancar cuando se quiera.
+- [ ] **2 · Abierto ahora** → spec: `docs/specs/planned/ABIERTO_AHORA.md` — **el próximo a
+      implementar de los que tienen spec.** F1 sola (mini-spec, una sesión); F2 gateada.
+- [ ] **3 · Favoritos / listas** → spec: `docs/specs/planned/FAVORITOS.md` — la apuesta grande
+      (retención + gancho premium sin costo marginal). 2 fases.
+- [ ] **4 · Sugerir lugar en una votación** → spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`
+      — extiende VOTACION y revierte su decisión 2.
+- [ ] **5 · Rotación de chips por día/hora** → spec: `docs/specs/planned/CHIPS_ROTACION.md`
+      — mini-spec, una sesión corta.
+
 ## Mejoras futuras (fuera de v1)
 
 - [x] **💵 /admin — sugeridor de precio premium según el dólar (idea Fer, 2026-07-26).**
@@ -199,13 +216,34 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 - [ ] **Filtro "Abierto ahora"** — el tag existe en la taxonomía pero no se muestra en v1:
       el catálogo no tiene horarios (Overture no trae; Google no deja cachear). Se activa
       cuando haya masa de horarios propios de dueños. Decidido en el spec BUSQUEDA (2026-07-19).
+      → **spec: `docs/specs/planned/ABIERTO_AHORA.md`** (escrito 2026-07-29). Scope decidido por
+      Fer: **F1 = chip «Para ahora»** por franja horaria sobre los tags de Momento curados (~670
+      lugares, costo $0, no promete "abierto") + **retirar el tag `abierto-ahora`**, que la
+      curaduría le puso a 20 lugares y **miente por construcción** (estático para un concepto que
+      depende de la hora). **F2 = abierto real** desde horarios de dueño, escrita y **gateada** en
+      ≥ 50 publicados con horarios cargados (hoy: **1**). Google en vivo descartado: ~US$0,64 por
+      página de 20, no cacheable.
 - [ ] **Favoritos / listas guardadas** — free: 1 lista ("Mis lugares") · premium: listas
       múltiples con nombre. Decidido fuera de v1 el 2026-07-19 (tanda 5) para no agrandar
       el alcance. Ver `docs/product/IDEAS.md` § Monetización.
+      → **spec: `docs/specs/planned/FAVORITOS.md`** (escrito 2026-07-29). Dos tablas nuevas, gate
+      server-side desde el día 1, bajar de plan **oculta y no borra**, botón como *slot* en
+      `PlaceCard` (que sigue siendo presentación pura), página `/mis-lugares`, y la métrica
+      agregada `saves` se **empieza a contar ya** porque el unsave borra la fila y el histórico no
+      se reconstruye. 2 fases.
 - [ ] **Rotación de los chips de Ocasión de la home** por día/hora (martes 18h → "After
       office"). En v1 son fijos. Requiere datos de uso reales.
+      → **spec: `docs/specs/planned/CHIPS_ROTACION.md`** (escrito 2026-07-29). Reglas en
+      `app_settings` (`chips.schedule`) — cero migración, se cambian con un UPDATE; degradan al
+      orden por `sort` si el setting es inválido (la home no puede romperse por un UPDATE mal
+      tipeado). Arranca con 2 reglas de sentido común; afinarlas con datos de uso es el v2.
 - [ ] **Sugerir lugar en una votación** (que los votantes agreguen opciones). En v1 solo
       el creador arma la cancha.
+      → **spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`** (escrito 2026-07-29). **Revierte la
+      decisión 2 de VOTACION** (hay que anotar la reversión en `done/VOTACION.md` al cerrarlo).
+      Decidido por Fer: puede sugerir **cualquiera con el link**, techo de **8** opciones, **2** por
+      dispositivo, el creador puede quitar sugerencias (no sus originales) y apagar las sugerencias
+      de su votación. **Nunca texto libre**: solo `place_id` publicado, validado server-side.
 - [ ] **Descuento escalonado multi-local en el plan de dueño (B2B)** — base por lugar
       (2do local -X%, 3ro -Y%, etc.) para el dueño de varios locales. Puerta abierta el
       2026-07-24; el modelo por-lugar del spec 7 lo permite sumar después sin romperse. Ver
@@ -429,6 +467,10 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
       (batch limpieza, 2026-07-27). Eje distinto de los barrios: son puntos de referencia que la
       gente tipea muchísimo y hay cientos. Merece una pasada propia y deliberada (no meter un puñado
       suelto). Mapear cada hito → zona que lo contiene, mismo criterio data-backed que los barrios.
+      **⚠️ NO necesita spec** (confirmado en la sesión de autoría de v2, 2026-07-29): es **tarea de
+      datos** aditiva a `lib/zones/canon.ts` § ALIASES, sin decisiones de diseño que arbitrar. Es el
+      **quick-win #1 de implementación** de v2 y puede arrancar en cualquier sesión Opus. Va junto
+      con el ítem de CABA sistemáticos de abajo.
 - [ ] **Alias de CABA sistemáticos desde el GeoJSON oficial de BA Data** (idea de Fer, 2026-07-27).
       CABA publica los límites de sus 48 barrios como GeoJSON abierto
       (`data.buenosaires.gob.ar/dataset/barrios`, WGS84). Cruzándolo con las 46 zonas vía **turf**
@@ -502,6 +544,17 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 
 ## Hecho
 
+- [x] **Los 4 specs de v2 escritos** (2026-07-29, sesión de autoría): `ABIERTO_AHORA`,
+      `FAVORITOS`, `SUGERIR_EN_VOTACION` y `CHIPS_ROTACION`, todos en `docs/specs/planned/` y en el
+      manifiesto. **Solo autoría — cero código.** Las tres decisiones de fondo las resolvió Fer con
+      la evidencia medida a la vista: (1) *Abierto ahora* = **franja horaria** sobre tags curados
+      (F1, ~670 lugares) y **abierto real gateado** (F2), porque la fuente exacta tiene **1** lugar
+      cargado y Google en vivo sale ~US$0,64 por página; (2) en una votación puede sugerir
+      **cualquiera con el link** (techo 8, 2 por dispositivo, el creador moderá); (3) la rotación de
+      chips vive en **`app_settings`**, no en una tabla nueva. Hallazgo con evidencia: el tag
+      `abierto-ahora` que la curaduría le puso a **20 lugares** *miente por construcción* (estático
+      para un concepto que depende de la hora) → el spec lo retira con `active=false`. Confirmado
+      que los **alias POIs/CABA no necesitan spec** (tarea de datos). Cola de v2 agregada arriba.
 - [x] **Batch de limpieza post-CURADURIA — 3 fixes chicos** (2026-07-27, sesión Opus): (1) **test
       de cupo** — dejó de borrar la fila real de `ai_api_usage` del mes en curso; ahora snapshot en
       `beforeAll` + restore en `afterAll` (verificado con centinela 99). (2) **2 chips que ANDeaban
