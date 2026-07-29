@@ -20,21 +20,35 @@ case "$input" in
   *) exit 0 ;;             # cualquier otro comando -> no-op
 esac
 
-# 2) Hay codigo staged? Si no, no gate (docs-only / otros).
+# 2) Toca migraciones? AVISO, no bloqueo: si el backup de la base esta viejo, decirlo.
+#    Una migracion nueva es la senal mas temprana de que alguien va a correr db:migrate, y
+#    la curaduria (~3.967 tags admin) NO vive en git ni en el seed: perderla cuesta ~US$17
+#    de re-corrida o un restore. El commit del .sql no es el momento destructivo, pero es
+#    el ultimo momento barato para acordarse. Por eso avisa y sigue -- bloquear un commit
+#    por un backup viejo seria una trampa (y este hook no se puede saltear con --no-verify).
+migraciones="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '^drizzle/' || true)"
+if [ -n "$migraciones" ]; then
+  if ! aviso="$(bash scripts/backup-check.sh 2>&1)"; then
+    echo "AVISO (no bloquea): este commit toca drizzle/ y el backup de la base no esta fresco." >&2
+    echo "$aviso" >&2
+  fi
+fi
+
+# 3) Hay codigo staged? Si no, no gate (docs-only / otros).
 #    \.(ts|tsx)$ = patron de archivos de codigo del stack (ej. '\.(ts|tsx)$', '\.py$').
 staged="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '\.(ts|tsx)$' || true)"
 [ -z "$staged" ] && exit 0
 
 echo "Eval-gate: hay codigo staged -> corriendo typecheck + tests..." >&2
 
-# 3) Typecheck
+# 4) Typecheck
 if ! tc_out="$(npx tsc --noEmit 2>&1)"; then
   echo "FALLO typecheck -- commit bloqueado. Ultimas lineas:" >&2
   echo "$tc_out" | tail -30 >&2
   exit 2
 fi
 
-# 4) Tests
+# 5) Tests
 #    OJO dia 0: si todavia NO hay suite, muchos runners salen con codigo != 0 y bloquean
 #    TODO commit. --passWithNoTests = flag del runner para pasar sin tests (ej. vitest
 #    --passWithNoTests). SACAR este flag cuando el proyecto tenga suite real.

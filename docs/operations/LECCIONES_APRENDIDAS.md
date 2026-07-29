@@ -5,6 +5,43 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un comentario del código puede tener razón y el dato contradecirlo, sin que nada falle (2026-07-29 · autoría de v2)
+
+**Qué pasó.** `lib/db/taxonomy.ts:157` dice, desde CATALOGO, que el tag `abierto-ahora` *"se
+siembra porque es parte de la taxonomía decidida, pero **NO** puede evaluarse contra
+`place_tags`"*. Dos días antes, la corrida autónoma de CURADURIA F3 le asignó ese tag a **20
+lugares publicados** (`source='admin'`). El comentario tenía razón —el tag es un concepto
+computado, hora + horarios— y el dato lo contradijo. **Se descubrió de casualidad**, al medir la
+base para escribir el spec de "Abierto ahora".
+
+**Causa raíz.** El LLM de curaduría recibe la lista de tags de una faceta y decide con la
+evidencia del lugar. `abierto-ahora` estaba en la lista porque está sembrado y `active`: nada en
+el dato le decía que ese tag no es asignable. La regla vivía en un **comentario para humanos**,
+no en un lugar que el código o el prompt pudieran hacer cumplir.
+
+**Por qué no lo cazó nada.** Typecheck verde (no hay tipos involucrados). 468 tests verdes
+(ninguno afirma qué tags puede asignar la curaduría). El QA de CURADURIA verificó el flujo, la
+evidencia y la cobertura de chips — no que cada tag asignado fuera *asignable*. Y los checks de
+`/consistency-check` cruzaban docs contra **código y git**, nunca contra los **datos**.
+
+**Qué hacer distinto:**
+
+1. **Una regla que el código no puede hacer cumplir necesita un check contra los datos, no un
+   comentario.** Se agregó el **check (f)** a `/consistency-check`: cruza los docs y las reglas
+   contra el runtime (`app_settings`, tags activos en 0, tags retirados con filas, tags que el
+   código declara no evaluables **pero tienen filas**, canario de la curaduría, gates de specs ya
+   cumplidos). Es read-only, solo `SELECT`.
+2. **Ojo con las reglas que viven en `app_settings` y en la data.** Son la decisión correcta
+   (cambiar sin deploy) con un costo real: **el doc y la verdad se separan sin que nadie toque un
+   archivo**. Es el mismo patrón del A/B del chat, donde el BACKLOG decía "revertido a Haiku" y
+   el runtime ya corría Sonnet 5.
+3. **Si un spec tiene un gate numérico, la consulta que lo evalúa va escrita en el spec.** Un
+   gate que ya se cumplió y nadie advirtió es trabajo desbloqueado invisible (check f11).
+4. **Al darle a un LLM una lista de opciones, sacar de la lista lo que no debe elegir.** No
+   alcanza con documentar aparte por qué una opción no va: si está en la lista, es elegible.
+
+---
+
 ## Un driver puede tragarse un campo entero sin dar un solo error (2026-07-20 · CATALOGO)
 
 **Qué pasó.** El import de Overture corrió limpio: 26.057 lugares, cero errores, reporte

@@ -337,7 +337,7 @@ un fix puntual. Ante la duda, si el trabajo es "lo mismo × N ítems independien
 
 ## Redes de seguridad — mantenimiento (correr, no olvidar)
 
-Dos activos manuales (creados 2026-07-27). Toda sesión debe saber que existen y cuándo usarlos:
+Activos de seguridad del proyecto. Toda sesión debe saber que existen y cuándo usarlos:
 
 - **Backup de la base** — `scripts/backup-db.sh` (`npm run backup:db`, requiere Git Bash). Hace
   `pg_dump` del Postgres de dev a `backups/` (gitignoreado — es data). **Correlo ANTES de
@@ -345,6 +345,21 @@ Dos activos manuales (creados 2026-07-27). Toda sesión debe saber que existen y
   volumen de Docker, cambiar de máquina) — la curaduría (~3.967 tags) NO está en git ni en el
   seed (ver § Notas importantes). Restore: `gunzip -c backups/<archivo>.sql.gz | docker exec -i
   adondesalimos_db psql -U adondesalimos -d adondesalimos`.
+- **Deuda de backup, visible** — `scripts/backup-check.sh` (`npm run backup:check`, `[días]`
+  opcional, default 7). **No** hace el dump y no toca la base: mira `backups/` y avisa si el
+  último es viejo o no existe (exit 1 + el comando para arreglarlo). Existe porque el backup es
+  manual y "me olvidé de correrlo" y "perdí la curaduría" son el mismo evento con dos meses de
+  distancia. Lo llaman solos: el **hook pre-commit** cuando el commit toca `drizzle/` (una
+  migración nueva es la señal más temprana de que alguien va a correr `db:migrate`) — **avisa, no
+  bloquea** — y **`/consistency-check`** (check g).
+- **Auditoría de coherencia docs ↔ código ↔ DATOS** — `/consistency-check` (skill local).
+  Además de los cruces contra el código, su **check (f)** cruza los docs contra el **runtime**
+  (`app_settings`, tags, chips, curaduría) con `SELECT` únicamente. Cubre el drift que no se ve en
+  ningún archivo: el modelo que realmente corre, precios y topes, tags retirados con filas, el
+  **canario de la curaduría** (si `place_tags source='admin'` **bajó** de ~3.967 es posible pérdida
+  de datos → backup ya) y los **gates numéricos de specs que ya se cumplieron** sin que nadie se
+  entere. Correlo después de una corrida de curaduría, un cambio en `app_settings` o al retomar el
+  proyecto tras un parate.
 - **Termómetro de calidad de búsqueda del chat** — `scripts/eval-chat.ts` (`npm run eval:chat`).
   Corre casos reales contra prompt+tool+motor+Sonnet, imprime los tool-inputs y **chequea que no
   vuelva la trampa de `precio` ni el sobre-filtrado de escape-room**. **Cuesta tokens reales

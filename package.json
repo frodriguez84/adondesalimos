@@ -18,7 +18,8 @@
     "zones:assign": "tsx scripts/zones/assign.ts",
     "curar": "tsx scripts/curar.ts",
     "eval:chat": "tsx scripts/eval-chat.ts",
-    "backup:db": "bash scripts/backup-db.sh"
+    "backup:db": "bash scripts/backup-db.sh",
+    "backup:check": "bash scripts/backup-check.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

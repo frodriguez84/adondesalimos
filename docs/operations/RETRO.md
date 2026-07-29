@@ -20,9 +20,16 @@ cambiar" se implementó, se dice dónde (commit, archivo). No es un diario largo
   recomendaba — Fer canceló el `AskUserQuestion` y lo pidió explícito. **Lección:** el criterio lo
   aporto yo, el sí/no lo aporta él (mismo reparto que la regla de fan-out); un menú neutro le
   devuelve el trabajo. Guardado en memoria (`recomendar-siempre-en-las-opciones`).
-- **Qué cambiar:** que los specs de `planned/` **citen la medición y su fecha** (como quedó en
-  ABIERTO_AHORA § Evidencia medida). Un número sin fecha envejece mal y el gate de F2 depende de
-  volver a medirlo. Candidato a regla si se repite en el próximo spec con gate.
+- **Qué cambiar (hecho esta sesión):** las dos redes que faltaban, contra el drift **docs vs
+  DATOS** — que es el que ya se comió dos incidentes. (1) `/consistency-check` gana el **check
+  (f)**: cruza docs/reglas contra el runtime (`app_settings`, tags activos en 0, tags retirados con
+  filas, tags que el código declara no evaluables **pero tienen filas**, **canario de la curaduría**
+  si `source='admin'` bajó de 3.967, y **gates de specs ya cumplidos**), read-only, más el check (g)
+  de deuda de backup. (2) `scripts/backup-check.sh` + `npm run backup:check`, llamado solo por el
+  hook pre-commit cuando el commit toca `drizzle/` — **avisa, no bloquea**. Verificado en las tres
+  ramas del script y del hook. Lección en `LECCIONES_APRENDIDAS.md`. Pendiente como convención (no
+  como regla todavía): que los specs con gate numérico **citen la medición con fecha y la consulta**
+  — quedó así en ABIERTO_AHORA (§ Evidencia medida + decisión 11) y el check f11 ya lo aprovecha.
 
 ## 2026-07-27 · Tuning Chat IA + triaje v2 + redes de seguridad (Opus)
 
