@@ -7,6 +7,10 @@ loop que cierra las encuestas de fin de sesión (antes se perdían con el chat).
 **Formato:** una entrada por sesión, **más reciente arriba**. Tres bullets, corto. Si un "qué
 cambiar" se implementó, se dice dónde (commit, archivo). No es un diario largo — son 3 líneas.
 
+**De dónde sale el contenido:** las 3 preguntas de cierre de `CLAUDE.md` § *Continuidad entre
+sesiones*. **Una sesión sin hallazgos se escribe igual, diciendo que no hubo** — es lo normal, y
+llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
+
 ---
 
 ## 2026-07-30 · ABIERTO_AHORA F1 — el chip «Para ahora» (Opus)
