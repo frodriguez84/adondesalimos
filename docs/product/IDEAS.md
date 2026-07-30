@@ -905,8 +905,42 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de autoría de los specs de v2 (2026-07-29). Esta sección es lo
-primero que lee la sesión siguiente._
+_Actualizado en la sesión de implementación de ABIERTO_AHORA F1 (2026-07-30). Esta sección es lo
+primero que lee la sesión siguiente; **más reciente arriba**._
+
+### 🛠️ Sesión de implementación — (2026-07-30) · ABIERTO_AHORA F1 ✅ · v2 ARRANCÓ
+
+Primer código de v2. Se implementó la **F1 del spec ABIERTO_AHORA** (el #2 de la cola), tal como
+estaba escrita: `lib/search/ahora.ts` como dueño único de "hora → tags de Momento" (las 5 franjas
+de la decisión 3, reusando `partesEnAR`) y `getOccasionChips(now)` que antepone el chip **«Para
+ahora»** a la home cuando su franja tiene lugares. **La F2 NO se tocó** — sigue gateada en ≥ 50
+lugares publicados con horarios propios y hoy hay **1**.
+
+**Lo que se confirmó de la forma elegida al escribir el spec:** que el chip entre "con la forma de
+un chip" alcanzó para no tocar **ni el motor, ni los params, ni `occasion-chips.tsx`** (decisión 5).
+La URL sigue siendo el estado: tocarlo escribe `?t=cena`, y un link compartido significa lo mismo
+mañana. Los conteos por franja no se movieron desde la medición del spec (670/605/272/251/176), así
+que ninguna franja nació apagada.
+
+**Las dos decisiones chicas que aparecieron implementando** (ninguna estaba en el spec):
+1. **La home pasó a 1 + 4 chips**, no a 4. El chip de franja **no descuenta** de los 4 de Ocasión
+   (decisión 6 de BUSQUEDA); lo contrario habría sacado "Un café" de la home a ciertas horas — una
+   regresión silenciosa a cambio de nada. `CHIPS_EN_HOME` ahora se lee como "4 **de Ocasión**".
+2. **El rótulo es una constante del módulo** (`NOMBRE_AHORA`), no un campo por franja: es el mismo
+   en las cinco, porque la decisión 2 dice que el chip se llama «Para ahora» y nunca "abierto".
+
+**El retiro de `abierto-ahora` se hizo y es dato, no código:** `active = false` (con `backup:db`
+antes), sus **20** filas de `place_tags` intactas, el sheet de Momento pasó a 8 tags, la ficha ya no
+lo lista, `?t=abierto-ahora` sigue funcionando y —bonus no buscado— el sugeridor de curaduría dejó
+de poder sugerirlo (filtra `active`), que era el hallazgo de `LECCIONES_APRENDIDAS`. **Ojo:** un
+reset de la base lo pierde en silencio, igual que la curaduría; re-aplicar es el mismo UPDATE.
+
+**⏭️ Próximo paso:** cerrar esta tanda (build con el server parado + QA en vivo de AHORA-01..06, que
+necesita falsear la hora del sistema porque se computa en el server) y seguir la cola de v2: (1)
+alias POIs/CABA (sin spec) · (3) **FAVORITOS** —la apuesta grande, 2 fases— · (4)
+SUGERIR_EN_VOTACION · (5) CHIPS_ROTACION. Nada de producto pendiente de decidir para arrancar
+cualquiera. **Preguntas abiertas: ninguna** — la única decisión diferida es la de la F2 (exacto puro
+vs híbrido, decisión 13), que se toma cuando abra el gate y no antes.
 
 ### ✍️ Sesión de autoría — (2026-07-29) · LOS 4 SPECS DE v2 ESCRITOS · CERO CÓDIGO
 

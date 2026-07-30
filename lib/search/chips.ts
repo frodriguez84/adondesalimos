@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { chipTags, occasionChips, tags } from '@/lib/db/schema'
+import { franjaActual, NOMBRE_AHORA, SLUG_AHORA } from './ahora'
 import { EMPTY_SEARCH } from './params'
 import { countPlaces } from './query'
 
@@ -34,16 +35,26 @@ export type OccasionChipView = {
 }
 
 export type OccasionChips = {
-  /** Los 4 de la home (decisión 6). Puede traer menos si no hay 4 con datos. */
+  /**
+   * Lo que se ve sin abrir "ver más": el chip «Para ahora» (si su franja tiene
+   * lugares) seguido de los 4 de Ocasión (decisión 6). Puede traer menos si no
+   * hay 4 con datos.
+   */
   home: OccasionChipView[]
   /** Los de "ver más". */
   resto: OccasionChipView[]
 }
 
-/** Cuántos chips entran en la home sin abrir "ver más" (decisión 6). */
+/** Cuántos chips **de Ocasión** entran en la home sin abrir "ver más" (decisión 6). */
 export const CHIPS_EN_HOME = 4
 
-export async function getOccasionChips(): Promise<OccasionChips> {
+/**
+ * `now` es un parámetro (y no `new Date()` adentro) para poder testear la franja
+ * con un `Date` fijo. La hora se computa acá, en el server —lo llama el server
+ * component de `/`— y el chip viaja como prop: el cliente no lee el reloj, así
+ * que no hay riesgo de divergencia de hidratación (ABIERTO_AHORA decisión 10).
+ */
+export async function getOccasionChips(now: Date = new Date()): Promise<OccasionChips> {
   const filas = await db
     .select({
       slug: occasionChips.slug,
@@ -79,6 +90,12 @@ export async function getOccasionChips(): Promise<OccasionChips> {
   // correlacionar por lugar. Además de rápido, esto elimina la posibilidad de
   // que el número del chip y lo que devuelve tocarlo diverjan: es literalmente
   // la misma función. Es el mismo razonamiento que llevó a `construirWhere`.
+  //
+  // El conteo del chip «Para ahora» arranca acá, junto con los demás, para no
+  // sumarle un round-trip en serie al render de la home.
+  const franja = franjaActual(now)
+  const contarAhora = countPlaces({ ...EMPTY_SEARCH, tags: franja.tags })
+
   const conConteo = await Promise.all(
     [...porSlug.values()].map(async (c) => ({
       ...c,
@@ -106,8 +123,26 @@ export async function getOccasionChips(): Promise<OccasionChips> {
     count,
   })
 
+  // El chip «Para ahora» (ABIERTO_AHORA F1) va **al frente de la home**, con la
+  // misma forma que cualquier chip: `OccasionChipsRow` ya renderiza `chip.tags`
+  // de forma genérica, así que tocarlo escribe `?t=cena` en la URL como el
+  // resto y no hace falta tocar ni el componente ni el motor (decisión 5).
+  //
+  // No sale de `occasion_chips`: sus tags **dependen de la hora** y `chip_tags`
+  // es estática. Y no descuenta de los 4 de la decisión 6 —queda 1 + 4— porque
+  // lo contrario sacaría un chip de Ocasión de la home a ciertas horas: una
+  // regresión silenciosa de BUSQUEDA a cambio de nada.
+  //
+  // Se oculta si su franja da 0, por la decisión 25 y con el mismo `countPlaces`
+  // que los demás (decisión 9): ofrecer un atajo que devuelve 0 es mentir.
+  const countAhora = await contarAhora
+  const chipAhora: OccasionChipView[] =
+    countAhora > 0
+      ? [{ slug: SLUG_AHORA, name: NOMBRE_AHORA, tags: franja.tags, count: countAhora }]
+      : []
+
   return {
-    home: home.map(limpiar),
+    home: [...chipAhora, ...home.map(limpiar)],
     resto: vivos.filter((c) => !enHome.has(c.slug)).map(limpiar),
   }
 }

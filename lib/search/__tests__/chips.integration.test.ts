@@ -9,6 +9,7 @@ import { CHIPS, CHIPS_OBJETIVO } from '@/lib/db/chips'
 import { EMPTY_SEARCH } from '../params'
 import { countPlaces, searchPlaces } from '../query'
 import { CHIPS_EN_HOME, getOccasionChips } from '../chips'
+import { FRANJAS, franjaActual, NOMBRE_AHORA, SLUG_AHORA } from '../ahora'
 
 /**
  * Los chips de Ocasión contra la base real.
@@ -40,9 +41,12 @@ describe.runIf(process.env.DATABASE_URL)('chips de Ocasión', () => {
     expect(conCero).toEqual([])
   })
 
-  it('la home no muestra más de 4 chips', async () => {
+  it('la home no muestra más de 4 chips de Ocasión (más el de franja)', async () => {
+    // `CHIPS_EN_HOME` cuenta chips de Ocasión. El chip «Para ahora» se antepone
+    // sin descontar de esos 4 (ABIERTO_AHORA decisión 5), así que la home puede
+    // llegar a 5 botones: 1 + 4.
     const { home } = await getOccasionChips()
-    expect(home.length).toBeLessThanOrEqual(CHIPS_EN_HOME)
+    expect(home.filter((c) => c.slug !== SLUG_AHORA).length).toBeLessThanOrEqual(CHIPS_EN_HOME)
   })
 
   it('la home y el "ver más" no repiten chips', async () => {
@@ -92,6 +96,52 @@ describe.runIf(process.env.DATABASE_URL)('chips de Ocasión', () => {
       expect(enDb, `chip "${chip.slug}" no está sembrado`).toBeDefined()
       expect([...enDb!].sort(), `tags del chip "${chip.slug}"`).toEqual([...chip.tags].sort())
     }
+  })
+
+  it('el chip «Para ahora» va primero, con el rótulo y los tags de la franja', async () => {
+    // 21:00 del lunes en AR (00:00Z del martes) ⇒ franja `cena` (decisión 3). El
+    // chip se antepone a los de Ocasión y viaja con la forma de cualquier chip,
+    // así que `OccasionChipsRow` lo pinta sin cambios (decisión 5).
+    const now = new Date('2024-01-02T00:00:00Z')
+    const { home } = await getOccasionChips(now)
+
+    expect(home[0].slug).toBe(SLUG_AHORA)
+    expect(home[0].name).toBe(NOMBRE_AHORA)
+    expect(home[0].tags).toEqual(franjaActual(now).tags)
+    expect(home[0].count).toBeGreaterThan(0)
+    // Decisión 2: el rótulo no promete "abierto" en ninguna franja.
+    expect(home[0].name.toLowerCase()).not.toContain('abierto')
+  })
+
+  it('el chip de franja aparece si y solo si su franja tiene lugares (decisión 9)', async () => {
+    // Misma lectura que los chips objetivo: no se congela la foto de hoy, se
+    // exige coherencia. Cubre AHORA-09 sin tocar datos — el día que una franja
+    // se quede sin lugares publicados, el chip tiene que dejar de dibujarse.
+    for (const franja of FRANJAS) {
+      // El minuto de arranque de la franja, en AR: `desde` son minutos de AR y
+      // AR = UTC−3, así que la hora UTC equivalente es `desde` + 3 h.
+      const now = new Date(
+        Date.UTC(2024, 0, 1, 3 + Math.floor(franja.desde / 60), franja.desde % 60),
+      )
+      const { home } = await getOccasionChips(now)
+      const n = await countPlaces({ ...EMPTY_SEARCH, tags: franja.tags })
+
+      const dibujado = home.some((c) => c.slug === SLUG_AHORA)
+      expect(dibujado, `franja "${franja.slug}" (${n} lugares)`).toBe(n > 0)
+      if (dibujado) expect(home[0].tags, `franja "${franja.slug}"`).toEqual(franja.tags)
+    }
+  })
+
+  it('los tags de las franjas existen y están activos en la taxonomía', async () => {
+    // Una franja que apunte a un tag retirado (como `abierto-ahora`, decisión 10)
+    // o mal tipeado daría un chip que jamás devuelve nada.
+    const filas = await db.select({ slug: tags.slug }).from(tags).where(eq(tags.active, true))
+    const activos = new Set(filas.map((t) => t.slug))
+
+    const rotos = FRANJAS.flatMap((f) =>
+      f.tags.filter((s) => !activos.has(s)).map((s) => `${f.slug} → ${s}`),
+    )
+    expect(rotos).toEqual([])
   })
 
   it('todos los tags de la semilla existen en la taxonomía', async () => {

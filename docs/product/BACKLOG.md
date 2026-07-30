@@ -26,13 +26,14 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 ### Cola de v2 — post-cierre de los 9 specs numerados
 
 Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **escribieron** el
-2026-07-29 (sesión de autoría); ninguno tiene código todavía. El detalle de cada uno está en
-§ Mejoras futuras, con link al spec.
+2026-07-29 (sesión de autoría). El detalle de cada uno está en § Mejoras futuras, con link al spec.
 
 - [ ] **1 · Alias POIs + CABA sistemáticos** — **no es spec**, tarea de datos (`lib/zones/canon.ts`
       § ALIASES). El quick-win: puede arrancar cuando se quiera.
-- [ ] **2 · Abierto ahora** → spec: `docs/specs/planned/ABIERTO_AHORA.md` — **el próximo a
-      implementar de los que tienen spec.** F1 sola (mini-spec, una sesión); F2 gateada.
+- [x] **2 · Abierto ahora** → spec: `docs/specs/active/ABIERTO_AHORA.md` — **F1 ✅ 2026-07-30**
+      (chip «Para ahora»). La **F2** (abierto real desde horarios de dueño) sigue **gateada** en
+      ≥ 50 publicados con horarios propios (hoy **1**), así que el spec queda en `active/` y no
+      cuenta como pendiente de la cola. Gate técnico verde; falta el QA en vivo (AHORA-01..06).
 - [ ] **3 · Favoritos / listas** → spec: `docs/specs/planned/FAVORITOS.md` — la apuesta grande
       (retención + gancho premium sin costo marginal). 2 fases.
 - [ ] **4 · Sugerir lugar en una votación** → spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`
@@ -236,6 +237,12 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       depende de la hora). **F2 = abierto real** desde horarios de dueño, escrita y **gateada** en
       ≥ 50 publicados con horarios cargados (hoy: **1**). Google en vivo descartado: ~US$0,64 por
       página de 20, no cacheable.
+      > **F1 implementada ✅ 2026-07-30** (`lib/search/ahora.ts` + `lib/search/chips.ts`; el tag
+      > quedó `active=false` con sus 20 filas de `place_tags` intactas). Este ítem queda abierto
+      > **solo por la F2**: reabrirlo cuando la consulta del gate dé ≥ 50 —
+      > `select count(*) from place_owner_content oc join places p on p.id = oc.place_id where
+      > oc.opening_hours is not null` cruzado con `publishedWhere`— y ahí decidir exacto puro vs
+      > híbrido (decisión 13). Spec en `docs/specs/active/ABIERTO_AHORA.md`.
 - [ ] **Favoritos / listas guardadas** — free: 1 lista ("Mis lugares") · premium: listas
       múltiples con nombre. Decidido fuera de v1 el 2026-07-19 (tanda 5) para no agrandar
       el alcance. Ver `docs/product/IDEAS.md` § Monetización.
@@ -557,6 +564,21 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
 
 ## Hecho
 
+- [x] **ABIERTO_AHORA F1 — el chip «Para ahora»** (2026-07-30, sesión Opus): el **#2 de la cola de
+      v2** y el primero de v2 con código. `lib/search/ahora.ts` (nuevo, dueño único de hora →
+      tags: las 5 franjas de la decisión 3, reusando `partesEnAR`) + `getOccasionChips(now)` que lo
+      antepone a la home si su `countPlaces` da > 0. **Cero cambios** en el motor, en los params y
+      en `occasion-chips.tsx`: el chip viaja con la forma de un chip normal y escribe `?t=cena`
+      como cualquier otro (decisión 5), así que la URL sigue siendo el estado y un link compartido
+      significa lo mismo mañana. La home pasó a **1 + 4** chips (el de franja no descuenta de los 4
+      de Ocasión). **El tag `abierto-ahora` quedó retirado** (`active = false`, con `backup:db`
+      antes): desaparece del sheet (Momento 9 → 8), de las cards, de la ficha y del sugeridor de
+      curaduría, sus **20** filas de `place_tags` intactas y `?t=abierto-ahora` sigue funcionando.
+      Conteos por franja sin drift respecto del spec (cena 670 · almuerzo 605 · desayuno 272 ·
+      merienda 251 · madrugada 176). Typecheck ✅ · **497 tests** ✅ (+29) · build ✅ (server parado).
+      QA: `AnalisisQA.md` § *QA /qa-spec — ABIERTO_AHORA F1*, veredicto **PARCIAL — pendiente QA en
+      vivo** (AHORA-01..06 necesitan browser y falsear la hora del sistema). El spec pasó a
+      `active/` porque la **F2 sigue gateada**. Sin PR todavía.
 - [x] **Los 4 specs de v2 escritos** (2026-07-29, sesión de autoría): `ABIERTO_AHORA`,
       `FAVORITOS`, `SUGERIR_EN_VOTACION` y `CHIPS_ROTACION`, todos en `docs/specs/planned/` y en el
       manifiesto. **Solo autoría — cero código.** Las tres decisiones de fondo las resolvió Fer con

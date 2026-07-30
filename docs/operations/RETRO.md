@@ -9,6 +9,25 @@ cambiar" se implementó, se dice dónde (commit, archivo). No es un diario largo
 
 ---
 
+## 2026-07-30 · ABIERTO_AHORA F1 — el chip «Para ahora» (Opus)
+
+- **Qué salió bien:** el spec escrito **eligiendo la forma para que no tocara nada** se pagó solo.
+  "El chip se inyecta con la forma de un chip" (decisión 5) hizo que la implementación fueran 70
+  líneas nuevas y un cambio de 10 en `chips.ts`, con **cero** cambios en el motor, en los params y
+  en el componente — y eso es verificable por `git diff`, así que el DoD se auto-chequea. Un spec
+  que además decide *dónde no tocar* deja un DoD que un checker puede probar sin criterio propio.
+- **Qué frenó:** dos fricciones de entorno conocidas, ninguna del trabajo. (1) El heredoc
+  `<< 'EOF'` para anexar la sección de QA se rompió en Git Bash; funcionó pasar el texto por
+  archivo, que es exactamente lo que la regla de commits multilínea del CLAUDE.md global ya manda
+  hacer. (2) El `next build` no se pudo correr durante la sesión (dev server levantado, comparten
+  `.next`) — y era la tercera sesión seguida que iba a cerrar con el build en deuda.
+- **Qué cambiar (hecho esta sesión):** en vez de anotar el build como pendiente, **pedí la ventana**
+  ("¿parás el dev server dos minutos?") — Fer lo bajó y el build cerró verde en la misma sesión. Es
+  el mismo movimiento que el `backup:check` hizo con el backup: convertir una deuda silenciosa en un
+  pedido explícito. **Adoptarlo como default de cierre.** Y extender la regla del scratchpad a
+  **todo** texto largo que va a un archivo por shell (no solo mensajes de commit): `Write` +
+  `cat >>`, nunca heredoc.
+
 ## 2026-07-29 · Autoría de los 4 specs de v2 (Opus, sesión pedida para Fable)
 
 - **Qué salió bien:** medir la base **antes** de preguntar cambió la decisión central. "Abierto

@@ -154,9 +154,17 @@ export const PRECIO: SeedTag[] = [
 ]
 
 export const MOMENTO: SeedTag[] = [
-  // `abierto-ahora` se siembra porque es parte de la taxonomía decidida, pero NO
-  // puede evaluarse contra place_tags: la app no persiste horarios (ToS de Google).
-  // Su semántica de filtrado la resuelve el spec de Búsqueda.
+  // `abierto-ahora` sigue sembrado (es parte de la taxonomía decidida) pero está
+  // **retirado**: `active = false` en la base desde ABIERTO_AHORA F1 (decisión 10).
+  // No puede evaluarse contra `place_tags` —un booleano estático para un concepto
+  // que depende de la hora en que uno mira— y la curaduría se lo había asignado a
+  // 20 lugares, así que filtrar por él a las 4 de la mañana mentía. Sus filas de
+  // `place_tags` NO se borraron (ocultar ≠ borrar): con `active = false` ya
+  // desaparece del sheet, de las cards, de la ficha y del sugeridor de curaduría,
+  // y un link viejo con `?t=abierto-ahora` sigue funcionando (lo ignora
+  // `filtrosDeTags`). La necesidad real la atiende el chip «Para ahora»
+  // (`lib/search/ahora.ts`); el abierto de verdad es la F2, gateada en tener masa
+  // de horarios propios de dueño. Reactivar = `UPDATE tags SET active = true`.
   { slug: 'abierto-ahora', name: 'Abierto ahora' },
   { slug: 'hasta-tarde', name: 'Hasta tarde' },
   { slug: 'abre-domingos', name: 'Abre domingos' },

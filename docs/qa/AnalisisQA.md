@@ -1245,3 +1245,65 @@ con el Tipo). Fuera del scope de este spec.
   sumó lo nuevo con evidencia. No se borró nada del piloto.
 - **`ai.curation_model`** quedó en `claude-sonnet-5` (era `claude-haiku-4-5`). Revertir es el mismo
   UPDATE. El seed de `lib/curation/settings.ts` sigue en Haiku (fallback) — manda el runtime.
+
+---
+
+## QA /qa-spec — ABIERTO_AHORA F1 (chip «Para ahora») (2026-07-30)
+
+**Veredicto:** **PARCIAL — pendiente QA en vivo** (código y datos ✅, gate técnico ✅; falta el
+recorrido en browser).
+**Verificación técnica:** typecheck ✅ · tests ✅ **497/497** (52 archivos) · build ✅ — corrido al
+final de la sesión con el dev server parado, que Fer bajó a pedido (comparten `.next`, lección
+BUSQUEDA): `✓ Compiled successfully in 6.1s`, 12/12 páginas estáticas, cero warnings.
+**Método:** dos checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD de
+`docs/specs/active/ABIERTO_AHORA.md` § F1, más verificación en vivo contra el Postgres de dev
+(conteos por franja con `countPlaces` y `getOccasionChips` a horas fijas) para lo que el código no
+alcanza a probar. **F2 no se verifica: no está implementada** (gateada, decisión 11 — 1 lugar con
+horarios propios contra los 50 que pide el gate).
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| AHORA-QA-01 | `lib/search/ahora.ts` existe y es el **único** módulo que mapea hora → tags (verificable por grep) | ✅ PASS | `lib/search/ahora.ts:49-55` (`FRANJAS`) y `:61-69` (`franjaActual`). Grep de `FRANJAS` en el repo: **una sola** definición; los únicos consumidores son `lib/search/chips.ts:95` y los dos tests. Nadie más mapea horas a `desayuno/almuerzo/merienda/cena/trasnoche/hasta-tarde` |
+| AHORA-QA-02 | `franjaActual` cubre las 24 h sin huecos ni solapamientos, en TZ AR, y es puro respecto de `now` | ✅ PASS | Reusa `partesEnAR` (`lib/negocio/horarios.ts:143`), no reimplementa la TZ: `ahora.ts:1,62`. Sin `new Date()` adentro. Cobertura verificada **minuto a minuto** (1.440 casos) en `__tests__/ahora.test.ts:64-70`; la propiedad sale de la estructura (franjas ordenadas y la primera en el minuto 0, `ahora.test.ts:103-108`) |
+| AHORA-QA-03 | La madrugada (00:00–05:59) devuelve **los dos** tags (`trasnoche`, `hasta-tarde`) | ✅ PASS | `ahora.ts:50`. Test `ahora.test.ts:90-92`. En vivo: la unión da **176** publicados (contra 44 de `trasnoche` solo), idéntico a la evidencia del spec |
+| AHORA-QA-04 | Ninguna franja incluye `abre-domingos` (decisión 7: misma faceta ⇒ OR ⇒ ensancharía) | ✅ PASS | Tests `ahora.test.ts:79-88` (el caso del domingo al mediodía y la invariante sobre `FRANJAS`). En vivo, domingo 12:00 AR → chip con `[almuerzo]` y nada más |
+| AHORA-QA-05 | La home muestra el chip **primero**, con el rótulo «Para ahora»; en ningún lugar de la UI aparece "abierto" asociado a este chip | ✅ PASS (código) | `lib/search/chips.ts:144` (`home: [...chipAhora, ...home.map(limpiar)]`), rótulo en `ahora.ts:30`. Grep en `components/` y `app/`: la única mención de "abierto" es el estado abierto/cerrado de los horarios del dueño en la ficha, sin relación. Test del rótulo en `ahora.test.ts:98-101`. **El render se confirma en vivo (AHORA-01)** |
+| AHORA-QA-06 | Tocar el chip escribe los tags en la URL y queda activo; volver a tocarlo los saca, sin cambios en `OccasionChipsRow` | ✅ PASS (código) | El chip viaja con la forma `{slug, name, tags, count}` (`chips.ts:140`), que `components/search/occasion-chips.tsx:37-68` trata genéricamente (`alternar(chip.tags)`, `aria-pressed`). Ese archivo **no tiene cambios**. **El gesto se confirma en vivo (AHORA-01/04/05)** |
+| AHORA-QA-07 | Si la franja actual devuelve 0 lugares publicados, el chip **no se dibuja** | ✅ PASS | `chips.ts:96,138-141`: el conteo sale del mismo `countPlaces` que los chips de Ocasión y `0 ⇒ []`. Test de coherencia por franja en `chips.integration.test.ts:116-133` (chip dibujado ⇔ su franja tiene lugares) — cubre AHORA-09 sin tocar datos. Hoy las 5 franjas dan > 0: cena **670** · almuerzo **605** · desayuno **272** · merienda **251** · madrugada **176** |
+| AHORA-QA-08 | `lib/search/query.ts`, `lib/search/params.ts` y `components/search/occasion-chips.tsx` sin cambios (decisión 5) | ✅ PASS | `git diff HEAD` de los tres: vacío. El chip se inyecta con la forma de un chip normal, así que no hizo falta tocar ni el motor ni el componente |
+| AHORA-QA-09 | `select active from tags where slug = 'abierto-ahora'` = `false`; no aparece en el sheet ni en las cards, y sus 20 filas de `place_tags` siguen | ✅ PASS | `UPDATE tags SET active = false WHERE slug='abierto-ahora'` → `UPDATE 1`, `active = f`. `place_tags` con ese tag: **20** (ocultar ≠ borrar). `getFacetCatalog()` devuelve Momento con **8** tags, sin él. La ficha de `e8d2a7fe…` (uno de los 20) lista sus otros 8 tags y no ese. `?t=abierto-ahora&z=palermo` sigue devolviendo 20 lugares: `filtrosDeTags` lo ignora, el link viejo no rompe |
+| AHORA-QA-10 | Bordes de la decisión 3 (05:59/06:00/10:59/11:00/15:29/15:30/19:59/20:00/23:59 + medianoche) con `Date` fijo | ✅ PASS | `__tests__/ahora.test.ts:42-61`: los 10 bordes, con UTC fijo del 2024-01-01 (AR = UTC−3) para no depender del reloj ni de la TZ de la máquina. Mismo patrón que `horarios.test.ts` |
+| AHORA-QA-11 | El comentario de `lib/db/taxonomy.ts` explica por qué el tag queda sembrado pero inactivo, y es **coherente con el código** | ✅ PASS | `lib/db/taxonomy.ts:157-167`. Verificado que lo que afirma es cierto: `filtrosDeTags` filtra `active` (`lib/search/query.ts:146`), `getFacetCatalog` también (`lib/search/catalog.ts:87`), y las queries de tags de cards y ficha (`lib/search/query.ts:523`, `lib/lugar/query.ts:188`). Bonus no buscado: el sugeridor de curaduría también filtra `active` (`lib/curation/query.ts:155`), así que dejó de poder sugerirlo — el hallazgo de `LECCIONES_APRENDIDAS` § tag imposible |
+| AHORA-QA-12 | typecheck + tests + build verdes | ✅ PASS | `npx tsc --noEmit` limpio · `vitest run` 497/497 en 52 archivos · `npm run build` con el server parado: `✓ Compiled successfully in 6.1s`, 12/12 estáticas, sin warnings |
+
+### Pendiente de QA en vivo (`https://adondesalimos.ngrok.app`, el server lo levanta Fer)
+
+Los criterios del spec que necesitan browser. Los tres primeros necesitan además **falsear la hora**
+(o esperar la franja): la hora se computa en el server, así que cambiar el reloj del browser no
+alcanza — hay que cambiar el del sistema, o mirarlo en la franja real.
+
+| ID | Caso | Estado |
+|----|------|--------|
+| AHORA-01 | Home a las 21:30 AR con zona elegida: el primer chip dice «Para ahora», tocarlo deja `?t=cena` y achica | ⏳ pendiente |
+| AHORA-02 | Home a las 02:00 AR: aplica `trasnoche` **y** `hasta-tarde`, resultado = unión | ⏳ pendiente (a nivel dato ✅: 176) |
+| AHORA-03 | Domingo al mediodía: aplica solo `almuerzo`, sin `abre-domingos` en la URL | ⏳ pendiente (a nivel dato ✅) |
+| AHORA-04 | Tocar el chip y el botón atrás: vuelve en un solo paso (decisión 29 de BUSQUEDA) | ⏳ pendiente |
+| AHORA-05 | Tocar el chip dos veces: saca los tags y queda inactivo | ⏳ pendiente |
+| AHORA-06 | Compartir el link y abrirlo a otra hora: devuelve la misma búsqueda (`t=cena`) | ⏳ pendiente (por construcción: la URL guarda tags, no "ahora") |
+| AHORA-07 | Sheet de filtros → Momento: `Abierto ahora` no figura | ✅ a nivel dato (`getFacetCatalog` = 8 tags sin él); falta verlo en pantalla |
+| AHORA-08 | Ficha de uno de los 20 lugares que tenían el tag: no lo muestra, el resto igual | ✅ a nivel dato (`getPlaceDetail`); falta verlo en pantalla |
+| AHORA-09 | Franja sin lugares ⇒ el chip no se dibuja y la home no queda con un hueco | ✅ cubierto por test de coherencia; en vivo requiere vaciar tags en una copia |
+| AHORA-10 | Los 8 bordes + medianoche caen en la franja correcta | ✅ cubierto por tests (no necesita browser) |
+
+### Notas
+
+- **El retiro del tag es dato, no código.** `active = false` vive solo en el Postgres de dev: el
+  seed no pisa `active` (a propósito, es curaduría) y no hay migración. Un reset de la base lo
+  pierde en silencio, igual que la curaduría — re-aplicar es el mismo UPDATE de una línea. Se hizo
+  `npm run backup:db` antes de tocar la base (`backups/adondesalimos_2026-07-30_074023.sql.gz`).
+- **La home pasó a 1 + 4 chips**, no 4: el chip de franja se antepone **sin descontar** de los 4 de
+  Ocasión (decisión 6 de BUSQUEDA). Lo contrario habría sacado un chip de Ocasión de la home a
+  ciertas horas — una regresión silenciosa a cambio de nada. `CHIPS_EN_HOME` ahora se lee como "4
+  chips **de Ocasión**", y el test de la home se ajustó a eso (`chips.integration.test.ts`).
+- **Los conteos por franja no se movieron** desde que se escribió el spec (670/605/272/251/176), así
+  que ninguna franja nace apagada por la decisión 25.

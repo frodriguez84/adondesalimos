@@ -77,6 +77,15 @@ evidencia y la cobertura de chips — no que cada tag asignado fuera *asignable*
 4. **Al darle a un LLM una lista de opciones, sacar de la lista lo que no debe elegir.** No
    alcanza con documentar aparte por qué una opción no va: si está en la lista, es elegible.
 
+> **Cerrado el 2026-07-30 (ABIERTO_AHORA F1).** El punto 4 se aplicó de la única forma que el
+> sistema podía hacer cumplir sola: `UPDATE tags SET active = false WHERE slug = 'abierto-ahora'`.
+> El sugeridor de curaduría filtra `active` (`lib/curation/query.ts:155`), así que el tag **salió de
+> la lista** que ve el LLM — no por documentación, por dato. Sus 20 filas siguen ahí (ocultar ≠
+> borrar) y el comentario de `taxonomy.ts` ahora dice *por qué* está inactivo. El corolario que
+> queda: el retiro es **dato, no código** —el seed no pisa `active`, a propósito— así que un reset
+> de la base lo pierde en silencio y el tag volvería a ser elegible. Eso es justamente lo que vigila
+> el check (f) de `/consistency-check`.
+
 ---
 
 ## Un driver puede tragarse un campo entero sin dar un solo error (2026-07-20 · CATALOGO)
