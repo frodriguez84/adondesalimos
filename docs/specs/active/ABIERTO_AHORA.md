@@ -131,7 +131,10 @@ No hay migración, no hay endpoint nuevo, no hay cambio de UI cliente.
 ## Criterios de done (DoD)
 
 **F1 — chip «Para ahora»** _(verificado el 2026-07-30: `AnalisisQA.md` § QA /qa-spec —
-ABIERTO_AHORA F1, IDs `AHORA-QA-01..12`)_
+ABIERTO_AHORA F1, IDs `AHORA-QA-01..12` por código y datos, más el **QA en vivo** `AHORA-01..10`
+del mismo día — veredicto **APROBADO**. Dos casos quedaron cubiertos por test y por dato pero **no
+verificados en pantalla**: AHORA-02 (madrugada) y AHORA-03 (domingo), porque exigen mover el reloj
+o la fecha del sistema.)_
 
 - [x] `lib/search/ahora.ts` existe y es el **único** módulo que mapea hora → tags; nadie más
       calcula la franja (verificable por `grep`).
@@ -141,10 +144,10 @@ ABIERTO_AHORA F1, IDs `AHORA-QA-01..12`)_
 - [x] Ninguna franja incluye `abre-domingos` (decisión 7).
 - [x] La home muestra el chip **primero**, antes de los chips de Ocasión, con el rótulo «Para
       ahora» — y en ningún lugar de la UI aparece la palabra "abierto" asociada a este chip.
-      _(código ✅; el render se confirma en el QA en vivo, AHORA-01)_
+      _(código ✅; render ✅ en vivo el 2026-07-30, AHORA-01)_
 - [x] Tocar el chip escribe los tags de la franja en la URL (`?t=…`) y el chip queda marcado como
       activo; volver a tocarlo los saca (comportamiento existente de `OccasionChipsRow`, sin
-      cambios en ese archivo). _(código ✅; el gesto se confirma en vivo, AHORA-01/04/05)_
+      cambios en ese archivo). _(código ✅; gesto ✅ en vivo, AHORA-01/04/05/06)_
 - [x] Si la franja actual devuelve 0 lugares publicados, el chip **no se dibuja**.
 - [x] `lib/search/query.ts`, `lib/search/params.ts` y `components/search/occasion-chips.tsx` no
       tienen cambios.

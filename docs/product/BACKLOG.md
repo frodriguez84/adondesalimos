@@ -33,7 +33,17 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
 - [x] **2 · Abierto ahora** → spec: `docs/specs/active/ABIERTO_AHORA.md` — **F1 ✅ 2026-07-30**
       (chip «Para ahora»). La **F2** (abierto real desde horarios de dueño) sigue **gateada** en
       ≥ 50 publicados con horarios propios (hoy **1**), así que el spec queda en `active/` y no
-      cuenta como pendiente de la cola. Gate técnico verde; falta el QA en vivo (AHORA-01..06).
+      cuenta como pendiente de la cola. Gate técnico verde y **QA en vivo ✅ APROBADO** (2026-07-30,
+      `AHORA-01..10`); AHORA-02 (madrugada) y AHORA-03 (domingo) quedaron cubiertos por test y por
+      dato, sin verificar en pantalla — ver abajo.
+  - [ ] **Mirar la franja de madrugada en pantalla (AHORA-02), sin falsear nada** — el único caso
+        del QA con verificación pendiente: entre las **00:00 y las 05:59** AR, abrir la home y
+        confirmar que «Para ahora» aplica `trasnoche` **y** `hasta-tarde` (los dos en la URL) y que
+        el resultado es la **unión** (~176 en AMBA), no la intersección. **No requiere trabajo, solo
+        el horario**: Fer lo mira una noche que le toque programar a esa hora (decidido 2026-07-30,
+        para no mover el reloj del sistema). No bloquea nada — está cubierto por test unitario y por
+        dato. AHORA-03 (domingo) queda sin verificar en pantalla **a propósito**: `franjaActual` no
+        lee el día de la semana, así que no hay nada que el domingo pueda cambiar.
 - [ ] **3 · Favoritos / listas** → spec: `docs/specs/planned/FAVORITOS.md` — la apuesta grande
       (retención + gancho premium sin costo marginal). 2 fases.
 - [ ] **4 · Sugerir lugar en una votación** → spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`
@@ -564,6 +574,24 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
 
 ## Hecho
 
+- [x] **QA en vivo de ABIERTO_AHORA F1 → veredicto APROBADO** (2026-07-30, sesión Opus, MCP de
+      Playwright a `https://adondesalimos.ngrok.app`, mobile 390×844, Palermo Soho): el recorrido
+      que faltaba para cerrar el veredicto. **8 de los 10 casos verificados en pantalla** más el
+      copy y el layout. Se aprovechó el cruce de franja de las 20:00 en vez de tocar el reloj: a
+      las 19:39 el chip aplicaba `merienda` (20 → 5 cards) y a las 20:00:57 el **mismo** chip
+      aplicaba `cena` (35 lugares), así que el **borde de la decisión 3 quedó verificado en vivo**.
+      También: atrás en un paso, doble toque, link `t=cena` abierto en franja merienda (devuelve
+      cena, chip inactivo), Momento con **8** tags sin el retirado, ficha de La Continental con sus
+      8 tags activos y la novena fila `active=f` intacta en la base, y **cero** ocurrencias de
+      "abierto" en la home (con «Ver más» abierto). Bonus: el browser corría con el reloj
+      desfasado (marcaba `desayuno`) y el chip aplicó igual la franja del **server** — la decisión
+      10 verificada sin proponérselo. **Quedaron sin verificar en pantalla** AHORA-02 (madrugada
+      02:00) y AHORA-03 (domingo al mediodía): exigen mover el reloj —`Set-Date` pide admin— o la
+      **fecha** del sistema, y Fer decidió no hacerlo (la madrugada se mira una noche que le toque
+      programar a esa hora). Los dos siguen cubiertos por test unitario y por dato, y la limitación
+      está escrita en el QA, no tapada. Un hallazgo, sin acción: `AHORA-OBS-1` — el «Abierto ahora»
+      que sí aparece en la ficha es el bloque en vivo de **Google**, fuente exacta, no el tag
+      retirado; importa porque es el rótulo que la decisión 13 quiere para el chip en F2.
 - [x] **Los retiros de tags pasaron a estar declarados en código** (2026-07-30, sale de la retro de
       la sesión de ABIERTO_AHORA F1): `TAGS_RETIRADOS` en `lib/db/taxonomy.ts` (slug + motivo, dueño
       único del hecho) + `npm run db:retiros` (`scripts/retiros.ts`, idempotente, **no toca**
@@ -588,9 +616,8 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       curaduría, sus **20** filas de `place_tags` intactas y `?t=abierto-ahora` sigue funcionando.
       Conteos por franja sin drift respecto del spec (cena 670 · almuerzo 605 · desayuno 272 ·
       merienda 251 · madrugada 176). Typecheck ✅ · **497 tests** ✅ (+29) · build ✅ (server parado).
-      QA: `AnalisisQA.md` § *QA /qa-spec — ABIERTO_AHORA F1*, veredicto **PARCIAL — pendiente QA en
-      vivo** (AHORA-01..06 necesitan browser y falsear la hora del sistema). El spec pasó a
-      `active/` porque la **F2 sigue gateada**. Sin PR todavía.
+      QA: `AnalisisQA.md` § *QA /qa-spec — ABIERTO_AHORA F1*. El spec pasó a `active/` porque la
+      **F2 sigue gateada**. Sin PR todavía.
 - [x] **Los 4 specs de v2 escritos** (2026-07-29, sesión de autoría): `ABIERTO_AHORA`,
       `FAVORITOS`, `SUGERIR_EN_VOTACION` y `CHIPS_ROTACION`, todos en `docs/specs/planned/` y en el
       manifiesto. **Solo autoría — cero código.** Las tres decisiones de fondo las resolvió Fer con

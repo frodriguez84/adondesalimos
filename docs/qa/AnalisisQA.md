@@ -1250,8 +1250,10 @@ con el Tipo). Fuera del scope de este spec.
 
 ## QA /qa-spec — ABIERTO_AHORA F1 (chip «Para ahora») (2026-07-30)
 
-**Veredicto:** **PARCIAL — pendiente QA en vivo** (código y datos ✅, gate técnico ✅; falta el
-recorrido en browser).
+**Veredicto:** **APROBADO** (2026-07-30). Código y datos ✅, gate técnico ✅ y **QA en vivo ✅** —
+ver § *QA en vivo* más abajo. Dos casos (AHORA-02 madrugada y AHORA-03 domingo) quedan **cubiertos
+por test unitario y por dato, no verificados en pantalla**, por decisión explícita de Fer de no
+mover el reloj ni la fecha del sistema: la limitación está escrita, no tapada.
 **Verificación técnica:** typecheck ✅ · tests ✅ **497/497** (52 archivos) · build ✅ — corrido al
 final de la sesión con el dev server parado, que Fer bajó a pedido (comparten `.next`, lección
 BUSQUEDA): `✓ Compiled successfully in 6.1s`, 12/12 páginas estáticas, cero warnings.
@@ -1276,24 +1278,41 @@ horarios propios contra los 50 que pide el gate).
 | AHORA-QA-11 | El comentario de `lib/db/taxonomy.ts` explica por qué el tag queda sembrado pero inactivo, y es **coherente con el código** | ✅ PASS | `lib/db/taxonomy.ts:157-167`. Verificado que lo que afirma es cierto: `filtrosDeTags` filtra `active` (`lib/search/query.ts:146`), `getFacetCatalog` también (`lib/search/catalog.ts:87`), y las queries de tags de cards y ficha (`lib/search/query.ts:523`, `lib/lugar/query.ts:188`). Bonus no buscado: el sugeridor de curaduría también filtra `active` (`lib/curation/query.ts:155`), así que dejó de poder sugerirlo — el hallazgo de `LECCIONES_APRENDIDAS` § tag imposible |
 | AHORA-QA-12 | typecheck + tests + build verdes | ✅ PASS | `npx tsc --noEmit` limpio · `vitest run` 497/497 en 52 archivos · `npm run build` con el server parado: `✓ Compiled successfully in 6.1s`, 12/12 estáticas, sin warnings |
 
-### Pendiente de QA en vivo (`https://adondesalimos.ngrok.app`, el server lo levanta Fer)
+### QA en vivo (2026-07-30, 19:39–20:01 AR — `https://adondesalimos.ngrok.app`, MCP de Playwright)
 
-Los criterios del spec que necesitan browser. Los tres primeros necesitan además **falsear la hora**
-(o esperar la franja): la hora se computa en el server, así que cambiar el reloj del browser no
-alcanza — hay que cambiar el del sistema, o mirarlo en la franja real.
+Sesión de browser sobre el dev server que levanta Fer, viewport **mobile 390×844**, zona **Palermo
+Soho** (1.095 lugares publicados sin filtros). **Sin login**: la home y la ficha son públicas.
 
-| ID | Caso | Estado |
-|----|------|--------|
-| AHORA-01 | Home a las 21:30 AR con zona elegida: el primer chip dice «Para ahora», tocarlo deja `?t=cena` y achica | ⏳ pendiente |
-| AHORA-02 | Home a las 02:00 AR: aplica `trasnoche` **y** `hasta-tarde`, resultado = unión | ⏳ pendiente (a nivel dato ✅: 176) |
-| AHORA-03 | Domingo al mediodía: aplica solo `almuerzo`, sin `abre-domingos` en la URL | ⏳ pendiente (a nivel dato ✅) |
-| AHORA-04 | Tocar el chip y el botón atrás: vuelve en un solo paso (decisión 29 de BUSQUEDA) | ⏳ pendiente |
-| AHORA-05 | Tocar el chip dos veces: saca los tags y queda inactivo | ⏳ pendiente |
-| AHORA-06 | Compartir el link y abrirlo a otra hora: devuelve la misma búsqueda (`t=cena`) | ⏳ pendiente (por construcción: la URL guarda tags, no "ahora") |
-| AHORA-07 | Sheet de filtros → Momento: `Abierto ahora` no figura | ✅ a nivel dato (`getFacetCatalog` = 8 tags sin él); falta verlo en pantalla |
-| AHORA-08 | Ficha de uno de los 20 lugares que tenían el tag: no lo muestra, el resto igual | ✅ a nivel dato (`getPlaceDetail`); falta verlo en pantalla |
-| AHORA-09 | Franja sin lugares ⇒ el chip no se dibuja y la home no queda con un hueco | ✅ cubierto por test de coherencia; en vivo requiere vaciar tags en una copia |
-| AHORA-10 | Los 8 bordes + medianoche caen en la franja correcta | ✅ cubierto por tests (no necesita browser) |
+**Se aprovechó el cruce de franja de las 20:00**: el recorrido arrancó a las 19:39 AR (franja
+`merienda`) y terminó a las 20:00:57 (franja `cena`), así que **el borde 19:59 → 20:00 de la
+decisión 3 quedó verificado en pantalla**, sin tocar el reloj ni redeployar: el mismo chip cambió
+de tags solo.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| AHORA-01 | El primer chip dice «Para ahora»; tocarlo escribe la franja en la URL, queda activo y achica | ✅ PASS | **19:39 AR (merienda):** la fila es `Para ahora` · `Salida con chongo` · `Salir a bailar` · `After office` · `Tomar algo` · `Ver más` → el chip de franja es el **primero** y la home quedó en **1 + 4** (§ Notas). Tocarlo → `?z=palermo-soho&t=merienda`, `aria-pressed="true"`, listado **20 → 5** cards. **20:00:57 AR (cena):** el **mismo** chip → `?z=palermo-soho&t=cena`, activo, **35** lugares (`Ver 35 lugares` en el sheet), primera página de 20. El spec pide 21:30 → `cena`; se verificó la misma franja a las 20:00, su primer minuto |
+| AHORA-02 | 02:00 AR: aplica `trasnoche` **y** `hasta-tarde`, resultado = unión (no intersección) | ⏳ **no verificado en pantalla** | **Decisión de Fer en la sesión**: no mover el reloj del sistema (`Set-Date` pide admin y el salto arriesga sesiones de better-auth / TLS de ngrok); se hará una noche que le toque programar a esa hora. Cubierto por `ahora.test.ts:90-92` y por dato (unión = **176** publicados contra 44 de `trasnoche` solo). Riesgo residual acotado: es la única franja con dos tags, y el OR dentro de faceta que la sostiene es el mismo de la decisión 13 de BUSQUEDA, ya ejercitado en vivo por los chips multi-tag existentes (`Salida con chongo`, `After office`) |
+| AHORA-03 | Domingo al mediodía: aplica solo `almuerzo`, **sin** `abre-domingos` | ⏳ **no verificado en pantalla** | Verlo requiere mover la **fecha** (hoy fue jueves), no la hora — el caso de mayor riesgo de entorno y el de menor información nueva: `franjaActual` **no lee el día de la semana en ningún punto** (`ahora.ts:61-69`, solo `minutos`), así que ninguna franja puede incluir `abre-domingos` ningún día. Invariante testeada sobre `FRANJAS` (`ahora.test.ts:79-88`) |
+| AHORA-04 | Tocar el chip y después atrás: vuelve en **un solo paso** | ✅ PASS | Desde `?z=palermo-soho&t=merienda`, un `history.back()` → `?z=palermo-soho`, chip `aria-pressed="false"`, 20 cards. Sin doble paso: la decisión 29 de BUSQUEDA no tuvo regresión |
+| AHORA-05 | Tocar el chip dos veces: saca los tags y queda inactivo | ✅ PASS | Toque 1 → `?z=palermo-soho&t=merienda` (activo, 5 cards); toque 2 → `?z=palermo-soho` (inactivo, 20 cards). El toggle es el de `OccasionChipsRow`, sin cambios en ese archivo |
+| AHORA-06 | El link compartido devuelve la **misma** búsqueda, no la franja del que lo abre | ✅ PASS | Se abrió `?z=palermo-soho&t=cena` **durante la franja merienda** (19:39): devolvió la búsqueda de **cena** (35 lugares, `Cena` marcado en el sheet de Momento) y «Para ahora» quedó **inactivo** — su franja era otra. La URL guarda tags resueltos, no "ahora" (decisión 6) |
+| AHORA-07 | Sheet de filtros → Momento: `Abierto ahora` no figura | ✅ PASS | La faceta abre con **8** tags exactos: Hasta tarde · Abre domingos · Desayuno · Almuerzo · Merienda · Cena · Trasnoche · Happy hour. Sin el retirado. Captura: `.playwright-mcp/ahora-07-momento-8-tags.png` |
+| AHORA-08 | Ficha de uno de los 20 lugares que tenían el tag | ✅ PASS | `/lugar/e8d2a7fe-df36-4f92-94ff-07b924d76b87` (**La Continental**): § «Qué vas a encontrar» lista sus **8** tags activos (Hasta tarde, Abre domingos, Desayuno, Almuerzo, Cena, Trasnoche, Pizza, Restaurante) y **no** el retirado. En la base el lugar sigue con **9** filas de `place_tags`, la novena `abierto-ahora` con `active = f`: ocultar ≠ borrar, verificado por los dos lados. Ver el hallazgo AHORA-OBS-1 abajo |
+| AHORA-09 | Franja sin lugares ⇒ el chip no se dibuja | ✅ cubierto por test | `chips.integration.test.ts:116-133`. En vivo exigiría vaciar tags en una copia de la base; no se hizo (las 5 franjas dan > 0 hoy) |
+| AHORA-10 | Los 8 bordes + medianoche caen en la franja correcta | ✅ PASS (tests) **+ 1 borde en vivo** | `ahora.test.ts:42-61` con `Date` fijo. Además el borde **19:59 → 20:00** se vio en pantalla: `merienda` a las 19:39 y `cena` a las 20:00:57, mismo chip, sin recarga forzada ni deploy |
+| Copy (decisión 2) | En ninguna pantalla asociada al chip aparece la palabra "abierto" | ✅ PASS | Barrido de `document.body.innerText` en la home con y sin filtros, y con «Ver más» **abierto** (16 chips + `Ver menos`): cero coincidencias de `/abierto/i`. El rótulo es «Para ahora» en las dos franjas vistas, y el chip aparece **una sola vez** (no se duplica en el "ver más") |
+| Layout mobile | La home con 1 + 4 chips no se rompe a 390px | ✅ PASS | Envuelve en 3 filas prolijas (`Para ahora` + `Salida con chongo` / `Salir a bailar` + `After office` / `Tomar algo` + `Ver más`), sin desbordes ni scroll horizontal. **No se propone cambio**: el 4º chip de Ocasión sigue en la home, que era el punto de no descontar. Captura: `.playwright-mcp/ahora-01-home-merienda-390.png` |
+
+**Bonus no buscado — la hora es del server, comprobado por accidente:** el browser de Playwright
+corría con el reloj desfasado (`new Date()` en la página daba **07:39** AR, que es franja
+`desayuno`) y aun así el chip aplicó **`merienda`**, la franja del **server**. Es exactamente la
+decisión 10 —el cliente no lee el reloj, el chip viaja como prop— verificada sin haberlo planeado.
+
+#### Hallazgos
+
+| ID | Severidad | Qué |
+|----|-----------|-----|
+| AHORA-OBS-1 | Observación (no es bug, **no requiere acción**) | La **ficha** sí muestra el texto «Abierto ahora», pero **no es el tag retirado ni el chip de franja**: es el bloque en vivo de Google de FICHA (aparece junto a `4,0 (3686)`, «Ver horarios de la semana» y la atribución "Horarios y calificación · Google"). O sea, viene de la fuente **exacta**, así que no miente y no viola la decisión 2, que gobierna el copy del chip *mientras la fuente sea la franja*. Se registra porque es **el rótulo que la decisión 13 quiere para el chip en F2**: cuando F2 abra, «Abierto ahora» ya va a existir en la ficha con otro dueño, y conviene decidir a propósito si el chip lo comparte o no |
 
 ### Notas
 

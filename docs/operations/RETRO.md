@@ -13,6 +13,31 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-07-30 (b) · QA en vivo de ABIERTO_AHORA F1 → APROBADO (Opus)
+
+- **Qué salió bien:** **el reloj más barato es el que ya va a cambiar solo.** La sesión arrancó
+  19:39 AR (franja `merienda`) y en vez de falsear la hora esperó 13 minutos al cruce natural de
+  las 20:00: salió `cena` **y** el borde 19:59→20:00 de la decisión 3 verificado en pantalla, que
+  era más de lo que pedía el caso. Verificar contra el estado real gana al estado simulado cuando
+  el estado real está a minutos de distancia — conviene mirar el reloj antes de decidir cómo
+  falsearlo. Bonus regalado: el browser de Playwright corría **desfasado** (marcaba `desayuno`) y
+  el chip aplicó igual la franja del server, o sea la decisión 10 quedó probada sin proponérselo.
+- **Qué frenó:** ofrecí un menú de opciones donde una **no era ejecutable por mí**. Le propuse a
+  Fer mover el reloj del sistema sin haber verificado antes que podía hacerlo: `Set-Date` pide
+  privilegios de admin y falló, después el `Start-Process -Verb RunAs` disparó un cartel de UAC que
+  yo no expliqué de antemano — Fer tuvo que frenar la sesión para preguntar qué era eso. Dos turnos
+  perdidos y, peor, una decisión que él tomó creyendo que la opción estaba disponible. (El handoff
+  de la sesión anterior también daba por hecho que el reloj se podía mover; el supuesto venía de
+  arriba, pero verificarlo era mío.)
+- **Qué cambiar (una sola):** **antes de ofrecer una opción que depende de una capacidad no
+  probada** —elevación, credenciales, red, una API paga— gastar **un** comando en confirmar que
+  existe, y avisar en la misma línea si va a abrir un diálogo del sistema. Cuesta un tool call y
+  evita que el usuario elija entre opciones que no son reales. No se agrega regla nueva a
+  `CLAUDE.md`: es un caso concreto de *pensar antes de codificar* (§ 1 del global, "si hay
+  incertidumbre, preguntar") y de la regla de opciones con recomendación, que ya existen.
+
+---
+
 ## 2026-07-30 · ABIERTO_AHORA F1 — el chip «Para ahora» (Opus)
 
 - **Qué salió bien:** el spec escrito **eligiendo la forma para que no tocara nada** se pagó solo.
