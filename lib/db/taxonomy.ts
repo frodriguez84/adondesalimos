@@ -154,17 +154,7 @@ export const PRECIO: SeedTag[] = [
 ]
 
 export const MOMENTO: SeedTag[] = [
-  // `abierto-ahora` sigue sembrado (es parte de la taxonomía decidida) pero está
-  // **retirado**: `active = false` en la base desde ABIERTO_AHORA F1 (decisión 10).
-  // No puede evaluarse contra `place_tags` —un booleano estático para un concepto
-  // que depende de la hora en que uno mira— y la curaduría se lo había asignado a
-  // 20 lugares, así que filtrar por él a las 4 de la mañana mentía. Sus filas de
-  // `place_tags` NO se borraron (ocultar ≠ borrar): con `active = false` ya
-  // desaparece del sheet, de las cards, de la ficha y del sugeridor de curaduría,
-  // y un link viejo con `?t=abierto-ahora` sigue funcionando (lo ignora
-  // `filtrosDeTags`). La necesidad real la atiende el chip «Para ahora»
-  // (`lib/search/ahora.ts`); el abierto de verdad es la F2, gateada en tener masa
-  // de horarios propios de dueño. Reactivar = `UPDATE tags SET active = true`.
+  // `abierto-ahora` sigue sembrado pero está **retirado**: ver `TAGS_RETIRADOS`.
   { slug: 'abierto-ahora', name: 'Abierto ahora' },
   { slug: 'hasta-tarde', name: 'Hasta tarde' },
   { slug: 'abre-domingos', name: 'Abre domingos' },
@@ -174,6 +164,32 @@ export const MOMENTO: SeedTag[] = [
   { slug: 'cena', name: 'Cena' },
   { slug: 'trasnoche', name: 'Trasnoche' },
   { slug: 'happy-hour', name: 'Happy hour' },
+]
+
+/**
+ * **Tags retirados** — siguen sembrados (son parte de la taxonomía decidida) pero
+ * viven con `active = false`: desaparecen del sheet, de las cards, de la ficha y del
+ * sugeridor de curaduría, y `filtrosDeTags` los ignora, así que un link viejo con el
+ * tag en la URL no rompe. Sus filas de `place_tags` **no se borran** — ocultar ≠
+ * borrar, mismo criterio que el contenido del dueño.
+ *
+ * **Esta lista es el dueño único del hecho.** El estado real vive en la base (`active`
+ * es una columna que el seed nunca pisa, a propósito: apagar un tag a mano es
+ * curaduría). Un retiro **decidido en un spec** no es curaduría manual, es una
+ * decisión — y si vive solo en la base, un reset la pierde en silencio y el tag vuelve
+ * a estar elegible. Por eso se declara acá y se aplica con `npm run db:retiros`
+ * (idempotente, no toca `place_tags`). Reactivar = sacarlo de esta lista + un
+ * `UPDATE tags SET active = true`.
+ */
+export const TAGS_RETIRADOS: { slug: string; motivo: string }[] = [
+  {
+    slug: 'abierto-ahora',
+    motivo:
+      'Miente por construcción: booleano estático para un concepto que depende de la hora ' +
+      'en que uno mira, y la curaduría se lo había puesto a 20 lugares. La necesidad real la ' +
+      'atiende el chip «Para ahora» (lib/search/ahora.ts); el abierto de verdad es la F2 de ' +
+      'ABIERTO_AHORA, gateada en tener masa de horarios propios de dueño. Decisión 10.',
+  },
 ]
 
 /** Orden de las facetas en la UI (decisión 12: labels y orden en código, no en DB). */

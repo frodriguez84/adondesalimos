@@ -21,6 +21,14 @@ cambiar" se implementó, se dice dónde (commit, archivo). No es un diario largo
   archivo, que es exactamente lo que la regla de commits multilínea del CLAUDE.md global ya manda
   hacer. (2) El `next build` no se pudo correr durante la sesión (dev server levantado, comparten
   `.next`) — y era la tercera sesión seguida que iba a cerrar con el build en deuda.
+- **Qué salió de la retro (hecho en la misma sesión):** de los tres puntos que marqué al cerrar, el
+  que tenía arreglo salió al toque — **los retiros de tags pasaron a estar declarados en código**
+  (`TAGS_RETIRADOS` + `npm run db:retiros`) en vez de vivir en cinco documentos avisando del riesgo.
+  Los otros dos son de método y quedan como regla: (a) si el cambio **se ve en pantalla** y el spec
+  no lo decidió, una línea con mi recomendación **antes** de escribirlo —lo de "1 + 4 chips" lo
+  resolví sola y te lo conté después—; (b) chequear al **arrancar** si el MCP de Playwright está
+  cargado, porque esta sesión shippeó un cambio de UI sin ver un píxel y con tu server levantado
+  todo el tiempo.
 - **Qué cambiar (hecho esta sesión):** en vez de anotar el build como pendiente, **pedí la ventana**
   ("¿parás el dev server dos minutos?") — Fer lo bajó y el build cerró verde en la misma sesión. Es
   el mismo movimiento que el `backup:check` hizo con el backup: convertir una deuda silenciosa en un

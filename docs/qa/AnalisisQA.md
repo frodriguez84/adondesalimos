@@ -1297,9 +1297,9 @@ alcanza — hay que cambiar el del sistema, o mirarlo en la franja real.
 
 ### Notas
 
-- **El retiro del tag es dato, no código.** `active = false` vive solo en el Postgres de dev: el
-  seed no pisa `active` (a propósito, es curaduría) y no hay migración. Un reset de la base lo
-  pierde en silencio, igual que la curaduría — re-aplicar es el mismo UPDATE de una línea. Se hizo
+- **El retiro del tag quedó declarado en código** (`TAGS_RETIRADOS` en `lib/db/taxonomy.ts` +
+  `npm run db:retiros`), en el mismo día y a raíz de la retro: como `active` es una columna que el
+  seed no pisa, el retiro vivía solo en la base y un reset lo revivía en silencio. Se hizo
   `npm run backup:db` antes de tocar la base (`backups/adondesalimos_2026-07-30_074023.sql.gz`).
 - **La home pasó a 1 + 4 chips**, no 4: el chip de franja se antepone **sin descontar** de los 4 de
   Ocasión (decisión 6 de BUSQUEDA). Lo contrario habría sacado un chip de Ocasión de la home a

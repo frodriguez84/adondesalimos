@@ -6,6 +6,7 @@ import {
   COCINA_PADRES,
   MOMENTO,
   PRECIO,
+  TAGS_RETIRADOS,
   TAXONOMIA,
   TIPO,
   TOTAL_TAGS,
@@ -57,6 +58,18 @@ describe('taxonomía canónica', () => {
     expect(slugs).not.toContain('heladeria')
     expect(slugs).not.toContain('panaderia')
     expect(slugs).toContain('pasteleria')
+  })
+
+  it('todo tag retirado existe en la taxonomía y trae motivo', () => {
+    // Un slug mal escrito en TAGS_RETIRADOS es un retiro que nunca se aplica y que
+    // nadie nota: el tag sigue elegible para el sheet, las cards y el sugeridor.
+    // `npm run db:retiros` también corta, pero esto no necesita base.
+    const slugs = new Set(TAXONOMIA.flatMap((f) => f.tags.map((t) => t.slug)))
+    for (const r of TAGS_RETIRADOS) {
+      expect(slugs, `tag retirado "${r.slug}"`).toContain(r.slug)
+      expect(r.motivo.length, `motivo de "${r.slug}"`).toBeGreaterThan(20)
+    }
+    expect(new Set(TAGS_RETIRADOS.map((r) => r.slug)).size).toBe(TAGS_RETIRADOS.length)
   })
 
   it('agrupa Actividad y Ambiente, que ordenan la UI', () => {

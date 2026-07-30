@@ -564,6 +564,18 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
 
 ## Hecho
 
+- [x] **Los retiros de tags pasaron a estar declarados en código** (2026-07-30, sale de la retro de
+      la sesión de ABIERTO_AHORA F1): `TAGS_RETIRADOS` en `lib/db/taxonomy.ts` (slug + motivo, dueño
+      único del hecho) + `npm run db:retiros` (`scripts/retiros.ts`, idempotente, **no toca**
+      `place_tags`). **Por qué:** el seed no pisa `active` a propósito —apagar un tag a mano es
+      curaduría y debe sobrevivir a un reseed— pero eso hacía que un retiro **decidido en un spec**
+      se perdiera al recrear la base, y el tag volvía a ser elegible para el sugeridor de curaduría,
+      que es exactamente el bug que originó el retiro. Verificado en las tres ramas: idempotente (0
+      cambios), aplicar de verdad (se reactivó `abierto-ahora` a mano y el script lo retiró) y el
+      aviso de drift inverso (un tag inactivo no declarado). Reemplaza 3 de los 5 lugares que
+      avisaban del riesgo por escrito. El **check f7** de `/consistency-check` ahora cruza base ↔
+      declaración en los dos sentidos. Lección en `LECCIONES_APRENDIDAS.md`: *si una decisión no está
+      declarada en código, no es una decisión — es el estado actual de una base.*
 - [x] **ABIERTO_AHORA F1 — el chip «Para ahora»** (2026-07-30, sesión Opus): el **#2 de la cola de
       v2** y el primero de v2 con código. `lib/search/ahora.ts` (nuevo, dueño único de hora →
       tags: las 5 franjas de la decisión 3, reusando `partesEnAR`) + `getOccasionChips(now)` que lo

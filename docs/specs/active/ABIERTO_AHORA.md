@@ -121,8 +121,9 @@ No hay migración, no hay endpoint nuevo, no hay cambio de UI cliente.
   `UPDATE tags SET active = false WHERE slug = 'abierto-ahora';` → 1 fila. Verificado: las **20**
   filas de `place_tags` siguen ahí, el sheet de Momento pasó a 8 tags sin él, la ficha de un
   lugar que lo tenía ya no lo lista y `?t=abierto-ahora` sigue devolviendo resultados (lo ignora
-  `filtrosDeTags`). ⚠️ Es **dato, no código**: como la curaduría, un reset de la base lo pierde
-  y el seed no lo regenera (el seed no pisa `active`, a propósito). Re-aplicar = el mismo UPDATE.
+  `filtrosDeTags`). El retiro quedó **declarado en código** el mismo día —`TAGS_RETIRADOS` en
+  `lib/db/taxonomy.ts`, aplicado con `npm run db:retiros`— para que un reset de la base no lo
+  pierda en silencio y el tag no vuelva a ser elegible para el sugeridor de curaduría.
 - Conteos al implementar (AMBA, umbral 0.5): `cena` 670 · `almuerzo` 605 · `desayuno` 272 ·
   `merienda` 251 · madrugada (`trasnoche` ∪ `hasta-tarde`) 176 — idénticos a la evidencia medida
   al escribir el spec, así que ninguna franja nace apagada.

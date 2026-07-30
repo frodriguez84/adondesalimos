@@ -78,13 +78,19 @@ evidencia y la cobertura de chips — no que cada tag asignado fuera *asignable*
    alcanza con documentar aparte por qué una opción no va: si está en la lista, es elegible.
 
 > **Cerrado el 2026-07-30 (ABIERTO_AHORA F1).** El punto 4 se aplicó de la única forma que el
-> sistema podía hacer cumplir sola: `UPDATE tags SET active = false WHERE slug = 'abierto-ahora'`.
-> El sugeridor de curaduría filtra `active` (`lib/curation/query.ts:155`), así que el tag **salió de
-> la lista** que ve el LLM — no por documentación, por dato. Sus 20 filas siguen ahí (ocultar ≠
-> borrar) y el comentario de `taxonomy.ts` ahora dice *por qué* está inactivo. El corolario que
-> queda: el retiro es **dato, no código** —el seed no pisa `active`, a propósito— así que un reset
-> de la base lo pierde en silencio y el tag volvería a ser elegible. Eso es justamente lo que vigila
-> el check (f) de `/consistency-check`.
+> sistema puede hacer cumplir solo: `active = false`. El sugeridor de curaduría filtra `active`
+> (`lib/curation/query.ts:155`), así que el tag **salió de la lista** que ve el LLM — no por
+> documentación, por dato. Sus 20 filas siguen ahí (ocultar ≠ borrar).
+>
+> **Y apareció una quinta lección, del mismo tronco: un retiro que vive solo en la base es la misma
+> trampa una vuelta más adentro.** El seed no pisa `active` a propósito (apagar un tag a mano es
+> curaduría y tiene que sobrevivir a un reseed), pero eso hacía que un retiro **decidido en un
+> spec** se perdiera en silencio al recrear la base — y el tag volvía a ser elegible para el LLM,
+> que es exactamente el bug de arriba. Arreglado el mismo día: la lista vive en código
+> (`TAGS_RETIRADOS` en `lib/db/taxonomy.ts`, dueño único del hecho) y se aplica con
+> `npm run db:retiros`, idempotente y sin tocar `place_tags`. El check f7 de `/consistency-check`
+> cruza base ↔ declaración en los dos sentidos. **La forma general: si una decisión no está
+> declarada en código, no es una decisión — es el estado actual de una base.**
 
 ---
 

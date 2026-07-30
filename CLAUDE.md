@@ -226,10 +226,9 @@ Cicatrices reales — gotchas que sorprenden:
   `npm run curar` sobre las 46 zonas (~US$17 con Sonnet) **o** restaurar un dump. Antes de
   cualquier operación destructiva sobre la base, **hacer `pg_dump` primero**. Mismo criterio para
   cualquier dato de admin/dueño/votación que no nazca del seed. Ver `docs/qa/AnalisisQA.md`
-  § CURADURIA F3 → *Cierre de la cola*. **Mismo caso, más chico:** el tag `abierto-ahora` está
-  **retirado** (`active = false`, ABIERTO_AHORA decisión 10) y eso también es dato — el seed no pisa
-  `active`, así que un reset lo revive y el tag vuelve a mentir. Re-aplicar es el mismo UPDATE de
-  una línea.
+  § CURADURIA F3 → *Cierre de la cola*. **Los retiros de tags, en cambio, ya están declarados en
+  código** (`TAGS_RETIRADOS` en `lib/db/taxonomy.ts`): sobre una base nueva se re-aplican con
+  `npm run db:retiros` (idempotente, no toca `place_tags`).
 
 ---
 
