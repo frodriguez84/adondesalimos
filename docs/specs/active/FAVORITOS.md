@@ -1,6 +1,7 @@
 # Spec: FAVORITOS — guardar lugares y listas
 
-**Estado:** 🔵 Planned — en diseño
+**Estado:** Parcial — **F1 ✅ Implementado (2026-07-30)**; F2 (`/mis-lugares`, crear/renombrar/borrar
+listas, sheet de selección) pendiente. QA: `docs/qa/AnalisisQA.md` § FAVORITOS F1.
 **Prioridad:** Alta — #3 del orden de momentum de v2 y **la apuesta grande** de la tanda
 (IDEAS § Estado de la conversación, 2026-07-27): es la única feature de la cola que da
 **retención** (una razón para volver a la app cuando no estás decidiendo una salida) y a la vez
@@ -63,7 +64,7 @@ desde el día 1, sin costo marginal por usuario.
 | 10 | **Página propia `/mis-lugares`**, no una tab de `/cuenta`, con link en el `AccountMenu` al lado de "Mis votaciones" — que es exactamente el mismo tipo de objeto (algo mío, con su propia pantalla). `/cuenta` es configuración de la cuenta; esto es contenido. |
 | 11 | **Un lugar que se despublica sigue en la lista.** Misma decisión que `poll_options` de VOTACION ("si un lugar se vuelve invisible después, la opción sigue"): el usuario lo guardó, no se le desaparece sin explicación. Se muestra atenuado con un "ya no está disponible" y **no linkea** a la ficha (que devolvería 404 por `publishedWhere`). La lista **nunca** se filtra silenciosamente por visibilidad. |
 | 12 | **Se cuenta `saves` en `place_impressions_daily` desde el día 1** (columna nueva, aditiva, agregado puro: sin `user_id`, sin cookie, sin IP — igual que `impressions` y `detail_views`). Por qué ahora y no cuando se muestre: sacar un favorito **borra la fila** de `place_list_items`, así que el histórico "cuánta gente lo guardó" **no se puede reconstruir después** (CLAUDE.md § Métricas agregadas). Se escribe en el mismo patrón `after()` que las impresiones. Mostrarlo en `/mi-negocio` es v2. |
-| 13 | **Rate limit propio: `checkFavoritosRateLimit`** en `lib/middleware/rate-limit.ts`, con prefijo propio, generoso (guardar es una acción legítima y repetida) pero acotado — es un endpoint autenticado que escribe. Mismo patrón que los 12 cupos que ya existen. |
+| 13 | **Rate limit propio: `checkFavoritosRateLimit`** en `lib/middleware/rate-limit.ts`, con prefijo propio, generoso (guardar es una acción legítima y repetida) pero acotado — es un endpoint autenticado que escribe. Mismo patrón que los 10 cupos que ya existen. Implementado en 60/min por IP. |
 | 14 | **Endpoints mínimos, todos con el patrón de `POST /api/votaciones`** (rate limit → sesión inline → zod → acción de dominio → `{data, error:{message, code}}`): <br>· `POST /api/favoritos` `{placeId, listId?}` — guarda; sin `listId` va a la default (creándola si no existe) <br>· `DELETE /api/favoritos` `{placeId, listId}` — saca <br>· `POST /api/listas` `{name}` — crea lista (gate premium) <br>· `PATCH /api/listas/[id]` `{name}` · `DELETE /api/listas/[id]` — renombrar / borrar |
 | 15 | **La lista default no se puede borrar ni renombrar.** Es el contenedor que garantiza que free siempre tenga dónde guardar; borrarla dejaría al usuario sin destino y obligaría a recrearla en el próximo tap. Se valida en la acción de dominio, no solo en la UI. |
 | 16 | **Solo se guardan lugares del catálogo real.** El `placeId` se valida contra `places` (existe) — no contra `publishedWhere`: se puede guardar solo lo que se puede ver, y lo que se ve ya pasó por el filtro de visibilidad en la búsqueda o la ficha. Chequear publicado otra vez acá rompería el caso de la decisión 11 al re-guardar. |
@@ -115,33 +116,105 @@ listas de gente en silencio.
 | `components/shared/account-menu.tsx` | Un link |
 | `lib/search/impressions.ts` | `registrarGuardado(placeId)` — mismo patrón agregado |
 
+## Pre-vuelo contra el código (2026-07-30)
+
+Auditoría de los supuestos de este spec contra el código real, hecha **antes** de implementar (3
+exploradores en paralelo + verificación a mano). El spec se escribió el 2026-07-29 sin abrir los
+archivos; esto dice qué de lo que afirma es cierto hoy. **No cambia ninguna decisión** — marca lo
+que hay que decidir antes de codear.
+
+**Confirmado, se puede reusar tal cual:** `esPremium(userId, tx)` (`lib/votaciones/planes.ts:16`,
+importada en 5 archivos) · `poll_options.place_id` **sin** cascade, tal como lo cita la decisión 1
+(`schema.ts:702-751`) · `users.plan` enum `free|premium` (`schema.ts:535`) · el orden del handler de
+`POST /api/votaciones` es exactamente el de la decisión 14, **con la sesión antes del payload**
+(rate limit :26 → sesión :31 → JSON :40 → zod :49 → acción :61 → `{data, error}` :68) · `/login`
+lee el param **`callbackUrl`** (`app/(auth)/login/page.tsx:29`) · `bottom-sheet.tsx` con
+`{open, onClose, children, className}` · `account-menu.tsx` ya tiene "Mis votaciones" · `/mis-votaciones`
+usa el patrón server + `*-client.tsx` · **hay 3 precedentes de índice único parcial** en Drizzle
+(`place_claims_aprobado_idx`, los dos de `subscriptions`), así que el `unique index (user_id) where
+is_default` de la decisión 2 es escribible · `place_impressions_daily` es PK `(place_id, date)` con
+`impressions`/`detail_views`/`featured_impressions`, y `lib/search/impressions.ts` ya tiene cinco
+`registrarX` con el upsert `onConflictDoUpdate` que `saves` copiaría · eliminar la cuenta usa cascade
+de FK + hook `beforeDelete` (`lib/auth/index.ts:46-91`), así que FAV-15 sale solo con el cascade ·
+**no existe nada de favoritos todavía** (ni `lib/favoritos/`, ni `components/favoritos/`, ni
+`app/mis-lugares/`, ni tabla con "list"/"favorit"): es campo virgen.
+
+**Resueltas con Fer al abrir la sesión de F1 (2026-07-30)** — las tres se cerraron antes de escribir
+código y así quedaron implementadas:
+
+| # | Decisión tomada |
+|---|-----------------|
+| P1 | **(a) Fuera del motor.** `lib/search/query.ts` quedó **intacto**. `guardadosDeLaPagina(userId, ids)` (`lib/favoritos/query.ts`) se llama desde el server component de `/` —que ya traía la sesión para el `AccountMenu`— y desde la ficha; `/api/search` suma sesión + la misma query y devuelve `guardados: string[]` para que las cards del scroll infinito nazcan con estado. **Hallazgo del pre-vuelo que faltaba:** `SearchShell` y `ResultsList` son componentes **cliente**, así que el estado igual tenía que viajar serializado — la opción (b) no lo habría evitado. Verificado en vivo: la card de la página 2 aparece guardada tras el scroll. |
+| P2 | **Listado + ficha, y nada más** (lo que dice el DoD). Chat, popup del mapa y votación **no pasan el prop `accion`** y no muestran botón: es decisión, no omisión. El chat queda para F2 porque sus cards llegan por streaming y necesitan un endpoint de lectura por lote (`GET /api/favoritos?ids=`) que no está en la decisión 14 y que F2 va a tener igual para `/mis-lugares`. |
+| P3 | **Default en código + fila opcional en `app_settings`**, como `getConfidenceThreshold`. Valores: `favoritos.max_listas_premium = 10`, `favoritos.max_items_por_lista = 200` (constantes `DEFAULT_MAX_LISTAS_PREMIUM` / `DEFAULT_MAX_ITEMS_POR_LISTA` en `lib/favoritos/planes.ts`). **No se sembró ninguna fila**: el feature funciona en una base que nunca corrió un seed nuevo, y un UPDATE los cambia sin deploy. |
+
+**Lo que se decidió mientras se implementaba** (no estaba en el spec y hacía falta):
+
+- **El estado "guardado" respeta el recorte de plan.** `guardadosDeLaPagina` pasa por `listasVisibles`,
+  no por `place_lists` derecho. Si no lo hiciera, un lugar guardado solo en una lista escondida se
+  mostraría como guardado y `sacarLugar` —que también opera solo sobre visibles— no podría sacarlo:
+  la pantalla mentiría. Verificado en vivo (FAV-06/07).
+- **`saves` suma solo el guardado nuevo.** Re-guardar es idempotente y no es un evento nuevo; el
+  contador mide "cuánta gente lo guardó", no cuántos taps hubo. Por eso `guardarLugar` devuelve `nuevo`.
+- **`sacarLugar` acepta `listId` opcional.** El botón de la card sabe qué lugar sacar pero no de qué
+  lista salió el estado (que se resuelve por lugar). Sin `listId` saca de todas las listas visibles.
+- **El sheet de selección no se implementó y no es un gap**: en F1 nadie puede tener más de una lista
+  porque crear listas es F2. La condición del DoD ("premium con >1 lista") no puede darse todavía.
+
+**A decidir ANTES de escribir código** (los dos primeros son conflictos internos del spec) — *ya
+resueltos, se dejan como registro de qué se auditó*:
+
+| # | Qué | Por qué importa |
+|---|-----|-----------------|
+| P1 | **La decisión 9 y el "el motor no se toca" de § Qué NO es esta feature se contradicen si se sigue el precedente literal.** `tagsDeLugares` y `zonaPrimariaDeLugares` **no están exportadas**: son privadas de `lib/search/query.ts:509,535` y se llaman **desde adentro** del motor, en 3 sitios (`:335,:407,:491`). Copiar ese patrón para `guardadosDeLaPagina` obliga a tocar el motor y a pasarle un `userId`. | Hay que elegir: **(a)** resolver el estado **fuera** del motor —en el server component de la home y en la ficha, con los ids ya obtenidos— y dejar `query.ts` intacto, o **(b)** aceptar tocar el motor y corregir el "no se toca". Recomendación: **(a)**, que es lo que el spec ya prometió. Ojo con el segundo tramo: la paginación ("ver más") trae cards desde **`/api/search`** (`app/api/search/route.ts:40`), así que ese endpoint también tiene que devolver el estado, o las cards paginadas nacen sin él. |
+| P2 | **`PlaceCard` se renderiza en 5 lugares, no en uno**: listado (`components/search/results-list.tsx:141,153`), popup del mapa (`map-view.tsx:233`), **chat IA** (`app/chat/chat-client.tsx:571`) y **votación** (`app/votacion/[token]/votacion-client.tsx:131`). El DoD solo nombra "la card del listado y la ficha". | El slot `accion` de la decisión 6 es opcional, así que las otras superficies simplemente no lo pasan y no muestran botón — **funciona, pero hay que decidirlo a propósito**. Guardar desde el chat es el gesto más natural de todos (el usuario acaba de pedir recomendaciones) y quedaría afuera por omisión, no por decisión. |
+| P3 | **Cómo nacen las claves nuevas de `app_settings`** (`favoritos.max_listas_premium`, `favoritos.max_items_por_lista`). El dueño de la lectura es `getSetting<T>(key, db)` (`lib/db/settings.ts`), y el patrón vigente es una función tipada por clave con **default en código** (`getConfidenceThreshold` → `DEFAULT_CONFIDENCE_THRESHOLD`), no una fila obligatoria. | Si se asume "la fila existe" el feature nace roto en cualquier base que no corrió un seed nuevo. Seguir el patrón: default en código + fila opcional que lo pisa sin deploy. |
+
+**Citas corregidas** (2026-07-30, ya aplicadas en el texto de arriba): la decisión 13 decía "los
+**12** cupos que ya existen" y eran **10** funciones `check*RateLimit`; el DoD citaba la "lección
+**INT-14** de PULIDO" para "sesión inline antes del payload" cuando `INT-14` es el caso de
+aislamiento entre dueños y lo que corresponde es la **decisión 7 de `docs/specs/done/PULIDO.md`**.
+
+**Hallazgo fuera de este spec:** `CLAUDE.md` § Estructura de carpetas dice `drizzle/ … (0000..0003)`
+y hoy hay **11** migraciones (`0000`..`0010_wealthy_mad_thinker`). Es drift de doc, no de código.
+
 ## Criterios de done (DoD)
 
 **Modelo y gate**
 
-- [ ] Migración aditiva aplicada; `npm run db:migrate` no destruye nada y el seed sigue idempotente.
-- [ ] `lib/favoritos/planes.ts` es el **único** módulo que decide cuántas listas puede tener un
-      usuario (verificable por `grep`); el gate de plan sigue saliendo de `esPremium`.
-- [ ] Un usuario **free** que intenta crear una segunda lista recibe error **desde el server**
-      (test de integración con el endpoint, no solo con la UI escondida).
-- [ ] Un usuario **premium** puede crear hasta `favoritos.max_listas_premium` listas; la N+1 falla.
-- [ ] Bajar el plan a `free` **no borra ninguna fila**: las listas no-default quedan y dejan de
-      listarse; volver a `premium` las muestra de nuevo, con sus ítems intactos (test).
-- [ ] La lista default no se puede borrar ni renombrar (test de la acción de dominio).
-- [ ] Un lugar no se puede duplicar en la misma lista (índice único + acción idempotente).
+- [x] Migración aditiva aplicada (`drizzle/0011_easy_wolfsbane.sql`); `npm run db:migrate` no
+      destruye nada y el seed sigue idempotente. Backup previo: `2026-07-30_203627`.
+- [x] `lib/favoritos/planes.ts` es el **único** módulo que decide cuántas listas puede tener un
+      usuario (verificado por `grep`: `MAX_LISTAS_FREE`/`getMaxListasPremium`/`maxListasDelUsuario`
+      solo aparecen ahí); el gate de plan sale de `esPremium`, que no se duplicó.
+- [~] Un usuario **free** que intenta crear una segunda lista recibe error **desde el server**.
+      *El endpoint `POST /api/listas` es de F2*; lo que F1 deja listo y testeado es el número que
+      ese endpoint va a consultar (`maxListasDelUsuario` = 1 en free, 10 en premium).
+- [~] Un **premium** puede crear hasta `favoritos.max_listas_premium` listas — **F2** (misma razón).
+- [x] Bajar el plan a `free` **no borra ninguna fila**: las listas no-default quedan y dejan de
+      listarse; volver a `premium` las muestra de nuevo con sus ítems intactos (test + FAV-06/07
+      en vivo). Además, guardar en una lista escondida se rechaza y el estado "guardado" tampoco
+      la cuenta.
+- [~] La lista default no se puede borrar ni renombrar — **F2**: en F1 no existe el endpoint que
+      borre o renombre. `is_default` ya está en el modelo con su índice único parcial.
+- [x] Un lugar no se puede duplicar en la misma lista (índice único `(list_id, place_id)` + acción
+      idempotente con `onConflictDoNothing`; test + FAV-08).
 
 **Guardar / sacar**
 
-- [ ] Desde la card del listado y desde la ficha, un tap guarda el lugar (free: directo a la
-      default, creándola si es el primer guardado; premium con >1 lista: sheet de selección).
-- [ ] El botón refleja el estado real al cargar la página (server-side, decisión 9) y no dispara
-      una query por card.
-- [ ] Sin sesión, el botón lleva a `/login?callbackUrl=…` y al volver el usuario queda en la
-      misma búsqueda.
-- [ ] `PlaceCard` sigue sin lógica de datos: el diff en ese archivo es solo el prop `accion`.
-- [ ] Sacar un lugar lo quita de la lista y el botón vuelve al estado no-guardado sin recargar.
+- [x] Desde la card del listado y desde la ficha, un tap guarda el lugar, directo a la default,
+      creándola si es el primer guardado. *El sheet de selección no aplica en F1*: crear listas es
+      F2, así que nadie puede tener más de una.
+- [x] El botón refleja el estado real al cargar la página (server-side, decisión 9) y no dispara
+      una query por card: **cero** requests a `/api/favoritos` al cargar (FAV-14), y las cards del
+      scroll infinito nacen con estado porque `/api/search` lo devuelve.
+- [x] Sin sesión, el botón lleva a `/login?callbackUrl=…` y al volver el usuario queda en la misma
+      búsqueda, con zona y tags (FAV-01, verificado en vivo).
+- [x] `PlaceCard` sigue sin lógica de datos: el diff en ese archivo es el prop `accion` y su
+      posicionamiento (`relative` + `pr-12`), nada más.
+- [x] Sacar un lugar lo quita de la lista y el botón vuelve al estado no-guardado sin recargar.
 
-**Página `/mis-lugares`**
+**Página `/mis-lugares`** — F2 entera, no aplica a esta fase
 
 - [ ] Sin sesión redirige a login; con sesión muestra las listas visibles y sus lugares (más
       recientes primero).
@@ -152,13 +225,15 @@ listas de gente en silencio.
 
 **Métrica y seguridad**
 
-- [ ] Guardar suma +1 a `place_impressions_daily.saves` del día, en un `after()`, sin `user_id`
-      ni ninguna otra PII en la fila.
-- [ ] Sacar un favorito **no** descuenta el contador (es un histórico de eventos, no un stock).
-- [ ] Todos los endpoints: sesión verificada inline **antes** de mirar el payload (lección INT-14
-      de PULIDO), rate limit propio, y **nunca** operan sobre una lista de otro usuario (test:
-      un `listId` ajeno devuelve 403/404, no 200).
-- [ ] typecheck + tests + build verdes.
+- [x] Guardar suma +1 a `place_impressions_daily.saves` del día, en un `after()`, sin `user_id`
+      ni ninguna otra PII en la fila (FAV-13; hay un test que enumera las columnas y falla si
+      alguien agrega una identificatoria). Solo suma el guardado **nuevo**.
+- [x] Sacar un favorito **no** descuenta el contador (FAV-09, verificado en vivo y en test).
+- [x] Todos los endpoints: sesión verificada inline **antes** de mirar el payload (decisión 7 de
+      `docs/specs/done/PULIDO.md`), rate limit propio (`checkFavoritosRateLimit`, 60/min), y
+      **nunca** operan sobre una lista de otro usuario (test + FAV-11 en vivo: `listId` ajeno da
+      404 y **cero** filas escritas en la lista ajena).
+- [x] typecheck + tests verdes (513/513). Build: pendiente, se corre con el dev server bajo.
 
 ## QA manual (IDs propuestos)
 
