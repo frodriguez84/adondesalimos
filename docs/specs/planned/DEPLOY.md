@@ -66,7 +66,8 @@ Tamaño de la base, medido el 2026-07-31: 48 MB totales — `places` 21 MB · `p
 | 3 | **Hosting: Vercel Hobby (US$0).** El stack que Fer ya opera en turnia. |
 | 4 | **Base: Neon Free, región `aws-sa-east-1` (São Paulo); funciones de Vercel en `gru1` (São Paulo).** Los dos en Sudamérica: ~30 ms desde AR contra ~120 ms si la base quedara en Virginia, y el motor de búsqueda hace varias queries por página. Mover un proyecto de Neon de región después es dump/restore, así que se elige bien de entrada. |
 | 5 | **El cobro sale APAGADO. No se setean `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` ni `NEXT_PUBLIC_MP_PUBLIC_KEY` en Vercel.** No es una preferencia de producto: Vercel Hobby prohíbe el uso comercial (cualquier deploy "atado a ganancia financiera", incluidas donaciones), y la sanción es que te suspendan el proyecto sin aviso. Cobrar exige Pro (US$20/mes). **Y el día 1 no hay a quién cobrarle**: no hay dueños reclamados (1 lugar con horarios propios) ni usuarios. Encender el cobro habilita que alguien *pueda* pagar, que no es lo mismo que recaudar. Esperar cuesta exactamente cero. |
-| 6 | **El premium NO se esconde: se anuncia como "en camino" y se mide el interés.** Sin la public key de MP, hoy `checkout-modal.tsx` degrada a *"Configuración de pago incompleta."* — no rompe la app, pero es copy de desarrollador y le dice al usuario que algo está roto. Se reemplaza por un mensaje de producto en `SuscripcionPanel`, con un botón que **registra el interés** (tabla nueva, migración aditiva). Ese contador es el dato que dispara los US$20: se deja de decidir por corazonada. |
+| 6 | **El premium NO se esconde: se anuncia como "en camino" y se mide el interés.** Sin la public key de MP, hoy `checkout-modal.tsx` degrada a *"Configuración de pago incompleta."* — no rompe la app, pero es copy de desarrollador y le dice al usuario que algo está roto. Se reemplaza por un mensaje de producto en `SuscripcionPanel`, con un botón que **registra el interés**. Ese contador es el dato que dispara los US$20: se deja de decidir por corazonada. **Copy, schema y superficies: ver § El premium apagado**, más abajo. |
+| 6b | **Y NO se regala el premium durante la beta.** Es la pregunta natural ("si no podés cobrar, abrilo gratis") y la contesta una regla que ya existe en `CLAUDE.md`: *"subir un cupo es un regalo; bajarlo es una traición"*. Abrirlo ahora obliga a sacarlo después, y de paso **destruye la señal**: nadie pide lo que ya tiene. Los gates de free (1 lista, 3 mensajes de chat) siguen aplicándose igual que hoy. |
 | 7 | **El chat IA queda encendido** (un free ya tiene `ai.chat_quota_trial = 3` mensajes/mes). Es el diferencial del producto y en una beta sin cobro lo que querés es justamente que lo prueben. |
 | 8 | **`ai.chat_monthly_cap` baja de 5.000 a 500 para el lanzamiento** — un `UPDATE` en `app_settings`, cero código, cero deploy. Techo duro de ~US$20/mes. Al llegar, `reservarCupo` corta **antes** de llamar a Anthropic y el usuario ve un banner rioplatense ("El chat está descansando un rato / Volvé más tarde y seguimos") con el input bloqueado, sin perder su mensaje: es la degradación que diseñó la decisión 15 de CHAT_IA, ya probada. Se sube cuando el consumo real se vea en `/admin`. |
 | 9 | **El sitio sale con `noindex` y se prende después del QA en prod.** Google reindexando una beta con un bug es caro de despintar; unos días de demora en SEO no se notan. Son 3 líneas en `app/robots.ts` y sacarlas es otro cambio de 3 líneas. `/api/` y `/admin` siguen bloqueados como ya estaban (FICHA decisión 16). |
@@ -78,7 +79,7 @@ Tamaño de la base, medido el 2026-07-31: 48 MB totales — `places` 21 MB · `p
 | 15 | **La única `NEXT_PUBLIC_` que viaja es `NEXT_PUBLIC_APP_URL`** (la URL pública del sitio, que por definición no es secreto). Todo lo demás —`GOOGLE_PLACES_API_KEY`, `ANTHROPIC_API_KEY`, `R2_*`, `BETTER_AUTH_SECRET`, `RESEND_API_KEY`— va **sin** prefijo y por lo tanto Next garantiza que nunca llega al bundle: es el compilador el que lo asegura, no la disciplina de nadie. `BETTER_AUTH_SECRET` de producción se **genera nuevo** (`openssl rand -hex 32`), distinto al de dev. |
 | 16 | **La key de Google Places queda restringida por API, no por IP.** Las funciones serverless no tienen IP fija, así que la restricción por IP no es opción. El control de gasto real ya existe y es otro: los topes por SKU en `app_settings` (`google.details_monthly_cap` / `photos_monthly_cap`), que degradan la ficha en vez de facturar. |
 | 17 | **El DNS de Vercel en Cloudflare va DNS-only (nube gris), no proxeado.** Proxear Cloudflare por delante de Vercel es doble CDN y es la causa clásica de loops de redirección y de headers de IP inconsistentes — que además romperían la decisión 13. |
-| 18 | **El cobro se prende (y con él Vercel Pro) cuando el interés medido lo justifique**, no por calendario. Disparador propuesto: **≥10 clicks de usuarios distintos** en el botón de la decisión 6, **o** el primer dueño que pida el plan B2B (ARS 15.000 ⇒ 3 pagan el hosting, contra 7 del B2C). Es puerta de ida y vuelta: el número se ajusta cuando haya datos. Prenderlo es setear 3 env vars + upgrade de plan: ~10 minutos, sin deploy de código. |
+| 18 | **El cobro se prende (y con él Vercel Pro) cuando el interés medido lo justifique**, no por calendario. Disparador propuesto: **≥10 clicks de usuarios distintos** en el botón de la decisión 6, **o** el primer dueño que pida el plan B2B (ARS 15.000 ⇒ 3 pagan el hosting, contra 7 del B2C). Es puerta de ida y vuelta: el número se ajusta cuando haya datos. Prenderlo es setear 3 env vars + upgrade de plan, **sin tocar una línea de código** — pero **sí requiere redeploy**: `NEXT_PUBLIC_MP_PUBLIC_KEY` se inlinea en el build, así que setearla en el panel de Vercel no alcanza hasta que se reconstruya. |
 | 19 | **El mail transaccional ya está resuelto — no es un bloqueante de lanzamiento.** El dominio está verificado en Resend y probado: DKIM en `resend._domainkey.adondesalimos.com.ar`, SPF y MX en `send.adondesalimos.com.ar` (→ `feedback-smtp.sa-east-1.amazonses.com`), y `RESEND_FROM_EMAIL = no-reply@adondesalimos.com.ar` ya en el `.env` de dev. En F1 la var se copia a Vercel y listo: no hay trámite pendiente. Bonus: Resend quedó en **sa-east-1**, la misma región que Neon y Vercel (decisión 4). |
 
 ---
@@ -125,18 +126,83 @@ Neon (`curar`, `import-overture`, `zones:*`) hay que dumpear Neon, no el dev.**
 
 ---
 
+## El premium apagado — copy, schema y superficies
+
+Decidido con Fer el 2026-07-31. Es lo primero que conviene implementar, **antes de migrar a
+Neon**: agrega una tabla, y así el dump que se restaura ya la trae en vez de tener que correr
+`db:migrate` contra Neon aparte.
+
+### Cómo sabe el panel que el cobro está apagado
+
+Por la **ausencia de `NEXT_PUBLIC_MP_PUBLIC_KEY`** — exactamente la misma señal que ya usa
+`checkout-modal.tsx`. **No se agrega un flag en `app_settings`**: sería una segunda fuente de
+verdad sobre lo mismo, y prenderla sin la key devolvería al usuario al mensaje roto. La presencia
+de la key **es** el interruptor.
+
+### El copy (variante elegida: directa y honesta)
+
+Dice primero lo importante —que no se puede pagar— y recién después vende, así nadie se queda
+pensando si el botón está roto. Reemplaza al pitch + botón "Suscribirme por $X/mes" del estado free.
+
+**B2C** (`/cuenta`):
+
+> **Todavía no abrimos los pagos.**
+> Estamos en beta. El premium está por salir: votaciones ilimitadas, historial y que la IA te arme
+> la shortlist. Dejanos la señal y te escribimos apenas se pueda.
+> `[ Avisame cuando abra ]`
+
+**B2B** (`/mi-negocio/[placeId]`) — mismo esqueleto, con el pitch del plan del lugar que el panel
+ya tiene escrito:
+
+> **Todavía no abrimos los pagos.**
+> Estamos en beta. El plan del lugar está por salir: descripción, carta, novedades, hasta 15 fotos
+> y el destaque en las búsquedas. Dejanos la señal y te escribimos apenas se pueda.
+> `[ Avisame cuando abra ]`
+
+**Después del click** (estado confirmado, el botón no vuelve):
+
+> ✓ Listo, anotado. Te escribimos a **<email de la cuenta>** apenas abramos los pagos.
+
+El aviso es una **promesa real y manual**: el día que se prenda el cobro, Fer le escribe a esa
+lista. No se automatiza nada — no hay cron y no hace falta.
+
+### Schema — `premium_interest` (migración aditiva)
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| `id` | uuid pk | |
+| `user_id` | uuid not null → `users.id` (cascade) | requiere sesión: es una señal de mayor intención **y** deja el mail para avisar |
+| `place_id` | uuid nullable → `places.id` (cascade) | **`null` = B2C, con valor = B2B** — el mismo criterio que ya usa `subscriptions` (no se inventa un enum de tipo) |
+| `created_at` | timestamp | |
+
+⚠️ **El dedupe necesita índices únicos PARCIALES, no un `unique(user_id, place_id)`**: en Postgres
+`NULL ≠ NULL`, así que un unique común dejaría entrar N filas B2C del mismo usuario y el conteo se
+inflaría con dobles clicks. Van dos:
+- `unique (user_id) where place_id is null` — un solo interés B2C por persona.
+- `unique (user_id, place_id) where place_id is not null` — uno por lugar.
+
+Con eso, "cuántos lo pidieron" es un `count(*)` honesto y el segundo click es idempotente.
+
+### Dónde se ve el número
+
+En **`/admin` → tab Suscripciones**, que hoy está vacía justamente porque no hay suscripciones: es
+donde ya vas a mirar "quién paga". Muestra **el conteo y la lista de mails**. La lista no es
+decoración — es a quién le escribís el día que abrís; sin ella el contador es un número sin acción.
+
 ## Fases
 
 | Fase | Qué | Código |
 |---|---|---|
 | **F0** | Neon: crear, restaurar, verificar por conteo, bajar el cap del chat | ninguno |
-| **F1** | Los 4 cambios chicos de abajo + proyecto en Vercel + DNS + Resend + QA en prod + sacar el `noindex` | sí, acotado |
+| **F1** | Los 4 cambios chicos de abajo + proyecto en Vercel + DNS + QA en prod + sacar el `noindex` | sí, acotado |
 | **F2** | Rate-limit a Upstash Free (decisión 12) · botón de Google OAuth (gatillo cumplido por el lanzamiento) | sí |
 | **F3** | Vercel Pro + encender el cobro. **Gateada** por la decisión 18 | no (env vars) |
 
-**Los cuatro cambios de código de F1**, todos chicos:
+**Los cuatro cambios de código de F1**, todos chicos. **El (2) va primero y antes de F0**: agrega
+una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` suelto contra prod.
+
 1. `app/robots.ts` — `noindex` temporal (decisión 9).
-2. `SuscripcionPanel` — mensaje de producto + botón que registra interés, y la tabla que lo guarda (decisión 6).
+2. `SuscripcionPanel` + tabla `premium_interest` + endpoint + el conteo en `/admin` — todo el detalle en § El premium apagado (decisión 6). ⚠️ Es migración: `npm run backup:db` antes.
 3. `app/api/chat/route.ts` — declarar `export const maxDuration`: el chat es SSE con rondas de tool y puede tardar decenas de segundos; el default de la plataforma lo cortaría a mitad de respuesta. Verificar el default y el máximo vigentes de Hobby al deployar.
 4. `.env.example` — sumar `TRUSTED_IP_HEADER` y `NEXT_PUBLIC_APP_URL`, que hoy se usan en código y no están documentados.
 
@@ -153,7 +219,9 @@ Neon (`curar`, `import-overture`, `zones:*`) hay que dumpear Neon, no el dev.**
 - [ ] `/admin` responde solo al `ADMIN_EMAIL` y es 404 para el resto.
 - [ ] El chat contesta, descuenta cupo, y el tablero de `/admin` muestra el costo con los tokens de caché.
 - [ ] `ai.chat_monthly_cap = 500` en Neon.
-- [ ] En `/cuenta`, el tab de Suscripción muestra el mensaje de beta —no *"Configuración de pago incompleta"*— y el click queda registrado.
+- [ ] En `/cuenta` y en `/mi-negocio/[placeId]`, el tab de Suscripción muestra el mensaje de beta —no *"Configuración de pago incompleta"*— y el click queda registrado.
+- [ ] Clickear dos veces "Avisame cuando abra" deja **una** fila, no dos (índices únicos parciales).
+- [ ] `/admin` → Suscripciones muestra el conteo de interesados y sus mails.
 - [ ] Ninguna variable server-only aparece en el bundle del browser (grep sobre `.next/static`).
 - [ ] `robots.txt` sirve el `noindex` en el deploy inicial, y deja de servirlo después del QA.
 - [ ] Ningún secreto quedó commiteado: `.env` sigue gitignoreado y las vars viven solo en Vercel.
@@ -176,6 +244,9 @@ Neon (`curar`, `import-overture`, `zones:*`) hay que dumpear Neon, no el dev.**
 | DEPLOY-12 | `robots.txt` | `noindex` presente antes del QA, ausente después |
 | DEPLOY-13 | Primera visita tras >5 min de inactividad | Carga igual (cold start de Neon), sin error |
 | DEPLOY-14 | Bundle del browser | Cero ocurrencias de las keys server-only |
+| DEPLOY-15 | Tab Suscripción en `/mi-negocio/[placeId]` (B2B) | Mismo mensaje de beta, con el pitch del plan del lugar |
+| DEPLOY-16 | Doble click en "Avisame cuando abra" | Una sola fila; la segunda vez ya muestra el estado confirmado |
+| DEPLOY-17 | `/admin` → Suscripciones | Conteo y mails de los interesados, coincide con la base |
 
 ---
 

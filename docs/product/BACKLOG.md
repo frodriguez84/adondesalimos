@@ -92,6 +92,12 @@ son trabajo acotado con criterio de "listo" objetivo.
         contador es el disparador de los US$20, en vez de una corazonada.
       - **4 fases**: F0 Neon (cero código, reversible) · F1 deploy + 4 cambios chicos · F2 Upstash
         + Google OAuth · F3 (gateada) Pro + cobro.
+      - **Por dónde se empieza (decidido con Fer): por el mensaje de premium apagado, ANTES de
+        migrar a Neon.** No es una preferencia de orden: ese cambio agrega la tabla
+        `premium_interest`, así que hacerlo primero deja el dump que viaja a Neon ya completo, en
+        vez de tener que correr un `db:migrate` suelto contra prod. El copy, el schema (con el
+        gotcha de los índices únicos **parciales** — `NULL ≠ NULL` en Postgres) y el conteo en
+        `/admin` están cerrados en el spec § *El premium apagado*.
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
       al Tipo**. Lo que cambió es **cómo** se arregla, medido el 2026-07-31:

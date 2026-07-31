@@ -938,10 +938,13 @@ global bajado a 500 (~US$20/mes de techo, con un kill switch ya probado que degr
 facturar); Google OAuth después del deploy, porque su callback necesita una URL que todavía no
 existe.
 
-**⏭️ Próximo paso: implementar DEPLOY, empezando por F0** (crear Neon, restaurar el dump,
-verificar por conteo) — que es cero código y enteramente reversible. **⚠️ `npm run backup:db`
-antes de nada**: la curaduría (~3.967 tags) no está en git ni en el seed. Sesión de Opus o del
-subagente `implementador`, no de Fable.
+**⏭️ Próximo paso: implementar DEPLOY, empezando por el mensaje de premium apagado** (§ *El
+premium apagado* del spec: copy, tabla `premium_interest`, endpoint y el conteo en `/admin`) y
+**recién después F0** (crear Neon, restaurar, verificar por conteo). El orden lo decidió Fer y
+tiene un motivo técnico: ese cambio **agrega una tabla**, así que hacerlo antes deja el dump que
+viaja a Neon ya completo y evita un `db:migrate` suelto contra producción. **⚠️ `npm run backup:db`
+antes de la migración**: la curaduría (~3.967 tags) no está en git ni en el seed. Sesión de Opus o
+del subagente `implementador`, no de Fable.
 
 ### 🛠️ Sesión de implementación — (2026-07-31) · CHIPS_ROTACION ✅ · **LA COLA DE v2 ESTÁ COMPLETA**
 
