@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { altaSchema, AMBA_BBOX, claimPayloadSchema, decisionSchema } from '../validacion'
+import { altaSchema, claimPayloadSchema, decisionSchema } from '../validacion'
+import { AMBA_BBOX } from '@/lib/geo/amba'
 
 /**
  * La validación del payload es el boundary: el formulario del cliente usa estos

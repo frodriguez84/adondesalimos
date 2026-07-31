@@ -24,10 +24,13 @@ const MAX_RESULTADOS = 10
 /**
  * Los lugares con dueño, como subconsulta para joinear.
  *
- * **No es un `EXISTS` escrito a mano a propósito.** Dentro de un subquery en SQL
- * crudo, `${places.id}` se renderiza como `"id"` **sin calificar la tabla**, y
- * `place_claims` también tiene una columna `id`: la condición terminaba siendo
- * `pc.place_id = pc.id`, que es falsa siempre. El bug no rompe nada visible —
+ * **No es un `EXISTS` escrito a mano a propósito.** En un fragmento SQL crudo
+ * usado como **campo del SELECT** —que es como estaba acá—, Drizzle renderiza
+ * `${places.id}` como `"id"` **sin calificar la tabla**, y `place_claims` también
+ * tiene una columna `id`: la condición terminaba siendo `pc.place_id = pc.id`,
+ * que es falsa siempre. (En el WHERE sí califica: `"places"."id"`. Por eso los
+ * `EXISTS` de `lib/search/query.ts`, que viven en el WHERE, nunca tuvieron el
+ * bug — verificado el 2026-07-31.) El bug no rompe nada visible —
  * simplemente ningún lugar figura como reclamado. Con el query builder los
  * identificadores los califica Drizzle y eso no puede volver a pasar.
  *

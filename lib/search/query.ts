@@ -156,6 +156,12 @@ async function filtrosDeTags(slugs: string[]): Promise<SQL[]> {
     porFaceta.set(f.facet, actual)
   }
 
+  // `${places.id}` acá se renderiza **calificado** (`"places"."id"`) porque el
+  // fragmento se usa en el WHERE: Drizzle omite la tabla solo en la lista de
+  // SELECT, y ahí fue el bug H-1 de `lib/claims/query.ts` (verificado sobre
+  // drizzle-orm 0.45 el 2026-07-31). Consecuencia práctica: **no mover estos
+  // fragmentos a una posición de SELECT** — ahí `"id"` resolvería contra
+  // `place_tags`/`place_zones` y la condición se volvería falsa en silencio.
   return [...porFaceta.values()].map(
     (ids) => sql`EXISTS (
       SELECT 1 FROM ${placeTags} pt
@@ -166,7 +172,11 @@ async function filtrosDeTags(slugs: string[]): Promise<SQL[]> {
   )
 }
 
-/** Zonas en OR (decisión 4), vía la asignación precomputada de ZONAS. */
+/**
+ * Zonas en OR (decisión 4), vía la asignación precomputada de ZONAS.
+ * Mismo cuidado que `filtrosDeTags` con `${places.id}`: vale en el WHERE, no en
+ * un SELECT.
+ */
 function filtroDeZonas(slugs: string[]): SQL {
   return sql`EXISTS (
     SELECT 1 FROM ${placeZones} pz

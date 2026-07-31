@@ -5,6 +5,51 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un hallazgo de QA puede generalizar de más, y la generalización sobrevive al bug (2026-07-31 · pase de deuda)
+
+**Qué pasó.** El H-1 de AUTH F2 fue un bug real: un `EXISTS` escrito a mano donde Drizzle renderizó
+`${places.id}` como `"id"` sin calificar la tabla, y como `place_claims` también tiene `id`, la
+condición era `pc.place_id = pc.id` — falsa siempre. Al corregirlo se escribió la causa como una
+regla general: *"dentro de un subquery en SQL crudo, Drizzle no califica la tabla"*. De ahí salió un
+H-2 ("mismo patrón latente en `lib/search/query.ts`, hoy inocuo **por descarte**") y de ahí un ítem
+de backlog que pedía refactorizar el motor de búsqueda a `leftJoin`, con test de regresión.
+
+Diez días después, al ir a hacerlo, alcanzó un `toSQL()` para ver que la regla era otra: **Drizzle
+omite la tabla solo cuando la columna se renderiza en la lista de SELECT**; en el WHERE la califica.
+
+```
+EN SELECT : ... WHERE pc.place_id = "id"            ← acá estaba el bug de claims
+EN WHERE  : ... WHERE pc.place_id = "places"."id"   ← acá viven los EXISTS del motor
+```
+
+Los `EXISTS` del motor nunca estuvieron en riesgo. El refactor habría tocado el camino crítico de la
+búsqueda para arreglar nada — y con un test de regresión al lado, que lo habría dejado pareciendo
+justificado para siempre.
+
+**Por qué no se ve.** Un hallazgo de QA se escribe caliente, justo después de entender el bug, y en
+ese momento la explicación más simple parece la más general. Nadie vuelve a medirla: queda citada en
+el QA, copiada al backlog y después parafraseada en el prompt de la sesión que la va a "arreglar".
+Cada copia se lee como confirmación de la anterior. **Un diagnóstico heredado se cita, no se
+verifica** — y cuanto mejor escrito está, menos ganas dan de dudarlo.
+
+**Qué hacer distinto:**
+
+1. **Antes de arreglar un bug que no viste fallar, reproducilo.** Si el ítem dice "hoy funciona por
+   descarte", el primer paso es que el descarte se vea: `toSQL()`, un `EXPLAIN`, un conteo contra la
+   verdad en SQL crudo. Acá costó dos scripts de diez líneas y cambió la conclusión entera.
+2. **Al escribir un hallazgo, separá lo que medí de lo que infiero.** "El `EXISTS` del campo
+   `reclamado` salió `pc.place_id = "id"`" es una medición; "Drizzle no califica dentro de
+   subqueries" es una teoría que la explica. La segunda va marcada como tal, o se vuelve doctrina.
+3. **Cerrar un ítem del backlog con "no era un bug" es un resultado, no una falla.** Se registra
+   igual que un fix, con la medición al lado — si no, el próximo que lea el hallazgo viejo vuelve a
+   abrirlo.
+
+**Dónde quedó:** `docs/qa/AnalisisQA.md` § *Pase de deuda técnica* (H-1) y la corrección sobre el
+H-2 de AUTH F2, más el comentario en `lib/search/query.ts` que nombra el riesgo **real** (no mover
+esos fragmentos a una posición de SELECT) y la afirmación acotada en `lib/claims/query.ts`.
+
+---
+
 ## Un spec puede envejecer contra los datos sin que nadie toque una línea (2026-07-31 · CHIPS_ROTACION)
 
 **Qué pasó.** El spec se escribió el 2026-07-29 con un § *Problema* medido contra la home de ese
@@ -109,6 +154,14 @@ idéntico en las ~1.840 llamadas de una corrida. Se reprocesó a precio pleno 1.
 4. **Un mail de alerta de un proveedor es una hipótesis, no un diagnóstico.** Este tenía razón en
    el ratio y apuntaba a un gasto que ya había ocurrido y no se repite. Medir primero **dónde**
    está el gasto evitó optimizar la parte que costaba centavos.
+
+**Cuánto era "no son gratis" (medido el 2026-07-31, al persistir los tokens de caché).** Un
+mensaje real del chat: 893 input + 407 output + 8.701 read + 8.701 write ⇒ **US$ 0,0440**, de los
+cuales **US$ 0,0326 (74%) es la escritura del prefijo**. El cálculo viejo daba US$ 0,0088: el
+tablero informaba **1/5** del costo. La escritura se amortiza recién en los mensajes siguientes
+de la misma conversación, que leen a 0,1× — o sea que **una conversación de un solo mensaje es el
+peor caso económico del caching**, no el mejor. Detalle en `docs/qa/AnalisisQA.md` § *Pase de
+deuda técnica*, H-2.
 
 ---
 

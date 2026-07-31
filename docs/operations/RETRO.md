@@ -13,6 +13,25 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-07-31 · Pase de deuda técnica — (a) y (c) hechos, (b) no era un bug (Opus)
+
+- **Qué salió bien:** el prompt pedía "decilo y justificá" si al mirarlo el fix salía distinto de lo
+  planeado, y eso fue exactamente lo que pasó con el ítem (b): dos scripts de diez líneas
+  (`toSQL()` + conteos contra la verdad en SQL) mostraron que la premisa heredada del backlog era
+  falsa y que refactorizar el motor de búsqueda no arreglaba nada. Sin ese permiso explícito, lo
+  más probable era entregar el refactor pedido, con test de regresión y todo.
+- **Qué frenó:** nada bloqueante. Dos tropezones míos de un minuto, los dos en scripts descartables:
+  `parseSearchParams` toma `t`/`z`, no `tags`/`zones` (el conteo dio el total y por un segundo
+  pareció que los filtros no se aplicaban), y la primera anotación de tipo del helper `suma` en
+  `costos.ts` era demasiado estrecha (`typeof chatMessages.tokensIn` fija el **nombre** de la
+  columna; va `AnyColumn`).
+- **Qué cambiar:** nada del método. La regla que ya existe —"backup antes de tocar la base"— se
+  pagó sola al primer comando, y la de cambios quirúrgicos es la que dejó (b) sin refactorizar. La
+  lección que salió de la sesión es de diagnóstico, no de proceso, y quedó en
+  `LECCIONES_APRENDIDAS.md`.
+
+---
+
 ## 2026-07-31 · CHIPS_ROTACION — los chips de la home rotan por reloj (Opus)
 
 - **Qué salió bien:** **el prompt de arranque no traía la respuesta, traía la pregunta**: avisaba

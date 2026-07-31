@@ -3,6 +3,7 @@ import { DuckDBInstance } from '@duckdb/node-api'
 import { inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { reemplazarTagsDeImport } from '@/lib/claims/ownership'
+import { AMBA_BBOX } from '@/lib/geo/amba'
 import { places, tags } from '@/lib/db/schema'
 import { EXCLUDE_CATEGORIES, INCLUDE_CATEGORIES, isIncluded } from './overture/categories'
 import { toStringArray } from './overture/normalize'
@@ -24,8 +25,8 @@ import { tagsForCategory } from './overture/tag-map'
 const RELEASE = '2026-06-17.0'
 const SRC = `s3://overturemaps-us-west-2/release/${RELEASE}/theme=places/type=place/*`
 
-/** bbox AMBA (decisión 2 del spec). */
-const BBOX = { xmin: -59.1, xmax: -58.1, ymin: -35.05, ymax: -34.28 }
+/** bbox AMBA (decisión 2 del spec). Fuente única: `lib/geo/amba.ts`. */
+const BBOX = AMBA_BBOX
 
 const BATCH = 500
 

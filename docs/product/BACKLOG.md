@@ -61,7 +61,9 @@ Con los 5 ítems de v2 cerrados y `docs/specs/planned/` vacío, Fer eligió el o
 caminos (deuda · curaduría · deploy · specs nuevos). **Ninguno de los dos primeros necesita spec**:
 son trabajo acotado con criterio de "listo" objetivo.
 
-- [ ] **1 · Pase de deuda técnica** (sesión propia, sin decisiones de producto). Los tres ítems
+- [x] **1 · Pase de deuda técnica** ✅ **2026-07-31** (sesión Opus, sin spec). (a) y (c)
+      implementados; **(b) resultó no ser un bug** — ver la entrada corregida en § Mejoras futuras
+      y `docs/qa/AnalisisQA.md` § *Pase de deuda técnica* (9 IDs `DEUDA-NN`). Los tres ítems
       elegidos, todos con su detalle en § Mejoras futuras: **(a)** el tablero de `/admin`
       subestima el costo del chat porque `chat_messages` no persiste los tokens de caché —
       2 columnas nuevas + `lib/ai/chat.ts` + `lib/admin/costos.ts`, **migración sobre tabla con
@@ -86,8 +88,15 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Mejoras futuras (fuera de v1)
 
-- [ ] **El tablero de costos de `/admin` subestima el gasto del chat: no cuenta los tokens de
-      caché** (hallazgo 2026-07-29, a raíz del mail de Anthropic sobre cache hit rate). La API
+- [x] **El tablero de costos de `/admin` subestima el gasto del chat: no cuenta los tokens de
+      caché** (hallazgo 2026-07-29). **Resuelto ✅ 2026-07-31** (pase de deuda): migración `0013`
+      con `cache_read_tokens`/`cache_creation_tokens` en `chat_messages` (aditiva, nullable),
+      escritas en `lib/ai/chat.ts` —que ahora acumula **también** el de creación, antes solo el
+      read— y cobradas en `lib/admin/costos.ts` vía `costoDePeriodo` → `calcularCostoUsd` con los
+      4 números. El tablero muestra «Tokens (in / out / caché)». Escribe **hacia adelante**: las
+      filas viejas quedan en `null` (= 0), así que el histórico vale lo mismo que antes y el
+      número nunca baja. Ver `docs/qa/AnalisisQA.md` § *Pase de deuda técnica*, DEUDA-01..06.
+      El diagnóstico original, para referencia: La API
       reporta `input_tokens` como el remanente **no** cacheado — el total de entrada es
       `input + cache_read + cache_creation` — y `chat_messages` solo persiste `tokens_in`/
       `tokens_out`. Como los reads se cobran a 0,1×, el costo mostrado en `/admin` queda por
@@ -386,14 +395,17 @@ son trabajo acotado con criterio de "listo" objetivo.
       `components/shared/brand-header.tsx` (nuevo) suma el `Wordmark` en ficha, `/cuenta`,
       `/mi-negocio` (lista y editor) y `/votacion/[token]`, arriba del header propio de cada
       página, sin recolorear controles. [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
-- [ ] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
-      2026-07-21). Los subqueries de `filtrosDeTags` y `filtroDeZonas` interpolan
-      `${places.id}`, que Drizzle renderiza como `"id"` **sin el nombre de la tabla**. Hoy
-      funciona por descarte: ni `place_tags` ni `place_zones` tienen columna `id`, así que el
-      identificador resuelve a `places.id`. Si alguna de las dos ganara un `id`, la búsqueda
-      empezaría a devolver **cero resultados en silencio** — que es exactamente lo que pasó en
-      `lib/claims/query.ts` contra `place_claims` (ver `docs/qa/AnalisisQA.md` § AUTH F2, H-1).
-      Cambiar a `leftJoin` sobre subconsulta del query builder, con test de regresión propio.
+- [x] **`EXISTS` con `${places.id}` sin calificar en `lib/search/query.ts`** (AUTH F2,
+      2026-07-21). **Cerrado ✅ 2026-07-31 sin refactor: no era un bug.** La premisa —"Drizzle
+      renderiza `"id"` sin el nombre de la tabla dentro de un subquery"— estaba mal generalizada.
+      Medido sobre drizzle-orm 0.45.2: Drizzle omite la tabla **solo en la lista de SELECT**, y
+      ahí vivía el H-1 real de `lib/claims/query.ts` (el flag `reclamado` era un campo del
+      SELECT). Los `EXISTS` de `filtrosDeTags`/`filtroDeZonas` están en el **WHERE** y salen
+      calificados (`pt.place_id = "places"."id"`): seguirían andando aunque `place_tags`/
+      `place_zones` ganaran un `id`. No se pasó a `leftJoin` — habría tocado el camino crítico de
+      la búsqueda para arreglar nada. Quedó el riesgo real nombrado en comentario (*no mover esos
+      fragmentos a una posición de SELECT*) y corregida la afirmación general en
+      `lib/claims/query.ts`. Ver `docs/qa/AnalisisQA.md` § *Pase de deuda técnica*, DEUDA-07/08 y H-1.
 - [ ] **Las fotos del dueño no se ocultan al revocar el reclamo** (AUTH F3, 2026-07-21).
       🔸 **Tiene una decisión de producto abierta adelante — ver `docs/product/IDEAS.md`
       § Usuarios y roles.** No implementar hasta que esté resuelta.
@@ -436,11 +448,11 @@ son trabajo acotado con criterio de "listo" objetivo.
       (canvas → `toBlob('image/webp')`, tope 1600 px de lado mayor) — verificado en vivo: JPEG
       de 267 KB / 3000×2000 → webp de 17,5 KB. Límite de 5 MB y validación server-side sin
       cambios (el cliente no es boundary de seguridad). [Resumen](../archive/SPECS_ARCHIVO.md#pulido)
-- [ ] **El bbox de AMBA está escrito dos veces** (AUTH F2, 2026-07-21). `BBOX` en
-      `scripts/import-overture.ts` (qué se importa) y `AMBA_BBOX` en `lib/claims/validacion.ts`
-      (hasta dónde puede llegar el pin de un alta) son el mismo rectángulo. Hoy no divergen,
-      pero si se amplía la cobertura hay que tocar los dos. Unificarlo es un cambio aparte: el
-      script corre con `dotenv` y no debería depender de `lib/claims`.
+- [x] **El bbox de AMBA está escrito dos veces** (AUTH F2, 2026-07-21). **Resuelto ✅ 2026-07-31**
+      (pase de deuda): el dueño único es **`lib/geo/amba.ts`**, un módulo sin ningún import —
+      así el script de import no arrastra `lib/claims`, que era la restricción que tenía frenado
+      el cambio. `scripts/import-overture.ts` y `lib/claims/validacion.ts` lo consumen; el test
+      de validación importa del dueño nuevo. Ampliar la cobertura ahora se toca en un solo lado.
 - [ ] **Medir la tasa de falsos positivos del matching a ciegas** (FICHA F2, 2026-07-20).
       Primer caso real: "Club Milanesa @ Av. Libertador 3883" matcheó a "El Club de la Milanesa
       – Paseo de la Infanta" (~160 m, misma marca), mientras esa dirección exacta en Google es
@@ -609,6 +621,21 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Pase de deuda técnica — el tablero de `/admin` deja de subestimar el chat, y un bug del
+      backlog que no existía** (2026-07-31, sesión Opus): los tres ítems del #1 de la cola
+      post-v2, sin spec porque el criterio de "listo" era objetivo. **(a)** `chat_messages` gana
+      `cache_read_tokens`/`cache_creation_tokens` (migración `0013`, aditiva, backup previo
+      hecho): `lib/ai/chat.ts` acumula y persiste los 4 números —antes ni siquiera acumulaba el
+      de creación— y `lib/admin/costos.ts` los cobra vía `costoDePeriodo`. Escribe hacia
+      adelante: el histórico vale lo mismo que antes, el número solo puede subir. **(c)** el bbox
+      de AMBA pasa a tener dueño único en `lib/geo/amba.ts` (módulo sin imports, que era la
+      restricción que lo tenía frenado). **(b) no se implementó porque no era un bug**: la
+      premisa del backlog (Drizzle no califica `${places.id}` en un subquery) estaba mal
+      generalizada — Drizzle omite la tabla **solo en la lista de SELECT**, que es donde vivía el
+      H-1 real de claims; los `EXISTS` del motor están en el WHERE y salen calificados. Se
+      prefirió no tocar el camino crítico de la búsqueda para arreglar nada, y dejar medido el
+      porqué. **QA**: 9 IDs `DEUDA-NN`, 604/604 tests, typecheck ✅. **La lección** (medir el SQL
+      generado antes de creerle a un diagnóstico heredado) quedó en `LECCIONES_APRENDIDAS.md`.
 - [x] **CHIPS_ROTACION — los chips de la home rotan por día y hora → spec CERRADO ENTERO y con
       esto la cola de v2 completa** (2026-07-31, sesión Opus): el orden de los chips de Ocasión
       deja de ser una foto fija (`sort`) y pasa a depender del reloj de AR, con reglas que se

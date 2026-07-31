@@ -445,8 +445,10 @@ en un único lugar, una sesión no puede divergir en silencio. Ya es así y hay 
 `lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/ai/settings.ts` (claves de
 runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/favoritos/planes.ts` (cuántas
 listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
-`lib/search/rotacion.ts` (qué chips van primero según el reloj) y `lib/negocio/horarios.ts`
-(`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature).
+`lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/negocio/horarios.ts`
+(`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature) y `lib/geo/amba.ts`
+(el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta — **sin imports**, para
+que el script de import no arrastre `lib/claims`).
 
 - Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
 - Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de

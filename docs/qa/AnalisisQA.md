@@ -409,6 +409,12 @@ Detectado solo en vivo: el test de integración cubría el helper, no la query d
 tablas ganara una columna `id`, la búsqueda empezaría a devolver cero en silencio. Anotado en
 `docs/product/BACKLOG.md` — se cambia con test propio, no de prepo dentro de otro spec.
 
+> **Corrección (2026-07-31, pase de deuda):** este hallazgo estaba mal generalizado y **no había
+> nada latente**. Drizzle omite la tabla solo cuando la columna se renderiza en la **lista de
+> SELECT** (que es donde vivía el H-1 real); en el WHERE la califica. Los `EXISTS` del motor están
+> en el WHERE y salen como `"places"."id"`. Medido y documentado en *QA — Pase de deuda técnica
+> (2026-07-31)*, H-1.
+
 ---
 
 ## QA de fase — AUTH F3 (2026-07-21)
@@ -1571,3 +1577,83 @@ revirtieron con `npm run db:seed` (idempotente) y el valor final se verificó co
   ("`hasta` menor **o igual** que `desde` cruza la medianoche"); queda documentada en el módulo y
   tiene test propio. `horarios.ts` trata ese caso como rango inválido — la diferencia es deliberada:
   ahí significa "no abre", acá "siempre".
+
+---
+
+## QA — Pase de deuda técnica (2026-07-31)
+
+**Alcance:** los tres ítems de `docs/product/BACKLOG.md` § Cola post-v2 → *1 · Pase de deuda
+técnica*. Sin spec (trabajo acotado, sin decisiones de producto), así que no corre `/close-spec`.
+**Veredicto:** APROBADO — 9/9 PASS.
+**Verificación técnica:** typecheck ✅ · tests **604/604** ✅ · build ✅ (con el dev server bajo:
+compiló en 5,7 s, 12 páginas estáticas, sin errores ni warnings nuevos). El único criterio de
+pantalla (DEUDA-06) se verificó en vivo con Playwright contra `adondesalimos.ngrok.app`.
+**Método:** unit tests nuevos + verificación contra el Postgres de dev con `psql` y `tsx`, y
+el bloque de costos de `/admin` en pantalla.
+
+⚠️ **Backup previo obligatorio hecho**: `backups/adondesalimos_2026-07-31_140358.sql.gz` (5,0 MB),
+antes de generar la migración. Canario de curaduría verificado antes y después de `db:migrate`:
+`place_tags source='admin'` = **3.967** en los dos momentos.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| DEUDA-01 | (a) Migración aditiva: `chat_messages` gana `cache_read_tokens` y `cache_creation_tokens`, nullable | ✅ PASS | `drizzle/0013_furry_banshee.sql` = dos `ADD COLUMN integer`, sin `DROP`/`NOT NULL`/`DEFAULT`. Aplicada con `db:migrate`; las 36 filas previas quedaron con las dos columnas en `null` |
+| DEUDA-02 | (a) El escritor persiste los 4 números y acumula **también** el de creación (antes solo el read) | ✅ PASS | `lib/ai/chat.ts:125-127` acumula `cache_read_input_tokens` + `cache_creation_input_tokens`; el INSERT del mensaje (`:196-203`) los escribe. `logChatCall` recibe los dos y el log JSON ahora imprime `cacheCreationTokens` |
+| DEUDA-03 | (a) El tablero calcula con los 4 números, no con 2 | ✅ PASS | `lib/admin/costos.ts`: `getCostosChat` suma las dos columnas nuevas por período y delega en `costoDePeriodo` → `calcularCostoUsd(model, in, out, read, creation)` |
+| DEUDA-04 | (a) Test que **falla con el cálculo viejo** | ✅ PASS | `lib/admin/__tests__/costos.test.ts` § *costoDePeriodo*: con 1M read + 100k write el costo es **mayor** que el viejo, y el delta es exactamente `read×0,1 + write×1,25` del precio de input ($0,675 en Sonnet) |
+| DEUDA-05 | (a) **El número nunca baja**: lo ya guardado vale lo mismo que antes | ✅ PASS | `getCostosChat()` sobre la base real devuelve `$0,172834` (haiku `$0,007921` + sonnet `$0,164913`), idéntico al cálculo a mano del baseline pre-fix. Las columnas nuevas en `null` → `sum` las ignora y el `coalesce` deja 0 |
+| DEUDA-06 | (a) En pantalla: `/admin` muestra los tokens de caché y el costo | ✅ PASS | Verificado en vivo (Playwright, `adondesalimos.ngrok.app`, cuenta admin). **Antes** del mensaje: `18.531 / 7.288 / 0` · US$ 0,17. Un mensaje en `/chat` («Una pizzería en Caballito para ir con amigos») → **después**: `19.424 / 7.695 / 17.402` · US$ 0,21, total **US$ 0,22**. Ver H-2 |
+| DEUDA-07 | (b) El `EXISTS` de `filtrosDeTags`/`filtroDeZonas` **no** deja el identificador sin calificar | ✅ PASS | `toSQL()` sobre la forma real de `countPlaces` y de `searchPlaces` (con `leftJoin`): `WHERE pt.place_id = "places"."id"` — **calificado**. La premisa del backlog era falsa; ver H-1 |
+| DEUDA-08 | (b) Los conteos de la búsqueda son los correctos, no "correctos por descarte" | ✅ PASS | `countPlaces` vs la verdad en SQL crudo con la regla de publicado (umbral 0,5): tag `pizza` **2.604 = 2.604**, zona `palermo-soho` **1.095 = 1.095**, combinados 76. Los 604 tests siguen verdes, incluidos los de integración de tags (OR/AND/padre) y zonas |
+| DEUDA-09 | (c) El bbox de AMBA tiene **un solo** dueño | ✅ PASS | `lib/geo/amba.ts` (sin imports, para que el script no arrastre `lib/claims`). `scripts/import-overture.ts` y `lib/claims/validacion.ts` lo importan; `grep -rn "xmin: -59.1"` devuelve **1** definición. El test de validación importa del dueño nuevo y sigue verde |
+
+### Hallazgos
+
+**H-1 — El ítem (b) no era un bug: la premisa estaba mal generalizada (no se refactorizó).**
+El backlog daba por hecho que Drizzle renderiza `${places.id}` sin calificar la tabla *dentro de
+un subquery en SQL crudo*, y que los `EXISTS` del motor funcionaban "por descarte". Medido sobre
+drizzle-orm 0.45.2, la regla real es otra: **Drizzle omite la tabla solo cuando la columna se
+renderiza en la lista de SELECT**, y la califica en cualquier otra posición.
+
+```
+EN SELECT : select EXISTS (SELECT 1 FROM "place_claims" pc WHERE pc.place_id = "id") from "places"
+EN WHERE  : select "id" from "places" where EXISTS (... WHERE pc.place_id = "places"."id")
+```
+
+El H-1 de AUTH F2 fue real porque ahí el `EXISTS` era **un campo del SELECT** (el flag
+`reclamado`). Los de `lib/search/query.ts` viven en el WHERE, salen calificados y seguirían
+funcionando aunque `place_tags`/`place_zones` ganaran una columna `id`. Decisión: **no** pasar el
+motor a `leftJoin` — habría tocado el camino crítico de la búsqueda para arreglar nada, contra la
+regla de cambios quirúrgicos. En su lugar se dejó el porqué en el código (comentario en las dos
+funciones, con el riesgo real nombrado: *no mover estos fragmentos a una posición de SELECT*) y se
+corrigió la afirmación demasiado general que había quedado en `lib/claims/query.ts`, que es de
+donde salió la conclusión equivocada.
+
+**H-2 — Un solo mensaje de chat movió el total del tablero un 22%, y el 80% del costo de esa
+llamada era caché.** El fix escribe hacia adelante (las 36 filas históricas quedan en `null`), así
+que la verificación de pantalla necesitaba **un** mensaje nuevo. Se mandó uno y el circuito
+completo quedó confirmado: la fila persistió `cache_read_tokens = 8.701` y
+`cache_creation_tokens = 8.701` (el turno tuvo dos rondas por el tool-use: la primera **escribe**
+el prefijo cacheado y la segunda lo **lee**), y el tablero pasó de US$ 0,17 a **US$ 0,22**.
+
+Desglose de esa única llamada (Sonnet 5, $3/$15 por millón):
+
+| Concepto | Tokens | USD |
+|---|---|---|
+| input no cacheado | 893 | 0,002679 |
+| output | 407 | 0,006105 |
+| cache **read** (×0,1) | 8.701 | 0,002610 |
+| cache **write** (×1,25) | 8.701 | **0,032629** |
+| **total real** | | **0,044023** |
+| lo que mostraba el tablero viejo | | 0,008784 |
+
+O sea que el tablero venía informando **1/5** del costo de un mensaje con caché. El error es
+chico en pesos hoy (el catálogo de conversaciones es de QA) y grande en proporción — y crece con
+el volumen, que es exactamente cuando importa. La escritura del prefijo (8.776 tokens de system,
+decisión 12 de CHAT_IA) es el rubro más caro de la llamada; se amortiza recién con los mensajes
+siguientes de la misma conversación, que la leen a 0,1×.
+
+**Nota de método:** el baseline del tablero se leyó **antes** de correr la suite, porque el test
+de integración del cupo toca `ai_api_usage` del mes real (hallazgo viejo de COSTOS_ADMIN, ya
+mitigado con snapshot/restore). Mirar los números después de los tests invita a creer que algo
+se rompió.

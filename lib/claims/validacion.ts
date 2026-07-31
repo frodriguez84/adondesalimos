@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AMBA_BBOX } from '@/lib/geo/amba'
 
 /**
  * Validación del payload de `POST /api/claims` — las dos entradas del flujo
@@ -8,13 +9,9 @@ import { z } from 'zod'
  * Regla global de seguridad: todo input público se valida en el boundary.
  */
 
-/**
- * bbox de AMBA. **Es el mismo rectángulo que usa `scripts/import-overture.ts`**
- * para traer el catálogo: un alta de dueño no puede caer fuera del área que la
- * app cubre. Hoy está escrito en los dos lados; unificarlo es un cambio aparte
- * (el script corre con `dotenv` y no debería depender de `lib/claims`).
- */
-export const AMBA_BBOX = { xmin: -59.1, xmax: -58.1, ymin: -35.05, ymax: -34.28 }
+// El bbox de AMBA (`lib/geo/amba.ts`, fuente única) acota el pin de un alta: un
+// lugar de dueño no puede caer fuera del área que la app cubre — el mismo
+// rectángulo con el que `scripts/import-overture.ts` trae el catálogo.
 
 const texto = (min: number, max: number) => z.string().trim().min(min).max(max)
 
