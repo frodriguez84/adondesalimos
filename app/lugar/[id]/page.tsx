@@ -6,7 +6,7 @@ import { after } from 'next/server'
 import { BookOpen, Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide-react'
 
 import { auth } from '@/lib/auth'
-import { guardadosDeLaPagina } from '@/lib/favoritos/query'
+import { estadoDeFavoritos } from '@/lib/favoritos/query'
 import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
@@ -93,9 +93,12 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
   // se ve igual en la card y en la ficha. Sin sesión no se consulta nada — el
   // botón se muestra igual y el tap lleva a login (decisión 7).
   const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
-  const guardado = session?.user
-    ? (await guardadosDeLaPagina(session.user.id, [place.id])).length > 0
-    : false
+  // F2: junto al estado vienen las listas visibles, para el sheet de destino
+  // (decisión 8) — la misma resolución sirve para las dos cosas.
+  const favoritos = session?.user
+    ? await estadoDeFavoritos(session.user.id, [place.id])
+    : { guardados: [], listas: [] }
+  const guardado = favoritos.guardados.length > 0
 
   const encabezado = tipoYCocina(place.tags)
   const precio = precioDeTags(place.tags)
@@ -118,6 +121,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
             placeId={place.id}
             guardadoInicial={guardado}
             autenticado={Boolean(session?.user)}
+            listas={favoritos.listas}
           />
         }
       />

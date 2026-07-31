@@ -93,6 +93,36 @@ export async function listasVisibles(userId: string, tx: DbOrTx = db): Promise<P
   return ordenadas.slice(0, max)
 }
 
+/**
+ * Cuántas listas del cupo ocupa hoy el usuario.
+ *
+ * **La default cuenta aunque todavía no exista.** Nace sola en el primer guardado
+ * (decisión 2), así que reservarle el lugar evita el agujero de que un free sin
+ * nada guardado gaste su única lista en una con nombre y después el tap no tenga
+ * dónde caer (o peor: le nazca una default que el propio cupo esconde).
+ */
+export async function listasOcupadas(userId: string, tx: DbOrTx = db): Promise<number> {
+  const visibles = await listasVisibles(userId, tx)
+  return visibles.some((l) => l.isDefault) ? visibles.length : visibles.length + 1
+}
+
+/**
+ * Si le entra una lista más, con los números para explicárselo en pantalla.
+ *
+ * Es el gate de "crear lista" y vive acá, no en la acción: **cuántas listas puede
+ * tener alguien lo decide este módulo y nadie más** (decisión 5).
+ */
+export async function puedeCrearLista(
+  userId: string,
+  tx: DbOrTx = db,
+): Promise<{ puede: boolean; usadas: number; max: number }> {
+  const [usadas, max] = await Promise.all([
+    listasOcupadas(userId, tx),
+    maxListasDelUsuario(userId, tx),
+  ])
+  return { puede: usadas < max, usadas, max }
+}
+
 /** La lista default del usuario, o null si todavía no guardó nada (decisión 2). */
 export async function listaDefault(userId: string, tx: DbOrTx = db): Promise<PlaceList | null> {
   const [fila] = await tx

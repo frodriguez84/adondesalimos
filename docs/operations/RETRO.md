@@ -13,6 +13,23 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-07-31 · FAVORITOS F2 — ver y organizar lo guardado (Opus)
+
+- **Qué salió bien:** **el handoff de F1 se leyó como una spec y alcanzó.** Las cicatrices que traía
+  anotadas (el param `z`, la sesión de Playwright logueada como `pepe` y no como Fer, el server que
+  lo levanta Fer) evitaron exactamente las tres pérdidas de tiempo de la sesión anterior — ninguna
+  se repitió. Y el pre-vuelo de F1 dejó el terreno tan cerrado que F2 no tuvo que decidir nada de
+  producto: las 16 decisiones alcanzaron para todo salvo dos huecos concretos que aparecieron al
+  codear (la default ocupando cupo, y el `listId` al sacar desde una lista).
+- **Qué frenó:** nada material. Lo único: un checker de `/qa-spec` marcó PARCIAL un criterio que
+  estaba bien (dijo que faltaba esconder "renombrar/borrar" a los free, cuando un free **no ve**
+  ninguna lista no-default y esos botones nunca se renderizan). Costó un chequeo en vivo
+  descartarlo. Es el precio correcto de tener un checker que no confía: prefiero un falso positivo
+  barato que un gap que pasa.
+- **Qué cambiar:** nada. La regla de "el QA en vivo encuentra lo que los tests no" volvió a pagarse
+  (523 tests verdes y el sheet igual había que verlo abrirse en las tres superficies), y el resto
+  del método funcionó sin fricción. No hay una sola cosa que valga el cambio esta vez.
+
 ## 2026-07-30 (c) · FAVORITOS F1 — guardar lugares (Opus)
 
 - **Qué salió bien:** **el pre-vuelo se pagó solo, y encontró más de lo que había escrito.** Las

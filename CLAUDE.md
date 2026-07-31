@@ -45,16 +45,18 @@ app/
   layout.tsx          root layout (tema ámbar único, sin toggle)
   legales/            atribución de fuentes (Overture + Google)
   lugar/[id]/         ficha del lugar (FICHA) — server component + generateMetadata
+  mis-lugares/        lo guardado (FAVORITOS F2) — server + client, patrón de /mis-votaciones
   api/
     search/           motor de búsqueda, count, pins (BUSQUEDA)
     lugar/[id]/google endpoint de Google en vivo (FICHA F2 — pendiente)
-    favoritos/        guardar / sacar un lugar (FAVORITOS F1)
+    favoritos/        guardar / sacar / estado por lote de un lugar (FAVORITOS)
+    listas/           crear / renombrar / borrar listas (FAVORITOS F2)
 components/
   ui/                 primitivos (button, bottom-sheet, filter-chip, search-input)
   shared/             place-card (card del listado; slot `accion` para guardar)
   search/             shell de búsqueda, sheets, mapa MapLibre, chips
   lugar/              acciones de la ficha (volver/compartir/guardar — cliente)
-  favoritos/          botón de guardar (cliente, estado optimista)
+  favoritos/          botón de guardar (cliente, estado optimista + sheet de destino)
 lib/
   db/                 schema Drizzle, index (pool), visibility (única puerta al
                       catálogo publicado), settings (app_settings en runtime),

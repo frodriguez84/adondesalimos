@@ -7,7 +7,7 @@ import { AccountMenu } from '@/components/shared/account-menu'
 import { Wordmark } from '@/components/shared/wordmark'
 import { RotatingHeadline } from '@/components/shared/rotating-headline'
 import { SearchShell } from '@/components/search/search-shell'
-import { guardadosDeLaPagina } from '@/lib/favoritos/query'
+import { estadoDeFavoritos, type ListaDestino } from '@/lib/favoritos/query'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
 import { getOccasionChips } from '@/lib/search/chips'
 import {
@@ -82,10 +82,13 @@ export default async function Home({
   // por card. Se resuelve **acá y no en el motor** (pre-vuelo P1): no es un dato
   // del lugar sino de quien mira, y `lib/search/query.ts` no se toca. Las páginas
   // siguientes del scroll las resuelve `/api/search`.
-  const guardados =
+  //
+  // F2: la misma consulta trae las listas visibles, que el botón necesita para el
+  // sheet de destino (decisión 8). Van juntas porque salen de la misma resolución.
+  const { guardados, listas } =
     session?.user && idsVistos.length > 0
-      ? await guardadosDeLaPagina(session.user.id, idsVistos)
-      : []
+      ? await estadoDeFavoritos(session.user.id, idsVistos)
+      : { guardados: [] as string[], listas: [] as ListaDestino[] }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
@@ -114,6 +117,7 @@ export default async function Home({
         resultado={resultado}
         destacados={destacados}
         guardados={guardados}
+        listas={listas}
         autenticado={Boolean(session?.user)}
       />
 

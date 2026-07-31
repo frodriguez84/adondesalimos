@@ -29,5 +29,37 @@ export const sacarLugarSchema = z.object({
 
 export type SacarLugarPayload = z.infer<typeof sacarLugarSchema>
 
-/** Nombre de lista: 1-40 chars, trim. Lo usa F2 (crear / renombrar). */
+/** Nombre de lista: 1-40 chars, trim. Lo usan crear y renombrar (F2). */
 export const nombreListaSchema = z.string().trim().min(1).max(40)
+
+/** Crear una lista con nombre (F2, decisión 14). El cupo lo decide la acción. */
+export const crearListaSchema = z.object({ name: nombreListaSchema })
+
+export type CrearListaPayload = z.infer<typeof crearListaSchema>
+
+/** Renombrar. Mismo nombre válido; qué lista se puede tocar lo decide la acción. */
+export const renombrarListaSchema = z.object({ name: nombreListaSchema })
+
+export type RenombrarListaPayload = z.infer<typeof renombrarListaSchema>
+
+/**
+ * Cuántos ids acepta la lectura por lote (`GET /api/favoritos?ids=`). Es el
+ * techo de lo que puede pedir una pantalla de una: el chat manda la tanda de
+ * cards que acaba de recibir y la búsqueda sirve 20 por página. Alto para el uso
+ * real, acotado para que un `?ids=` armado a mano no sea un `IN` de mil valores.
+ */
+export const MAX_IDS_POR_LOTE = 100
+
+/**
+ * Los ids del query string, ya separados por coma. Se **descartan** los que no
+ * son UUID en vez de rechazar todo el lote: es una lectura de estado, y que una
+ * card nazca sin estado es mejor que romper la pantalla entera.
+ */
+export function parsearIdsDelLote(raw: string | null): string[] {
+  if (!raw) return []
+  const ids = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => z.uuid().safeParse(s).success)
+  return [...new Set(ids)].slice(0, MAX_IDS_POR_LOTE)
+}

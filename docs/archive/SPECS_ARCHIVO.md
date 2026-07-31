@@ -556,3 +556,56 @@ ralas (Ambiente 0,9% · Momento 0,6% antes del spec).
   `place_tags`, no su `delete` previo (que en una corrida aditiva borraría tandas anteriores).
 - **Modelo en `app_settings.ai.curation_model`** (runtime, swap sin deploy): quedó en
   `claude-sonnet-5` tras la corrida; el seed sigue en Haiku (fallback).
+
+---
+
+## Favoritos — guardar lugares y listas {#favoritos}
+
+**Spec:** [`docs/specs/done/FAVORITOS.md`](../specs/done/FAVORITOS.md) · ✅ Implementado (2026-07-31, dos fases)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *FAVORITOS F1* y § *QA /qa-spec — FAVORITOS F2*
+— APROBADO. 19 IDs en vivo en F1 + 18 en F2 (los cuatro ⏭️ de F1 reusados), 523/523 tests.
+
+**Qué hace:** le da memoria a la app. Un tap desde la card, la ficha o el chat guarda un lugar;
+lo guardado vive en `/mis-lugares`. Es la primera feature de **retención** (una razón para volver
+cuando no estás decidiendo una salida) y el primer beneficio premium **sin costo marginal**: la
+diferencia free/premium es la **cantidad de listas** (una fila más, no tokens).
+
+**Alcance implementado:**
+
+- **Schema** (migración aditiva `drizzle/0011_easy_wolfsbane.sql`): `place_lists` (índice único
+  parcial `(user_id) where is_default` + único `(user_id, lower(name))`) · `place_list_items`
+  (único `(list_id, place_id)`; `place_id` **sin** cascade, igual que `poll_options`) · columna
+  `place_impressions_daily.saves`.
+- **Dueño único del cupo** (`lib/favoritos/planes.ts`): `MAX_LISTAS_FREE = 1` en código (es la
+  *definición* del plan free), `favoritos.max_listas_premium` / `max_items_por_lista` en
+  `app_settings` con default en código (10 / 200), `maxListasDelUsuario`, `listasOcupadas`,
+  `puedeCrearLista`, `listasVisibles`. **Nadie más decide cuántas listas puede tener alguien.**
+- **Acciones** (`lib/favoritos/acciones.ts`): `guardarLugar` · `sacarLugar` · `crearLista` ·
+  `renombrarLista` · `borrarLista`. Todos los gates viven acá; los routes son adaptadores.
+  Las que cuentan-y-después-insertan corren en transacción con la fila del **usuario**
+  `FOR UPDATE` (la que ancla el límite).
+- **Lecturas** (`lib/favoritos/query.ts`): `guardadosDeLaPagina` (estado de la página en una
+  query, para `/api/search`) · `estadoDeFavoritos` (guardados **+** listas en una resolución,
+  para home y ficha) · `listasDelUsuario` (las listas con sus lugares y el flag `publicado`).
+- **Endpoints**: `GET|POST|DELETE /api/favoritos` · `POST /api/listas` ·
+  `PATCH|DELETE /api/listas/[id]`. Rate limit propio (`checkFavoritosRateLimit`, 60/min) y
+  sesión inline **antes** del payload.
+- **UI**: `BotonGuardar` (`components/favoritos/`) con estado optimista y sheet de destino;
+  slot `accion` en `PlaceCard` (fuera del `<Link>`); `/mis-lugares` (server + client, patrón de
+  `/mis-votaciones`); link en el `AccountMenu`; botón también en las cards del chat IA.
+- **Métrica** (`lib/search/impressions.ts`): `registrarGuardado` suma `saves` en `after()`,
+  agregado puro y **solo el guardado nuevo**. Sacar **no** descuenta: es histórico de eventos.
+
+**Lo que hay que saber para el próximo spec:**
+
+- **Ocultar ≠ borrar, en los dos ejes.** Bajar a `free` recorta lo que se **lee**
+  (`listasVisibles`), nunca borra: las listas de más quedan invisibles y vuelven intactas con el
+  plan. Una lista escondida tampoco recibe escrituras ni se puede renombrar/borrar (404).
+- **El destino nunca sale del payload**: sale de `listasVisibles(userId)`. Lista ajena,
+  inexistente o escondida se contestan igual — para ese usuario no existe.
+- **La default es lazy y ocupa cupo aunque no exista**: nace en el primer guardado y no se
+  renombra ni se borra (es el contenedor que garantiza que free tenga dónde guardar).
+- **Un lugar despublicado no desaparece de una lista** (decisión 11): se muestra atenuado y sin
+  link (la ficha daría 404). La lista **nunca** se filtra por visibilidad.
+- **`saves` no se puede reconstruir**: sacar un favorito borra la fila de `place_list_items`, por
+  eso el contador se empezó a acumular ahora aunque el panel del dueño lo muestre recién en v2.

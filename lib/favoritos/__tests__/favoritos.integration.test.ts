@@ -4,14 +4,21 @@ import { and, eq, like, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { placeImpressionsDaily, placeListItems, placeLists, places, users } from '@/lib/db/schema'
 import { getConfidenceThreshold } from '@/lib/db/settings'
-import { guardarLugar, sacarLugar, NOMBRE_LISTA_DEFAULT } from '../acciones'
+import {
+  borrarLista,
+  crearLista,
+  guardarLugar,
+  renombrarLista,
+  sacarLugar,
+  NOMBRE_LISTA_DEFAULT,
+} from '../acciones'
 import {
   getMaxListasPremium,
   listasVisibles,
   maxListasDelUsuario,
   MAX_LISTAS_FREE,
 } from '../planes'
-import { guardadosDeLaPagina } from '../query'
+import { estadoDeFavoritos, guardadosDeLaPagina, listasDelUsuario } from '../query'
 import { registrarGuardado } from '@/lib/search/impressions'
 
 /**
@@ -295,6 +302,181 @@ describe.skipIf(!process.env.DATABASE_URL)('favoritos — plan: ocultar ≠ borr
     const r = await guardarLugar(userId, { placeId: lugares[2], listId: idExtra })
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.code).toBe('LISTA_NO_ENCONTRADA')
+  })
+})
+
+describe.skipIf(!process.env.DATABASE_URL)('favoritos — listas (F2)', () => {
+  it('un free no puede crear una segunda lista (FAV-04)', async () => {
+    if (!hayDb) return
+    // Ni siquiera la primera: su única lista es la default, que nace sola en el
+    // primer guardado y tiene el cupo reservado (`listasOcupadas`).
+    const sinNada = await crearLista(userId, { name: `${PREFIJO}birras` })
+    expect(sinNada.ok).toBe(false)
+    expect(sinNada.ok === false && sinNada.code).toBe('LIMITE_LISTAS')
+
+    await guardarLugar(userId, { placeId: lugares[0] })
+    const conDefault = await crearLista(userId, { name: `${PREFIJO}birras` })
+    expect(conDefault.ok).toBe(false)
+    expect(conDefault.ok === false && conDefault.code).toBe('LIMITE_LISTAS')
+
+    const enBase = await db.select().from(placeLists).where(eq(placeLists.userId, userId))
+    expect(enBase).toHaveLength(1)
+  })
+
+  it('un premium crea listas hasta el tope y ni una más', async () => {
+    if (!hayDb) return
+    await setPlan(userId, 'premium')
+    const max = await getMaxListasPremium()
+
+    // La default ocupa un lugar del cupo aunque todavía no exista.
+    for (let i = 0; i < max - 1; i++) {
+      const r = await crearLista(userId, { name: `${PREFIJO}lista ${i}` })
+      expect(r.ok).toBe(true)
+    }
+    const pasada = await crearLista(userId, { name: `${PREFIJO}una mas` })
+    expect(pasada.ok).toBe(false)
+    expect(pasada.ok === false && pasada.code).toBe('LIMITE_LISTAS')
+
+    expect(await listasVisibles(userId)).toHaveLength(max - 1)
+  })
+
+  it('no se repite el nombre de una lista, ni con otra capitalización', async () => {
+    if (!hayDb) return
+    await setPlan(userId, 'premium')
+    expect((await crearLista(userId, { name: `${PREFIJO}Birras` })).ok).toBe(true)
+
+    const repetida = await crearLista(userId, { name: `${PREFIJO}birras` })
+    expect(repetida.ok).toBe(false)
+    expect(repetida.ok === false && repetida.code).toBe('NOMBRE_REPETIDO')
+  })
+
+  it('la lista default no se renombra ni se borra (FAV-12, decisión 15)', async () => {
+    if (!hayDb) return
+    await guardarLugar(userId, { placeId: lugares[0] })
+    const [defecto] = await listasVisibles(userId)
+    expect(defecto.isDefault).toBe(true)
+
+    const renombrada = await renombrarLista(userId, defecto.id, { name: `${PREFIJO}otro` })
+    expect(renombrada.ok).toBe(false)
+    expect(renombrada.ok === false && renombrada.code).toBe('LISTA_DEFAULT')
+
+    const borrada = await borrarLista(userId, defecto.id)
+    expect(borrada.ok).toBe(false)
+    expect(borrada.ok === false && borrada.code).toBe('LISTA_DEFAULT')
+
+    const enBase = await db.select().from(placeLists).where(eq(placeLists.userId, userId))
+    expect(enBase).toHaveLength(1)
+    expect(enBase[0].name).toBe(NOMBRE_LISTA_DEFAULT)
+  })
+
+  it('no se puede renombrar ni borrar la lista de otro usuario', async () => {
+    if (!hayDb) return
+    await setPlan(ajenoId, 'premium')
+    await guardarLugar(ajenoId, { placeId: lugares[0] })
+    const creada = await crearLista(ajenoId, { name: `${PREFIJO}del ajeno` })
+    expect(creada.ok).toBe(true)
+    const idAjeno = creada.ok ? creada.data.id : ''
+
+    await setPlan(userId, 'premium')
+    const renombrada = await renombrarLista(userId, idAjeno, { name: `${PREFIJO}mia` })
+    expect(renombrada.ok).toBe(false)
+    expect(renombrada.ok === false && renombrada.code).toBe('LISTA_NO_ENCONTRADA')
+
+    const borrada = await borrarLista(userId, idAjeno)
+    expect(borrada.ok).toBe(false)
+    expect(borrada.ok === false && borrada.code).toBe('LISTA_NO_ENCONTRADA')
+
+    // Y sigue intacta, con su nombre.
+    const [sigue] = await db.select().from(placeLists).where(eq(placeLists.id, idAjeno))
+    expect(sigue.name).toBe(`${PREFIJO}del ajeno`)
+    await setPlan(ajenoId, 'free')
+  })
+
+  it('renombrar cambia el nombre; borrar se lleva la lista con sus ítems', async () => {
+    if (!hayDb) return
+    await setPlan(userId, 'premium')
+    await guardarLugar(userId, { placeId: lugares[0] })
+    const creada = await crearLista(userId, { name: `${PREFIJO}birras` })
+    const listId = creada.ok ? creada.data.id : ''
+    await guardarLugar(userId, { placeId: lugares[1], listId })
+
+    const renombrada = await renombrarLista(userId, listId, { name: `${PREFIJO}birras finde` })
+    expect(renombrada.ok && renombrada.data.name).toBe(`${PREFIJO}birras finde`)
+
+    const borrada = await borrarLista(userId, listId)
+    expect(borrada.ok).toBe(true)
+
+    expect(await db.select().from(placeListItems).where(eq(placeListItems.listId, listId))).toHaveLength(0)
+    // La default y su ítem no se tocaron.
+    const quedan = await listasVisibles(userId)
+    expect(quedan).toHaveLength(1)
+    expect(quedan[0].isDefault).toBe(true)
+    expect(await guardadosDeLaPagina(userId, lugares)).toEqual([lugares[0]])
+  })
+
+  it('`estadoDeFavoritos` devuelve lo guardado y las listas visibles juntas', async () => {
+    if (!hayDb) return
+    await setPlan(userId, 'premium')
+    await guardarLugar(userId, { placeId: lugares[0] })
+    await crearLista(userId, { name: `${PREFIJO}birras` })
+
+    const estado = await estadoDeFavoritos(userId, lugares)
+    expect(estado.guardados).toEqual([lugares[0]])
+    expect(estado.listas).toHaveLength(2)
+    expect(estado.listas[0].isDefault).toBe(true)
+
+    // Bajar de plan recorta lo que se ve, sin borrar nada (decisión 4).
+    await setPlan(userId, 'free')
+    expect((await estadoDeFavoritos(userId, lugares)).listas).toHaveLength(MAX_LISTAS_FREE)
+  })
+})
+
+describe.skipIf(!process.env.DATABASE_URL)('favoritos — /mis-lugares', () => {
+  it('un lugar despublicado sigue en la lista, marcado (FAV-10, decisión 11)', async () => {
+    if (!hayDb) return
+    await guardarLugar(userId, { placeId: lugares[0] })
+    await guardarLugar(userId, { placeId: lugares[1] })
+
+    // Se despublica después de guardarlo.
+    await db
+      .update(places)
+      .set({ operatingStatus: 'closed' })
+      .where(eq(places.id, lugares[1]))
+
+    const [lista] = await listasDelUsuario(userId)
+    expect(lista.lugares).toHaveLength(2)
+    const despublicado = lista.lugares.find((l) => l.placeId === lugares[1])
+    expect(despublicado?.publicado).toBe(false)
+    expect(lista.lugares.find((l) => l.placeId === lugares[0])?.publicado).toBe(true)
+  })
+
+  it('los lugares vienen más recientes primero', async () => {
+    if (!hayDb) return
+    await guardarLugar(userId, { placeId: lugares[0] })
+    await guardarLugar(userId, { placeId: lugares[1] })
+    await guardarLugar(userId, { placeId: lugares[2] })
+
+    const [lista] = await listasDelUsuario(userId)
+    expect(lista.lugares[0].placeId).toBe(lugares[2])
+    expect(lista.lugares.at(-1)?.placeId).toBe(lugares[0])
+  })
+
+  it('solo muestra las listas visibles: bajar de plan esconde, no borra', async () => {
+    if (!hayDb) return
+    await setPlan(userId, 'premium')
+    await guardarLugar(userId, { placeId: lugares[0] })
+    const creada = await crearLista(userId, { name: `${PREFIJO}birras` })
+    const listId = creada.ok ? creada.data.id : ''
+    await guardarLugar(userId, { placeId: lugares[1], listId })
+
+    expect(await listasDelUsuario(userId)).toHaveLength(2)
+
+    await setPlan(userId, 'free')
+    const enFree = await listasDelUsuario(userId)
+    expect(enFree).toHaveLength(1)
+    expect(enFree[0].isDefault).toBe(true)
+    // La lista escondida sigue en la base con su ítem.
+    expect(await db.select().from(placeListItems).where(eq(placeListItems.listId, listId))).toHaveLength(1)
   })
 })
 

@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import { ArrowLeft, History, ListChecks, Loader2, Plus, Send, Sparkles, Trash2, X } from 'lucide-react'
 
+import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { PlaceCard } from '@/components/shared/place-card'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
+import type { ListaDestino } from '@/lib/favoritos/query'
 import { MAX_OPCIONES, MIN_OPCIONES, SHORTLIST_STORAGE_KEY } from '@/lib/votaciones/constantes'
 import { cn } from '@/lib/utils'
 
@@ -110,6 +112,32 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
       })
       .catch(() => {})
   }, [])
+
+  // FAVORITOS F2: guardar desde el chat es el gesto más natural de todos —la
+  // persona acaba de pedir recomendaciones—, pero acá las cards llegan por
+  // streaming y el estado no puede resolverse server-side como en la home
+  // (decisión 9). Se pide **por lote**: una query por tanda de cards nuevas,
+  // nunca una por card. Los ids ya consultados no se vuelven a pedir.
+  const [guardados, setGuardados] = React.useState<Set<string>>(new Set())
+  const [listas, setListas] = React.useState<ListaDestino[]>([])
+  const consultados = React.useRef<Set<string>>(new Set())
+
+  React.useEffect(() => {
+    const nuevos = [
+      ...new Set(mensajes.flatMap((m) => m.lugares.map((l) => l.id))),
+    ].filter((id) => !consultados.current.has(id))
+    if (nuevos.length === 0) return
+    nuevos.forEach((id) => consultados.current.add(id))
+
+    fetch(`/api/favoritos?ids=${nuevos.join(',')}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j?.data) return
+        setGuardados((prev) => new Set([...prev, ...(j.data.guardados as string[])]))
+        setListas(j.data.listas as ListaDestino[])
+      })
+      .catch(() => {})
+  }, [mensajes])
 
   // Autoscroll al fondo cuando llega texto o cambia el estado.
   React.useEffect(() => {
@@ -410,7 +438,14 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
           </div>
         ) : (
           mensajes.map((m, i) => (
-            <Burbuja key={i} mensaje={m} modo={modoEfectivo} onUsarShortlist={usarShortlist} />
+            <Burbuja
+              key={i}
+              mensaje={m}
+              modo={modoEfectivo}
+              onUsarShortlist={usarShortlist}
+              guardados={guardados}
+              listas={listas}
+            />
           ))
         )}
 
@@ -534,10 +569,14 @@ function Burbuja({
   mensaje,
   modo,
   onUsarShortlist,
+  guardados,
+  listas,
 }: {
   mensaje: Mensaje
   modo: 'chat' | 'shortlist'
   onUsarShortlist: (lugares: Lugar[]) => void
+  guardados: Set<string>
+  listas: ListaDestino[]
 }) {
   if (mensaje.role === 'user') {
     return (
@@ -574,6 +613,16 @@ function Burbuja({
               name={l.nombre}
               tags={l.tags}
               location={l.zona ?? l.direccion}
+              accion={
+                // `/chat` solo renderiza este cliente con sesión (el gate está en
+                // la página), así que acá `autenticado` es siempre true.
+                <BotonGuardar
+                  placeId={l.id}
+                  guardadoInicial={guardados.has(l.id)}
+                  autenticado
+                  listas={listas}
+                />
+              }
             />
           ))}
         </div>

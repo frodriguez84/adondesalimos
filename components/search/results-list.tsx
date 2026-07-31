@@ -4,6 +4,7 @@ import * as React from 'react'
 
 import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { PlaceCard } from '@/components/shared/place-card'
+import type { ListaDestino } from '@/lib/favoritos/query'
 import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
 import { serializeApiParams, type SearchParams } from '@/lib/search/params'
 import type { SearchedPlace } from '@/lib/search/query'
@@ -36,6 +37,11 @@ type Props = {
    * acá: una query por página, nunca una por card.
    */
   initialGuardados: string[]
+  /**
+   * Listas visibles del usuario (FAVORITOS F2, decisión 8). No cambian entre
+   * páginas, así que viajan una vez desde el server y no vuelven en `/api/search`.
+   */
+  listas: ListaDestino[]
   autenticado: boolean
   params: SearchParams
   coords: { lat: number; lng: number } | null
@@ -48,6 +54,7 @@ export function ResultsList({
   initialCursor,
   initialDestacados,
   initialGuardados,
+  listas,
   autenticado,
   params,
   coords,
@@ -172,6 +179,7 @@ export function ResultsList({
               placeId={place.id}
               guardadoInicial={guardados.has(place.id)}
               autenticado={autenticado}
+              listas={listas}
             />
           }
         />
@@ -190,6 +198,7 @@ export function ResultsList({
               placeId={place.id}
               guardadoInicial={guardados.has(place.id)}
               autenticado={autenticado}
+              listas={listas}
             />
           }
         />

@@ -1378,3 +1378,61 @@ el test.
 **Limpieza post-QA:** se borraron las listas e ítems de prueba, `pepe@gmail.com` volvió a `free` y
 los `saves` de QA se pusieron en 0 (hoy nació la columna, así que todo `saves>0` era de prueba y
 habría ensuciado un histórico que no se puede reconstruir).
+
+---
+
+## QA /qa-spec — FAVORITOS F2 (ver y organizar lo guardado) (2026-07-31)
+
+**Veredicto:** APROBADO — **cierra el spec entero** (F1 + F2)
+**Verificación técnica:** typecheck ✅ · tests ✅ **523/523** (10 nuevos de F2 en
+`lib/favoritos/__tests__/favoritos.integration.test.ts`) · build ✅
+**Método:** 3 checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD de
+`docs/specs/done/FAVORITOS.md` (movido a `done/` al cerrar), **más QA en vivo con Playwright** sobre
+`https://adondesalimos.ngrok.app` con `pepe@gmail.com` alternando `free`/`premium` y verificación
+por `psql` de cada efecto en la base.
+**Alcance:** F2 = `/mis-lugares` + crear/renombrar/borrar listas + sheet de destino + botón en el
+chat. Los cuatro IDs que F1 dejó en ⏭️ (**FAV-04, FAV-05, FAV-10, FAV-12**) se **reusan**, no se
+renumeran: son los mismos criterios, ahora verificables.
+**Canario de curaduría antes y después:** 3.967 tags `place_tags source='admin'` — intacto.
+**Backup:** `adondesalimos_2026-07-30_203627.sql.gz` (0 días al empezar; F2 no trae migración).
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| FAV-04 | Free, crear una segunda lista por API | ✅ PASS | `POST /api/listas` → **403** `LIMITE_LISTAS` ("Con el plan free tenés una sola lista"). El free sin ninguna lista **tampoco** puede: la default reserva su lugar del cupo (`listasOcupadas`), si no gastaría su única lista en una con nombre y el tap se quedaría sin destino |
+| FAV-05 | Premium con 2 listas, guardar eligiendo | ✅ PASS | El tap abre el sheet con las dos opciones y el lugar cae en la elegida (`Birras`), verificado en la base. Con **una sola** lista el sheet no aparece: sigue siendo un tap |
+| FAV-10 | Lugar despublicado (`operating_status='closed'`) | ✅ PASS | Sigue en la lista, atenuado, con "Ya no está disponible" y **sin `<a>`** en el DOM; la ficha del mismo id da **404**. La lista nunca se filtra por visibilidad |
+| FAV-12 | Renombrar / borrar la default por API | ✅ PASS | `PATCH` y `DELETE /api/listas/[id]` → **403** `LISTA_DEFAULT`. Un id inexistente → **404** `LISTA_NO_ENCONTRADA` |
+| FAV-20 | `/mis-lugares` sin sesión | ✅ PASS | **307** → `/login?callbackUrl=/mis-lugares` (curl sin cookies) |
+| FAV-21 | Link en el `AccountMenu` | ✅ PASS | "Mis lugares" → `/mis-lugares`, inmediatamente después de "Mis votaciones" |
+| FAV-22 | Premium crea una lista desde la página | ✅ PASS | "Nueva lista" → nombre → aparece la sección con su conteo y sus acciones. El botón **no existe** para free |
+| FAV-23 | Nombre de lista repetido | ✅ PASS | "Mis lugares" sobre una lista que ya se llama así → error inline "Ya tenés una lista con ese nombre", sin tocar la base. Case-insensitive (índice `lower(name)`) |
+| FAV-24 | Renombrar desde la página | ✅ PASS | "Birras" → "Birras del finde", el form se cierra y el título se actualiza |
+| FAV-25 | Borrar una lista desde la página | ✅ PASS | Pide confirmación diciendo cuántos lugares se van; al confirmar desaparece y **cero** ítems huérfanos (cascade). La default no muestra ninguna de las dos acciones |
+| FAV-26 | Sacar un lugar desde `/mis-lugares` | ✅ PASS | `70 30 Bar` estaba en dos listas: se sacó de la default y **siguió en la otra**. El botón lleva `listId`, así que saca de esa lista y no de todas |
+| FAV-27 | Guardar desde el chat IA | ✅ PASS | Las 3 cards del stream nacen con estado y **una sola** request: `GET /api/favoritos?ids=a,b,c`. El lugar ya guardado aparece como tal; el tap abre el sheet y guarda en la lista elegida |
+| FAV-28 | Sheet en la ficha | ✅ PASS | Mismo componente y mismas dos opciones desde `/lugar/[id]`: el sheet anda en las **tres** superficies (card, ficha, chat) |
+| FAV-29 | Premium con 2 listas → `plan='free'` (regresión FAV-06/07 sobre la pantalla nueva) | ✅ PASS | `/mis-lugares` muestra **solo la default**, sin "Nueva lista" y sin acciones de renombrar/borrar, con el teaser premium. En la base **siguen las 2 listas y los 4 ítems**. Volver a premium las devuelve intactas |
+| FAV-30 | Tocar por API una lista escondida por bajar de plan | ✅ PASS | `PATCH` y `DELETE` → **404** `LISTA_NO_ENCONTRADA` y la lista sigue intacta. Ajena, inexistente o escondida se contestan igual: para ese usuario no existe |
+| FAV-31 | Premium hasta el tope de listas | ✅ PASS (test) | Crea hasta `favoritos.max_listas_premium` (10, contando la default) y la siguiente da `LIMITE_LISTAS`. Lock `FOR UPDATE` sobre la fila del usuario: contar-y-después-insertar no se puede pasar con dos requests simultáneas |
+| FAV-14 | Regresión: cero requests al cargar la búsqueda | ✅ PASS | Con el cambio a `estadoDeFavoritos` (guardados **+** listas en una resolución), la home sigue sin pegarle a `/api/favoritos` ni a `/api/listas` al cargar |
+| FAV-11 | Regresión: `listId` ajeno | ✅ PASS | Sin cambios: el destino sale de `listasVisibles(userId)`, nunca del payload — ahora también en renombrar y borrar |
+
+**Un hallazgo de checker descartado con evidencia en vivo:** un checker marcó PARCIAL "renombrar/
+borrar no chequean premium en el cliente". No es un gap: un free **no ve** ninguna lista no-default
+(`listasVisibles` la recorta), así que esos botones nunca se renderizan — verificado en FAV-29, cero
+botones de renombrar/borrar en pantalla. El candado server (`listasVisibles` en la acción) es el que
+manda igual.
+
+**Decidido mientras se implementaba F2** (no estaba en el spec y hacía falta):
+
+- **La default ocupa un lugar del cupo aunque todavía no exista.** Sin eso, un free sin nada guardado
+  podía crear una lista con nombre y quedarse sin destino para el tap (o con una default que su
+  propio cupo esconde). Vive en `listasOcupadas`, en el dueño único.
+- **Borrar una lista sí borra sus ítems** (cascade) y eso **no contradice** "ocultar ≠ borrar": ese
+  invariante prohíbe borrar por un **cambio de plan**. Acá el usuario lo pide explícitamente, y se
+  le avisa cuántos lugares se van antes de confirmar.
+- **El botón de `/mis-lugares` lleva `listId`**: sacar desde una lista saca de **esa**, no de todas
+  las visibles (que es lo que hace el botón de la card, donde el estado es por lugar).
+- **`estadoDeFavoritos` reemplaza a `guardadosDeLaPagina` en la home y la ficha**: guardados y listas
+  salen de la misma resolución de `listasVisibles`, así una pantalla no paga dos veces la misma
+  pregunta. `/api/search` sigue con `guardadosDeLaPagina`: las listas no cambian entre páginas.

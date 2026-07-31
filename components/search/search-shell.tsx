@@ -7,6 +7,7 @@ import { ChevronDown, List, Map as MapIcon, MapPin, SlidersHorizontal, X } from 
 
 import { SearchInput } from '@/components/ui/search-input'
 import { cn } from '@/lib/utils'
+import type { ListaDestino } from '@/lib/favoritos/query'
 import type { CatalogFacet, CatalogZone } from '@/lib/search/catalog'
 import type { OccasionChips } from '@/lib/search/chips'
 import {
@@ -60,6 +61,11 @@ type Props = {
    * Resueltos server-side en `/`; las páginas del scroll las trae `/api/search`.
    */
   guardados: string[]
+  /**
+   * Listas visibles del usuario (FAVORITOS F2, decisión 8): con más de una, el tap
+   * de guardar abre el sheet de destino. Vacío sin sesión.
+   */
+  listas: ListaDestino[]
   /** Sin sesión el botón de guardar se muestra igual y lleva a login (dec. 7). */
   autenticado: boolean
 }
@@ -72,6 +78,7 @@ export function SearchShell({
   resultado,
   destacados,
   guardados,
+  listas,
   autenticado,
 }: Props) {
   const router = useRouter()
@@ -272,6 +279,7 @@ export function SearchShell({
           initialCursor={resultado.nextCursor}
           initialDestacados={destacados}
           initialGuardados={guardados}
+          listas={listas}
           autenticado={autenticado}
           params={params}
           coords={coords}

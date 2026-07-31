@@ -25,6 +25,10 @@ type Props = { user: { name: string | null; email: string } | null }
  *
  * CHAT_IA (F2) suma "Chat IA": visible para todo usuario con sesión; el gate de
  * plan (probadita free vs premium) lo resuelve `/chat` server-side, no acá.
+ *
+ * FAVORITOS (F2) suma "Mis lugares", al lado de "Mis votaciones" (decisión 10):
+ * es el mismo tipo de objeto —algo mío, con su propia pantalla— y la página
+ * resuelve sola el caso de no tener nada guardado.
  */
 export function AccountMenu({ user }: Props) {
   const [open, setOpen] = useState(false)
@@ -102,6 +106,14 @@ export function AccountMenu({ user }: Props) {
             onClick={() => setOpen(false)}
           >
             Mis votaciones
+          </Link>
+          <Link
+            href="/mis-lugares"
+            role="menuitem"
+            className="block px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+            onClick={() => setOpen(false)}
+          >
+            Mis lugares
           </Link>
           <Link
             href="/mi-negocio"

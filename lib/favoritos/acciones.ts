@@ -1,9 +1,14 @@
 import { and, eq, inArray, sql } from 'drizzle-orm'
-import { db } from '@/lib/db'
-import { placeListItems, placeLists, places, users } from '@/lib/db/schema'
+import { db, type DbOrTx } from '@/lib/db'
+import { placeListItems, placeLists, places, users, type PlaceList } from '@/lib/db/schema'
 import type { Resultado } from '@/lib/claims/acciones'
-import { getMaxItemsPorLista, listasVisibles } from './planes'
-import type { GuardarLugarPayload, SacarLugarPayload } from './validacion'
+import { getMaxItemsPorLista, listasVisibles, MAX_LISTAS_FREE, puedeCrearLista } from './planes'
+import type {
+  CrearListaPayload,
+  GuardarLugarPayload,
+  RenombrarListaPayload,
+  SacarLugarPayload,
+} from './validacion'
 
 /**
  * Escrituras de favoritos (FAVORITOS F1). Mismo reparto que el resto del
@@ -172,4 +177,142 @@ export async function sacarLugar(
     .returning({ id: placeListItems.id })
 
   return { ok: true as const, data: { sacado: borradas.length > 0 } }
+}
+
+// ---------------------------------------------------------------------------
+// Listas (F2) — crear · renombrar · borrar
+// ---------------------------------------------------------------------------
+
+/**
+ * ¿Ya tiene una lista con ese nombre? Se pregunta **incluidas las escondidas**
+ * por bajar de plan: el índice único `(user_id, lower(name))` las cuenta igual, y
+ * un 500 por violación de índice es peor mensaje que este.
+ */
+async function nombreOcupado(
+  tx: DbOrTx,
+  userId: string,
+  name: string,
+  exceptoId?: string,
+): Promise<boolean> {
+  const [fila] = await tx
+    .select({ id: placeLists.id })
+    .from(placeLists)
+    .where(
+      and(eq(placeLists.userId, userId), sql`lower(${placeLists.name}) = lower(${name})`),
+    )
+    .limit(1)
+  return fila ? fila.id !== exceptoId : false
+}
+
+/**
+ * Crea una lista con nombre (decisión 3: free = 1 · premium = hasta N).
+ *
+ * **El gate es server-side y sale del dueño único** (`puedeCrearLista`): esconder
+ * el botón en el cliente es cosmética. Mismo lock `FOR UPDATE` sobre la fila del
+ * usuario que `guardarLugar`, por la misma razón: contar-y-después-insertar
+ * necesita el lock de la fila que ancla el límite, o dos POST simultáneos pasan
+ * los dos el chequeo de cupo.
+ */
+export async function crearLista(
+  userId: string,
+  payload: CrearListaPayload,
+): Promise<Resultado<PlaceList>> {
+  return db.transaction(async (tx) => {
+    const [dueno] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for('update')
+    if (!dueno) return fallo('NO_SESSION', 'Iniciá sesión para continuar.')
+
+    const cupo = await puedeCrearLista(userId, tx)
+    if (!cupo.puede) {
+      return fallo(
+        'LIMITE_LISTAS',
+        cupo.max <= MAX_LISTAS_FREE
+          ? 'Con el plan free tenés una sola lista. Hacete premium para armar más.'
+          : `Llegaste a las ${cupo.max} listas. Borrá alguna para armar otra.`,
+      )
+    }
+
+    if (await nombreOcupado(tx, userId, payload.name)) {
+      return fallo('NOMBRE_REPETIDO', 'Ya tenés una lista con ese nombre.')
+    }
+
+    const [creada] = await tx
+      .insert(placeLists)
+      .values({ userId, name: payload.name, isDefault: false })
+      .returning()
+
+    return { ok: true as const, data: creada }
+  })
+}
+
+/**
+ * Renombra una lista propia. **La default no se renombra** (decisión 15): es el
+ * contenedor que garantiza que free siempre tenga dónde guardar, y se valida acá,
+ * no solo en la UI.
+ *
+ * La lista sale de `listasVisibles`, nunca del payload: una ajena, inexistente o
+ * escondida por bajar de plan se contestan igual — para este usuario no existe.
+ */
+export async function renombrarLista(
+  userId: string,
+  listId: string,
+  payload: RenombrarListaPayload,
+): Promise<Resultado<PlaceList>> {
+  return db.transaction(async (tx) => {
+    const [dueno] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for('update')
+    if (!dueno) return fallo('NO_SESSION', 'Iniciá sesión para continuar.')
+
+    const visibles = await listasVisibles(userId, tx)
+    const lista = visibles.find((l) => l.id === listId)
+    if (!lista) return fallo('LISTA_NO_ENCONTRADA', 'Esa lista no existe.')
+    if (lista.isDefault) {
+      return fallo('LISTA_DEFAULT', 'Esa lista no se puede renombrar.')
+    }
+
+    if (await nombreOcupado(tx, userId, payload.name, listId)) {
+      return fallo('NOMBRE_REPETIDO', 'Ya tenés una lista con ese nombre.')
+    }
+
+    const [actualizada] = await tx
+      .update(placeLists)
+      .set({ name: payload.name, updatedAt: new Date() })
+      .where(and(eq(placeLists.id, listId), eq(placeLists.userId, userId)))
+      .returning()
+
+    return { ok: true as const, data: actualizada }
+  })
+}
+
+export type ListaBorrada = { borrada: true }
+
+/**
+ * Borra una lista propia con sus ítems (cascade). **La default no se borra**
+ * (decisión 15): dejaría al usuario sin destino para el próximo tap.
+ *
+ * Este DELETE **no contradice** "ocultar ≠ borrar": ese invariante prohíbe borrar
+ * por un cambio de plan. Acá el usuario está pidiendo explícitamente que se vaya.
+ */
+export async function borrarLista(
+  userId: string,
+  listId: string,
+): Promise<Resultado<ListaBorrada>> {
+  const visibles = await listasVisibles(userId)
+  const lista = visibles.find((l) => l.id === listId)
+  if (!lista) return fallo('LISTA_NO_ENCONTRADA', 'Esa lista no existe.')
+  if (lista.isDefault) return fallo('LISTA_DEFAULT', 'Esa lista no se puede borrar.')
+
+  // El `user_id` en el WHERE es red de seguridad, no el filtro: quién puede
+  // tocar qué ya se decidió arriba con `listasVisibles`.
+  await db
+    .delete(placeLists)
+    .where(and(eq(placeLists.id, listId), eq(placeLists.userId, userId)))
+
+  return { ok: true as const, data: { borrada: true } }
 }
