@@ -88,6 +88,22 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **Revisar el costo del prompt caching del chat cuando haya tráfico real** (2026-07-31, al
+      medir el costo con los tokens de caché ya persistidos). La escritura del prefijo (8.776
+      tokens de system) es el **74%** del costo de una llamada en frío: US$ 0,0326 de US$ 0,0440.
+      **Hoy no se toca nada** — el caché es por prefijo y por modelo, lo comparten todos los
+      usuarios y **cada lectura refresca el TTL gratis**, así que el write se paga una vez por
+      período frío y a volumen desaparece solo. El régimen caro es el tráfico **ralo**, que es
+      justo cuando el costo absoluto son centavos. Con usuarios reales, mirar la proporción
+      `cache_creation` vs `cache_read` en `/admin` y recién ahí decidir entre tres palancas:
+      **(a)** nada, si el caché vive caliente; **(b)** TTL de 1 h (write a 2× en vez de 1,25× —
+      conviene solo con tráfico a baches, huecos > 5 min y ≥3 llamadas por hora), un parámetro,
+      puerta de ida y vuelta; **(c)** recortar el prefijo, que ahorra lineal pero toca la voz del
+      producto. **Descartado con números:** usar un modelo barato en el primer mensaje y caro
+      después **no** ahorra —los cachés son por modelo, así que se pagarían dos writes (US$ 0,0439
+      vs US$ 0,0329)— y pone el modelo más débil en el mensaje que más define la voz (idea de Fer,
+      analizada y descartada el 2026-07-31). Ver `docs/operations/LECCIONES_APRENDIDAS.md`.
+
 - [x] **El tablero de costos de `/admin` subestima el gasto del chat: no cuenta los tokens de
       caché** (hallazgo 2026-07-29). **Resuelto ✅ 2026-07-31** (pase de deuda): migración `0013`
       con `cache_read_tokens`/`cache_creation_tokens` en `chat_messages` (aditiva, nullable),

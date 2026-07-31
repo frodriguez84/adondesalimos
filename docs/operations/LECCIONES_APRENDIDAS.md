@@ -158,10 +158,31 @@ idéntico en las ~1.840 llamadas de una corrida. Se reprocesó a precio pleno 1.
 **Cuánto era "no son gratis" (medido el 2026-07-31, al persistir los tokens de caché).** Un
 mensaje real del chat: 893 input + 407 output + 8.701 read + 8.701 write ⇒ **US$ 0,0440**, de los
 cuales **US$ 0,0326 (74%) es la escritura del prefijo**. El cálculo viejo daba US$ 0,0088: el
-tablero informaba **1/5** del costo. La escritura se amortiza recién en los mensajes siguientes
-de la misma conversación, que leen a 0,1× — o sea que **una conversación de un solo mensaje es el
-peor caso económico del caching**, no el mejor. Detalle en `docs/qa/AnalisisQA.md` § *Pase de
-deuda técnica*, H-2.
+tablero informaba **1/5** del costo. Detalle en `docs/qa/AnalisisQA.md` § *Pase de deuda
+técnica*, H-2.
+
+**Y una trampa mental al leer ese número: el caché NO es por conversación.** Es por **prefijo**
+(system + tools), compartido entre requests y usuarios del mismo workspace, **por modelo**, y cada
+lectura le **refresca el TTL gratis** (verificado contra la doc de Anthropic el 2026-07-31: *"The
+cache is refreshed for no additional cost each time the cached content is used"*). Tres
+consecuencias que cambian cualquier mitigación que se diseñe:
+
+1. **El write se paga una vez por período frío, no una por conversación.** Con un mensaje cada
+   menos de 5 minutos —de cualquier usuario, en cualquier conversación— no se vuelve a pagar. El
+   régimen caro es el tráfico **ralo**, que es justo cuando el costo absoluto son centavos: a
+   volumen esto se arregla solo.
+2. **Cachear una sola llamada aislada es una pérdida, no un ahorro**: el write a 1,25× cuesta más
+   que pagar el input pleno (1×). Recién conviene desde la segunda llamada que comparte el
+   prefijo. Acá igual gana siempre, porque el tool-use hace **dos** llamadas por turno (la primera
+   escribe, la segunda lee) — por eso la fila medida tiene read y write iguales.
+3. **Los cachés son por modelo, así que "modelo barato en el primer mensaje, caro después" no
+   ahorra: agrega un write.** El primer mensaje escribiría el caché del modelo chico y el segundo
+   pagaría igual el del grande (idea de Fer, 2026-07-31, descartada con números: US$ 0,0439 vs
+   US$ 0,0329 — y encima pone el modelo débil en el mensaje que más define la voz).
+
+Las palancas reales, si algún día hace falta: dejar que el volumen lo mantenga caliente · el TTL
+de 1 h (write a 2×, conviene solo con tráfico a baches y ≥3 llamadas por hora) · recortar el
+prefijo. Las tres se deciden con datos de tráfico real — anotado en el BACKLOG, sin tocar nada.
 
 ---
 

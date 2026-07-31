@@ -1648,10 +1648,14 @@ Desglose de esa única llamada (Sonnet 5, $3/$15 por millón):
 | lo que mostraba el tablero viejo | | 0,008784 |
 
 O sea que el tablero venía informando **1/5** del costo de un mensaje con caché. El error es
-chico en pesos hoy (el catálogo de conversaciones es de QA) y grande en proporción — y crece con
-el volumen, que es exactamente cuando importa. La escritura del prefijo (8.776 tokens de system,
-decisión 12 de CHAT_IA) es el rubro más caro de la llamada; se amortiza recién con los mensajes
-siguientes de la misma conversación, que la leen a 0,1×.
+chico en pesos hoy (el catálogo de conversaciones es de QA) y grande en proporción.
+
+**Ojo con leer mal ese 74%:** el caché es por **prefijo** y por **modelo**, no por conversación —
+lo comparten todos los usuarios del workspace y cada lectura le **refresca el TTL gratis**. La
+escritura se paga una vez por **período frío**, no una por conversación, así que a volumen el
+rubro caro desaparece solo. Ver `docs/operations/LECCIONES_APRENDIDAS.md` § *El prompt caching
+falla en silencio* para las tres consecuencias y por qué la idea de "modelo barato en el primer
+mensaje" no ahorra.
 
 **Nota de método:** el baseline del tablero se leyó **antes** de correr la suite, porque el test
 de integración del cupo toca `ai_api_usage` del mes real (hallazgo viejo de COSTOS_ADMIN, ya
