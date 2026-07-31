@@ -1,4 +1,4 @@
-# RETRO — A Dónde Salimos
+﻿# RETRO — A Dónde Salimos
 
 Retro corta por sesión: **qué salió bien · qué frenó · qué cambiar.** El método que se mejora
 solo le gana al método fijo — cada sesión deja al sistema un poco mejor que la anterior. Es el
@@ -12,6 +12,21 @@ sesiones*. **Una sesión sin hallazgos se escribe igual, diciendo que no hubo** 
 llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
+
+## 2026-07-31 · SUGERIR_EN_VOTACION — que el grupo sume lugares (Opus)
+
+- **Qué salió bien:** **el prompt de arranque traía las tres cosas que el spec ya no decía bien**
+  (`MAX_OPCIONES` existe y vale 5, FAVORITOS está en `done/`, la migración es la 0012) y ninguna
+  costó un minuto de descubrimiento. La más cara era la primera: pisar `MAX_OPCIONES` habría roto
+  el alta y el chat en silencio, y en cambio quedaron dos constantes con el porqué escrito. Los 15
+  IDs de QA del spec eran ejecutables tal cual: se corrieron todos en vivo sin traducirlos.
+- **Qué frenó:** un bug propio — el cierre perezoso de la votación vencida metido **dentro** de la
+  transacción, donde el `ROLLBACK` del error de negocio se lo llevaba puesto. Lo cazó un test que
+  además del `code` devuelto chequeaba el `status` en la base; sin esa línea pasaba igual. Está en
+  `LECCIONES_APRENDIDAS.md` (el efecto que tiene que sobrevivir va fuera de la transacción que va a
+  fallar).
+- **Qué cambiar:** nada del método. Una nota al CLAUDE.md del proyecto (los dos techos de opciones)
+  porque es un gotcha que sorprende, no una regla nueva de trabajo.
 
 ## 2026-07-31 · FAVORITOS F2 — ver y organizar lo guardado (Opus)
 
