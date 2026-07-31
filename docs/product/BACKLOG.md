@@ -55,6 +55,35 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       `docs/specs/done/CHIPS_ROTACION.md` — mini-spec cerrado en una sesión corta, sin migración.
       **Con esto la cola de v2 queda completa** (los 5 ítems).
 
+### Cola post-v2 — decidida por Fer el 2026-07-31
+
+Con los 5 ítems de v2 cerrados y `docs/specs/planned/` vacío, Fer eligió el orden mirando cuatro
+caminos (deuda · curaduría · deploy · specs nuevos). **Ninguno de los dos primeros necesita spec**:
+son trabajo acotado con criterio de "listo" objetivo.
+
+- [ ] **1 · Pase de deuda técnica** (sesión propia, sin decisiones de producto). Los tres ítems
+      elegidos, todos con su detalle en § Mejoras futuras: **(a)** el tablero de `/admin`
+      subestima el costo del chat porque `chat_messages` no persiste los tokens de caché —
+      2 columnas nuevas + `lib/ai/chat.ts` + `lib/admin/costos.ts`, **migración sobre tabla con
+      datos reales ⇒ `npm run backup:db` antes**; **(b)** el `EXISTS` con `${places.id}` sin
+      calificar en `lib/search/query.ts`, que hoy funciona **por descarte** y devolvería cero en
+      silencio si `place_tags`/`place_zones` ganaran un `id` (ya pasó en `lib/claims/query.ts`,
+      hallazgo H-1 de AUTH F2); **(c)** el bbox de AMBA escrito dos veces.
+- [ ] **2 · Curaduría de datos — la cobertura.** El diferencial del producto son Ambiente/Momento
+      /Precio y siguen ralos: **Precio tiene 0 filas** en `place_tags` (ni Overture ni el Google
+      persistible lo dan: solo curaduría o dueños) y **Actividad está pegada a un solo Tipo** por
+      el `tag-map`, así que cruzar facetas da casi siempre cero. La maquinaria ya existe
+      (`npm run curar`, ~US$17 la corrida completa). Mejora lo que la búsqueda devuelve **hoy**,
+      sin deployar. Ver los tres ítems de § Mejoras futuras.
+- [ ] **3 · Hosting/prod (Neon + Vercel)** — sigue parqueado, ahora **con el contexto cambiado**:
+      la prioridad "bajísima" se fijó el 2026-07-27 con 5 ítems de v2 por delante, y hoy no hay
+      ninguno. Es lo único que separa "todo implementado" de "usable", y **desbloquea el backlog
+      que hoy no se puede trabajar por falta de usuarios reales**: afinar las reglas de
+      CHIPS_ROTACION con `place_tag_impressions_daily`, el gatillo del botón de Google OAuth
+      ("funnel real de signups o lanzamiento público") y medir qué chip funciona. Checklist en
+      § Mejoras futuras. **Antes de esto hay que decidir dominio** — la URL pública es puerta de
+      ida (SEO).
+
 ## Mejoras futuras (fuera de v1)
 
 - [ ] **El tablero de costos de `/admin` subestima el gasto del chat: no cuenta los tokens de
