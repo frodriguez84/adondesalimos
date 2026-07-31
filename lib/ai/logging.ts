@@ -61,11 +61,19 @@ export function logChatCall(params: {
   inputTokens?: number
   outputTokens?: number
   cacheReadTokens?: number
+  cacheCreationTokens?: number
 }) {
-  const { model, plan, inputTokens = 0, outputTokens = 0, cacheReadTokens = 0 } = params
-  // Los tokens leídos del caché se cobran (0,1×) y NO vienen dentro de
+  const {
+    model,
+    plan,
+    inputTokens = 0,
+    outputTokens = 0,
+    cacheReadTokens = 0,
+    cacheCreationTokens = 0,
+  } = params
+  // Los tokens de caché se cobran (read 0,1×, write 1,25×) y NO vienen dentro de
   // `inputTokens`: sin pasarlos, el costo logueado sale por debajo del real.
-  const estimatedCostUsd = calcularCostoUsd(model, inputTokens, outputTokens, cacheReadTokens)
+  const estimatedCostUsd = calcularCostoUsd(model, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens)
 
   console.log(
     JSON.stringify({
@@ -78,6 +86,7 @@ export function logChatCall(params: {
       // Verificable del prompt caching (decisión 12): a partir del 2º mensaje
       // debería ser > 0. Si da 0 sostenido, hay un invalidador silencioso.
       cacheReadTokens,
+      cacheCreationTokens,
       estimatedCostUsd: +estimatedCostUsd.toFixed(6),
     }),
   )

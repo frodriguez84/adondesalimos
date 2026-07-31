@@ -71,7 +71,9 @@ export function CostosAdmin({
               <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 font-medium">Modelo</th>
-                  <th className="px-3 py-2 font-medium">Tokens (in / out)</th>
+                  {/* El caché va aparte a propósito: `in` es el remanente NO
+                      cacheado y los de caché igual se cobran (0,1× / 1,25×). */}
+                  <th className="px-3 py-2 font-medium">Tokens (in / out / caché)</th>
                   <th className="px-3 py-2 font-medium">Este mes</th>
                   <th className="px-3 py-2 font-medium">Mes anterior</th>
                 </tr>
@@ -81,7 +83,8 @@ export function CostosAdmin({
                   <tr key={m.model}>
                     <td className="px-3 py-2 text-foreground">{m.model}</td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {num.format(m.esteMes.tokensIn)} / {num.format(m.esteMes.tokensOut)}
+                      {num.format(m.esteMes.tokensIn)} / {num.format(m.esteMes.tokensOut)} /{' '}
+                      {num.format(m.esteMes.cacheRead + m.esteMes.cacheCreation)}
                     </td>
                     <td className="px-3 py-2 text-foreground">{usd.format(m.esteMes.costoUsd)}</td>
                     <td className="px-3 py-2 text-muted-foreground">{usd.format(m.mesAnterior.costoUsd)}</td>

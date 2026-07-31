@@ -74,6 +74,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
       let inputTokens = 0
       let outputTokens = 0
       let cacheReadTokens = 0
+      let cacheCreationTokens = 0
       const idsNuevos = new Set<string>()
 
       try {
@@ -119,7 +120,11 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
           const msg = await stream.finalMessage()
           inputTokens += msg.usage.input_tokens
           outputTokens += msg.usage.output_tokens
+          // Los dos van aparte de `input_tokens` (que es el remanente NO cacheado)
+          // y se cobran: read 0,1× y write 1,25×. Se acumulan para persistirlos —
+          // el tablero de `/admin` lee de la base, no de este log.
           cacheReadTokens += msg.usage.cache_read_input_tokens ?? 0
+          cacheCreationTokens += msg.usage.cache_creation_input_tokens ?? 0
 
           if (msg.stop_reason !== 'tool_use') break
 
@@ -195,6 +200,8 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
             modelUsed: model,
             tokensIn: inputTokens,
             tokensOut: outputTokens,
+            cacheReadTokens,
+            cacheCreationTokens,
           })
         }
         await db
@@ -202,7 +209,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
           .set({ seenPlaceIds: [...setGrounding], updatedAt: sql`now()` })
           .where(eq(chatConversations.id, conversationId))
 
-        logChatCall({ model, plan, inputTokens, outputTokens, cacheReadTokens })
+        logChatCall({ model, plan, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens })
 
         // Cupo restante tras consumir este turno (F2): el cliente pinta el
         // contador en vivo sin re-fetch. `resumenCupo` lee `used` ya incrementado

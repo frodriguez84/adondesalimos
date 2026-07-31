@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, sql, type AnyColumn, type SQL } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { aiApiUsage, chatMessages, googleApiUsage } from '@/lib/db/schema'
 import type { GoogleSku } from '@/lib/google/types'
@@ -113,10 +113,22 @@ export function evaluarPiso(precioActual: number, dolar: number): EvaluacionPiso
 
 // =====================  Bloque 1 — Costo del chat  =========================
 
+/**
+ * Los tokens de un período tal como los reporta la API: `tokensIn` es el
+ * remanente **no** cacheado, y los de caché van aparte (read 0,1×, write 1,25×
+ * del precio de input). Los tres suman la entrada real de la llamada.
+ */
+export type TokensPeriodo = {
+  tokensIn: number
+  tokensOut: number
+  cacheRead: number
+  cacheCreation: number
+}
+
 export type CostoModelo = {
   model: string
-  esteMes: { tokensIn: number; tokensOut: number; costoUsd: number }
-  mesAnterior: { tokensIn: number; tokensOut: number; costoUsd: number }
+  esteMes: TokensPeriodo & { costoUsd: number }
+  mesAnterior: TokensPeriodo & { costoUsd: number }
 }
 
 export type CostosChat = {
@@ -126,20 +138,42 @@ export type CostosChat = {
 }
 
 /**
+ * Los tokens de un período + su costo, con los **cuatro** números que cobra la
+ * API. Puro y exportado para test: el bug que arregla (2026-07-31) era pasarle a
+ * `calcularCostoUsd` solo `in`/`out` y dejar afuera los de caché, que no son
+ * gratis — el tablero mostraba menos de lo real.
+ */
+export function costoDePeriodo(model: string, t: TokensPeriodo): TokensPeriodo & { costoUsd: number } {
+  return { ...t, costoUsd: calcularCostoUsd(model, t.tokensIn, t.tokensOut, t.cacheRead, t.cacheCreation) }
+}
+
+/**
  * Costo del chat en USD por modelo, mes actual y anterior (decisión 3). Σ sobre
  * `chat_messages` con `model_used IS NOT NULL` (filas assistant), NUNCA sobre
  * `ai_api_usage` (que cuenta requests). Los tokens se suman en SQL con el molde
  * `filter (where ...)` de `lib/negocio/query.ts`; el costo se deriva en JS con
  * `calcularCostoUsd` (fuente única de precios).
+ *
+ * Las columnas de caché son `null` en las filas anteriores al fix: el `sum`
+ * las ignora y el `coalesce` deja 0, así que esos meses valen lo mismo que antes.
  */
 export async function getCostosChat(): Promise<CostosChat> {
+  const esteMes = sql`${chatMessages.createdAt} >= ${MES_ACTUAL}`
+  const mesPrev = sql`${chatMessages.createdAt} >= ${MES_ANTERIOR} and ${chatMessages.createdAt} < ${MES_ACTUAL}`
+  const suma = (col: AnyColumn, periodo: SQL) =>
+    sql<number>`coalesce(sum(${col}) filter (where ${periodo}), 0)::int`
+
   const filas = await db
     .select({
       model: chatMessages.modelUsed,
-      inMes: sql<number>`coalesce(sum(${chatMessages.tokensIn}) filter (where ${chatMessages.createdAt} >= ${MES_ACTUAL}), 0)::int`,
-      outMes: sql<number>`coalesce(sum(${chatMessages.tokensOut}) filter (where ${chatMessages.createdAt} >= ${MES_ACTUAL}), 0)::int`,
-      inPrev: sql<number>`coalesce(sum(${chatMessages.tokensIn}) filter (where ${chatMessages.createdAt} >= ${MES_ANTERIOR} and ${chatMessages.createdAt} < ${MES_ACTUAL}), 0)::int`,
-      outPrev: sql<number>`coalesce(sum(${chatMessages.tokensOut}) filter (where ${chatMessages.createdAt} >= ${MES_ANTERIOR} and ${chatMessages.createdAt} < ${MES_ACTUAL}), 0)::int`,
+      inMes: suma(chatMessages.tokensIn, esteMes),
+      outMes: suma(chatMessages.tokensOut, esteMes),
+      readMes: suma(chatMessages.cacheReadTokens, esteMes),
+      writeMes: suma(chatMessages.cacheCreationTokens, esteMes),
+      inPrev: suma(chatMessages.tokensIn, mesPrev),
+      outPrev: suma(chatMessages.tokensOut, mesPrev),
+      readPrev: suma(chatMessages.cacheReadTokens, mesPrev),
+      writePrev: suma(chatMessages.cacheCreationTokens, mesPrev),
     })
     .from(chatMessages)
     .where(and(isNotNull(chatMessages.modelUsed), sql`${chatMessages.createdAt} >= ${MES_ANTERIOR}`))
@@ -149,16 +183,18 @@ export async function getCostosChat(): Promise<CostosChat> {
     const model = f.model ?? 'desconocido'
     return {
       model,
-      esteMes: {
+      esteMes: costoDePeriodo(model, {
         tokensIn: f.inMes,
         tokensOut: f.outMes,
-        costoUsd: calcularCostoUsd(model, f.inMes, f.outMes),
-      },
-      mesAnterior: {
+        cacheRead: f.readMes,
+        cacheCreation: f.writeMes,
+      }),
+      mesAnterior: costoDePeriodo(model, {
         tokensIn: f.inPrev,
         tokensOut: f.outPrev,
-        costoUsd: calcularCostoUsd(model, f.inPrev, f.outPrev),
-      },
+        cacheRead: f.readPrev,
+        cacheCreation: f.writePrev,
+      }),
     }
   })
 

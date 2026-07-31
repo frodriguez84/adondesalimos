@@ -957,6 +957,15 @@ export const chatMessages = pgTable(
     modelUsed: text('model_used'),
     tokensIn: integer('tokens_in'),
     tokensOut: integer('tokens_out'),
+    /**
+     * Tokens de caché de la llamada, **aparte de `tokens_in`**: la API reporta
+     * `input_tokens` como el remanente NO cacheado. Sin estas dos columnas el
+     * tablero de `/admin` subestima el gasto (los reads se cobran a 0,1× y los
+     * writes a 1,25×, no gratis). Nullable: las filas anteriores al fix quedan
+     * en `null`, que `calcularCostoUsd` cuenta como 0.
+     */
+    cacheReadTokens: integer('cache_read_tokens'),
+    cacheCreationTokens: integer('cache_creation_tokens'),
     /** 'trial' | 'premium', solo en user (con qué plan se mandó). */
     planAtSend: chatPlanEnum('plan_at_send'),
     createdAt: timestamp('created_at').notNull().defaultNow(),

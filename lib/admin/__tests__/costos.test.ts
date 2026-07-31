@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  costoDePeriodo,
   costoGoogleUsd,
   estadoAlerta,
   evaluarPiso,
@@ -7,6 +8,7 @@ import {
   porcentajeCap,
   precioSugerido,
 } from '../costos'
+import { calcularCostoUsd } from '@/lib/ai/logging'
 
 /**
  * Aritmética pura del tablero de costos (COSTOS_ADMIN, decisión 12): tier gratis de
@@ -31,6 +33,44 @@ describe('costoGoogleUsd — tier gratis (decisión 5)', () => {
     // details a $20/1.000 sobre 3.000: (3000 − 1000) × 20/1000 = $40
     expect(costoGoogleUsd(3000, 20)).toBeCloseTo(40, 6)
     expect(costoGoogleUsd(3000, 7)).toBeCloseTo(14, 6)
+  })
+})
+
+describe('costoDePeriodo — el tablero cuenta los tokens de caché (deuda 2026-07-31)', () => {
+  // El bug: el tablero llamaba a `calcularCostoUsd(model, in, out)` y dejaba
+  // afuera los de caché, que no vienen dentro de `in` y **se cobran**. Con reads
+  // altos —el caso normal del chat, que cachea 8.776 tokens de system— el número
+  // mostrado quedaba por debajo del real.
+  const conCache = {
+    tokensIn: 1_000,
+    tokensOut: 500,
+    cacheRead: 1_000_000,
+    cacheCreation: 100_000,
+  }
+
+  it('una llamada con caché cuesta MÁS de lo que decía el tablero viejo', () => {
+    const viejo = calcularCostoUsd('claude-sonnet-5', conCache.tokensIn, conCache.tokensOut)
+    expect(costoDePeriodo('claude-sonnet-5', conCache).costoUsd).toBeGreaterThan(viejo)
+  })
+
+  it('el extra es exactamente read × 0,1 + write × 1,25 del precio de input', () => {
+    // 1M read × $3 × 0,1 = $0,30 · 100k write × $3 × 1,25 = $0,375
+    const viejo = calcularCostoUsd('claude-sonnet-5', conCache.tokensIn, conCache.tokensOut)
+    expect(costoDePeriodo('claude-sonnet-5', conCache).costoUsd - viejo).toBeCloseTo(0.3 + 0.375, 6)
+  })
+
+  it('sin caché (meses viejos, columnas null → 0) da el mismo número que antes', () => {
+    const sinCache = { tokensIn: 18_531, tokensOut: 7_288, cacheRead: 0, cacheCreation: 0 }
+    expect(costoDePeriodo('claude-sonnet-5', sinCache).costoUsd).toBeCloseTo(
+      calcularCostoUsd('claude-sonnet-5', 18_531, 7_288),
+      6,
+    )
+  })
+
+  it('devuelve los tokens tal cual, para que el tablero los pueda mostrar', () => {
+    const r = costoDePeriodo('claude-sonnet-5', conCache)
+    expect(r.cacheRead).toBe(1_000_000)
+    expect(r.cacheCreation).toBe(100_000)
   })
 })
 
