@@ -78,6 +78,13 @@
       "when": 1785163708813,
       "tag": "0010_wealthy_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785454641998,
+      "tag": "0011_easy_wolfsbane",
+      "breakpoints": true
     }
   ]
 }

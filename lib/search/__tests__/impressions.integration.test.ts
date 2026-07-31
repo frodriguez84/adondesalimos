@@ -96,10 +96,10 @@ describe.runIf(process.env.DATABASE_URL)('impresiones agregadas', () => {
   })
 
   it('no guarda ningún dato por usuario', async () => {
-    // Decisión 22 (+ FICHA decisión 24 + MONETIZACION decisión 20): agregado puro.
-    // La tabla suma contadores por lugar y día —impresiones, aperturas de ficha y
-    // veces destacado— y ninguna columna identifica a nadie. Si alguien agrega
-    // user_id o ip, esto falla.
+    // Decisión 22 (+ FICHA decisión 24 + MONETIZACION decisión 20 + FAVORITOS
+    // decisión 12): agregado puro. La tabla suma contadores por lugar y día
+    // —impresiones, aperturas de ficha, veces destacado y guardados— y ninguna
+    // columna identifica a nadie. Si alguien agrega user_id o ip, esto falla.
     const columnas = await db.execute<{ column_name: string }>(sql`
       SELECT column_name FROM information_schema.columns
       WHERE table_name = 'place_impressions_daily'
@@ -114,6 +114,7 @@ describe.runIf(process.env.DATABASE_URL)('impresiones agregadas', () => {
       'featured_impressions',
       'impressions',
       'place_id',
+      'saves',
     ])
   })
 })

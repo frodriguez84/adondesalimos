@@ -44,8 +44,11 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
         para no mover el reloj del sistema). No bloquea nada — está cubierto por test unitario y por
         dato. AHORA-03 (domingo) queda sin verificar en pantalla **a propósito**: `franjaActual` no
         lee el día de la semana, así que no hay nada que el domingo pueda cambiar.
-- [ ] **3 · Favoritos / listas** → spec: `docs/specs/planned/FAVORITOS.md` — la apuesta grande
-      (retención + gancho premium sin costo marginal). 2 fases.
+- [~] **3 · Favoritos / listas** → spec: `docs/specs/active/FAVORITOS.md` — la apuesta grande
+      (retención + gancho premium sin costo marginal). **F1 ✅ 2026-07-30** (schema, gate,
+      guardar/sacar desde card y ficha, métrica `saves`). **F2 pendiente**: `/mis-lugares`,
+      crear/renombrar/borrar listas, sheet de selección — y ahí entra el botón en el chat IA,
+      que F1 dejó afuera a propósito (decisión P2 del pre-vuelo).
 - [ ] **4 · Sugerir lugar en una votación** → spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`
       — extiende VOTACION y revierte su decisión 2.
 - [ ] **5 · Rotación de chips por día/hora** → spec: `docs/specs/planned/CHIPS_ROTACION.md`
@@ -253,10 +256,10 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       > `select count(*) from place_owner_content oc join places p on p.id = oc.place_id where
       > oc.opening_hours is not null` cruzado con `publishedWhere`— y ahí decidir exacto puro vs
       > híbrido (decisión 13). Spec en `docs/specs/active/ABIERTO_AHORA.md`.
-- [ ] **Favoritos / listas guardadas** — free: 1 lista ("Mis lugares") · premium: listas
+- [~] **Favoritos / listas guardadas** — free: 1 lista ("Mis lugares") · premium: listas
       múltiples con nombre. Decidido fuera de v1 el 2026-07-19 (tanda 5) para no agrandar
-      el alcance. Ver `docs/product/IDEAS.md` § Monetización.
-      → **spec: `docs/specs/planned/FAVORITOS.md`** (escrito 2026-07-29). Dos tablas nuevas, gate
+      el alcance. Ver `docs/product/IDEAS.md` § Monetización. **F1 implementada 2026-07-30.**
+      → **spec: `docs/specs/active/FAVORITOS.md`** (escrito 2026-07-29). Dos tablas nuevas, gate
       server-side desde el día 1, bajar de plan **oculta y no borra**, botón como *slot* en
       `PlaceCard` (que sigue siendo presentación pura), página `/mis-lugares`, y la métrica
       agregada `saves` se **empieza a contar ya** porque el unsave borra la fila y el histórico no
@@ -573,6 +576,20 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       (expiración de votaciones lazy 72 h).
 
 ## Hecho
+
+- [x] **FAVORITOS F1 — guardar lugares** (2026-07-30, sesión Opus): el #3 de la cola de v2 y la
+      apuesta grande (retención + gancho premium **sin costo marginal**: el chat cuesta tokens por
+      mensaje, una lista más cuesta una fila). Entregado: `place_lists` + `place_list_items` +
+      columna `saves` (migración aditiva `0011`, backup previo), `lib/favoritos/` completo
+      (`planes.ts` como **dueño único del cupo**, `acciones.ts` con todos los gates, `query.ts`,
+      `validacion.ts`), `POST|DELETE /api/favoritos` con rate limit propio, botón de guardar en la
+      card del listado y en la ficha, y la métrica agregada `saves`. **513/513 tests** (15 nuevos)
+      y **QA en vivo con Playwright**: 12 IDs PASS, 4 diferidos a F2, cero bugs. Las tres preguntas
+      abiertas del pre-vuelo (P1 motor, P2 superficies, P3 claves de `app_settings`) se cerraron
+      con Fer **antes** de escribir código y quedaron registradas en el spec. Lo más caro
+      verificado en vivo: bajar de plan **oculta y no borra** (FAV-06/07), y las cards de la
+      página 2 del scroll nacen con su estado. **Falta F2** (`/mis-lugares`, crear/renombrar/
+      borrar listas, sheet) y el `build`, que se corre con el dev server bajo.
 
 - [x] **QA en vivo de ABIERTO_AHORA F1 → veredicto APROBADO** (2026-07-30, sesión Opus, MCP de
       Playwright a `https://adondesalimos.ngrok.app`, mobile 390×844, Palermo Soho): el recorrido

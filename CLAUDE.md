@@ -48,21 +48,25 @@ app/
   api/
     search/           motor de búsqueda, count, pins (BUSQUEDA)
     lugar/[id]/google endpoint de Google en vivo (FICHA F2 — pendiente)
+    favoritos/        guardar / sacar un lugar (FAVORITOS F1)
 components/
   ui/                 primitivos (button, bottom-sheet, filter-chip, search-input)
-  shared/             place-card (card del listado)
+  shared/             place-card (card del listado; slot `accion` para guardar)
   search/             shell de búsqueda, sheets, mapa MapLibre, chips
-  lugar/              acciones de la ficha (volver/compartir — cliente)
+  lugar/              acciones de la ficha (volver/compartir/guardar — cliente)
+  favoritos/          botón de guardar (cliente, estado optimista)
 lib/
   db/                 schema Drizzle, index (pool), visibility (única puerta al
                       catálogo publicado), settings (app_settings en runtime),
                       taxonomy, chips
   search/             motor (query), params, card helpers, impresiones, catálogo
   lugar/              ficha: query (getPlaceDetail) + ficha.ts (helpers puros)
+  favoritos/          planes (dueño único del cupo de listas), acciones, query,
+                      validacion
   google/             settings.ts (claves de cuota); places.ts server-only → F2
   zones/              geometría (turf, sin PostGIS)
   middleware/         rate-limit por IP (memoria de proceso)
-drizzle/              migraciones generadas + snapshots (0000..0003)
+drizzle/              migraciones generadas + snapshots (0000..0011)
 scripts/              seed, import-overture, zones:build/load/assign
 data/zones/           46 GeoJSON versionados (fuente de verdad de las zonas)
 docs/                 specs/, qa/, product/, operations/, archive/ (ver docs/README.md)
@@ -426,7 +430,8 @@ hace que un agente pueda mantener este código sin romperlo: si el vocabulario y
 en un único lugar, una sesión no puede divergir en silencio. Ya es así y hay que defenderlo:
 `lib/db/visibility.ts` (qué se publica), `lib/google/places.ts` (única puerta a Google),
 `lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/ai/settings.ts` (claves de
-runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base).
+runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/favoritos/planes.ts` (cuántas
+listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**).
 
 - Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
 - Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de

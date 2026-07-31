@@ -99,6 +99,41 @@ export async function registrarDetailView(placeId: string): Promise<void> {
 }
 
 /**
+ * Suma 1 a los guardados de un lugar, en la fila de hoy (FAVORITOS, decisión 12).
+ *
+ * Se cuenta **desde el día 1** aunque `/mi-negocio` no lo muestre hasta v2: sacar
+ * un favorito borra la fila de `place_list_items`, así que "cuánta gente lo
+ * guardó" no se puede reconstruir después. Es la misma razón por la que existen
+ * las impresiones (CLAUDE.md § Métricas agregadas).
+ *
+ * **Histórico de eventos, no stock**: sacar un favorito NO descuenta. Y **solo
+ * suma el guardado nuevo** — re-guardar algo que ya estaba es idempotente y no
+ * agrega un evento.
+ *
+ * Agregado puro: sin `user_id`, sin cookies, sin IP. No tira nunca — un contador
+ * perdido no puede tumbar el guardado que lo generó.
+ */
+export async function registrarGuardado(placeId: string): Promise<void> {
+  try {
+    await db
+      .insert(placeImpressionsDaily)
+      .values({
+        placeId,
+        date: sql`current_date` as unknown as string,
+        saves: 1,
+      })
+      .onConflictDoUpdate({
+        target: [placeImpressionsDaily.placeId, placeImpressionsDaily.date],
+        set: {
+          saves: sql`${placeImpressionsDaily.saves} + excluded.saves`,
+        },
+      })
+  } catch (error) {
+    console.error('[guardado]', error)
+  }
+}
+
+/**
  * Suma 1 a `featured_impressions` de cada lugar servido **destacado**, en la fila
  * de hoy (MONETIZACION, decisión 20). Mismo criterio agregado que las impresiones:
  * un contador por (lugar, día), sin datos por usuario. Es el contador que decide

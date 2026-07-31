@@ -12,7 +12,14 @@ import { Button } from '@/components/ui/button'
  * del producto, así que el botón usa `navigator.share` cuando existe (mobile) y
  * cae a copiar el link al portapapeles cuando no (desktop) — nunca queda muerto.
  */
-export function FichaActions({ nombre }: { nombre: string }) {
+export function FichaActions({
+  nombre,
+  accion,
+}: {
+  nombre: string
+  /** Slot para guardar el lugar (FAVORITOS, decisión 6): al lado de compartir. */
+  accion?: React.ReactNode
+}) {
   const router = useRouter()
   const [copiado, setCopiado] = React.useState(false)
 
@@ -45,14 +52,17 @@ export function FichaActions({ nombre }: { nombre: string }) {
       >
         <ArrowLeft className="size-5" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Compartir"
-        onClick={compartir}
-      >
-        {copiado ? <Check className="size-5" /> : <Share2 className="size-5" />}
-      </Button>
+      <div className="flex items-center gap-1">
+        {accion}
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Compartir"
+          onClick={compartir}
+        >
+          {copiado ? <Check className="size-5" /> : <Share2 className="size-5" />}
+        </Button>
+      </div>
     </div>
   )
 }

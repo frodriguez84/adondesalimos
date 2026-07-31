@@ -22,16 +22,16 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 | Spec | Qué es | Estado |
 |------|--------|--------|
 | [ABIERTO_AHORA](active/ABIERTO_AHORA.md) | Mini-spec — el chip «Para ahora»: filtra por la franja horaria actual (TZ AR) con los tags de Momento curados, y retira el tag `abierto-ahora` que miente. | **Parcial** — F1 ✅ 2026-07-30 · F2 (abierto **real** desde horarios de dueño) escrita y **gateada** en ≥ 50 lugares con horarios propios (hoy 1) |
+| [FAVORITOS](active/FAVORITOS.md) | Guardar lugares y listas (`place_lists` + `place_list_items`): free 1 lista · premium N, gate server-side día 1; botón en card y ficha, página `/mis-lugares`, métrica `saves` agregada. | **Parcial** — F1 ✅ 2026-07-30 (schema, gate, guardar/sacar, métrica) · F2 pendiente (`/mis-lugares`, crear/renombrar/borrar listas, sheet de selección) |
 
 ## 🔵 Planned (`planned/`)
 
 Los cuatro specs de **v2**, en el orden de implementación decidido por Fer (momentum → impacto,
 IDEAS § Estado de la conversación 2026-07-27). Escritos en la sesión de autoría del 2026-07-29.
-ABIERTO_AHORA salió de esta tabla al implementarse su F1 (ver 🟢 Activos).
+ABIERTO_AHORA y FAVORITOS salieron de esta tabla al implementarse su F1 (ver 🟢 Activos).
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| [FAVORITOS](planned/FAVORITOS.md) | Spec completo — guardar lugares y listas (`place_lists` + `place_list_items`): free 1 lista · premium N, gate server-side día 1; botón en card y ficha, página `/mis-lugares`, métrica `saves` agregada. 2 fases. 🔵 Planned |
 | [SUGERIR_EN_VOTACION](planned/SUGERIR_EN_VOTACION.md) | Spec completo — que cualquiera con el link sume opciones a una votación (techo 8, 2 por dispositivo, el creador puede quitar). **Revierte la decisión 2 de VOTACION.** Sin texto libre: solo lugares publicados. 🔵 Planned |
 | [CHIPS_ROTACION](planned/CHIPS_ROTACION.md) | Mini-spec — los chips de Ocasión rotan por día/hora con reglas en `app_settings` (`chips.schedule`), degradando al orden por `sort` si el setting es inválido. 🔵 Planned |
 

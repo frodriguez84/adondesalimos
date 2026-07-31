@@ -372,6 +372,14 @@ export const placeImpressionsDaily = pgTable(
      * reporta la transparencia del panel ("destacada en X de las Y búsquedas").
      */
     featuredImpressions: integer('featured_impressions').notNull().default(0),
+    /**
+     * Cuántas veces lo guardaron ese día (FAVORITOS, decisión 12). Se cuenta
+     * **desde el día 1** aunque nada lo consuma todavía: sacar un favorito borra
+     * la fila de `place_list_items`, así que "cuánta gente lo guardó" no se puede
+     * reconstruir a posteriori. Es un histórico de eventos, no un stock: sacar el
+     * favorito NO lo descuenta. Mostrarlo en `/mi-negocio` es v2.
+     */
+    saves: integer('saves').notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.placeId, t.date] })],
 )
@@ -1018,6 +1026,80 @@ export const placeTagSuggestions = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Favoritos — spec FAVORITOS
+// ---------------------------------------------------------------------------
+
+/**
+ * Las listas de lugares guardados de un usuario (decisión 1). Mismo patrón
+ * padre/hijo que `polls`/`poll_options`.
+ *
+ * La default es **lazy**: nace al primer guardado, no en el signup (decisión 2)
+ * — better-auth no se toca y el usuario que nunca guarda nada no siembra filas.
+ *
+ * El gate free/premium **no vive acá**: cuántas listas puede tener alguien lo
+ * decide `lib/favoritos/planes.ts` y nadie más. Bajar de plan **oculta, no
+ * borra** (decisión 4): las filas de más quedan y reaparecen intactas si vuelve
+ * a premium. Nunca un DELETE disparado por un cambio de plan.
+ */
+export const placeLists = pgTable(
+  'place_lists',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** La que recibe el guardado de un tap. No se borra ni se renombra (dec. 15). */
+    isDefault: boolean('is_default').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('place_lists_user_idx').on(t.userId),
+    // Una sola default por usuario (decisión 2). Parcial, igual que
+    // `place_claims_aprobado_idx`: las no-default se repiten sin problema.
+    uniqueIndex('place_lists_default_idx')
+      .on(t.userId)
+      .where(sql`${t.isDefault}`),
+    // Sin dos listas con el mismo nombre. `lower()` para que "Birras" y "birras"
+    // sean la misma — el usuario no ve la diferencia y tendría dos destinos
+    // indistinguibles en el sheet.
+    uniqueIndex('place_lists_user_name_idx').on(t.userId, sql`lower(${t.name})`),
+  ],
+)
+
+/**
+ * Un lugar en una lista. Nada más: sin notas, sin rating, sin "ya fui"
+ * (§ Qué NO es esta feature).
+ *
+ * `place_id` **sin** `on delete cascade`, igual que `poll_options.place_id`: el
+ * catálogo despublica, no borra; y si algún día borrara, queremos que falle
+ * ruidoso en vez de vaciar listas de gente en silencio. Un lugar despublicado
+ * **sigue en la lista** (decisión 11) — la lista nunca se filtra por visibilidad.
+ */
+export const placeListItems = pgTable(
+  'place_list_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    listId: uuid('list_id')
+      .notNull()
+      .references(() => placeLists.id, { onDelete: 'cascade' }),
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // No repetir un lugar en la misma lista: el candado de la idempotencia de
+    // `guardarLugar` (decisión 8 del DoD).
+    uniqueIndex('place_list_items_list_place_idx').on(t.listId, t.placeId),
+    index('place_list_items_list_idx').on(t.listId),
+    // Para el estado "guardado" de la página en una sola query (decisión 9).
+    index('place_list_items_place_idx').on(t.placeId),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Tipos inferidos
 // ---------------------------------------------------------------------------
 
@@ -1080,3 +1162,7 @@ export type ChatPlan = (typeof chatPlanEnum.enumValues)[number]
 export type PlaceTagSuggestion = typeof placeTagSuggestions.$inferSelect
 export type NewPlaceTagSuggestion = typeof placeTagSuggestions.$inferInsert
 export type SuggestionStatus = (typeof suggestionStatusEnum.enumValues)[number]
+export type PlaceList = typeof placeLists.$inferSelect
+export type NewPlaceList = typeof placeLists.$inferInsert
+export type PlaceListItem = typeof placeListItems.$inferSelect
+export type NewPlaceListItem = typeof placeListItems.$inferInsert

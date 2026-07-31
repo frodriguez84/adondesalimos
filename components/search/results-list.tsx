@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 
+import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { PlaceCard } from '@/components/shared/place-card'
 import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
 import { serializeApiParams, type SearchParams } from '@/lib/search/params'
@@ -29,6 +30,13 @@ type Props = {
    * la API (el server no tiene las coordenadas).
    */
   initialDestacados: SearchedPlace[]
+  /**
+   * Ids ya guardados de la primera página (FAVORITOS, decisión 9). Las páginas
+   * siguientes traen los suyos en la respuesta de `/api/search` y se acumulan
+   * acá: una query por página, nunca una por card.
+   */
+  initialGuardados: string[]
+  autenticado: boolean
   params: SearchParams
   coords: { lat: number; lng: number } | null
   /** Estado de 0 resultados: lo dibuja el shell, que tiene los chips a mano. */
@@ -39,6 +47,8 @@ export function ResultsList({
   initialPlaces,
   initialCursor,
   initialDestacados,
+  initialGuardados,
+  autenticado,
   params,
   coords,
   vacio,
@@ -51,6 +61,10 @@ export function ResultsList({
   const [cursor, setCursor] = React.useState(usaGps ? null : initialCursor)
   const [cargando, setCargando] = React.useState(usaGps)
   const [agotado, setAgotado] = React.useState(!usaGps && initialCursor === null)
+  // Acumulativo entre páginas: el scroll agrega ids, no los reemplaza.
+  const [guardados, setGuardados] = React.useState<Set<string>>(
+    () => new Set(usaGps ? [] : initialGuardados),
+  )
 
   const sentinela = React.useRef<HTMLDivElement>(null)
 
@@ -68,6 +82,7 @@ export function ResultsList({
           setDestacados(json.data.featured ?? [])
           setCursor(json.data.nextCursor)
           setAgotado(json.data.nextCursor === null)
+          setGuardados(new Set<string>(json.data.guardados ?? []))
         })
         .catch(() => {})
         .finally(() => vigente && setCargando(false))
@@ -80,9 +95,10 @@ export function ResultsList({
     setDestacados(initialDestacados)
     setCursor(initialCursor)
     setAgotado(initialCursor === null)
+    setGuardados(new Set(initialGuardados))
     setCargando(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave, initialPlaces, initialCursor, initialDestacados])
+  }, [clave, initialPlaces, initialCursor, initialDestacados, initialGuardados])
 
   const cargarMas = React.useCallback(async () => {
     if (cargando || agotado || !cursor) return
@@ -100,6 +116,11 @@ export function ResultsList({
         })
         setCursor(json.data.nextCursor)
         setAgotado(json.data.nextCursor === null)
+        // Los guardados de la página nueva se suman a los que ya había: las cards
+        // anteriores siguen en pantalla y su estado no puede resetearse.
+        if (json.data.guardados?.length) {
+          setGuardados((prev) => new Set([...prev, ...(json.data.guardados as string[])]))
+        }
       } else {
         setAgotado(true)
       }
@@ -146,6 +167,13 @@ export function ResultsList({
           location={ubicacionDeCard(place)}
           distanceKm={place.distanceKm}
           destacado
+          accion={
+            <BotonGuardar
+              placeId={place.id}
+              guardadoInicial={guardados.has(place.id)}
+              autenticado={autenticado}
+            />
+          }
         />
       ))}
 
@@ -157,6 +185,13 @@ export function ResultsList({
           tags={tagsDestacados(place.tags)}
           location={ubicacionDeCard(place)}
           distanceKm={place.distanceKm}
+          accion={
+            <BotonGuardar
+              placeId={place.id}
+              guardadoInicial={guardados.has(place.id)}
+              autenticado={autenticado}
+            />
+          }
         />
       ))}
 

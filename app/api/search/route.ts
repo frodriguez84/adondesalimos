@@ -1,5 +1,7 @@
 import { after } from 'next/server'
 
+import { auth } from '@/lib/auth'
+import { guardadosDeLaPagina } from '@/lib/favoritos/query'
 import { checkSearchRateLimit } from '@/lib/middleware/rate-limit'
 import {
   registrarDestacados,
@@ -29,7 +31,10 @@ export async function GET(request: Request) {
   // Sin criterios no se devuelve el catálogo entero (decisión 2): la primera
   // visita muestra cero resultados hasta que se elige zona.
   if (!tieneBusqueda(params)) {
-    return Response.json({ data: { places: [], nextCursor: null, featured: [] }, error: null })
+    return Response.json({
+      data: { places: [], nextCursor: null, featured: [], guardados: [] },
+      error: null,
+    })
   }
 
   try {
@@ -59,7 +64,20 @@ export async function GET(request: Request) {
       after(() => registrarDestacados(destacados.map((d) => d.id)))
     }
 
-    return Response.json({ data: { ...resultado, featured: destacados }, error: null })
+    // FAVORITOS, decisión 9: las páginas del scroll también nacen con su estado
+    // "guardado" resuelto, o las cards paginadas mostrarían todas sin guardar. La
+    // sesión se lee acá y no en el motor (pre-vuelo P1): `lib/search/query.ts` no
+    // sabe quién mira. Sin sesión no se consulta nada.
+    const session = await auth.api.getSession({ headers: request.headers }).catch(() => null)
+    const guardados =
+      session?.user && idsVistos.length > 0
+        ? await guardadosDeLaPagina(session.user.id, idsVistos)
+        : []
+
+    return Response.json({
+      data: { ...resultado, featured: destacados, guardados },
+      error: null,
+    })
   } catch (error) {
     // No se filtra el detalle al cliente: puede traer nombres de tablas o del
     // driver (regla global de seguridad).

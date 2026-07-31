@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { after } from 'next/server'
 import { BookOpen, Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide-react'
 
+import { auth } from '@/lib/auth'
+import { guardadosDeLaPagina } from '@/lib/favoritos/query'
+import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { FichaActions } from '@/components/lugar/ficha-actions'
 import { FichaGoogle } from '@/components/lugar/ficha-google'
 import { TapLink } from '@/components/lugar/tap-link'
@@ -85,6 +89,14 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
   // contador se escribe después. Solo aperturas de ficha publicada.
   after(() => registrarDetailView(place.id))
 
+  // FAVORITOS: el botón nace con el estado real (decisión 9), así el mismo lugar
+  // se ve igual en la card y en la ficha. Sin sesión no se consulta nada — el
+  // botón se muestra igual y el tap lleva a login (decisión 7).
+  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+  const guardado = session?.user
+    ? (await guardadosDeLaPagina(session.user.id, [place.id])).length > 0
+    : false
+
   const encabezado = tipoYCocina(place.tags)
   const precio = precioDeTags(place.tags)
   const ubicacion = ubicacionDeCard(place)
@@ -99,7 +111,16 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 pb-28 pt-4">
       <BrandHeader />
 
-      <FichaActions nombre={place.name} />
+      <FichaActions
+        nombre={place.name}
+        accion={
+          <BotonGuardar
+            placeId={place.id}
+            guardadoInicial={guardado}
+            autenticado={Boolean(session?.user)}
+          />
+        }
+      />
 
       {/* Google en vivo (F2/F3): el shell cliente envuelve la foto (arriba), el
           encabezado (acá como children, server-rendered) y el bloque de rating/

@@ -55,9 +55,25 @@ type Props = {
    * ahí lo trae la API porque el server no tiene coordenadas.
    */
   destacados: SearchedPlace[]
+  /**
+   * Ids de esta página que el usuario ya tiene guardados (FAVORITOS, decisión 9).
+   * Resueltos server-side en `/`; las páginas del scroll las trae `/api/search`.
+   */
+  guardados: string[]
+  /** Sin sesión el botón de guardar se muestra igual y lleva a login (dec. 7). */
+  autenticado: boolean
 }
 
-export function SearchShell({ params, facetas, zonas, chips, resultado, destacados }: Props) {
+export function SearchShell({
+  params,
+  facetas,
+  zonas,
+  chips,
+  resultado,
+  destacados,
+  guardados,
+  autenticado,
+}: Props) {
   const router = useRouter()
   const [zonaAbierta, setZonaAbierta] = React.useState(false)
   const [filtrosAbiertos, setFiltrosAbiertos] = React.useState(false)
@@ -255,6 +271,8 @@ export function SearchShell({ params, facetas, zonas, chips, resultado, destacad
           initialPlaces={resultado.places}
           initialCursor={resultado.nextCursor}
           initialDestacados={destacados}
+          initialGuardados={guardados}
+          autenticado={autenticado}
           params={params}
           coords={coords}
           vacio={

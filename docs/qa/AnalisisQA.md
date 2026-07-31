@@ -1326,3 +1326,55 @@ decisión 10 —el cliente no lee el reloj, el chip viaja como prop— verificad
   chips **de Ocasión**", y el test de la home se ajustó a eso (`chips.integration.test.ts`).
 - **Los conteos por franja no se movieron** desde que se escribió el spec (670/605/272/251/176), así
   que ninguna franja nace apagada por la decisión 25.
+
+---
+
+## QA de fase — FAVORITOS F1 (guardar lugares) (2026-07-30)
+
+**Veredicto:** APROBADO (F1)
+**Verificación técnica:** typecheck ✅ · tests ✅ **513/513** (15 nuevos en
+`lib/favoritos/__tests__/favoritos.integration.test.ts`) · build ⏳ pendiente (se corre con el dev
+server bajo — comparten `.next`).
+**Método:** tests de integración contra el Postgres local + **QA en vivo con Playwright** sobre
+`https://adondesalimos.ngrok.app`, con dos usuarios reales (`frodriguez.este@gmail.com` premium y
+`pepe@gmail.com` free) y verificación por `psql` de cada efecto en la base.
+**Alcance:** F1 = schema + gate + guardar/sacar desde card y ficha + métrica `saves`. Los IDs que
+dependen de `/mis-lugares` o de crear listas son de F2 y están marcados como tales.
+**Backup previo a la migración:** `backups/adondesalimos_2026-07-30_203627.sql.gz` (5,0 MB).
+**Canario de curaduría antes y después:** 3.967 tags `place_tags source='admin'` — intacto.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| FAV-01 | Deslogueado, tocar guardar en una card | ✅ PASS | Va a `/login?callbackUrl=%2F%3Fz%3Dvilla-crespo%26t%3Dbar` — conserva **zona y tag**. Tras loguear vuelve exactamente a `?z=villa-crespo&t=bar` |
+| FAV-02 | Free, primer guardado de la vida | ✅ PASS | Un tap: nace `Mis lugares` (`is_default=t`) con el lugar adentro, y la URL **sigue en la home** (el botón no dispara el link de la card). `place_lists` pasó de 0 a 1 fila |
+| FAV-03 | Free, guardar/estado en la ficha | ✅ PASS | La ficha del mismo lugar abre con `aria-pressed=true`: card y ficha coinciden. Ciclo guardar→sacar completo por UI en la ficha, sin recargar |
+| FAV-04 | Free, crear una segunda lista por API | ⏭️ F2 | `POST /api/listas` es de F2. Lo que F1 deja testeado es el número que ese endpoint va a consultar: `maxListasDelUsuario` = 1 (free) / 10 (premium), desde el dueño único |
+| FAV-05 | Premium, elegir lista al guardar | ⏭️ F2 | El sheet es de F2 y **no puede darse en F1**: sin endpoint de crear listas, nadie tiene más de una. El camino server ya funciona: test "premium con dos listas guarda en la que se le indica" |
+| FAV-06 | Premium con 2 listas → `plan='free'` | ✅ PASS | En pantalla desaparece el guardado que vivía solo en la lista extra (`Shapo Bar Palermo`); en la base **siguen las 2 listas y los 6 ítems**. Ninguna fila borrada |
+| FAV-07 | Volver a `premium` | ✅ PASS | Reaparece intacto sin tocar una fila |
+| FAV-08 | Guardar el mismo lugar dos veces | ✅ PASS | Índice único `(list_id, place_id)` + `onConflictDoNothing`: una sola fila, sin error. La segunda devuelve `nuevo=false` y **no** vuelve a sumar `saves` |
+| FAV-09 | Sacar un lugar | ✅ PASS | Desaparece de la lista, el botón vuelve a no-guardado sin recargar, y `saves` **no baja** (quedó en 2 tras guardar-sacar-guardar-sacar) |
+| FAV-10 | Lugar despublicado sigue en la lista | ⏭️ F2 | La pantalla que lo muestra es `/mis-lugares`. F1 ya cumple la mitad server: `guardarLugar` valida contra `places` y **no** contra `publishedWhere` (decisión 16), así que un despublicado se puede re-guardar; y nada filtra `place_list_items` por visibilidad |
+| FAV-11 | `listId` de otro usuario en `POST /api/favoritos` | ✅ PASS | **404** `LISTA_NO_ENCONTRADA` y **cero** filas escritas en la lista ajena (siguió en 0 ítems). Idem `DELETE`. El destino nunca sale del payload: sale de `listasVisibles(userId)` |
+| FAV-12 | Renombrar / borrar la default por API | ⏭️ F2 | No existen esos endpoints todavía. `is_default` ya está modelado con índice único parcial |
+| FAV-13 | Guardar 5 lugares y revisar `place_impressions_daily` | ✅ PASS | 5 filas con `saves=1` del día. Test que enumera las columnas de la tabla: `date, detail_views, featured_impressions, impressions, place_id, saves` — **ninguna con PII**, y falla si alguien agrega `user_id` |
+| FAV-14 | Página con 20 cards, algunas guardadas | ✅ PASS | **Cero** requests a `/api/favoritos` al cargar: el estado viene server-side. Con scroll infinito, 40 cards y **1** request a `/api/search`, que ahora devuelve `guardados` |
+| FAV-15 | Eliminar la cuenta | ✅ PASS (indirecto) | `place_lists.user_id` tiene `ON DELETE CASCADE` y `place_list_items.list_id` también. Los tests borran usuarios con `db.delete(users)` en cada corrida y no hay violación de FK: si no cascadeara, fallarían |
+| FAV-16 | Extra — el estado respeta el recorte de plan | ✅ PASS | Lo guardado en una lista escondida **no** cuenta como guardado y **no** se puede escribir. Sin esto el botón mostraría "guardado" algo que `sacarLugar` no podría sacar |
+| FAV-17 | Extra — el botón está fuera del `<Link>` (decisión 6) | ✅ PASS | Verificado en el DOM en vivo sobre las 20 cards: `button.closest('a') === null` en todas. Un tap en el botón no navega a la ficha |
+| FAV-18 | Extra — cards paginadas nacen con estado | ✅ PASS | Se guardó un lugar de la **página 2**, se recargó y se scrolleó: aparece guardado. Era el riesgo concreto que marcaba el pre-vuelo P1 |
+| FAV-19 | Extra — payloads inválidos y lugar inexistente | ✅ PASS | `placeId` no-UUID → 400 `INVALID`; UUID que no existe → 404 `LUGAR_INEXISTENTE`. Ningún detalle interno filtrado al cliente |
+
+**Hallazgo transitorio, no es bug:** el primer `DELETE /api/favoritos` por UI devolvió **503**. Fue
+el dev server compilando el handler por primera vez (el log de consola muestra el rebuild de Fast
+Refresh inmediatamente antes). Reintentado con la ruta ya compilada: 200 y `sacado:true`, y el ciclo
+completo por UI anduvo. No se reprodujo.
+
+**Un test existente falló y se actualizó a propósito:** `impressions.integration.test.ts` § "no
+guarda ningún dato por usuario" enumera las columnas exactas de `place_impressions_daily` y avisó
+del `saves` nuevo. Es justo para lo que existe: se agregó `saves` a la lista esperada, no se relajó
+el test.
+
+**Limpieza post-QA:** se borraron las listas e ítems de prueba, `pepe@gmail.com` volvió a `free` y
+los `saves` de QA se pusieron en 0 (hoy nació la columna, así que todo `saves>0` era de prueba y
+habría ensuciado un histórico que no se puede reconstruir).

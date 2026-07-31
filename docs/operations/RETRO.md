@@ -13,6 +13,25 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-07-30 (c) · FAVORITOS F1 — guardar lugares (Opus)
+
+- **Qué salió bien:** **el pre-vuelo se pagó solo, y encontró más de lo que había escrito.** Las
+  tres preguntas abiertas (P1/P2/P3) se cerraron con Fer en el primer turno, antes de una línea de
+  código, y ninguna se re-litigó después. Pero lo que más valió fue leer los archivos que el
+  pre-vuelo citaba: `SearchShell` y `ResultsList` son componentes **cliente**, dato que el
+  pre-vuelo no tenía y que hacía que la opción (b) de P1 —tocar el motor y pasarle un `userId`— no
+  resolviera nada, porque el estado igual tenía que viajar serializado. La pregunta estaba bien
+  planteada; una de sus dos opciones era peor de lo que parecía en el papel, y eso solo se ve
+  abriendo el archivo.
+- **Qué frenó:** perdí tres navegaciones probando `?zones=palermo` y `?zones=villa-crespo` cuando
+  el query param se llama **`z`** (`lib/search/params.ts:92`). La home no falla con un param
+  desconocido: muestra "Elegí zona para arrancar", que es indistinguible de "no hay resultados", así
+  que el primer intento parecía un bug de mi cambio. Es la trampa del QA en vivo sobre una URL
+  armada a mano: el deep link es un contrato y no está anotado en ningún lado que se lea antes.
+- **Qué cambiar:** nada de método. La única cosa concreta —el mapa de query params de la home— no
+  justifica un doc nuevo: se resuelve mirando `serializeSearchParams` antes de tipear una URL, y ya
+  quedó anotado acá para la próxima sesión que haga QA en vivo de búsqueda.
+
 ## 2026-07-30 (b) · QA en vivo de ABIERTO_AHORA F1 → APROBADO (Opus)
 
 - **Qué salió bien:** **el reloj más barato es el que ya va a cambiar solo.** La sesión arrancó

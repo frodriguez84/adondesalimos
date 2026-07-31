@@ -7,6 +7,7 @@ import { AccountMenu } from '@/components/shared/account-menu'
 import { Wordmark } from '@/components/shared/wordmark'
 import { RotatingHeadline } from '@/components/shared/rotating-headline'
 import { SearchShell } from '@/components/search/search-shell'
+import { guardadosDeLaPagina } from '@/lib/favoritos/query'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
 import { getOccasionChips } from '@/lib/search/chips'
 import {
@@ -77,6 +78,15 @@ export default async function Home({
     after(() => registrarDestacados(destacados.map((d) => d.id)))
   }
 
+  // FAVORITOS, decisión 9: el estado "guardado" de la página en una query, no una
+  // por card. Se resuelve **acá y no en el motor** (pre-vuelo P1): no es un dato
+  // del lugar sino de quien mira, y `lib/search/query.ts` no se toca. Las páginas
+  // siguientes del scroll las resuelve `/api/search`.
+  const guardados =
+    session?.user && idsVistos.length > 0
+      ? await guardadosDeLaPagina(session.user.id, idsVistos)
+      : []
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
       <header className="flex items-center justify-between gap-3">
@@ -103,6 +113,8 @@ export default async function Home({
         chips={chips}
         resultado={resultado}
         destacados={destacados}
+        guardados={guardados}
+        autenticado={Boolean(session?.user)}
       />
 
       <footer className="mt-auto pt-4 text-xs text-muted-foreground">

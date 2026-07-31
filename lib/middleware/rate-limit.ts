@@ -79,6 +79,16 @@ const CHECKOUT_WINDOW_MS = 60 * 60_000
 const CHAT_MAX = 10
 const CHAT_WINDOW_MS = 60_000
 
+/**
+ * Guardar / sacar favoritos `POST|DELETE /api/favoritos` (FAVORITOS, decisión 13):
+ * 60 por minuto por IP. **Generoso a propósito**: guardar es una acción legítima y
+ * repetida —el usuario barre una página de resultados guardando cinco lugares— y
+ * el gate real es la sesión más el tope de ítems por lista. Esto solo corta el
+ * loop automatizado contra un endpoint autenticado que escribe.
+ */
+const FAVORITOS_MAX = 60
+const FAVORITOS_WINDOW_MS = 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -289,5 +299,20 @@ export function checkChatRateLimit(request: Request): Response | null {
     CHAT_MAX,
     CHAT_WINDOW_MS,
     'Pará un poco con los mensajes. Probá de nuevo en un minuto.',
+  )
+}
+
+/**
+ * Rate limit de favoritos `POST|DELETE /api/favoritos` (FAVORITOS, decisión 13):
+ * 60/min por IP. Cupo con prefijo propio: guardar lugares no gasta el de búsqueda
+ * — que es justo el que el usuario está usando mientras guarda.
+ */
+export function checkFavoritosRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'favoritos',
+    FAVORITOS_MAX,
+    FAVORITOS_WINDOW_MS,
+    'Pará un poco. Probá de nuevo en un minuto.',
   )
 }

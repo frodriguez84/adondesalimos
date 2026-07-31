@@ -21,6 +21,13 @@ export interface PlaceCardProps extends React.ComponentProps<'div'> {
    * y borde propio. No es una segunda card — solo prende el rótulo "Destacado".
    */
   destacado?: boolean
+  /**
+   * Slot de acción, arriba a la derecha (FAVORITOS, decisión 6). Va **fuera** del
+   * `<Link>`: un botón anidado en un link es HTML inválido y le roba el tap a la
+   * card. La card sigue sin lógica de datos — quién lo llena y con qué estado es
+   * problema de quien la usa (hoy: `BotonGuardar`).
+   */
+  accion?: React.ReactNode
 }
 
 /**
@@ -38,6 +45,7 @@ function PlaceCard({
   location,
   distanceKm,
   destacado = false,
+  accion,
   className,
   ...props
 }: PlaceCardProps) {
@@ -45,14 +53,21 @@ function PlaceCard({
     <div
       data-slot="place-card"
       className={cn(
-        'rounded-xl border border-border bg-card text-card-foreground transition-colors hover:border-muted-foreground/50',
+        'relative rounded-xl border border-border bg-card text-card-foreground transition-colors hover:border-muted-foreground/50',
         // Borde propio del destaque: se distingue del orgánico sin ser otra card.
         destacado && 'border-primary/60 hover:border-primary',
         className,
       )}
       {...props}
     >
-      <Link href={`/lugar/${id}`} className="flex flex-col gap-2 p-4 outline-none">
+      {/* Fuera del `<Link>` a propósito (decisión 6). El `pr-12` de abajo le hace
+          lugar para que no se monte sobre el nombre ni sobre la distancia. */}
+      {accion && <div className="absolute right-2 top-2 z-10">{accion}</div>}
+
+      <Link
+        href={`/lugar/${id}`}
+        className={cn('flex flex-col gap-2 p-4 outline-none', accion && 'pr-12')}
+      >
         {destacado && (
           <span className="inline-flex w-fit items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
             Destacado
