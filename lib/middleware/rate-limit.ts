@@ -54,6 +54,16 @@ const VOTO_MAX = 20
 const VOTO_WINDOW_MS = 60_000
 
 /**
+ * Sumar / quitar una opción de una votación (SUGERIR_EN_VOTACION, decisión 13):
+ * 20 por minuto por IP. **Generoso, igual que el voto y por la misma razón**: todo
+ * el grupo cae desde la misma WiFi (o el mismo CGNAT móvil) y la IP no es la
+ * identidad —esa es la cookie `voter_id`—. Los gates que importan son el techo
+ * total y el tope de 2 por dispositivo, que viven en el dominio.
+ */
+const SUGERENCIA_MAX = 20
+const SUGERENCIA_WINDOW_MS = 60_000
+
+/**
  * Beacon de taps de la ficha (MONETIZACION, decisión 29): 60 por hora por IP.
  * Generoso —una ficha muy activa dispara varios taps— pero corta el inflado
  * burdo de las stats. El dato es para el dueño, no facturable por tap, así que el
@@ -260,6 +270,23 @@ export function checkVotoRateLimit(request: Request): Response | null {
     VOTO_MAX,
     VOTO_WINDOW_MS,
     'Pará un poco con los votos. Probá de nuevo en un minuto.',
+  )
+}
+
+/**
+ * Rate limit de `POST|DELETE /api/votaciones/[token]/opciones`
+ * (SUGERIR_EN_VOTACION, decisión 13): 20 por minuto por IP. **Bucket propio**: no
+ * comparte cupo con el voto —sumar un lugar y votarlo son el mismo gesto seguido,
+ * y compartir bucket haría que uno se coma al otro— ni con la búsqueda, que es
+ * justo la que se está usando desde el sheet para encontrar el lugar.
+ */
+export function checkSugerenciaRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'sugerencia',
+    SUGERENCIA_MAX,
+    SUGERENCIA_WINDOW_MS,
+    'Pará un poco. Probá de nuevo en un minuto.',
   )
 }
 

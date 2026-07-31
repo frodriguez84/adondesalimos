@@ -6,7 +6,12 @@ import { useRouter } from 'next/navigation'
 import { MapPin, Plus, Search, Sparkles, X } from 'lucide-react'
 
 import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
-import { MAX_OPCIONES, MIN_OPCIONES, SHORTLIST_STORAGE_KEY } from '@/lib/votaciones/constantes'
+import {
+  MAX_OPCIONES,
+  MAX_OPCIONES_TOTAL,
+  MIN_OPCIONES,
+  SHORTLIST_STORAGE_KEY,
+} from '@/lib/votaciones/constantes'
 import type { SearchedPlace } from '@/lib/search/query'
 
 /**
@@ -29,6 +34,9 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
   const [buscando, setBuscando] = useState(false)
   const [elegidos, setElegidos] = useState<PlaceElegido[]>([])
   const [titulo, setTitulo] = useState('')
+  // Que el grupo pueda sumar lugares (SUGERIR_EN_VOTACION, decisión 10). Prendido
+  // por default: apagado por default la feature no existiría en la práctica.
+  const [permitirSumar, setPermitirSumar] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [link, setLink] = useState<string | null>(null)
@@ -123,6 +131,7 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: titulo.trim() || undefined,
+          allowSuggestions: permitirSumar,
           placeIds: elegidos.map((p) => p.id),
         }),
       })
@@ -200,6 +209,26 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
           placeholder="¿Dónde el viernes?"
           className="rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
         />
+      </label>
+
+      {/* Que el grupo sume lugares (SUGERIR_EN_VOTACION, decisión 10). Se puede
+          cambiar después desde "Mis votaciones". */}
+      <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3">
+        <input
+          type="checkbox"
+          checked={permitirSumar}
+          onChange={(e) => setPermitirSumar(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-primary"
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-foreground">
+            Que el grupo pueda sumar lugares
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Cualquiera con el link puede agregar hasta llegar a {MAX_OPCIONES_TOTAL} en total. Vos
+            podés sacar lo que sumen.
+          </span>
+        </span>
       </label>
 
       {/* Premium: "que la IA arme la shortlist" (VOTACION d.18 → encendido en

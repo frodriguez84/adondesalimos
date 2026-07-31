@@ -222,6 +222,11 @@ Cicatrices reales — gotchas que sorprenden:
 - **`lucide-react` (v1.16) NO tiene íconos de marca** (Instagram/Facebook/Twitter): se
   removieron. Las redes de la ficha se rotulan con texto vía `clasificarRed`. Ver BACKLOG.
 - **`operating_status` viene `'open'` para todos**: no filtra lugares cerrados todavía (H-2).
+- **Una votación tiene DOS techos de opciones y son dos constantes distintas**
+  (`lib/votaciones/constantes.ts`): `MAX_OPCIONES = 5` es lo que el **creador** puede poner al
+  armar (lo importan `/votacion/nueva` y el chat IA) y `MAX_OPCIONES_TOTAL = 8` es hasta dónde
+  crece con lo que suma el grupo (SUGERIR_EN_VOTACION). Pisar la primera con la segunda rompe el
+  alta y el chat.
 - **Commits que solo tocan `docs/` usan `spec(...)`/`docs:`, nunca `feat`** (ver arriba
   § Prefijos de commit). Un `feat` implica que hay código.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags

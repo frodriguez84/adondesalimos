@@ -1,7 +1,41 @@
-# Lecciones aprendidas
+﻿# Lecciones aprendidas
 
 Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso va a
 `docs/qa/AnalisisQA.md`): acá va solo lo que cambia cómo trabajamos la próxima vez.
+
+---
+
+## Un efecto que tiene que sobrevivir no puede vivir dentro de la transacción que va a fallar (2026-07-31 · SUGERIR_EN_VOTACION)
+
+**Qué pasó.** `sugerirOpcion` abre una transacción, toma la fila de `polls` con `FOR UPDATE`
+(porque el techo de 8 se cuenta y después se inserta) y valida los gates adentro. Uno de esos
+gates es "la votación tiene que estar abierta", y ahí se copió el patrón de `votar()`: si venció
+pero la columna `status` sigue `'open'`, se persiste el **cierre perezoso** (decisión 11 de
+VOTACION, no hay cron) y se devuelve el error. El error de negocio se lanza como excepción para
+cortar la transacción… y el `ROLLBACK` **se lleva puesto el cierre perezoso**. La votación vencida
+quedaba `'open'` en la base para siempre; la respuesta al usuario era correcta, así que a simple
+vista todo andaba.
+
+**Por qué no se ve.** Los dos efectos viven en la misma función y "los dos escriben en `polls`",
+pero tienen destinos opuestos: uno **debe** persistir (el cierre) y el otro **debe** deshacerse (la
+opción que no entró). El commit/rollback es por transacción, no por statement — no hay forma de
+que el mismo `tx` guarde uno y descarte el otro. Lo cazó un test que, después de un intento de
+sugerir sobre una votación vencida, chequeaba `status === 'closed'` en la base. Sin esa línea, el
+test pasaba igual: el `code` devuelto era el correcto.
+
+**Qué hacer distinto:**
+
+1. **Antes de meter una escritura dentro de una transacción, preguntarse si tiene que sobrevivir a
+   que esa transacción falle.** Si la respuesta es sí, va **afuera** — antes, como pre-chequeo, o
+   después. Acá quedó igual que en `votar()`: leer el estado y persistir el cierre fuera, y adentro
+   el `FOR UPDATE` solo **revalida** por si algo cambió entre medio.
+2. **Un test de un caso de error tiene que assertear también el efecto colateral esperado**, no
+   solo el código devuelto. "Devolvió `VOTACION_CERRADA`" y "quedó cerrada en la base" son dos
+   afirmaciones distintas, y la segunda es la que se rompe en silencio.
+3. **Copiar un patrón que funciona no es gratis si cambia el envoltorio.** El código de `votar()`
+   era correcto **porque estaba fuera de una transacción**. Al pegarlo adentro de una, la misma
+   línea pasó a ser un no-op. Cuando se reusa un fragmento, mirar qué garantías le daba su
+   contexto anterior.
 
 ---
 

@@ -16,6 +16,26 @@ export const MIN_OPCIONES = 2
 export const MAX_OPCIONES = 5
 
 /**
+ * Techo **total** de opciones de una votación (SUGERIR_EN_VOTACION, decisión 2).
+ *
+ * Son dos constantes y no una a propósito: `MAX_OPCIONES` es lo que el **creador**
+ * puede poner al armar la cancha (2-5, decisión 3 de VOTACION, que NO se revierte)
+ * y esto es cuánto puede crecer con lo que suma el grupo. La preocupación original
+ * ("más de 5 diluye") era el creador solo con 9 lugares; acá **cada opción extra
+ * viene con alguien que la quiere**, que es lo que la vuelve votable. Llegado a
+ * este techo, el botón de sugerir se apaga con el motivo a la vista.
+ */
+export const MAX_OPCIONES_TOTAL = 8
+
+/**
+ * Cuántas puede sumar un mismo dispositivo por votación (decisión 7). Evita que
+ * uno solo se quede con todas las vacantes y deja margen para dos o tres que
+ * aporten. Se cuenta por `voter_token` con el mismo trade-off asumido en la
+ * decisión 7 de VOTACION: la cookie es evadible y está bien que lo sea.
+ */
+export const MAX_SUGERENCIAS_POR_VOTANTE = 2
+
+/**
  * Traspaso de la shortlist armada por el chat IA → `/votacion/nueva` (CHAT_IA
  * decisión 21). El chat guarda los lugares elegidos bajo esta clave de
  * `sessionStorage` y navega; el picker los lee al montar y precarga los

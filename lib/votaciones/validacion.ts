@@ -16,6 +16,11 @@ import { MAX_OPCIONES, MIN_OPCIONES } from './constantes'
  */
 export const crearVotacionSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
+  /**
+   * ¿El grupo puede sumar lugares? (SUGERIR_EN_VOTACION, decisión 10). Opcional:
+   * si no viene, manda el default `true` de la columna.
+   */
+  allowSuggestions: z.boolean().optional(),
   placeIds: z
     .array(z.uuid())
     .min(1)
@@ -36,12 +41,30 @@ export const votarSchema = z.object({
 export type VotarPayload = z.infer<typeof votarSchema>
 
 /**
- * Cerrar o cancelar (decisión 14 y 24). Cerrar exige el ganador elegido (default
+ * Sugerir un lugar (SUGERIR_EN_VOTACION, decisión 4). **Un uuid y nada más**: no
+ * hay campo de nombre ni un "otro" —el texto libre es justo lo que este spec
+ * cierra—. Que el uuid sea un lugar **publicado** lo decide el server contra
+ * `lib/db/visibility.ts`, no este schema.
+ */
+export const sugerirOpcionSchema = z.object({
+  placeId: z.uuid(),
+})
+
+export type SugerirOpcionPayload = z.infer<typeof sugerirOpcionSchema>
+
+/**
+ * Cerrar, cancelar o abrir/cerrar las sugerencias (decisión 14 y 24 de VOTACION;
+ * decisión 10 de SUGERIR_EN_VOTACION). Cerrar exige el ganador elegido (default
  * en la UI = el más votado, pero lo confirma el creador). Cancelar no lleva nada.
+ *
+ * `suggestions` va acá y **no** en un endpoint nuevo: el PATCH del creador ya es
+ * un `discriminatedUnion` por acción y esto es una acción más del mismo dueño
+ * sobre la misma votación.
  */
 export const gestionVotacionSchema = z.discriminatedUnion('accion', [
   z.object({ accion: z.literal('close'), winnerPlaceId: z.uuid() }),
   z.object({ accion: z.literal('cancel') }),
+  z.object({ accion: z.literal('suggestions'), allowSuggestions: z.boolean() }),
 ])
 
 export type GestionVotacionPayload = z.infer<typeof gestionVotacionSchema>

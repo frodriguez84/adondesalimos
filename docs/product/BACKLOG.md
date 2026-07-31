@@ -1,4 +1,4 @@
-# Backlog — A Dónde Salimos
+﻿# Backlog — A Dónde Salimos
 
 Cola de trabajo. Una línea por ítem + link al spec cuando exista. El **detalle de diseño**
 vive en `docs/specs/`, no acá.
@@ -48,8 +48,9 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       apuesta grande (retención + gancho premium sin costo marginal). **Cerrado entero**: F1
       (2026-07-30) + F2 (2026-07-31, `/mis-lugares`, crear/renombrar/borrar listas, sheet de
       destino y botón en el chat IA).
-- [ ] **4 · Sugerir lugar en una votación** → spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`
-      — extiende VOTACION y revierte su decisión 2.
+- [x] **4 · Sugerir lugar en una votación** ✅ **2026-07-31** → spec:
+      `docs/specs/done/SUGERIR_EN_VOTACION.md` — extiende VOTACION y **revierte su decisión 2**
+      (anotado en su tabla). Cerrado entero en una sesión, sin fases.
 - [ ] **5 · Rotación de chips por día/hora** → spec: `docs/specs/planned/CHIPS_ROTACION.md`
       — mini-spec, una sesión corta.
 
@@ -576,6 +577,26 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       (expiración de votaciones lazy 72 h).
 
 ## Hecho
+
+- [x] **SUGERIR_EN_VOTACION — que el grupo sume lugares a la cancha → spec CERRADO ENTERO**
+      (2026-07-31, sesión Opus): el link de una votación deja de circular solo para **votar** y
+      empieza a circular para **participar**. Cualquiera que lo recibe suma un lugar del catálogo
+      **sin cuenta** (cookie `voter_id`, la misma del voto), la opción es votable al instante y el
+      creador puede quitar lo que no va. **Revierte la decisión 2 de VOTACION**, anotado en su
+      tabla para que nadie lea el spec cerrado y lo tome como vigente. Entregado: migración
+      aditiva `0012` (enum `poll_option_origin`, `origin`/`suggested_by`/`created_at` en
+      `poll_options`, `allow_suggestions` en `polls`, **sin backfill**), `sugerirOpcion` /
+      `quitarOpcion` / `cambiarSugerencias` con **todos** los gates en el dominio y el techo
+      contado bajo `FOR UPDATE`, dos endpoints nuevos con el patrón fino del voto, rate limit
+      propio, el sheet de sumar reusando `/api/search` tal cual, el badge "Lo sumó alguien del
+      grupo" y el interruptor del creador (alta + `/mis-votaciones`). **542/542 tests** (19
+      nuevos, incluido el de dos sugerencias concurrentes con una sola vacante), typecheck y
+      **build** verdes. **QA en vivo**: los 15 IDs del spec
+      PASS. Dos cosas que el spec no decía y hubo que decidir: el techo de 8 es una constante
+      **nueva** (`MAX_OPCIONES_TOTAL`) porque `MAX_OPCIONES = 5` ya existía y es otra cosa —el
+      rango del creador, que usan el alta y el chat—, y el polling pasó a traer la cancha entera
+      porque ahora crece con la pantalla abierta. Un bug propio cazado por un test: el cierre
+      perezoso hecho **dentro** de la transacción se lo llevaba el `ROLLBACK`.
 
 - [x] **FAVORITOS F2 — ver y organizar lo guardado → spec CERRADO ENTERO** (2026-07-31, sesión
       Opus): la fase que hacía usable lo que F1 dejó como infraestructura. Entregado:

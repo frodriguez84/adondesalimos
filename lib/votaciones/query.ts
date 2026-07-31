@@ -9,6 +9,7 @@ import {
   places,
   tags,
   zones,
+  type PollOptionOrigin,
 } from '@/lib/db/schema'
 import { tagsDestacados } from '@/lib/search/card'
 import { estaExpirada, estadoVisible, type EstadoVisible } from './estado'
@@ -23,7 +24,12 @@ import { estaExpirada, estadoVisible, type EstadoVisible } from './estado'
  * `voter_token` nunca se expone a ningún cliente (decisión 21).
  */
 
-/** Una opción con su lugar (datos base) y su conteo. Nunca trae `voter_token`. */
+/**
+ * Una opción con su lugar (datos base) y su conteo. Nunca trae `voter_token` ni
+ * `suggested_by`: **quién sugirió qué no sale del server** (SUGERIR_EN_VOTACION,
+ * decisión 12 — mismo invariante que `poll_votes.voter_token`). Lo único que viaja
+ * es `origin`, que dice *que* la sumó el grupo, no *quién*.
+ */
 export type OpcionPublica = {
   optionId: string
   placeId: string
@@ -31,6 +37,7 @@ export type OpcionPublica = {
   location: string | null
   tags: string[]
   votos: number
+  origin: PollOptionOrigin
 }
 
 export type VotacionPublica = {
@@ -42,6 +49,8 @@ export type VotacionPublica = {
   winnerPlaceId: string | null
   totalVotos: number
   opciones: OpcionPublica[]
+  /** ¿El grupo puede sumar lugares? (SUGERIR_EN_VOTACION, decisión 10). */
+  allowSuggestions: boolean
   expiresAt: Date
   closedAt: Date | null
 }
@@ -63,6 +72,7 @@ export async function getVotacionPublica(token: string): Promise<VotacionPublica
       title: polls.title,
       status: polls.status,
       winnerPlaceId: polls.winnerPlaceId,
+      allowSuggestions: polls.allowSuggestions,
       expiresAt: polls.expiresAt,
       closedAt: polls.closedAt,
     })
@@ -98,6 +108,7 @@ export async function getVotacionPublica(token: string): Promise<VotacionPublica
     winnerPlaceId: poll.winnerPlaceId,
     totalVotos,
     opciones,
+    allowSuggestions: poll.allowSuggestions,
     expiresAt: poll.expiresAt,
     closedAt,
   }
@@ -110,6 +121,7 @@ async function opcionesConConteo(pollId: string): Promise<OpcionPublica[]> {
       optionId: pollOptions.id,
       placeId: pollOptions.placeId,
       position: pollOptions.position,
+      origin: pollOptions.origin,
       name: places.name,
       locality: places.locality,
     })
@@ -134,6 +146,7 @@ async function opcionesConConteo(pollId: string): Promise<OpcionPublica[]> {
     location: zonaPorLugar.get(f.placeId) ?? f.locality ?? null,
     tags: tagsPorLugar.get(f.placeId) ?? [],
     votos: conteos.get(f.optionId) ?? 0,
+    origin: f.origin,
   }))
 }
 
@@ -153,15 +166,22 @@ async function conteoPorOpcion(optionIds: string[]): Promise<Map<string, number>
 }
 
 /**
- * Solo los conteos (para el polling en vivo): estado + total + votos por opción +
- * ganador. Reusa la expiración lazy leyendo la votación entera —barato, ≤5
+ * El estado en vivo para el polling: estado + total + ganador + **la cancha
+ * completa**. Reusa la expiración lazy leyendo la votación entera —barato, ≤8
  * opciones— así el polling también detecta el vencimiento y pasa a solo-lectura.
+ *
+ * Manda las opciones enteras y no solo `{optionId, votos}` porque desde
+ * SUGERIR_EN_VOTACION **la cancha puede crecer mientras la pantalla está abierta**:
+ * con solo conteos, el total subiría por votos de una opción que el cliente no
+ * conoce y no tendría dónde mostrarlos. `allowSuggestions` viaja por lo mismo — si
+ * el creador cierra las sugerencias, el botón se apaga solo.
  */
 export type ResultadosEnVivo = {
   estado: EstadoVisible
   totalVotos: number
   winnerPlaceId: string | null
-  opciones: { optionId: string; votos: number }[]
+  allowSuggestions: boolean
+  opciones: OpcionPublica[]
 }
 
 export async function getResultados(token: string): Promise<ResultadosEnVivo | null> {
@@ -171,7 +191,8 @@ export async function getResultados(token: string): Promise<ResultadosEnVivo | n
     estado: votacion.estado,
     totalVotos: votacion.totalVotos,
     winnerPlaceId: votacion.winnerPlaceId,
-    opciones: votacion.opciones.map((o) => ({ optionId: o.optionId, votos: o.votos })),
+    allowSuggestions: votacion.allowSuggestions,
+    opciones: votacion.opciones,
   }
 }
 
@@ -195,6 +216,8 @@ export type VotacionDelPanel = {
   createdAt: Date
   expiresAt: Date
   opciones: OpcionDelPanel[]
+  /** El interruptor de "que el grupo pueda sumar" (SUGERIR_EN_VOTACION, d. 10). */
+  allowSuggestions: boolean
 }
 
 /**
@@ -221,6 +244,7 @@ export async function misVotaciones(
       title: polls.title,
       status: polls.status,
       winnerPlaceId: polls.winnerPlaceId,
+      allowSuggestions: polls.allowSuggestions,
       createdAt: polls.createdAt,
       expiresAt: polls.expiresAt,
     })
@@ -250,6 +274,7 @@ export async function misVotaciones(
       createdAt: f.createdAt,
       expiresAt: f.expiresAt,
       opciones,
+      allowSuggestions: f.allowSuggestions,
     }
   })
 }
@@ -296,6 +321,38 @@ export async function votoDelDispositivo(
     .where(and(eq(pollVotes.pollId, pollId), eq(pollVotes.voterToken, voterToken)))
     .limit(1)
   return fila?.optionId ?? null
+}
+
+/**
+ * Las opciones que sumó **este** dispositivo (SUGERIR_EN_VOTACION). Es la forma de
+ * que la pantalla ofrezca "sacar lo mío" y sepa cuántas vacantes le quedan **sin
+ * mandarle `suggested_by` a nadie** (decisión 12): el cruce con la cookie se hace
+ * acá, en el server, y lo que viaja son ids de opciones de uno mismo — el mismo
+ * criterio con el que `votoDelDispositivo` marca el voto propio.
+ */
+export async function sugerenciasDelDispositivo(
+  pollId: string,
+  voterToken: string,
+): Promise<string[]> {
+  const filas = await db
+    .select({ optionId: pollOptions.id })
+    .from(pollOptions)
+    .where(and(eq(pollOptions.pollId, pollId), eq(pollOptions.suggestedBy, voterToken)))
+  return filas.map((f) => f.optionId)
+}
+
+/**
+ * ¿Este usuario es el creador de esta votación? Se pregunta así, y no exponiendo
+ * `creator_id` en `VotacionPublica`, para que todo lo que devuelve esa query siga
+ * siendo publicable tal cual (decisión 21 de VOTACION).
+ */
+export async function esCreadorDeVotacion(pollId: string, userId: string): Promise<boolean> {
+  const [fila] = await db
+    .select({ id: polls.id })
+    .from(polls)
+    .where(and(eq(polls.id, pollId), eq(polls.creatorId, userId)))
+    .limit(1)
+  return !!fila
 }
 
 // ---------------------------------------------------------------------------

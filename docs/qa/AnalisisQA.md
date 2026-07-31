@@ -1436,3 +1436,75 @@ manda igual.
 - **`estadoDeFavoritos` reemplaza a `guardadosDeLaPagina` en la home y la ficha**: guardados y listas
   salen de la misma resolución de `listasVisibles`, así una pantalla no paga dos veces la misma
   pregunta. `/api/search` sigue con `guardadosDeLaPagina`: las listas no cambian entre páginas.
+
+---
+
+## QA /qa-spec — SUGERIR_EN_VOTACION (2026-07-31)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 542/542 ✅ (19 nuevos de sugerencias) · build ✅ (con el dev server bajo; las dos rutas nuevas de `opciones` quedan dinámicas)
+**Método:** 4 checkers independientes (Explore/haiku, read-only) contra el DoD de
+`docs/specs/active/SUGERIR_EN_VOTACION.md`, **más** los 15 casos del § QA manual del spec
+corridos **en vivo** contra `https://adondesalimos.ngrok.app` (Playwright + `curl` sin cookies
+para el camino "sin cuenta" + `psql` para verificar la base). Ningún criterio se declaró PASS
+solo por lectura de código.
+
+### DoD — checkers independientes
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| SUG-QA-01 | Migración aditiva; las votaciones existentes quedan `origin='creator'` y `allow_suggestions=true` sin backfill | ✅ PASS | `drizzle/0012_overjoyed_marvex.sql` (3 ALTER + 1 índice + el enum); defaults en `lib/db/schema.ts:741,772,779`. En la base de dev: 14/14 opciones `creator`, 4/4 polls con sugerencias, **cero UPDATE de datos** |
+| SUG-QA-02 | Cualquiera con el link suma **sin cuenta** y la opción es votable de inmediato | ✅ PASS | `app/api/votaciones/[token]/opciones/route.ts` no pide sesión; crea la cookie `voter_id` si falta (L57-68). El INSERT no tiene estado `pendiente` (`acciones.ts:329-340`) |
+| SUG-QA-03 | **Ningún camino a texto libre**: único input `placeId`, validado contra `publishedWhere` en el server | ✅ PASS | `sugerirOpcionSchema` = `{placeId: z.uuid()}` y nada más (`validacion.ts:49`); visibilidad vía `lib/db/visibility.ts` (`acciones.ts:234-243`). Sin campo de nombre en ningún lado |
+| SUG-QA-04 | Techo de 8 **server-side**, no excedible con requests concurrentes | ✅ PASS | `MAX_OPCIONES_TOTAL` contado dentro de la transacción con `polls` tomada `FOR UPDATE` (`acciones.ts:282,297-307`); test de concurrencia en `sugerencias.integration.test.ts:176-199` |
+| SUG-QA-05 | Tope de 2 por `voter_token` server-side | ✅ PASS | `acciones.ts:309-319` con el mismo lock; test `:201-214` |
+| SUG-QA-06 | `suggested_by` **nunca** en una respuesta de API ni en el HTML | ✅ PASS | Cero ocurrencias en `app/**` y `components/**`; `OpcionPublica` no lo tiene (`query.ts:33-41`); test que serializa la votación y busca el token (`:343-360`) |
+| SUG-QA-07 | El creador quita una sugerencia (con aviso de votos perdidos) y **no** una original | ✅ PASS | Gate por `origin` (`acciones.ts:420-425` → 403 `OPCION_ORIGINAL`); `votosPerdidos` en la respuesta; confirmación en `votacion-client.tsx:257-282` |
+| SUG-QA-08 | El que sugirió saca la suya mientras no tenga votos | ✅ PASS | Autorización por `voter_token` (`acciones.ts:427-429`) + gate de votos (`:436-438` → 409 `OPCION_CON_VOTOS`) |
+| SUG-QA-09 | Con `allow_suggestions=false`: ni botón, ni endpoint (403) | ✅ PASS | `SUGERENCIAS_CERRADAS` en el dominio (`acciones.ts:290-295`) → 403 en el route; el botón se condiciona a `permiteSumar` y se apaga solo si el server lo dice |
+| SUG-QA-10 | Cerrada / expirada / cancelada: no se sugiere, solo-lectura, **nunca** 404 | ✅ PASS | La acción usa `estaActiva` de `lib/votaciones/estado.ts` (dueño único, sin reimplementar); `page.tsx` hace `notFound()` **solo** si el token no existe |
+| SUG-QA-11 | Los votos previos siguen contando y los porcentajes se recalculan con la opción nueva | ✅ PASS | Sugerir no toca `poll_votes`; el conteo es un `GROUP BY` de lectura y el total se recalcula sobre la cancha nueva (`query.ts`) |
+| SUG-QA-12 | Rate limit propio, sin compartir bucket con voto ni búsqueda | ✅ PASS | `checkSugerenciaRateLimit`, prefijo `sugerencia`, 20/min (`rate-limit.ts:283-291`), usado en el POST y en el DELETE |
+| SUG-QA-13 | Las sugeridas se distinguen en la UI sin revelar identidad | ✅ PASS | Badge "Lo sumó alguien del grupo" / "Lo sumaste vos" a partir de `origin`; lo único que viaja del server es ese campo |
+
+### QA en vivo — los 15 casos del spec (ngrok, base de dev)
+
+| ID | Caso | Resultado | Qué se vio |
+|----|------|-----------|------------|
+| SUG-01 | Sumar un lugar con el link, sin cuenta | ✅ PASS | `POST` sin cookie ni sesión → **201** + `Set-Cookie: voter_id` nueva; la opción entra con `origin:'voter'` y aparece con badge. Desde la UI: se cierra el sheet y queda votable |
+| SUG-02 | Sumar un lugar que ya está | ✅ PASS | El buscador lo muestra como **"Ya está"** (sin botón), no como error |
+| SUG-03 | `placeId` inventado | ✅ PASS | uuid v4 inexistente → **422** `LUGAR_NO_PUBLICADO`, nada insertado. Un uuid mal formado ni llega: **400** en zod |
+| SUG-04 | `placeId` de un lugar despublicado | ✅ PASS | **422** `LUGAR_NO_PUBLICADO` (mismo candado que la shortlist del creador) |
+| SUG-05 | `{"placeId": "Bar de la esquina"}` | ✅ PASS | **400** `INVALID` por zod, sin tocar la base. Igual un body con `{"nombre": …}` |
+| SUG-06 | Llegar a 8 y volver a sugerir | ✅ PASS | La novena → **409** `VOTACION_LLENA`; quedaron exactamente 8 filas. En la pantalla: botón apagado con el motivo ("La votación llegó a 8 lugares, que es el máximo") |
+| SUG-07 | Sugerir 3 veces desde el mismo dispositivo | ✅ PASS | La tercera → **409** `LIMITE_SUGERENCIAS` (y las siguientes también) |
+| SUG-08 | Votar una sugerencia y que el creador la quite | ✅ PASS | Aviso "Si lo sacás se pierden 2 votos. Esto no se puede deshacer."; al confirmar se van la opción **y** sus 2 votos (cascade). El votante que la había elegido ve **en vivo** (polling) "Sacaron el lugar que habías votado, así que tu voto quedó libre. Elegí otro." — no se le reasigna nada |
+| SUG-09 | El creador intenta quitar una opción original | ✅ PASS | No hay botón en la UI; el `DELETE` directo **con la sesión del creador** → **403** `OPCION_ORIGINAL` |
+| SUG-10 | El que sugirió quita lo suyo | ✅ PASS | Sin votos → **200** (`votosPerdidos: 0`). Con votos → **409** `OPCION_CON_VOTOS`. La sugerencia ajena → **403** `NO_AUTORIZADO`. Sin cookie ni sesión → **403** |
+| SUG-11 | Votación creada con sugerencias desactivadas | ✅ PASS | Checkbox del alta apagado ⇒ `allow_suggestions=false` en la base; sin botón de sumar y `POST` → **403** `SUGERENCIAS_CERRADAS`; votar sigue andando. Mismo resultado apagando el interruptor desde `/mis-votaciones` (y lo ya sugerido **sigue**: cierra la puerta, no deshace) |
+| SUG-12 | Sugerir en una votación expirada | ✅ PASS | `POST` → **409** `VOTACION_CERRADA`; la página responde **200** en solo-lectura (sin votar, sin sumar, sin sacar) y el cierre perezoso quedó persistido (`status='closed'`). Un token inexistente sigue siendo el **único** 404 |
+| SUG-13 | Revisar el HTML/JSON de la página | ✅ PASS | En el HTML server-render: **0** ocurrencias del `voter_token` y de `suggested`. En el JSON de la API tampoco. Lo único propio que viaja son los `optionId` **de uno mismo** (mismo criterio que el voto propio) |
+| SUG-14 | Dos navegadores sugiriendo con 1 vacante | ✅ PASS | Dos POST en paralelo: uno **201**, el otro **409** `VOTACION_LLENA`; total en la base = 8, nunca 9 |
+| SUG-15 | Preview del link después de una sugerencia | ✅ PASS | `GET` con user-agent de WhatsApp: `og:title` con la cancha completa (sugerencias incluidas) y el contador de `google_api_usage` **no se movió** (106 → 106). Sin regresión de la decisión 22 de VOTACION |
+
+**Decidido mientras se implementaba** (no estaba en el spec y hacía falta):
+
+- **`MAX_OPCIONES_TOTAL = 8` es una constante nueva, no un cambio de `MAX_OPCIONES`.** `MAX_OPCIONES`
+  ya existía y vale 5: es lo que el **creador** pone al armar (decisión 3 de VOTACION, que no se
+  revierte), y lo importan el alta y el chat. Pisarla habría roto los dos. Las dos conviven en
+  `constantes.ts` con el porqué escrito.
+- **El polling ahora trae la cancha entera, no solo los conteos.** Con `{optionId, votos}` el total
+  subía por votos de una opción que el cliente no conocía y no tenía dónde mostrarlos: la cancha
+  **crece mientras la pantalla está abierta**, que es el punto de la feature. `allowSuggestions`
+  viaja por lo mismo (si el creador cierra las sugerencias, el botón se apaga solo).
+- **El cierre perezoso se hace ANTES de la transacción.** Primero se hizo adentro y el `ROLLBACK` del
+  error de negocio se lo llevaba puesto: la votación vencida seguía `open` en la columna. Lo cazó un
+  test (`status` esperado `closed`). Ahora sigue el patrón de `votar()`: pre-chequeo + cierre afuera,
+  y adentro el `FOR UPDATE` revalida.
+- **Quitar solo mientras está abierta.** El spec no lo dice; borrar una opción de una votación
+  cerrada cambiaría un resultado ya publicado (y ya compartido por link).
+- **El `DELETE` prueba primero como creador y después como votante.** Un usuario logueado que es
+  creador de OTRA votación es, acá, un votante más: sin ese fallback su sesión le habría tapado el
+  derecho a sacar lo que él mismo sumó.
+- **`allow_suggestions` se cambia por el `PATCH` que ya existía** (`accion: 'suggestions'` en el
+  `discriminatedUnion`), no con un endpoint nuevo: mismo dueño, misma votación, misma autorización.

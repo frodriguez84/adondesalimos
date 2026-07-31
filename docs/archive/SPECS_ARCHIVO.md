@@ -609,3 +609,59 @@ diferencia free/premium es la **cantidad de listas** (una fila más, no tokens).
   link (la ficha daría 404). La lista **nunca** se filtra por visibilidad.
 - **`saves` no se puede reconstruir**: sacar un favorito borra la fila de `place_list_items`, por
   eso el contador se empezó a acumular ahora aunque el panel del dueño lo muestre recién en v2.
+
+## Sugerir lugar en una votación {#sugerir_en_votacion}
+
+**Spec:** [`docs/specs/done/SUGERIR_EN_VOTACION.md`](../specs/done/SUGERIR_EN_VOTACION.md) · ✅ Implementado (2026-07-31, sin fases)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — SUGERIR_EN_VOTACION* —
+APROBADO. 13 criterios de DoD con checkers independientes + los 15 casos del spec en vivo,
+542/542 tests (19 nuevos).
+
+**Qué hace:** cierra el loop viral. Hasta acá el link de una votación circulaba para **votar**;
+ahora circula para **participar**: cualquiera que lo recibe puede **sumar un lugar del catálogo**
+a la cancha, sin cuenta, y el que aportó vuelve a compartir el link ("puse el mío, voten").
+**Revierte la decisión 2 de VOTACION** (ver la nota en su tabla). Su decisión 3 (2-5 del creador)
+sigue viva: lo que cambia es el **techo total**.
+
+**Alcance implementado:**
+
+- **Schema** (migración aditiva `drizzle/0012_overjoyed_marvex.sql`): enum `poll_option_origin`
+  (`creator`|`voter`) · `poll_options.origin` (default `'creator'` ⇒ **sin backfill**),
+  `.suggested_by` (el `voter_token`, nunca expuesto), `.created_at`, índice
+  `(poll_id, suggested_by)` · `polls.allow_suggestions` (default `true`).
+- **Dos constantes, no una** (`lib/votaciones/constantes.ts`): `MAX_OPCIONES = 5` es lo que pone
+  el **creador** al armar (decisión 3 de VOTACION, intacta, y la usan el alta y el chat);
+  `MAX_OPCIONES_TOTAL = 8` es hasta dónde puede **crecer** con lo que suma el grupo. Más
+  `MAX_SUGERENCIAS_POR_VOTANTE = 2`.
+- **Acciones** (`lib/votaciones/acciones.ts`): `sugerirOpcion` · `quitarOpcion` ·
+  `cambiarSugerencias`. **Todos** los gates viven acá (abierta · `allow_suggestions` · techo ·
+  tope por dispositivo · lugar publicado · duplicado). El techo y el tope se cuentan **dentro de
+  la transacción con la fila de `polls` tomada `FOR UPDATE`** — la que ancla el límite.
+- **Lecturas** (`lib/votaciones/query.ts`): `OpcionPublica` suma `origin` (y **nunca**
+  `suggested_by`); `sugerenciasDelDispositivo` (los `optionId` propios, cruzando la cookie en el
+  server); `esCreadorDeVotacion`. `ResultadosEnVivo` pasó a traer **la cancha entera**.
+- **Endpoints**: `POST /api/votaciones/[token]/opciones` (sin sesión, cookie `voter_id` creada si
+  falta) · `DELETE .../opciones/[optionId]` (dos autorizados: el creador con sesión, o el que
+  sugirió por cookie si nadie la votó) · `PATCH /api/votaciones/[token]` con
+  `accion: 'suggestions'`. Rate limit propio (`checkSugerenciaRateLimit`, 20/min, bucket aparte).
+- **UI**: botón "Sumar un lugar" → `BottomSheet` con el buscador que reusa `/api/search` tal cual;
+  badge "Lo sumó alguien del grupo" / "Lo sumaste vos"; quitar con aviso de cuántos votos se
+  pierden; tras sumar se **ofrece** votarlo ("¿La votás?"), nunca se auto-vota; checkbox en el
+  alta y interruptor en `/mis-votaciones`.
+
+**Lo que hay que saber para el próximo spec:**
+
+- **Nunca texto libre.** El único input es un `placeId` validado contra `lib/db/visibility.ts` en
+  el server — el mismo candado que la shortlist del creador. Si aparece un campo "nombre del
+  lugar", es un bug de diseño, no una mejora.
+- **`suggested_by` no sale del server**, igual que `poll_votes.voter_token`. Lo que viaja es
+  `origin` (que la sumó el grupo) y, para uno mismo, los `optionId` propios.
+- **Un cierre perezoso dentro de una transacción no sobrevive**: el `ROLLBACK` del error de
+  negocio se lo lleva puesto. El pre-chequeo de estado va **antes** de abrir la transacción
+  (patrón de `votar()`); el `FOR UPDATE` de adentro solo revalida.
+- **Quitar es solo con la votación abierta**, y solo sobre lo sugerido: una opción original no la
+  saca nadie, y sobre una cerrada nadie toca la cancha (cambiaría un resultado ya compartido).
+- **Apagar `allow_suggestions` cierra la puerta, no deshace**: lo ya sumado sigue y el creador lo
+  puede seguir moderando.
+- **El polling trae la cancha entera** porque la cancha crece mientras la pantalla está abierta.
+  Cualquier feature que agregue opciones en vivo hereda esto gratis.

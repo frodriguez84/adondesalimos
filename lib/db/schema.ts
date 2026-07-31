@@ -99,6 +99,14 @@ export const userPlanEnum = pgEnum('user_plan', ['free', 'premium'])
 export const pollStatusEnum = pgEnum('poll_status', ['open', 'closed', 'cancelled'])
 
 /**
+ * Quién puso una opción (SUGERIR_EN_VOTACION, decisión 11): la cancha original
+ * del creador o alguien del grupo con el link. Solo se distingue en la UI (badge
+ * "Lo sumó alguien del grupo") y decide qué se puede quitar (decisión 8): las
+ * originales no se tocan.
+ */
+export const pollOptionOriginEnum = pgEnum('poll_option_origin', ['creator', 'voter'])
+
+/**
  * Estado de una suscripción (MONETIZACION, decisión 13). Enum propio, **sin
  * `trialing`** (no hay trials, decisión "Qué NO es"). El mapeo desde el
  * preapproval de MP vive en F2 (`authorized→active` · `pending→past_due` ·
@@ -725,6 +733,12 @@ export const polls = pgTable(
     /** `created_at + VOTACION_TTL_HORAS`. Expirada = `open` + esto en el pasado. */
     expiresAt: timestamp('expires_at').notNull(),
     closedAt: timestamp('closed_at'),
+    /**
+     * ¿El grupo puede sumar lugares? (SUGERIR_EN_VOTACION, decisión 10). Default
+     * `true`: con `false` por default la feature no existiría en la práctica. Lo
+     * elige el creador al crear y lo puede cambiar desde su panel.
+     */
+    allowSuggestions: boolean('allow_suggestions').notNull().default(true),
   },
   (t) => [
     uniqueIndex('polls_token_idx').on(t.token),
@@ -734,9 +748,10 @@ export const polls = pgTable(
 )
 
 /**
- * Los lugares de la shortlist (2-5 por poll, decisión 3). Se congela al crear:
- * si un lugar se vuelve invisible después, la opción **sigue** (decisión / edge
- * case) — la cancha ya está armada.
+ * Los lugares de la cancha. El creador pone 2-5 al crear (decisión 3 de
+ * VOTACION) y el grupo puede sumar hasta el techo total (SUGERIR_EN_VOTACION,
+ * decisión 2). Se congela al crear: si un lugar se vuelve invisible después, la
+ * opción **sigue** (decisión / edge case) — la cancha ya está armada.
  */
 export const pollOptions = pgTable(
   'poll_options',
@@ -750,11 +765,26 @@ export const pollOptions = pgTable(
       .references(() => places.id),
     /** Orden en que el creador los puso; desempate determinista (edge case). */
     position: integer('position').notNull(),
+    /**
+     * Creador o votante (SUGERIR_EN_VOTACION, decisión 11). Default `'creator'`
+     * a propósito: las filas que ya existían quedan correctas sin backfill.
+     */
+    origin: pollOptionOriginEnum('origin').notNull().default('creator'),
+    /**
+     * El `voter_token` (cookie por dispositivo) de quien la sugirió. **NUNCA se
+     * expone a ningún cliente** (decisión 12), mismo invariante que
+     * `poll_votes.voter_token`. Server-side sirve para dos cosas: el tope de 2
+     * por dispositivo y dejar que el que sugirió saque lo suyo si nadie lo votó.
+     */
+    suggestedBy: text('suggested_by'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (t) => [
     // No repetir un lugar en la misma votación.
     uniqueIndex('poll_options_poll_place_idx').on(t.pollId, t.placeId),
     index('poll_options_poll_idx').on(t.pollId),
+    // El tope de 2 sugerencias por dispositivo (decisión 7).
+    index('poll_options_poll_suggested_by_idx').on(t.pollId, t.suggestedBy),
   ],
 )
 
@@ -1142,6 +1172,7 @@ export type NewPollOption = typeof pollOptions.$inferInsert
 export type PollVote = typeof pollVotes.$inferSelect
 export type NewPollVote = typeof pollVotes.$inferInsert
 export type PollStatus = (typeof pollStatusEnum.enumValues)[number]
+export type PollOptionOrigin = (typeof pollOptionOriginEnum.enumValues)[number]
 export type PlaceTapDaily = typeof placeTapsDaily.$inferSelect
 export type PlaceTagImpressionDaily = typeof placeTagImpressionsDaily.$inferSelect
 export type AppSettingsHistory = typeof appSettingsHistory.$inferSelect

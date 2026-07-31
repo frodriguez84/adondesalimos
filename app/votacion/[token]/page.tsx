@@ -1,11 +1,17 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 
+import { auth } from '@/lib/auth'
 import { VOTER_COOKIE } from '@/lib/votaciones/constantes'
-import { getVotacionPublica, votoDelDispositivo } from '@/lib/votaciones/query'
+import {
+  esCreadorDeVotacion,
+  getVotacionPublica,
+  sugerenciasDelDispositivo,
+  votoDelDispositivo,
+} from '@/lib/votaciones/query'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { VotacionPublicaCliente } from './votacion-client'
 
@@ -61,9 +67,20 @@ export default async function VotacionPage({
   const votacion = await cargar(token)
   if (!votacion) notFound()
 
-  // La opción que ya votó este dispositivo (decisión 8: al reabrir, la ve marcada).
+  // La opción que ya votó este dispositivo (decisión 8: al reabrir, la ve marcada)
+  // y las que sumó él mismo (SUGERIR_EN_VOTACION: puede sacarlas mientras nadie las
+  // vote). Las dos salen de cruzar la cookie **acá**, en el server.
   const voterToken = (await cookies()).get(VOTER_COOKIE)?.value
   const votedOptionId = voterToken ? await votoDelDispositivo(votacion.id, voterToken) : null
+  const misSugerencias = voterToken ? await sugerenciasDelDispositivo(votacion.id, voterToken) : []
+
+  // Moderación del creador (decisión 8): el botón de quitar se muestra solo si la
+  // sesión es la del dueño de ESTA votación. Es cosmética —el gate real está en la
+  // acción de dominio— pero evita ofrecer algo que va a fallar.
+  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+  const esCreador = session?.user
+    ? await esCreadorDeVotacion(votacion.id, session.user.id)
+    : false
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
@@ -93,6 +110,9 @@ export default async function VotacionPage({
         totalInicial={votacion.totalVotos}
         opciones={votacion.opciones}
         votedOptionIdInicial={votedOptionId}
+        allowSuggestionsInicial={votacion.allowSuggestions}
+        misSugerenciasInicial={misSugerencias}
+        esCreador={esCreador}
       />
 
       <footer className="mt-auto pt-4 text-xs text-muted-foreground">

@@ -50,6 +50,7 @@ function VotacionItem({
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copiado, setCopiado] = useState(false)
+  const [permiteSumar, setPermiteSumar] = useState(votacion.allowSuggestions)
 
   const activa = votacion.estado === 'open'
   // Default del ganador: el más votado; empate ⇒ el de menor position (el orden
@@ -70,7 +71,12 @@ function VotacionItem({
     }
   }
 
-  async function gestionar(body: Record<string, unknown>) {
+  /**
+   * El PATCH del creador: cerrar, cancelar o abrir/cerrar las sugerencias. El
+   * `revertir` lo usa el único caso con estado optimista (el interruptor de
+   * sugerencias): si el server dice que no, el check vuelve a donde estaba.
+   */
+  async function gestionar(body: Record<string, unknown>, revertir?: () => void) {
     setError(null)
     setEnviando(true)
     try {
@@ -82,11 +88,13 @@ function VotacionItem({
       const json = await res.json()
       if (!res.ok || json?.error) {
         setError(json?.error?.message ?? 'No pudimos actualizar la votación.')
+        revertir?.()
         return
       }
       router.refresh()
     } catch {
       setError('No pudimos actualizar la votación. Probá de nuevo.')
+      revertir?.()
     } finally {
       setEnviando(false)
     }
@@ -159,6 +167,36 @@ function VotacionItem({
           {copiado ? 'Copiado' : 'Copiar link'}
         </button>
       </div>
+
+      {/* Que el grupo sume lugares (SUGERIR_EN_VOTACION, decisión 10). Solo
+          mientras está activa: apagarlo cierra la puerta, no deshace lo sumado. */}
+      {activa && (
+        <label className="flex items-start gap-3 rounded-xl border border-border bg-background p-3">
+          <input
+            type="checkbox"
+            checked={permiteSumar}
+            disabled={enviando}
+            onChange={(e) => {
+              const valor = e.target.checked
+              setPermiteSumar(valor)
+              gestionar({ accion: 'suggestions', allowSuggestions: valor }, () =>
+                setPermiteSumar(!valor),
+              )
+            }}
+            className="mt-0.5 size-4 shrink-0 accent-primary"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-foreground">
+              Que el grupo pueda sumar lugares
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {permiteSumar
+                ? 'Cualquiera con el link puede agregar lugares. Podés sacar lo que sumen desde la votación.'
+                : 'Solo están los lugares que pusiste vos.'}
+            </span>
+          </span>
+        </label>
+      )}
 
       {/* Acciones del creador — solo si está activa y no hay otro flujo abierto */}
       {activa && !cerrando && !cancelando && (

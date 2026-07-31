@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { cancelarVotacion, cerrarVotacion } from '@/lib/votaciones/acciones'
+import { cambiarSugerencias, cancelarVotacion, cerrarVotacion } from '@/lib/votaciones/acciones'
 import { getResultados } from '@/lib/votaciones/query'
 import { gestionVotacionSchema } from '@/lib/votaciones/validacion'
 
@@ -9,8 +9,9 @@ import { gestionVotacionSchema } from '@/lib/votaciones/validacion'
  * conteo suba solo. Conteo **agregado por opción** — nunca quién votó qué
  * (decisión 21). Cuando el estado deja de ser `open`, el cliente corta el polling.
  *
- * `PATCH /api/votaciones/[token]` — cerrar (con ganador) o cancelar (F3, decisión
- * 14/24). **Solo el creador** (sesión inline que verifica `creator_id` en el
+ * `PATCH /api/votaciones/[token]` — cerrar (con ganador), cancelar (F3, decisión
+ * 14/24) o abrir/cerrar las sugerencias del grupo (SUGERIR_EN_VOTACION, decisión
+ * 10). **Solo el creador** (sesión inline que verifica `creator_id` en el
  * dominio); un no-creador recibe 403.
  */
 
@@ -78,7 +79,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ to
     const resultado =
       parsed.data.accion === 'close'
         ? await cerrarVotacion(session.user.id, token, parsed.data.winnerPlaceId)
-        : await cancelarVotacion(session.user.id, token)
+        : parsed.data.accion === 'suggestions'
+          ? await cambiarSugerencias(session.user.id, token, parsed.data.allowSuggestions)
+          : await cancelarVotacion(session.user.id, token)
 
     if (!resultado.ok) {
       return Response.json(

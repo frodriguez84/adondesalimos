@@ -4,6 +4,7 @@ import { getConfidenceThreshold } from '@/lib/db/settings'
 import { pollOptions, pollVotes, polls, places, users } from '@/lib/db/schema'
 import { publishedWhere } from '@/lib/db/visibility'
 import type { Resultado } from '@/lib/claims/acciones'
+import { MAX_OPCIONES_TOTAL, MAX_SUGERENCIAS_POR_VOTANTE } from './constantes'
 import { estaActiva, estaExpirada, expiracionDesde } from './estado'
 import { generarTokenVotacion } from './token'
 import type { CrearVotacionPayload } from './validacion'
@@ -105,6 +106,9 @@ export async function crearVotacion(
           creatorId: userId,
           token,
           title: payload.title ?? null,
+          // Sin dato explícito manda el default de la columna: `true`
+          // (SUGERIR_EN_VOTACION, decisión 10).
+          allowSuggestions: payload.allowSuggestions ?? true,
           createdAt: ahora,
           expiresAt: expiracionDesde(ahora),
         })
@@ -191,6 +195,277 @@ export async function votar(
     })
 
   return { ok: true, data: { votedOptionId: optionId } }
+}
+
+// ---------------------------------------------------------------------------
+// Sugerir / quitar opciones — SUGERIR_EN_VOTACION
+// ---------------------------------------------------------------------------
+
+export type OpcionSugerida = { optionId: string; placeId: string }
+
+/**
+ * Suma un lugar del catálogo a la cancha (SUGERIR_EN_VOTACION). Lo puede hacer
+ * **cualquiera con el link**, sin cuenta (decisión 1): la identidad es la misma
+ * cookie `voter_id` con la que vota.
+ *
+ * **Todos** los gates viven acá, no en la UI (apagar el botón es cosmética: el
+ * sheet que quedó abierto cuando la votación expiró tiene que fallar en el POST):
+ *
+ * 1. **Lugar real y publicado** (decisión 4) — `publishedWhere`, el mismo candado
+ *    que usa `crearVotacion` para la shortlist del creador. Nunca hay texto libre.
+ * 2. **Votación abierta** (decisión 6) — la definición de "activa" sale de
+ *    `estaActiva`, no se reimplementa acá.
+ * 3. **`allow_suggestions`** (decisión 10) — el creador pudo cerrar las suyas.
+ * 4. **Techo total** (decisión 2) y **tope por dispositivo** (decisión 7).
+ *
+ * El conteo del techo y el del tope se hacen **dentro de la transacción con la
+ * fila de la votación tomada `FOR UPDATE`** — la fila que ancla el límite (misma
+ * lección que el cupo de listas y el gate "1 activa"): dos personas sugiriendo con
+ * una sola vacante entran serializadas, una suma y la otra recibe "está llena", no
+ * una novena opción.
+ */
+export async function sugerirOpcion(
+  token: string,
+  placeId: string,
+  voterToken: string,
+): Promise<Resultado<OpcionSugerida>> {
+  // Candado de grounding (decisión 4), fuera de la transacción: no toma locks y
+  // el caso "ese lugar no existe" no tiene por qué serializar la votación.
+  const umbral = await getConfidenceThreshold()
+  const [publicado] = await db
+    .select({ id: places.id })
+    .from(places)
+    .where(and(eq(places.id, placeId), publishedWhere(umbral)))
+    .limit(1)
+
+  if (!publicado) {
+    return fallo('LUGAR_NO_PUBLICADO', 'Ese lugar no está disponible para sumar.')
+  }
+
+  const ahora = new Date()
+
+  // Estado de la votación **antes** de abrir la transacción, igual que al votar:
+  // el cierre perezoso (decisión 11 de VOTACION) es un efecto que tiene que
+  // sobrevivir, y adentro se lo llevaría puesto el rollback del error de negocio.
+  const [previa] = await db
+    .select({ id: polls.id, status: polls.status, expiresAt: polls.expiresAt })
+    .from(polls)
+    .where(eq(polls.token, token))
+    .limit(1)
+
+  if (!previa) return fallo('VOTACION_NO_ENCONTRADA', 'Esa votación no existe.')
+
+  if (!estaActiva(previa, ahora)) {
+    if (estaExpirada(previa, ahora)) {
+      await db
+        .update(polls)
+        .set({ status: 'closed', closedAt: ahora })
+        .where(and(eq(polls.id, previa.id), eq(polls.status, 'open')))
+        .catch(() => {})
+    }
+    return fallo('VOTACION_CERRADA', 'Esta votación ya cerró. No se puede sumar.')
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      // Re-lectura con la fila tomada: es la que ancla el techo, y de paso
+      // revalida el estado por si algo cambió entre el pre-chequeo y el lock.
+      const [poll] = await tx
+        .select({
+          id: polls.id,
+          status: polls.status,
+          expiresAt: polls.expiresAt,
+          allowSuggestions: polls.allowSuggestions,
+        })
+        .from(polls)
+        .where(eq(polls.token, token))
+        .for('update')
+
+      if (!poll) throw new ErrorVotacion('VOTACION_NO_ENCONTRADA', 'Esa votación no existe.')
+
+      if (!estaActiva(poll, ahora)) {
+        throw new ErrorVotacion('VOTACION_CERRADA', 'Esta votación ya cerró. No se puede sumar.')
+      }
+
+      if (!poll.allowSuggestions) {
+        throw new ErrorVotacion(
+          'SUGERENCIAS_CERRADAS',
+          'Quien armó esta votación no habilitó sumar lugares.',
+        )
+      }
+
+      const [{ total }] = await tx
+        .select({ total: sql<number>`count(*)::int` })
+        .from(pollOptions)
+        .where(eq(pollOptions.pollId, poll.id))
+
+      if (total >= MAX_OPCIONES_TOTAL) {
+        throw new ErrorVotacion(
+          'VOTACION_LLENA',
+          `Esta votación ya tiene ${MAX_OPCIONES_TOTAL} lugares, que es el máximo.`,
+        )
+      }
+
+      const [{ mias }] = await tx
+        .select({ mias: sql<number>`count(*)::int` })
+        .from(pollOptions)
+        .where(and(eq(pollOptions.pollId, poll.id), eq(pollOptions.suggestedBy, voterToken)))
+
+      if (mias >= MAX_SUGERENCIAS_POR_VOTANTE) {
+        throw new ErrorVotacion(
+          'LIMITE_SUGERENCIAS',
+          `Ya sumaste ${MAX_SUGERENCIAS_POR_VOTANTE} lugares a esta votación. Dejale lugar al resto.`,
+        )
+      }
+
+      // Al final de la cancha: la shortlist del creador se lee primero.
+      const [{ ultima }] = await tx
+        .select({ ultima: sql<number | null>`max(${pollOptions.position})` })
+        .from(pollOptions)
+        .where(eq(pollOptions.pollId, poll.id))
+
+      // El repetido lo corta el índice único `(poll_id, place_id)`, que ya existía:
+      // sin fila devuelta = ese lugar ya estaba en la cancha.
+      const [insertada] = await tx
+        .insert(pollOptions)
+        .values({
+          pollId: poll.id,
+          placeId,
+          position: (ultima ?? -1) + 1,
+          origin: 'voter',
+          suggestedBy: voterToken,
+          createdAt: ahora,
+        })
+        .onConflictDoNothing()
+        .returning({ id: pollOptions.id })
+
+      if (!insertada) {
+        throw new ErrorVotacion('LUGAR_REPETIDO', 'Ese lugar ya está en la votación.')
+      }
+
+      return { ok: true as const, data: { optionId: insertada.id, placeId } }
+    })
+  } catch (error) {
+    if (error instanceof ErrorVotacion) return fallo(error.code, error.mensaje)
+    throw error
+  }
+}
+
+/**
+ * Quién pide quitar una opción. Son dos autorizados distintos y **ninguno de los
+ * dos sale del payload**: el creador se identifica con su sesión y el que sugirió,
+ * con la cookie que ya tiene.
+ */
+export type QuienQuita =
+  | { tipo: 'creador'; userId: string }
+  | { tipo: 'votante'; voterToken: string }
+
+export type OpcionQuitada = { optionId: string; votosPerdidos: number }
+
+/**
+ * Quita una opción **sugerida** (decisión 8). Es el poder de moderación mínimo que
+ * hace innecesaria la aprobación previa.
+ *
+ * - **El creador** puede quitar cualquier sugerencia, tenga votos o no. Borrarla
+ *   **se lleva sus votos** por el cascade de `poll_votes.option_id`; por eso la UI
+ *   avisa cuántos se pierden antes de confirmar y el resultado devuelve el número.
+ * - **El que la sugirió** puede sacar la suya **solo mientras nadie la haya votado**
+ *   (decisión 12): una vez que hay votos de otros, dejó de ser solo suya.
+ *
+ * Lo que **nadie** puede quitar es una opción original del creador (`origin =
+ * 'creator'`): VOTACION no tiene edición de la shortlist y este spec no la agrega.
+ *
+ * Solo con la votación abierta: sobre una cerrada, borrar una opción cambiaría un
+ * resultado ya publicado.
+ */
+export async function quitarOpcion(
+  token: string,
+  optionId: string,
+  quien: QuienQuita,
+): Promise<Resultado<OpcionQuitada>> {
+  const [poll] = await db
+    .select({
+      id: polls.id,
+      creatorId: polls.creatorId,
+      status: polls.status,
+      expiresAt: polls.expiresAt,
+    })
+    .from(polls)
+    .where(eq(polls.token, token))
+    .limit(1)
+
+  if (!poll) return fallo('VOTACION_NO_ENCONTRADA', 'Esa votación no existe.')
+
+  const ahora = new Date()
+  if (!estaActiva(poll, ahora)) {
+    return fallo('VOTACION_CERRADA', 'Esta votación ya cerró. No se puede cambiar la cancha.')
+  }
+
+  if (quien.tipo === 'creador' && poll.creatorId !== quien.userId) {
+    return fallo('NO_AUTORIZADO', 'No podés gestionar esta votación.')
+  }
+
+  const [opcion] = await db
+    .select({
+      id: pollOptions.id,
+      origin: pollOptions.origin,
+      suggestedBy: pollOptions.suggestedBy,
+    })
+    .from(pollOptions)
+    .where(and(eq(pollOptions.id, optionId), eq(pollOptions.pollId, poll.id)))
+    .limit(1)
+
+  if (!opcion) return fallo('OPCION_INVALIDA', 'Esa opción no es de esta votación.')
+
+  if (opcion.origin !== 'voter') {
+    return fallo(
+      'OPCION_ORIGINAL',
+      'Esa opción es parte de la votación original y no se puede quitar.',
+    )
+  }
+
+  if (quien.tipo === 'votante' && opcion.suggestedBy !== quien.voterToken) {
+    return fallo('NO_AUTORIZADO', 'Solo podés sacar los lugares que sumaste vos.')
+  }
+
+  const [{ votos }] = await db
+    .select({ votos: sql<number>`count(*)::int` })
+    .from(pollVotes)
+    .where(eq(pollVotes.optionId, optionId))
+
+  if (quien.tipo === 'votante' && votos > 0) {
+    return fallo('OPCION_CON_VOTOS', 'Ese lugar ya tiene votos: no lo podés sacar.')
+  }
+
+  // Los votos se van con la opción (cascade). El votante que la había elegido
+  // encuentra su voto vacío y puede votar de nuevo: la pantalla se lo dice, no se
+  // le reasigna en silencio.
+  await db.delete(pollOptions).where(eq(pollOptions.id, optionId))
+
+  return { ok: true, data: { optionId, votosPerdidos: votos } }
+}
+
+/**
+ * Abre o cierra las sugerencias de una votación propia (decisión 10). Es una
+ * acción del creador más, con el mismo camino de autorización que cerrar/cancelar.
+ * Cerrarlas **no toca lo ya sugerido**: apaga la puerta, no deshace lo que entró.
+ */
+export type SugerenciasCambiadas = { allowSuggestions: boolean }
+
+export async function cambiarSugerencias(
+  userId: string,
+  token: string,
+  allowSuggestions: boolean,
+): Promise<Resultado<SugerenciasCambiadas>> {
+  const cargada = await cargarPropia(userId, token)
+  if (!cargada.ok) return cargada
+
+  await db
+    .update(polls)
+    .set({ allowSuggestions })
+    .where(eq(polls.id, cargada.poll.id))
+
+  return { ok: true, data: { allowSuggestions } }
 }
 
 // ---------------------------------------------------------------------------

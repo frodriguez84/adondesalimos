@@ -62,7 +62,7 @@ diseño de **este** spec y cierran las preguntas abiertas que traía la feature.
 | # | Decisión |
 |---|----------|
 | 1 | **El creador necesita cuenta; los votantes JAMÁS** (IDEAS). Ahí está el loop viral: pedir registro para votar mataría la difusión. Si un votante resulta tener cuenta, no cambia nada — vota igual, anónimo |
-| 2 | **Los votantes NO agregan opciones** (IDEAS). El creador arma la shortlist y esa es la cancha. Sugerir lugar = mejora futura |
+| 2 | ⚠️ **REVERTIDA el 2026-07-31 por [SUGERIR_EN_VOTACION](done/SUGERIR_EN_VOTACION.md) — ya no rige.** Decía: *"Los votantes NO agregan opciones (IDEAS). El creador arma la shortlist y esa es la cancha. Sugerir lugar = mejora futura"*. Esa mejora futura **es** ese spec: hoy cualquiera con el link suma lugares del catálogo hasta el techo total de 8, y el creador puede quitar lo sugerido. La decisión 3 de acá (2-5 del creador) **no** se revirtió |
 | 3 | **Shortlist de 2-5 lugares** (IDEAS). Menos de 2 no es una votación; más de 5 diluye la decisión y ensucia el link |
 | 4 | **El creador cierra cuando quiere y desempata él** (IDEAS). El cierre es una acción suya, no automática por umbral de votos |
 | 5 | **Free = UNA votación activa a la vez** (IDEAS, no "una por mes"): cubre el caso real de una persona normal, no frustra, y mata el incentivo multi-cuenta (una segunda cuenta solo daría dos votaciones simultáneas, caso rarísimo). Premium = **ilimitadas + IA arma shortlist + historial** |
