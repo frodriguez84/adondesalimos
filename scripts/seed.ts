@@ -40,6 +40,7 @@ import {
   DEFAULT_CURATION_MODEL,
   DEFAULT_CURATION_ZONE_QUOTA,
 } from '@/lib/curation/settings'
+import { CHIPS_SCHEDULE_KEY, DEFAULT_CHIPS_SCHEDULE } from '@/lib/search/rotacion'
 
 /**
  * Seed idempotente de la taxonomía (105 filas) + los chips de Ocasión + los 2
@@ -119,6 +120,10 @@ async function main() {
       // `onConflictDoNothing` no pisa un valor ya editado a mano — el mecanismo.
       { key: CURATION_ZONE_QUOTA_KEY, value: DEFAULT_CURATION_ZONE_QUOTA },
       { key: CURATION_MODEL_KEY, value: DEFAULT_CURATION_MODEL },
+      // CHIPS_ROTACION (decisión 9): las reglas de rotación de los chips de la
+      // home. `onConflictDoNothing` no pisa reglas ya afinadas a mano — el
+      // mecanismo: se editan con un UPDATE, sin deploy.
+      { key: CHIPS_SCHEDULE_KEY, value: DEFAULT_CHIPS_SCHEDULE },
     ])
     .onConflictDoNothing({ target: appSettings.key })
 
@@ -128,7 +133,7 @@ async function main() {
   console.log(`Total en la tabla: ${total}`)
   console.log(`Chips de Ocasión: ${chipsSembrados} (esperados ${TOTAL_CHIPS})`)
   console.log(
-    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}, ${CURATION_ZONE_QUOTA_KEY}, ${CURATION_MODEL_KEY}`,
+    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}, ${CURATION_ZONE_QUOTA_KEY}, ${CURATION_MODEL_KEY}, ${CHIPS_SCHEDULE_KEY}`,
   )
 
   if (total !== TOTAL_TAGS) {

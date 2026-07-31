@@ -905,8 +905,39 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de implementación de ABIERTO_AHORA F1 (2026-07-30). Esta sección es lo
+_Actualizado en la sesión de implementación de CHIPS_ROTACION (2026-07-31). Esta sección es lo
 primero que lee la sesión siguiente; **más reciente arriba**._
+
+### 🛠️ Sesión de implementación — (2026-07-31) · CHIPS_ROTACION ✅ · **LA COLA DE v2 ESTÁ COMPLETA**
+
+Tercera y última sesión de código de v2 (las dos anteriores, del 2026-07-30 y 2026-07-31, cerraron
+**FAVORITOS** entero y **SUGERIR_EN_VOTACION** entero; el detalle de cada una está en
+`BACKLOG.md` § *Hecho* y en `SPECS_ARCHIVO.md`). Acá se cerró el **#5, CHIPS_ROTACION**: los chips
+de Ocasión de la home se reordenan por día y hora de AR, con reglas en `app_settings`
+(`chips.schedule`) que se editan con un `UPDATE` sin deploy, y que degradan al orden por `sort` si
+alguien las escribe mal. Sin migración, sin endpoint, sin UI de admin.
+
+**La decisión de producto de la sesión (decisión 11 del spec, tomada por Fer antes de codear):** el
+spec describía una home que ya no existía. Medido contra la base al arrancar, los cuatro chips de la
+home eran `salida-con-chongo` · `salir-a-bailar` · `after-office` · `tomar-algo` — o sea que los dos
+chips de las reglas semilla **ya estaban adelante a toda hora** y aplicarlas no habría cambiado un
+pixel. Se eligió que **una regla pueda traer a la home un chip vivo con `in_home = false`** (la
+alternativa conservadora era reordenar solo dentro del pool `in_home`, que era invisible). Costo
+asumido y anotado: `in_home` pasó a significar "candidato **por defecto**". Se agregó una tercera
+regla semilla («Merienda del finde», sábado y domingo 16-19 h) que es la única que hoy se ve.
+
+**Lo que hay que saber:** la rotación tiene dueño único (`lib/search/rotacion.ts`, puro, reusando
+`partesEnAR`), el setting se lee **en cada request** (un `UPDATE` cambia la home en la recarga
+siguiente) y un valor inválido se ignora **regla por regla**, en silencio y con un solo log por
+proceso. Las 3 reglas semilla son **sentido común declarado, no curaduría**: afinarlas con
+`place_tag_impressions_daily` sigue siendo v2 y no se hizo.
+
+**⏭️ Próximo paso: no hay cola.** Los 5 ítems de v2 están cerrados (1 alias POIs/CABA · 2 QA
+integral · 3 FAVORITOS · 4 SUGERIR_EN_VOTACION · 5 CHIPS_ROTACION) y `docs/specs/planned/` quedó
+**vacío**. Lo único abierto de las sesiones de v2 es lo que ya estaba gateado o diferido:
+**ABIERTO_AHORA F2** (gate: ≥ 50 lugares con horarios propios, hoy 1), **AHORA-02** (mirar la home
+entre las 00:00 y las 05:59, no requiere trabajo) y el **spec 7 B2B / lo que siga**. **Qué viene
+después se decide con Fer** — es una conversación de producto, no una tarea pendiente.
 
 ### 🛠️ Sesión de implementación — (2026-07-30) · ABIERTO_AHORA F1 ✅ · v2 ARRANCÓ
 

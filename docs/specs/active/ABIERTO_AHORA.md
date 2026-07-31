@@ -187,9 +187,10 @@ o la fecha del sistema.)_
 - **`happy-hour` como franja propia** (189 lugares): tentador para el after office, pero el
   horario de happy hour varía por local y no está en los datos.
 - **Ordenar por "cierra más tarde"** en vez de filtrar: necesita horarios, o sea F2.
-- **Cruzar con la rotación de chips por día/hora** (ver `docs/specs/planned/CHIPS_ROTACION.md`):
-  los dos leen el reloj, y cuando existan los dos conviene que la home no repita el mismo gesto
-  dos veces.
+- **Cruzar con la rotación de chips por día/hora** (`docs/specs/done/CHIPS_ROTACION.md`,
+  ✅ 2026-07-31): los dos leen el reloj, y ahora que existen los dos conviene mirar que la home no
+  repita el mismo gesto dos veces. El reparto quedó como decía su decisión 8 — «Para ahora» al
+  frente y sin descontar de los 4 de Ocasión, los rotados después.
 
 ## Esfuerzo
 

@@ -227,6 +227,12 @@ Cicatrices reales — gotchas que sorprenden:
   armar (lo importan `/votacion/nueva` y el chat IA) y `MAX_OPCIONES_TOTAL = 8` es hasta dónde
   crece con lo que suma el grupo (SUGERIR_EN_VOTACION). Pisar la primera con la segunda rompe el
   alta y el chat.
+- **`occasion_chips.in_home` ya NO significa "candidato a la home"**, significa "candidato **por
+  defecto**" (CHIPS_ROTACION, decisión 11). Una regla de `app_settings['chips.schedule']` puede
+  adelantar a la home cualquier chip **vivo**, tenga `in_home` o no. Y el orden de los 4 no es el
+  de la columna `sort` a toda hora: depende del día y la hora en AR. Un setting ausente o inválido
+  degrada al orden por `sort` **en silencio** — si la home "no rota", mirá primero
+  `select value from app_settings where key='chips.schedule'`, no el código.
 - **Commits que solo tocan `docs/` usan `spec(...)`/`docs:`, nunca `feat`** (ver arriba
   § Prefijos de commit). Un `feat` implica que hay código.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
@@ -438,7 +444,9 @@ en un único lugar, una sesión no puede divergir en silencio. Ya es así y hay 
 `lib/db/visibility.ts` (qué se publica), `lib/google/places.ts` (única puerta a Google),
 `lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/ai/settings.ts` (claves de
 runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/favoritos/planes.ts` (cuántas
-listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**).
+listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
+`lib/search/rotacion.ts` (qué chips van primero según el reloj) y `lib/negocio/horarios.ts`
+(`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature).
 
 - Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
 - Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de

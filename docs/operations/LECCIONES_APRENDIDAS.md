@@ -5,6 +5,42 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un spec puede envejecer contra los datos sin que nadie toque una línea (2026-07-31 · CHIPS_ROTACION)
+
+**Qué pasó.** El spec se escribió el 2026-07-29 con un § *Problema* medido contra la home de ese
+momento: «After office» estaba detrás de "Ver más" y por eso las dos reglas semilla —adelantarlo un
+martes a las 18, y «Salir a bailar» un viernes a la noche— tenían sentido. Entre medio pasó la
+corrida de CURADURIA F3, que revivió chips que daban 0. Al empezar a implementar, medido contra la
+base: los cuatro chips de la home eran `salida-con-chongo` · `salir-a-bailar` · `after-office` ·
+`tomar-algo`. **Los dos chips de las reglas semilla ya estaban en la home a toda hora.** Aplicar la
+feature tal cual estaba escrita no habría movido un pixel, y los tres primeros IDs de QA
+(`ROT-01/02/03`) habrían dado PASS sin que la feature hiciera nada: «After office» estaba adelante
+igual, por la columna `sort`.
+
+**Por qué no se ve.** El spec no tenía ningún error: cada decisión seguía siendo correcta contra el
+mundo en el que se escribió. Lo que cambió fue el **catálogo**, que en este proyecto es un insumo
+vivo (la curaduría prende chips sin deploy — que es exactamente lo que BUSQUEDA decisión 25 buscaba).
+Releer el spec cien veces no lo habría mostrado; los IDs de QA tampoco, porque estaban redactados
+como "«After office» visible sin abrir Ver más" y eso ya era cierto **antes** de implementar nada.
+Un criterio de QA que pasa con el código viejo no es un criterio: es una descripción del presente.
+
+**Qué hacer distinto:**
+
+1. **Antes de implementar, re-medir contra la base los números que el spec usó para justificarse.**
+   Cuesta una query. Si el spec dice "hoy esto da 0" o "hoy esto está detrás de Ver más", eso es un
+   dato con fecha, no una premisa permanente. Vale sobre todo para lo que toca el catálogo, los
+   chips o los tags, que la curaduría mueve sin deploy.
+2. **Sospechar del ID de QA que ya pasaría antes de escribir el código.** Al redactarlo, preguntarse
+   "¿esto es distinguible del estado actual?". `ROT-01` pasó a decir «After office» es el **primer**
+   chip de Ocasión, no "está visible", justamente por eso.
+3. **Cuando el mundo cambió, la salida es una decisión nueva, no un ajuste silencioso.** Acá fue la
+   decisión 11 (una regla puede traer un chip sin `in_home`), consultada con Fer y escrita en el
+   spec **antes** de codear, con la alternativa conservadora anotada y el costo asumido (`in_home`
+   cambia de significado). Implementar "lo que el spec dice" sabiendo que no hace nada habría sido
+   cumplir el contrato y entregar una feature muerta.
+
+---
+
 ## Un efecto que tiene que sobrevivir no puede vivir dentro de la transacción que va a fallar (2026-07-31 · SUGERIR_EN_VOTACION)
 
 **Qué pasó.** `sugerirOpcion` abre una transacción, toma la fila de `polls` con `FOR UPDATE`

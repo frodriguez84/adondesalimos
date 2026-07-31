@@ -665,3 +665,47 @@ sigue viva: lo que cambia es el **techo total**.
   puede seguir moderando.
 - **El polling trae la cancha entera** porque la cancha crece mientras la pantalla está abierta.
   Cualquier feature que agregue opciones en vivo hereda esto gratis.
+
+---
+
+## Rotación de los chips de Ocasión por día y hora {#chips_rotacion}
+
+**Spec:** [`docs/specs/done/CHIPS_ROTACION.md`](../specs/done/CHIPS_ROTACION.md) · ✅ Implementado (2026-07-31, sin fases)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — CHIPS_ROTACION* — APROBADO.
+10 criterios de DoD con checkers independientes + los 11 casos del spec (los 8 verificables sin
+mover el reloj, en vivo con Playwright + `psql`), 600/600 tests (58 nuevos).
+
+**Qué hace:** el orden de los chips de Ocasión de la home deja de ser una foto fija (`sort`) y
+pasa a depender del **día y la hora en AR**, con reglas que se editan con un `UPDATE` y sin
+deploy. Un martes a las 18 «After office» va adelante; un sábado a la 1 «Salir a bailar». Y si
+alguien escribe mal el setting, la home **degrada al orden de siempre** en vez de romperse.
+
+**Alcance implementado:**
+
+- **`lib/search/rotacion.ts` (nuevo, dueño único)** — `CHIPS_SCHEDULE_KEY` (`chips.schedule`), el
+  tipo `ReglaRotacion` (`{dias, desde, hasta, primero}`, **0 = lunes**), `validarReglas`,
+  `chipsPrimero(reglas, now)` y `DEFAULT_CHIPS_SCHEDULE`. **Puro y sin base**: reusa `partesEnAR`,
+  `esHoraValida`, `minutosDe` y `DIAS` de `lib/negocio/horarios.ts`.
+- **`lib/search/chips.ts`** — lee el setting **en paralelo** con los conteos y aplica el orden
+  justo antes del corte `home`/`resto`. El pool de candidatos pasó de `vivos.filter(inHome)` a
+  `[forzados vivos] + [in_home vivos]`.
+- **`scripts/seed.ts`** — la clave con las 3 reglas semilla, con `onConflictDoNothing` (no pisa
+  reglas afinadas a mano: ese es el mecanismo).
+- **Sin migración, sin endpoint, sin UI de admin** y cero cambios en el componente cliente, el
+  motor, `params.ts` y `lib/db/chips.ts`. Esto reordena, nada más.
+
+**Lo que hay que saber para el próximo spec:**
+
+- **`in_home` ya no significa "candidato a la home", significa "candidato por defecto"**
+  (decisión 11). Una regla puede traer adelante cualquier chip **vivo**, tenga `in_home` o no —
+  es lo único que hacía la feature perceptible: los dos chips de las reglas semilla ya estaban en
+  la home a toda hora, así que reordenar dentro del pool `in_home` no habría movido un pixel.
+- **El setting se lee en cada request, nunca se cachea en módulo** — igual que el umbral de
+  confidence. Un `UPDATE` cambia la home en la recarga siguiente, sin reiniciar.
+- **Un setting inválido no puede romper la home**: se valida **regla por regla** (una mal escrita
+  entre dos buenas se descarta sola), se ignora en silencio y se loguea **una vez por proceso**.
+  Ausente (`null`) no es un error y no loguea nada.
+- **Las reglas semilla son una primera aproximación declarada, no curaduría.** Afinarlas con
+  `place_tag_impressions_daily` es lo que convierte esto en curaduría con evidencia (§ v2).
+- **`desde === hasta` cubre las 24 h del día listado**, consecuencia literal de la decisión 3. En
+  `horarios.ts` ese mismo caso es un rango inválido: ahí significa "no abre", acá "siempre".

@@ -51,8 +51,9 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
 - [x] **4 · Sugerir lugar en una votación** ✅ **2026-07-31** → spec:
       `docs/specs/done/SUGERIR_EN_VOTACION.md` — extiende VOTACION y **revierte su decisión 2**
       (anotado en su tabla). Cerrado entero en una sesión, sin fases.
-- [ ] **5 · Rotación de chips por día/hora** → spec: `docs/specs/planned/CHIPS_ROTACION.md`
-      — mini-spec, una sesión corta.
+- [x] **5 · Rotación de chips por día/hora** ✅ **2026-07-31** → spec:
+      `docs/specs/done/CHIPS_ROTACION.md` — mini-spec cerrado en una sesión corta, sin migración.
+      **Con esto la cola de v2 queda completa** (los 5 ítems).
 
 ## Mejoras futuras (fuera de v1)
 
@@ -265,12 +266,14 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       `PlaceCard` (que sigue siendo presentación pura), página `/mis-lugares`, y la métrica
       agregada `saves` se **empieza a contar ya** porque el unsave borra la fila y el histórico no
       se reconstruye. 2 fases.
-- [ ] **Rotación de los chips de Ocasión de la home** por día/hora (martes 18h → "After
-      office"). En v1 son fijos. Requiere datos de uso reales.
-      → **spec: `docs/specs/planned/CHIPS_ROTACION.md`** (escrito 2026-07-29). Reglas en
-      `app_settings` (`chips.schedule`) — cero migración, se cambian con un UPDATE; degradan al
-      orden por `sort` si el setting es inválido (la home no puede romperse por un UPDATE mal
-      tipeado). Arranca con 2 reglas de sentido común; afinarlas con datos de uso es el v2.
+- [x] **Rotación de los chips de Ocasión de la home** por día/hora (martes 18h → "After office")
+      ✅ **2026-07-31** → spec: `docs/specs/done/CHIPS_ROTACION.md` ·
+      [Resumen](../archive/SPECS_ARCHIVO.md#chips_rotacion). Reglas en `app_settings`
+      (`chips.schedule`) — cero migración, se cambian con un UPDATE; degradan al orden por `sort`
+      si el setting es inválido (la home no puede romperse por un UPDATE mal tipeado). Arranca con
+      **3** reglas de sentido común —la tercera se agregó al implementar, porque las dos originales
+      nombraban chips que ya estaban en la home a toda hora—; **afinarlas con datos de uso reales
+      (`place_tag_impressions_daily`) sigue siendo el v2 y no se hizo acá**.
 - [x] **Sugerir lugar en una votación** (que los votantes agreguen opciones) ✅ **2026-07-31**
       → spec: `docs/specs/done/SUGERIR_EN_VOTACION.md` · [Resumen](../archive/SPECS_ARCHIVO.md#sugerir_en_votacion).
       Entregado tal cual se decidió: sugiere **cualquiera con el link** (sin cuenta), techo total de
@@ -576,6 +579,26 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       (expiración de votaciones lazy 72 h).
 
 ## Hecho
+
+- [x] **CHIPS_ROTACION — los chips de la home rotan por día y hora → spec CERRADO ENTERO y con
+      esto la cola de v2 completa** (2026-07-31, sesión Opus): el orden de los chips de Ocasión
+      deja de ser una foto fija (`sort`) y pasa a depender del reloj de AR, con reglas que se
+      editan con un `UPDATE` sin deploy (`app_settings` → `chips.schedule`). Entregado:
+      `lib/search/rotacion.ts` como **dueño único** (puro, sin base, reusando `partesEnAR` y los
+      helpers de hora de `horarios.ts`), el enganche en `lib/search/chips.ts` justo antes del
+      corte `home`/`resto` —leído **en paralelo** con los conteos—, las 3 reglas semilla en el
+      seed con `onConflictDoNothing`, y **58 tests nuevos** (600/600 verdes, typecheck ✅).
+      Sin migración, sin endpoint, sin UI de admin y cero cambios en el componente cliente, el
+      motor y `lib/db/chips.ts`: esto reordena, nada más. **QA**: 10 criterios de DoD con checkers
+      independientes + los 11 casos ROT-NN, 8 de ellos en pantalla. **Lo que el spec no había
+      previsto y hubo que decidir con Fer (decisión 11)**: describía una home que ya no existía
+      —medido al arrancar, los dos chips de las reglas semilla **ya estaban entre los 4 de la home
+      a toda hora**, así que aplicarlas no habría movido un pixel—, de modo que una regla ahora
+      puede adelantar **cualquier chip vivo**, tenga `in_home` o no. `in_home` pasó a significar
+      "candidato por defecto". Truco de QA que conviene reusar: para verificar la rotación **no se
+      movió el reloj del sistema** sino la regla (un `UPDATE` que matchea la hora actual), que de
+      paso es exactamente lo que verifica ROT-09. **Sigue pendiente el v2**: afinar las reglas con
+      `place_tag_impressions_daily` — hoy son sentido común declarado, no curaduría con evidencia.
 
 - [x] **SUGERIR_EN_VOTACION — que el grupo sume lugares a la cancha → spec CERRADO ENTERO**
       (2026-07-31, sesión Opus): el link de una votación deja de circular solo para **votar** y

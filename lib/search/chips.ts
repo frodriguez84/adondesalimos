@@ -1,9 +1,11 @@
 import { asc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { chipTags, occasionChips, tags } from '@/lib/db/schema'
+import { getSetting } from '@/lib/db/settings'
 import { franjaActual, NOMBRE_AHORA, SLUG_AHORA } from './ahora'
 import { EMPTY_SEARCH } from './params'
 import { countPlaces } from './query'
+import { CHIPS_SCHEDULE_KEY, chipsPrimero, validarReglas } from './rotacion'
 
 /**
  * Los chips de Ocasión que la home puede dibujar (F3 de BUSQUEDA).
@@ -92,9 +94,11 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   // la misma función. Es el mismo razonamiento que llevó a `construirWhere`.
   //
   // El conteo del chip «Para ahora» arranca acá, junto con los demás, para no
-  // sumarle un round-trip en serie al render de la home.
+  // sumarle un round-trip en serie al render de la home. Mismo motivo para la
+  // lectura de las reglas de rotación: se necesita recién al partir home/resto.
   const franja = franjaActual(now)
   const contarAhora = countPlaces({ ...EMPTY_SEARCH, tags: franja.tags })
+  const leerReglas = getSetting<unknown>(CHIPS_SCHEDULE_KEY)
 
   const conConteo = await Promise.all(
     [...porSlug.values()].map(async (c) => ({
@@ -112,7 +116,25 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   // esto la home arrancaría con un chip, porque 3 de los 4 objetivo dan 0 hoy
   // (decisión 26). Los objetivo tienen `sort` menor, así que cuando la curaduría
   // los reviva vuelven solos a la home y desplazan a los V1 al "ver más".
-  const candidatos = vivos.filter((c) => c.inHome)
+  //
+  // CHIPS_ROTACION: antes del corte, las reglas de `chips.schedule` adelantan
+  // los chips que sirven a esta hora. Una regla puede traer uno con
+  // `in_home = false` (decisión 11) —es lo único que hace la feature visible: los
+  // 4 de la home ya incluyen los chips "de sentido común" a toda hora—, así que
+  // `in_home` es el candidato **por defecto**, no el único posible. El setting se
+  // lee en cada request a propósito (no se cachea en módulo): un UPDATE tiene que
+  // cambiar la home sin reiniciar, igual que el umbral de confidence.
+  const reglas = validarReglas(await leerReglas)
+  const adelante = chipsPrimero(reglas, now)
+  const forzados = adelante
+    .map((slug) => vivos.find((c) => c.slug === slug))
+    .filter((c) => c !== undefined)
+  const yaAdelante = new Set(forzados.map((c) => c.slug))
+
+  // Un chip nombrado en la regla que devuelve 0 no está en `vivos`, así que no
+  // entra acá y **no deja hueco**: el siguiente `in_home` ocupa su lugar
+  // (decisión 7 + decisión 25 de BUSQUEDA).
+  const candidatos = [...forzados, ...vivos.filter((c) => c.inHome && !yaAdelante.has(c.slug))]
   const home = candidatos.slice(0, CHIPS_EN_HOME)
   const enHome = new Set(home.map((c) => c.slug))
 

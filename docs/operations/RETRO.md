@@ -13,6 +13,21 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-07-31 · CHIPS_ROTACION — los chips de la home rotan por reloj (Opus)
+
+- **Qué salió bien:** **el prompt de arranque no traía la respuesta, traía la pregunta**: avisaba
+  que el § Problema del spec ya no describía la home real y exigía consultarlo con Fer **antes** de
+  escribir código. Esa consulta (decisión 11) es la diferencia entre entregar la feature y entregar
+  un no-op que pasa el QA. También pagó bien el truco de QA: para verificar la rotación se movió
+  **la regla**, no el reloj del sistema — y eso de paso *es* ROT-09.
+- **Qué frenó:** nada bloqueante. Lo único: el checker independiente encontró que dos casos del DoD
+  («martes 15:00», «sábado 15:00») estaban cubiertos por instantes *parecidos* (10:00 y 15:59) pero
+  no por el que el criterio nombra. Un minuto de arreglo, y es exactamente para lo que existe el
+  maker≠checker.
+- **Qué cambiar:** una sola cosa, ya escrita en `LECCIONES_APRENDIDAS.md`: **antes de implementar,
+  re-medir contra la base los números con los que el spec se justificó**, y sospechar de todo ID de
+  QA que ya pasaría con el código viejo. Es una query, no una regla nueva del método.
+
 ## 2026-07-31 · SUGERIR_EN_VOTACION — que el grupo sume lugares (Opus)
 
 - **Qué salió bien:** **el prompt de arranque traía las tres cosas que el spec ya no decía bien**

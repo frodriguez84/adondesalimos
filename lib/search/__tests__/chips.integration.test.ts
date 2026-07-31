@@ -6,10 +6,23 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { chipTags, occasionChips, tags } from '@/lib/db/schema'
 import { CHIPS, CHIPS_OBJETIVO } from '@/lib/db/chips'
+import { getSetting } from '@/lib/db/settings'
 import { EMPTY_SEARCH } from '../params'
 import { countPlaces, searchPlaces } from '../query'
 import { CHIPS_EN_HOME, getOccasionChips } from '../chips'
 import { FRANJAS, franjaActual, NOMBRE_AHORA, SLUG_AHORA } from '../ahora'
+import {
+  CHIPS_SCHEDULE_KEY,
+  chipsPrimero,
+  DEFAULT_CHIPS_SCHEDULE,
+  validarReglas,
+} from '../rotacion'
+
+/** `hh:00` de AR del día de semana `dia` (2024-01-01 = lunes) → `Date` en UTC. */
+function enAR(dia: number, hh: number): Date {
+  const utc = hh + 3
+  return new Date(Date.UTC(2024, 0, 1 + dia + (utc >= 24 ? 1 : 0), utc % 24, 0))
+}
 
 /**
  * Los chips de Ocasión contra la base real.
@@ -142,6 +155,55 @@ describe.runIf(process.env.DATABASE_URL)('chips de Ocasión', () => {
       f.tags.filter((s) => !activos.has(s)).map((s) => `${f.slug} → ${s}`),
     )
     expect(rotos).toEqual([])
+  })
+
+  it('los chips que la regla adelanta van al frente de la home (CHIPS_ROTACION)', async () => {
+    // Contra el setting **real** de la base, no contra la semilla: es lo que la
+    // home va a usar. Un slug que la regla nombra pero que hoy da 0 no está en
+    // `vivos` y no puede exigirse — la decisión 7 dice justamente eso.
+    const reglas = validarReglas(await getSetting<unknown>(CHIPS_SCHEDULE_KEY))
+
+    // Un instante por día de la semana, a una hora donde alguna regla suele
+    // matchear. 2024-01-01 fue lunes; AR = UTC−3.
+    for (let dia = 0; dia < 7; dia++) {
+      for (const horaAR of [1, 12, 18, 23]) {
+        const now = enAR(dia, horaAR)
+        const { home, resto } = await getOccasionChips(now)
+
+        const vivos = new Set([...home, ...resto].map((c) => c.slug))
+        const esperados = chipsPrimero(reglas, now).filter((s) => vivos.has(s))
+        const ocasion = home.filter((c) => c.slug !== SLUG_AHORA).map((c) => c.slug)
+
+        expect(ocasion.slice(0, esperados.length), `día ${dia} ${horaAR}:00 AR`).toEqual(esperados)
+      }
+    }
+  })
+
+  it('la rotación no deja huecos en la home a ninguna hora (decisión 7)', async () => {
+    // Un chip nombrado en la regla que devuelve 0 no puede achicar la home: el
+    // siguiente `in_home` ocupa su lugar. Verificable sin tocar datos — la
+    // cantidad de chips de Ocasión tiene que ser la misma a cualquier hora.
+    const cantidades = new Set<number>()
+    for (let dia = 0; dia < 7; dia++) {
+      for (const horaAR of [3, 10, 17, 22]) {
+        const { home } = await getOccasionChips(enAR(dia, horaAR))
+        cantidades.add(home.filter((c) => c.slug !== SLUG_AHORA).length)
+      }
+    }
+    expect([...cantidades]).toHaveLength(1)
+  })
+
+  it('los slugs de las reglas semilla existen en `occasion_chips`', async () => {
+    // Mismo criterio que el test de tags de la semilla: un typo en
+    // `DEFAULT_CHIPS_SCHEDULE` daría una regla que no adelanta nada y nadie se
+    // enteraría (se ignora en silencio por diseño, decisión 7).
+    const filas = await db.select({ slug: occasionChips.slug }).from(occasionChips)
+    const existentes = new Set(filas.map((c) => c.slug))
+
+    const inexistentes = DEFAULT_CHIPS_SCHEDULE.flatMap((r) =>
+      r.primero.filter((s) => !existentes.has(s)),
+    )
+    expect(inexistentes).toEqual([])
   })
 
   it('todos los tags de la semilla existen en la taxonomía', async () => {

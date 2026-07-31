@@ -1508,3 +1508,66 @@ solo por lectura de código.
   derecho a sacar lo que él mismo sumó.
 - **`allow_suggestions` se cambia por el `PATCH` que ya existía** (`accion: 'suggestions'` en el
   `discriminatedUnion`), no con un endpoint nuevo: mismo dueño, misma votación, misma autorización.
+
+---
+
+## QA /qa-spec — CHIPS_ROTACION (2026-07-31)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests 600/600 ✅ (55 nuevos de rotación + 3 de integración de chips) · build ✅ (con el dev server bajo; ninguna ruta cambió de estático a dinámico)
+**Método:** 4 checkers independientes (Explore/haiku, read-only) contra el DoD de
+`docs/specs/active/CHIPS_ROTACION.md`, **más** los casos del § QA manual corridos **en vivo**
+contra `https://adondesalimos.ngrok.app` (Playwright + `psql` para editar `chips.schedule`).
+Los casos que exigen otro día u otra hora se cubrieron **sin mover el reloj del sistema**: por
+código con `getOccasionChips(now)` contra la base real, y en pantalla moviendo **la regla** en vez
+del reloj (que además es lo que verifica ROT-09). Mismo criterio que AHORA-02/03 el 2026-07-30.
+
+### DoD — checkers independientes
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| ROT-QA-01 | `lib/search/rotacion.ts` es el **único** módulo que decide qué chips van primero (grep), puro y sin base | ✅ PASS | Importa solo de `@/lib/negocio/horarios`; cero `@/lib/db`/drizzle. `chipsPrimero` se usa en un solo lugar de producción (`chips.ts:128`). No hay una segunda implementación del orden por hora/día |
+| ROT-QA-02 | El día/hora en AR sale de `partesEnAR`; sin segunda transcripción de ese cómputo | ✅ PASS | `rotacion.ts:134` `partesEnAR(now)`; cero `Intl.DateTimeFormat` / `getDay()` / `getHours()` en el módulo. Reusa además `esHoraValida` y `minutosDe` (`:71-72`, `:116-117`) y `DIAS` para el módulo del día anterior (`:124`) |
+| ROT-QA-03 | Martes 18:00 ⇒ «After office» adelante; martes 15:00 no. Sábado 01:00 ⇒ «Salir a bailar» (regla del viernes que cruza medianoche); sábado 15:00 no | ✅ PASS | `rotacion.test.ts` § reglas semilla — los cuatro instantes exactos. Los dos casos "15:00" se agregaron **por hallazgo del checker**: estaban cubiertos por 10:00 y 15:59, no por el instante que nombra el DoD |
+| ROT-QA-04 | Con `chips.schedule` **ausente**, la home se comporta exactamente como hoy, **sin logs de error** | ✅ PASS | `rotacion.ts:88` `null`/`undefined` ⇒ `[]` sin loguear; con `[]` el pool vuelve a ser `in_home` por `asc(sort)`. Test con espía de `console.warn`. Verificado también en vivo (ROT-04) |
+| ROT-QA-05 | Con el setting inválido: no rompe, se descarta lo inválido, se conserva lo válido, y se loguea **una vez** | ✅ PASS | `esReglaValida` valida campo por campo (`:65-76`) y el filtro es **por regla** (`:93-96`); flag `yaAviso` (`:51-58`). 15 formas de basura en el test, más el caso "regla mala entre dos buenas" |
+| ROT-QA-06 | Un chip nombrado en `primero` que devuelve 0 no se muestra ni deja hueco | ✅ PASS | Los forzados salen de `vivos` (count > 0), así que un chip muerto nunca entra y el `slice(0,4)` se completa con el siguiente `in_home` (`chips.ts:129-138`). Test de integración: la cantidad de chips de Ocasión es idéntica en 28 instantes distintos |
+| ROT-QA-07 | Una regla puede adelantar un chip vivo con `in_home = false` (decisión 11) y el que queda quinto pasa a "Ver más" sin desaparecer | ✅ PASS | `forzados` no filtra por `inHome` (`chips.ts:129-131`); `resto` = vivos que no entraron a `home` (`:168`). Verificado en vivo (ROT-11) |
+| ROT-QA-08 | Los chips siguen aplicando los mismos tags; `occasion_chips`, `chip_tags`, el motor y el componente cliente no tienen cambios | ✅ PASS | Diff del working tree: solo `lib/search/rotacion.ts` (nuevo), `lib/search/chips.ts`, `scripts/seed.ts`, tests y docs. Intactos `components/search/occasion-chips.tsx`, `lib/search/query.ts`, `lib/search/params.ts`, `lib/db/chips.ts` y `drizzle/`. `OccasionChipView` no cambia de forma y el chip «Para ahora» conserva su lugar al frente |
+| ROT-QA-09 | Tests de tabla: cada regla, los bordes de cada rango, el cruce de medianoche, un día sin reglas y los settings basura | ✅ PASS | `lib/search/__tests__/rotacion.test.ts` — 55 casos: las 3 reglas semilla, 17 bordes (incluidos 21:59 / 22:00 / 00:00 / 04:59 / 05:00 y la madrugada que pertenece al día anterior), la prioridad "gana la primera que matchea", `desde === hasta`, y el bloque de validación |
+| ROT-QA-10 | typecheck + tests + build verdes | ✅ PASS | typecheck ✅ · tests 600/600 ✅ · build ✅ *Compiled successfully in 5.9s*, 12/12 páginas estáticas generadas, con el dev server bajo (cicatriz de BUSQUEDA: comparten `.next`) |
+
+### QA en vivo — `https://adondesalimos.ngrok.app`, viernes 2026-07-31 13:28-13:31 (AR)
+
+| ID | Caso | Resultado | Qué se vio |
+|----|------|-----------|------------|
+| ROT-01 | Martes 18:00 ⇒ «After office» primero | ✅ PASS | Por código contra la base real: `Para ahora · after-office · salida-con-chongo · salir-a-bailar · tomar-algo`. Sube del 3.º al 1.º puesto entre los de Ocasión |
+| ROT-02 | Martes 10:00 ⇒ el orden de siempre | ✅ PASS | `salida-con-chongo · salir-a-bailar · after-office · tomar-algo`. **En pantalla** el viernes 13:28, hora en la que ninguna regla matchea: idéntico |
+| ROT-03 | Sábado 01:00 ⇒ «Salir a bailar» primero | ✅ PASS | Por código: `Para ahora · salir-a-bailar · salida-con-chongo · after-office · tomar-algo` — la regla del viernes 22:00-05:00 alcanza la madrugada del sábado |
+| ROT-04 | `DELETE` de la clave y recargar | ✅ PASS | Home idéntica a la de antes del spec y **cero logs** de `chips.schedule` en la consola |
+| ROT-05 | `UPDATE` con un JSON de otra forma (`{"dias":"lunes","desde":"25:99"}`) | ✅ PASS | La home no rompió: orden por `sort`. Un solo warning del server: *"[chips.schedule] setting inválido, se ignora lo que no valida: el valor no es un array de reglas"* |
+| ROT-06 | Regla con `primero: ["chip-que-no-existe"]` | ✅ PASS | Se ignora ese slug; los demás de la misma regla aplican igual |
+| ROT-07 | Regla con un chip vivo + uno muerto (`merienda` + `salida-con-amigos`, que hoy da 0), con una regla basura delante | ✅ PASS | `Para ahora · Merienda · Salida con chongo · Salir a bailar · After office` — el vivo se adelanta, el muerto no deja hueco (siguen 4 de Ocasión) y la regla mala se descartó sola sin invalidar a la buena |
+| ROT-08 | Tocar un chip rotado | ✅ PASS | «Merienda» desde la home deja `?t=cafe%2Cmerienda` — los mismos tags que aplicaba desde "Ver más" |
+| ROT-09 | `UPDATE` de la regla sin reiniciar el server | ✅ PASS | La recarga siguiente ya mostró el orden nuevo: el setting se lee en cada request, no se cachea en módulo |
+| ROT-10 | Viernes 23:00, con `ABIERTO_AHORA` F1 cerrado | ✅ PASS | Por código: `Para ahora · salir-a-bailar · …` — primero el de franja, después el rotado, y «Para ahora» no descuenta de los 4 (decisión 8, ya implementada el 2026-07-30) |
+| ROT-11 | Chip con `in_home = false` traído por una regla (decisión 11) | ✅ PASS | Con la regla de prueba: `Para ahora · Merienda · Cena familiar · Salida con chongo · Salir a bailar`; «After office» y «Tomar algo» pasaron a "Ver más" sin desaparecer |
+
+**La base quedó como estaba**: los `UPDATE`/`DELETE` de prueba sobre `chips.schedule` se
+revirtieron con `npm run db:seed` (idempotente) y el valor final se verificó con `psql`.
+
+### Notas del QA
+
+- **La feature se especificó contra una home que ya no era la de hoy.** Al arrancar se midió: los
+  cuatro chips de la home son `salida-con-chongo`(1) · `salir-a-bailar`(586) · `after-office`(171) ·
+  `tomar-algo`(3.219) —`salida-con-amigos` da **0** y la decisión 25 lo esconde—, o sea que los dos
+  chips de las reglas semilla **ya estaban en la home a toda hora**. Sin la decisión 11 (una regla
+  puede traer un chip con `in_home = false`) la feature no habría movido un pixel y ROT-01/02/03
+  habrían pasado sin que hiciera nada. Es el tipo de gap que solo aparece mirando los **datos**
+  antes de codear, no releyendo el spec.
+- **El aviso de setting inválido viaja también a la consola del browser en dev**: es el reenvío del
+  log del server que hace el overlay de Next (aparece rotulado `Server`), no un error de cliente.
+- **`desde === hasta` cubre las 24 h del día listado.** Es la consecuencia literal de la decisión 3
+  ("`hasta` menor **o igual** que `desde` cruza la medianoche"); queda documentada en el módulo y
+  tiene test propio. `horarios.ts` trata ese caso como rango inválido — la diferencia es deliberada:
+  ahí significa "no abre", acá "siempre".

@@ -25,14 +25,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-Los cuatro specs de **v2**, en el orden de implementación decidido por Fer (momentum → impacto,
-IDEAS § Estado de la conversación 2026-07-27). Escritos en la sesión de autoría del 2026-07-29.
-ABIERTO_AHORA, FAVORITOS y SUGERIR_EN_VOTACION salieron de esta tabla al empezar su
-implementación (ver 🟢 Activos).
-
-| Spec | Qué es | Estado |
-|------|--------|--------|
-| [CHIPS_ROTACION](planned/CHIPS_ROTACION.md) | Mini-spec — los chips de Ocasión rotan por día/hora con reglas en `app_settings` (`chips.schedule`), degradando al orden por `sort` si el setting es inválido. 🔵 Planned |
+**Vacío al 2026-07-31.** Los cuatro specs de **v2** —escritos en la sesión de autoría del
+2026-07-29, en el orden de implementación decidido por Fer (momentum → impacto, IDEAS § Estado de
+la conversación 2026-07-27)— salieron todos de esta tabla: ABIERTO_AHORA a 🟢 Activos (F1 cerrada,
+F2 gateada) y FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 está
+completa**; lo que viene se decide con Fer.
 
 ## ⚫ Done (`done/`)
 
@@ -50,5 +47,6 @@ implementación (ver 🟢 Activos).
 | [COSTOS_ADMIN](done/COSTOS_ADMIN.md) | Mini-spec — tablero de costos en `/admin`: chat IA en USD por tokens/modelo, Google por SKU vs cap (alerta 80/100%/apagado), vs mes anterior, cupo del chat; + sugeridor de precio premium según el dólar oficial (piso ≥ dólar × 3, solo sugerencia). Read-only, sin schema nuevo. [Resumen](../archive/SPECS_ARCHIVO.md#costos_admin) · ✅ 2026-07-26 |
 | [PULIDO](done/PULIDO.md) | Mini-spec — pulido UX/UI (filtro fantasma, header de marca, resize de fotos, INT-05/INT-14) + reestructura de `/admin` en tabs. [Resumen](../archive/SPECS_ARCHIVO.md#pulido) · ✅ 2026-07-27 |
 | [SUGERIR_EN_VOTACION](done/SUGERIR_EN_VOTACION.md) | Que cualquiera con el link sume lugares del catálogo a una votación abierta (techo total 8, 2 por dispositivo, el creador modera). **Revierte la decisión 2 de VOTACION.** Sin texto libre: solo `placeId` publicado. [Resumen](../archive/SPECS_ARCHIVO.md#sugerir_en_votacion) · ✅ 2026-07-31 |
+| [CHIPS_ROTACION](done/CHIPS_ROTACION.md) | Mini-spec — los chips de Ocasión de la home se reordenan por día/hora (TZ AR) con reglas en `app_settings` (`chips.schedule`), degradando al orden por `sort` si el setting es inválido. Una regla puede traer un chip sin `in_home`. [Resumen](../archive/SPECS_ARCHIVO.md#chips_rotacion) · ✅ 2026-07-31 |
 | [FAVORITOS](done/FAVORITOS.md) | Guardar lugares y listas (`place_lists` + `place_list_items`): free 1 lista · premium N, gate server-side día 1; botón en card, ficha y chat, página `/mis-lugares` con crear/renombrar/borrar, sheet de destino y métrica `saves` agregada. 2 fases. [Resumen](../archive/SPECS_ARCHIVO.md#favoritos) · ✅ 2026-07-31 |
 | [CURADURIA](done/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola en `/admin`. Corrida completa autónoma con Sonnet (auto-apply de lo evidenciado): ~1.840 lugares, 1.149 tags, 5/9 chips prendidos. [Resumen](../archive/SPECS_ARCHIVO.md#curaduria) · ✅ 2026-07-27 |
