@@ -905,8 +905,43 @@ que el premium hace con la IA"). Lo ya decidido antes (30 mensajes/mes, `cupo_de
 
 ## Estado de la conversación
 
-_Actualizado en la sesión de implementación de CHIPS_ROTACION (2026-07-31). Esta sección es lo
-primero que lee la sesión siguiente; **más reciente arriba**._
+_Actualizado en la sesión de definiciones de deploy (2026-07-31). Esta sección es lo primero que
+lee la sesión siguiente; **más reciente arriba**._
+
+### 🧭 Sesión de definiciones — (2026-07-31) · DEPLOY: decidido, escrito, **sin una línea de código**
+
+Sesión Fable de decisiones puras, la primera desde que la cola de v2 quedó vacía. Entregable:
+**`docs/specs/planned/DEPLOY.md`** con 18 decisiones cerradas, presupuesto por servicio, orden de
+migración de datos y las 4 fases. No se creó nada en ningún proveedor, no se tocó `.env` ni código.
+
+**La decisión que bloqueaba todo no había que tomarla.** Se entró a la sesión creyendo que el
+dominio era la puerta de ida a decidir; al chequear DNS apareció que **`adondesalimos.com.ar` ya
+está registrado** —zona creada y vacía en Cloudflare, calcada de turnia.com.ar— y Fer lo confirmó.
+Media hora de agenda que se evaporó midiendo en vez de deliberando.
+
+**El hallazgo que sí cambió el plan: Vercel Hobby prohíbe el uso comercial.** Cobrar con
+MercadoPago exige Pro, US$20/mes ≈ ARS 46.000 ≈ **7 suscriptores premium solo para empatar el
+hosting**. Fer arrancó queriendo lanzar con el cobro encendido y cambió de opinión con el número
+delante, más un dato que lo desactiva del todo: el día 1 no hay a quién cobrarle (cero dueños
+reclamados, cero usuarios). **Se lanza gratis, en Hobby, con US$0/mes fijos.**
+
+**Y una vuelta que mejora el producto en vez de solo ahorrar:** en lugar de esconder el premium,
+se anuncia como "en camino" y **se cuenta quién lo pide**. Ese contador reemplaza la corazonada
+como disparador de los US$20 (decisiones 6 y 18). Salió de que Fer preguntara —dos veces, y con
+razón— *"¿qué ve el usuario cuando esto está apagado?"*: la primera respuesta era un
+`"Configuración de pago incompleta."` que grita que la app está rota.
+
+**Lo demás decidido:** Neon Free en São Paulo (la base pesa 48 MB, el 10% del cupo) con el
+`postgres-js` que ya está —nada de cambiar de driver—; el rate-limit sale **degradado a propósito**
+y va a Upstash recién en F2; `noindex` hasta pasar el QA en prod; el chat encendido con el tope
+global bajado a 500 (~US$20/mes de techo, con un kill switch ya probado que degrada en vez de
+facturar); Google OAuth después del deploy, porque su callback necesita una URL que todavía no
+existe.
+
+**⏭️ Próximo paso: implementar DEPLOY, empezando por F0** (crear Neon, restaurar el dump,
+verificar por conteo) — que es cero código y enteramente reversible. **⚠️ `npm run backup:db`
+antes de nada**: la curaduría (~3.967 tags) no está en git ni en el seed. Sesión de Opus o del
+subagente `implementador`, no de Fable.
 
 ### 🛠️ Sesión de implementación — (2026-07-31) · CHIPS_ROTACION ✅ · **LA COLA DE v2 ESTÁ COMPLETA**
 

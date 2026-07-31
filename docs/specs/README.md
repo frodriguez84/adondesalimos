@@ -25,11 +25,14 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-**Vacío al 2026-07-31.** Los cuatro specs de **v2** —escritos en la sesión de autoría del
-2026-07-29, en el orden de implementación decidido por Fer (momentum → impacto, IDEAS § Estado de
-la conversación 2026-07-27)— salieron todos de esta tabla: ABIERTO_AHORA a 🟢 Activos (F1 cerrada,
-F2 gateada) y FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 está
-completa**; lo que viene se decide con Fer.
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [DEPLOY](planned/DEPLOY.md) | Poner la app en `adondesalimos.com.ar` con Neon (São Paulo) + Vercel Hobby, **US$0/mes**, con el cobro apagado (Hobby prohíbe el uso comercial) y el premium anunciado como "en camino" midiendo interés. Incluye la migración de datos —catálogo, zonas y la curaduría que **no están en el seed**— y su punto de no retorno. 4 fases; F3 (encender el cobro + Pro) gateada por interés medido. | 🔵 Decisiones cerradas 2026-07-31, sin código |
+
+Los cuatro specs de **v2** —escritos en la sesión de autoría del 2026-07-29, en el orden de
+implementación decidido por Fer (momentum → impacto, IDEAS § Estado de la conversación
+2026-07-27)— salieron todos de esta tabla: ABIERTO_AHORA a 🟢 Activos (F1 cerrada, F2 gateada) y
+FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 está completa.**
 
 ## ⚫ Done (`done/`)
 

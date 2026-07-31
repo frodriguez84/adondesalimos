@@ -76,9 +76,22 @@ son trabajo acotado con criterio de "listo" objetivo.
 > **no arregla ninguno de los dos problemas que la justificaban**, y el que sí arregla ya está
 > cubierto. Detalle abajo.
 
-- [ ] **2 · Hosting/prod (Neon + Vercel)** — era el #3. **Antes de tocar nada hay que decidir
-      dominio** (URL pública = puerta de ida por SEO) y el resto de las definiciones. Ver la
-      entrada completa abajo (ex-#3).
+- [ ] **2 · Hosting/prod (Neon + Vercel)** → spec: `docs/specs/planned/DEPLOY.md` — **decisiones
+      cerradas ✅ 2026-07-31** (sesión Fable de definiciones, sin código). Lo que se resolvió, con
+      los porqués completos en el spec:
+      - **El dominio no había que decidirlo: `adondesalimos.com.ar` ya está registrado** (zona
+        vacía en Cloudflare, mismo patrón que turnia). La puerta de ida ya estaba cruzada. Libres
+        al 2026-07-31: `adondesalimos.com` y `.app`; tomados `quesale.com.ar`, `quepinta.com.ar`,
+        `salimos.com.ar`. No se compran defensivos (decisión 2 del spec).
+      - **US$0/mes fijos**: Neon Free (la base pesa **48 MB**, el 10% de los 0,5 GB) en São Paulo
+        + Vercel **Hobby** + Upstash Free + R2 + Resend. El único costo variable es Anthropic, con
+        techo duro de ~US$20/mes bajando `ai.chat_monthly_cap` a 500 con un UPDATE.
+      - **El cobro sale APAGADO, y no por preferencia**: Vercel Hobby prohíbe el uso comercial, y
+        cobrar exige Pro (US$20/mes ≈ **7 premium solo para empatar**). Además el día 1 no hay a
+        quién cobrarle. El premium se anuncia como "en camino" y **se mide el interés** — ese
+        contador es el disparador de los US$20, en vez de una corazonada.
+      - **4 fases**: F0 Neon (cero código, reversible) · F1 deploy + 4 cambios chicos · F2 Upstash
+        + Google OAuth · F3 (gateada) Pro + cobro.
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
       al Tipo**. Lo que cambió es **cómo** se arregla, medido el 2026-07-31:
@@ -102,15 +115,12 @@ son trabajo acotado con criterio de "listo" objetivo.
         precio inferido de una carta vieja no es un dato ralo, es un dato que miente.
       - **Prerrequisito de cualquier corrida futura**: el filtro de skip (ver § Mejoras futuras),
         o se paga dos veces por los mismos lugares.
-- [ ] **~~3~~ · Hosting/prod (Neon + Vercel)** — **ahora es el #2** (ver arriba). Sigue parqueado,
-      ahora **con el contexto cambiado**:
-      la prioridad "bajísima" se fijó el 2026-07-27 con 5 ítems de v2 por delante, y hoy no hay
+- [ ] **~~3~~ · Hosting/prod (Neon + Vercel)** — **ahora es el #2** (ver arriba, ya con spec).
+      La prioridad "bajísima" se fijó el 2026-07-27 con 5 ítems de v2 por delante, y hoy no hay
       ninguno. Es lo único que separa "todo implementado" de "usable", y **desbloquea el backlog
       que hoy no se puede trabajar por falta de usuarios reales**: afinar las reglas de
       CHIPS_ROTACION con `place_tag_impressions_daily`, el gatillo del botón de Google OAuth
-      ("funnel real de signups o lanzamiento público") y medir qué chip funciona. Checklist en
-      § Mejoras futuras. **Antes de esto hay que decidir dominio** — la URL pública es puerta de
-      ida (SEO).
+      ("funnel real de signups o lanzamiento público") y medir qué chip funciona.
 
 ## Mejoras futuras (fuera de v1)
 
@@ -662,16 +672,41 @@ son trabajo acotado con criterio de "listo" objetivo.
 - [ ] **Regla compuesta de rescate de la cola** (confidence bajo + teléfono + redes ⇒ real) —
       quedó 💡 sin decidir. Hay 7.064 lugares bajo el umbral esperando; con el corte en la
       query, probarla es gratis.
-- [ ] **🌐 Hosting/prod = Neon + Vercel — BAJÍSIMA PRIORIDAD** (decidido por Fer 2026-07-27; ya
-      corre turnia.com.ar con ese stack). No urge; es lo único que separa "todo implementado" de
-      "usable en producción". Checklist propio de esta app cuando se lance: **(a)** migrar el
-      catálogo del Postgres de dev a Neon vía `pg_dump`/restore — nada del catálogo/zonas/curaduría
-      está en el seed (ver gotcha en `CLAUDE.md` § Cicatrices reales); **(b)** el rate-limit en
-      memoria de `lib/middleware/` no sirve en serverless → mover a store compartido (Upstash/Vercel
-      KV, como turnia); **(c)** pooling de Neon (endpoint *pooled* o driver `@neondatabase/serverless`);
-      **(d)** env vars a Vercel (Google Places, Anthropic, R2, MercadoPago), chau ngrok. Los scripts
-      offline (`curar`/`import-overture`/`zones`) siguen corriendo local contra Neon. Sin cron
-      (expiración de votaciones lazy 72 h).
+- [x] **🌐 Hosting/prod = Neon + Vercel** (decidido por Fer 2026-07-27; ya corre turnia.com.ar con
+      ese stack). **El checklist (a)-(d) se resolvió entero el 2026-07-31 y vive ahora en
+      `docs/specs/planned/DEPLOY.md`** — no duplicar acá. En una línea cada uno: **(a)** migración
+      por `pg_dump`/restore, con orden y punto de no retorno declarados (la curaduría no está en el
+      seed); **(b)** Upstash Free, **después** del primer deploy, y el rate-limit sale degradado a
+      propósito; **(c)** endpoint *pooled* con el `postgres-js` que ya está —`lib/db/index.ts` ya
+      hace `prepare:false, max:1` en prod—, **sin** cambiar de driver, y las migraciones por el
+      *direct*; **(d)** tabla de qué env var viaja y cuál no, donde las tres de MercadoPago **no
+      viajan** y eso es exactamente lo que apaga el cobro. Los scripts offline siguen corriendo
+      local contra Neon. Sin cron (expiración de votaciones lazy 72 h).
+
+- [ ] **Rate-limit compartido en Upstash — F2 de DEPLOY** (decisión 12 del spec, 2026-07-31). El
+      primer deploy sale con el contador **en memoria del proceso**, que en serverless se fragmenta:
+      el límite se afloja tantas veces como instancias haya vivas. Se aceptó a propósito para no
+      meter un proveedor nuevo en el mismo paso donde ya cambian base, hosting y dominio. **Dónde
+      duele mientras tanto**: no en `/api/search` (raspar el catálogo es molesto, no caro) sino en
+      **reclamos/altas** —3 por día por IP se vuelven 3 × instancias— porque cada fila la mira un
+      humano en `/admin`. Upstash Free alcanza de sobra: 500.000 comandos/mes ≈ 8.000 requests/día
+      a ~2 comandos cada uno. Trabajo: reescribir `lib/middleware/rate-limit.ts` (que ya es dueño
+      único) contra Redis + adaptar sus tests. **Disparador para adelantarlo: el primer pico de
+      altas basura en la cola de `/admin`.**
+
+- [ ] **El copy del kill switch del chat promete una espera corta y el tope es mensual**
+      (2026-07-31, al decidir bajar `ai.chat_monthly_cap` a 500 para el lanzamiento). Al llegar al
+      tope, el usuario ve *"El chat está descansando un rato / Volvé más tarde y seguimos"*
+      (`app/chat/chat-client.tsx`, y el 503 de `app/api/chat/route.ts`). Con el cap en 5.000 llegar
+      era casi imposible; con 500 se vuelve plausible, y si se agota un día 5 el "más tarde" son 25
+      días. No miente, pero promete implícitamente algo corto. Es un string —puerta de ida y
+      vuelta—, así que no se tocó: se anota y se decide con el consumo real a la vista.
+
+- [ ] **Dominios defensivos: `adondesalimos.com` y `.app` están libres** (verificado 2026-07-31 por
+      RDAP). No se compran ahora (decisión 2 de DEPLOY): la audiencia es AMBA y tipea `.com.ar`, y
+      es puerta de ida y vuelta. Reabrir si aparece intención de marca o tráfico de afuera. Dato
+      para no repetir la búsqueda: `quesale.com.ar`, `quepinta.com.ar`, `salimos.com.ar` y
+      `quesale.com` están **todos tomados**.
 
 ## Hecho
 

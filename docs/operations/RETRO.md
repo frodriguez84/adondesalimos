@@ -13,6 +13,25 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-07-31 · Definiciones de deploy — spec DEPLOY escrito, cero código (Fable)
+
+- **Qué salió bien:** medir antes de deliberar. La sesión entró con "el dominio es la puerta de ida
+  que bloquea todo" y en tres comandos de DNS quedó claro que `adondesalimos.com.ar` ya estaba
+  registrado (zona vacía en Cloudflare, calcada de turnia) — la decisión más pesada de la agenda no
+  existía. Mismo patrón con el resto: el tamaño de la base (48 MB), el `prepare:false` que
+  `lib/db/index.ts` ya tenía para prod y el kill switch del chat ya probado salieron de mirar, no
+  de suponer, y cada uno borró trabajo del plan.
+- **Qué frenó:** nada del método. Sí una **omisión mía en la primera vuelta de opciones**: presenté
+  "lanzar sin cobro" sin explicar qué ve un usuario que quiere pagar, y Fer tuvo que preguntarlo
+  —dos veces, una por el checkout y otra por el tope del chat—. Tenía razón en las dos: la respuesta
+  era un `"Configuración de pago incompleta."` que grita que la app está rota. De esa pregunta salió
+  la mejor decisión de la sesión (anunciar el premium y **contar** quién lo pide, que convierte el
+  apagado en una métrica). Una opción que apaga algo de cara al usuario no está completa sin decir
+  qué se ve en su lugar.
+- **Qué cambiar:** nada de proceso. Lo de arriba no es una regla nueva, es aplicar la que ya existe
+  (`CLAUDE.md` § Recomendación fundada) a un caso que no había aparecido: cuando una opción **apaga**
+  una superficie, describir la degradación es parte de la opción, no una aclaración posterior.
+
 ## 2026-07-31 · Pase de deuda técnica — (a) y (c) hechos, (b) no era un bug (Opus)
 
 - **Qué salió bien:** el prompt pedía "decilo y justificá" si al mirarlo el fix salía distinto de lo
