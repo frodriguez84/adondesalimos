@@ -271,13 +271,12 @@ Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **es
       `app_settings` (`chips.schedule`) — cero migración, se cambian con un UPDATE; degradan al
       orden por `sort` si el setting es inválido (la home no puede romperse por un UPDATE mal
       tipeado). Arranca con 2 reglas de sentido común; afinarlas con datos de uso es el v2.
-- [ ] **Sugerir lugar en una votación** (que los votantes agreguen opciones). En v1 solo
-      el creador arma la cancha.
-      → **spec: `docs/specs/planned/SUGERIR_EN_VOTACION.md`** (escrito 2026-07-29). **Revierte la
-      decisión 2 de VOTACION** (hay que anotar la reversión en `done/VOTACION.md` al cerrarlo).
-      Decidido por Fer: puede sugerir **cualquiera con el link**, techo de **8** opciones, **2** por
-      dispositivo, el creador puede quitar sugerencias (no sus originales) y apagar las sugerencias
-      de su votación. **Nunca texto libre**: solo `place_id` publicado, validado server-side.
+- [x] **Sugerir lugar en una votación** (que los votantes agreguen opciones) ✅ **2026-07-31**
+      → spec: `docs/specs/done/SUGERIR_EN_VOTACION.md` · [Resumen](../archive/SPECS_ARCHIVO.md#sugerir_en_votacion).
+      Entregado tal cual se decidió: sugiere **cualquiera con el link** (sin cuenta), techo total de
+      **8**, **2** por dispositivo, el creador quita sugerencias (nunca sus originales) y puede
+      apagar las de su votación. **Nunca texto libre**: solo `place_id` publicado, validado
+      server-side. La reversión de la decisión 2 de VOTACION quedó anotada en su tabla.
 - [ ] **Descuento escalonado multi-local en el plan de dueño (B2B)** — base por lugar
       (2do local -X%, 3ro -Y%, etc.) para el dueño de varios locales. Puerta abierta el
       2026-07-24; el modelo por-lugar del spec 7 lo permite sumar después sin romperse. Ver
