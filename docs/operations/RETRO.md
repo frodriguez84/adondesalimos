@@ -25,10 +25,17 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
   pareció que los filtros no se aplicaban), y la primera anotación de tipo del helper `suma` en
   `costos.ts` era demasiado estrecha (`typeof chatMessages.tokensIn` fija el **nombre** de la
   columna; va `AnyColumn`).
-- **Qué cambiar:** nada del método. La regla que ya existe —"backup antes de tocar la base"— se
-  pagó sola al primer comando, y la de cambios quirúrgicos es la que dejó (b) sin refactorizar. La
-  lección que salió de la sesión es de diagnóstico, no de proceso, y quedó en
-  `LECCIONES_APRENDIDAS.md`.
+- **Qué cambiar:** apareció recién al final, y es uno solo: **el BACKLOG acumula diagnósticos que
+  nadie volvió a medir, y esta sesión encontró tres.** El ítem (b) (un bug que no existía), mi
+  propia afirmación sobre el caching escrita *durante* esta sesión (el caché no es por
+  conversación — la desarmó una pregunta de Fer una hora después de commitearla), y el ítem #2 de
+  la cola, que pedía curaduría para llenar Precio cuando el sugeridor **no puede** llenar Precio
+  por decisión de su propio spec. Los tres se cayeron con una medición de diez minutos. **El
+  cambio propuesto: antes de agarrar un ítem del backlog, verificar su premisa contra el código o
+  la base — no releerlo.** No hace falta una regla nueva: es la lección de esta sesión aplicada a
+  la cola, y por eso quedó escrita en `LECCIONES_APRENDIDAS.md` en vez de en el CLAUDE.md.
+  (Calibración: tres hallazgos es raro y el CLAUDE.md avisa que suele ser inflado. Acá no lo es —
+  los tres cambiaron una decisión concreta y uno ahorró ~US$200.)
 
 ---
 

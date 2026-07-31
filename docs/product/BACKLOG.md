@@ -71,13 +71,39 @@ son trabajo acotado con criterio de "listo" objetivo.
       calificar en `lib/search/query.ts`, que hoy funciona **por descarte** y devolvería cero en
       silencio si `place_tags`/`place_zones` ganaran un `id` (ya pasó en `lib/claims/query.ts`,
       hallazgo H-1 de AUTH F2); **(c)** el bbox de AMBA escrito dos veces.
-- [ ] **2 · Curaduría de datos — la cobertura.** El diferencial del producto son Ambiente/Momento
-      /Precio y siguen ralos: **Precio tiene 0 filas** en `place_tags` (ni Overture ni el Google
-      persistible lo dan: solo curaduría o dueños) y **Actividad está pegada a un solo Tipo** por
-      el `tag-map`, así que cruzar facetas da casi siempre cero. La maquinaria ya existe
-      (`npm run curar`, ~US$17 la corrida completa). Mejora lo que la búsqueda devuelve **hoy**,
-      sin deployar. Ver los tres ítems de § Mejoras futuras.
-- [ ] **3 · Hosting/prod (Neon + Vercel)** — sigue parqueado, ahora **con el contexto cambiado**:
+> **⚠️ Orden invertido el 2026-07-31 (decisión de Fer, con datos).** El ítem de curaduría era el
+> #2 y pasó **después** del deploy. El motivo, medido en la sesión de deuda: la curaduría con IA
+> **no arregla ninguno de los dos problemas que la justificaban**, y el que sí arregla ya está
+> cubierto. Detalle abajo.
+
+- [ ] **2 · Hosting/prod (Neon + Vercel)** — era el #3. **Antes de tocar nada hay que decidir
+      dominio** (URL pública = puerta de ida por SEO) y el resto de las definiciones. Ver la
+      entrada completa abajo (ex-#3).
+- [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
+      cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
+      al Tipo**. Lo que cambió es **cómo** se arregla, medido el 2026-07-31:
+      - **`npm run curar` NO puede llenar Precio.** `FACETAS_SUGERIBLES`
+        (`lib/curation/facetas.ts`) es `['ambiente','momento','actividad']`: Precio quedó fuera
+        por decisión del spec CURADURIA ("campo manual opcional en la cola, no algo que el LLM
+        proponga"). Re-correr cuesta plata y da **cero** filas de Precio.
+      - **Para Actividad la curaduría es floja**: sobre 1.202 lugares procesados produjo 373 tags
+        de Actividad (0,3 por lugar), contra 1.297 de Ambiente y 2.296 de Momento. Y los 3.142 de
+        Actividad que existen vienen del `tag-map` del import, que **por diseño** solo mapea
+        categorías que *son* la actividad (`bowling_alley`, `escape_room`…). O sea: Actividad
+        espeja al Tipo **estructuralmente**, no por falta de cobertura.
+      - **Ambiente/Momento sí las llena bien** — y es exactamente lo que la corrida de julio ya
+        cubrió.
+      - **Costo de "curar todo": ~US$145–215** (14.458 lugares elegibles sin curar, de 15.660;
+        solo 1.202 curados = 7,7%. A US$0,010–0,015 por lugar, extrapolado de la corrida real de
+        US$17,62). **Descartado**: sin usuarios no se sabe cuáles de los 15.660 importan.
+      - **El plan nuevo**: deployar primero y dejar que `place_tag_impressions_daily` (ya existe y
+        ya cuenta) diga qué lugares la gente **ve**; curar esos ~200, no los 14.458. Y Precio
+        dejarlo a los **dueños**, que son los únicos con incentivo de mantenerlo al día — un
+        precio inferido de una carta vieja no es un dato ralo, es un dato que miente.
+      - **Prerrequisito de cualquier corrida futura**: el filtro de skip (ver § Mejoras futuras),
+        o se paga dos veces por los mismos lugares.
+- [ ] **~~3~~ · Hosting/prod (Neon + Vercel)** — **ahora es el #2** (ver arriba). Sigue parqueado,
+      ahora **con el contexto cambiado**:
       la prioridad "bajísima" se fijó el 2026-07-27 con 5 ítems de v2 por delante, y hoy no hay
       ninguno. Es lo único que separa "todo implementado" de "usable", y **desbloquea el backlog
       que hoy no se puede trabajar por falta de usuarios reales**: afinar las reglas de
@@ -87,6 +113,18 @@ son trabajo acotado con criterio de "listo" objetivo.
       ida (SEO).
 
 ## Mejoras futuras (fuera de v1)
+
+- [ ] **💸 `npm run curar` re-cobra por los lugares ya curados — filtro de skip** (hallazgo
+      2026-07-31, al preguntarse si había que re-correr la curaduría). `seleccionarLugaresDeZona`
+      (`lib/curation/seleccion.ts`) **no excluye lo que ya tiene sugerencias**: ordena por
+      (tiene contacto, `confidence` desc) y corta en `curation.zone_quota`. Es determinista, así
+      que una segunda corrida elige **los mismos 40 lugares por zona** y los vuelve a mandar al
+      LLM. Los datos están a salvo (`guardarSugerencias` solo inserta filas nuevas, decisión 8),
+      **la plata no**: re-correr hoy = ~US$17 para regenerar lo que ya existe. También hace que
+      subir la cuota sea caro de gusto — pagás de nuevo los primeros 40 de cada zona para llegar
+      a los nuevos. **Fix**: un `NOT EXISTS` contra `place_tag_suggestions` en el `where` de la
+      selección (~5 líneas), con test. **Prerrequisito de cualquier corrida futura** — anotado y
+      no implementado el 2026-07-31 porque no hay ninguna corrida planeada (ver § Cola post-v2 #3).
 
 - [ ] **Revisar el costo del prompt caching del chat cuando haya tráfico real** (2026-07-31, al
       medir el costo con los tokens de caché ya persistidos). La escritura del prefijo (8.776
