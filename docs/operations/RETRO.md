@@ -13,6 +13,28 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-01 · Enriquecimiento del catálogo — medir OSM antes de especear (Opus)
+
+- **Qué salió bien:** el orden del pedido —**medir primero, decidir después, y recién ahí escribir
+  spec si el número lo banca**— hizo todo el trabajo. Dos LLMs externos coincidían en que OSM era
+  la vía, y coincidían bien: los tags mapean 1:1, es gratis, no es scraping. Lo que ninguno podía
+  saber sin medir es que **OSM en AMBA tiene 16.949 lugares y solo 15,5% con horarios**, así que el
+  rinde real es 6,7–9,0% del catálogo, con techo medido en ~11%. Sin ese número se escribía un spec
+  entero para duplicar una faceta de 5% a 10%. **Un `SELECT` y un cruce mataron dos sesiones de
+  trabajo bien intencionado.** De yapa, el cruce rindió algo que no estaba en el plan: OSM funcionó
+  como **árbitro independiente** de la curaduría (273 comparaciones, gratis, sin humano) y contestó
+  la pregunta de los tags sin cita —92% de acuerdo, mejor que los que sí tienen cita— que iba a
+  costar una tarde de validación manual.
+- **Qué frenó:** la bajada de Overpass, ~40 minutos y dos corridas perdidas. La primera por un
+  detalle del motor (`~"^(a|b|c)$"` hace 504 en tiles densos; la unión con `=` exacto tarda 17 s) y
+  la segunda, peor, por un **mirror que devuelve 200 con la base vacía** y contaminó los 64 tiles,
+  cacheados en disco como buenos. Se descubrió porque el total era absurdo, no porque el código
+  avisara. Está escrito en `LECCIONES_APRENDIDAS.md` § *Un `200 OK` no dice que la respuesta sea
+  buena*.
+- **Qué cambiar:** nada del método. La única regla nueva que salió es la de la lección (validar el
+  payload y no el status cuando la fuente es externa) y ya está escrita donde va. El checklist de
+  esta sesión —medición → decisión → registro— se pagó solo.
+
 ## 2026-08-01 · DEPLOY — el premium apagado (primer tramo de código de F1) (Opus)
 
 - **Qué salió bien:** el spec traía el gotcha ya resuelto (índices únicos **parciales** porque

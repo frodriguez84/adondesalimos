@@ -108,9 +108,19 @@ son trabajo acotado con criterio de "listo" objetivo.
         [`docs/product/cobertura-tags-2026-08-01.md`](cobertura-tags-2026-08-01.md)** (2026-08-01):
         cobertura por faceta sobre los 18.993 publicados (Ambiente **5,0%** · Momento **6,1%** ·
         Precio **0,0%**), qué rindió la curaduría, el **69% de tags sin cita textual**, la segunda
-        opinión de dos LLMs externos y las decisiones que quedaron pendientes. **Leerlo antes de
-        tocar esto.** Lo primero que pide: **medir OSM/Overpass antes de escribir ningún spec** —
-        el import de Overture NO trae horarios, y de un horario sale la faceta Momento entera.
+        opinión de dos LLMs externos y **las decisiones, ya tomadas** (§ 5). **Leerlo antes de
+        tocar esto.**
+      - ✅ **OSM/Overpass, medido (2026-08-01) — y NO va spec.** 16.949 POI en AMBA, solo 15,5% con
+        `opening_hours`. Cruzando por nombre + ≤200 m: matchea 18,2–25,8% y **ganan ≥1 tag
+        6,7–9,0% del catálogo** (Ambiente 5,0% → 9,3–10,6% · Momento 6,1% → 9,6–10,9% · **Precio
+        sigue en 0**). El **techo está medido en ~11%**: ya capturamos el 78–82% de lo que OSM
+        tiene, así que un matcheo mejor suma ~2 puntos, no un orden de magnitud. Y rinde al revés
+        de lo que el producto necesita: café 22,1%, **bar 5,9%, boliche 1,7%**. Sumale que ODbL es
+        **share-alike sobre bases derivadas**, no solo atribución: un 40% habría justificado abrir
+        esa pregunta sobre el catálogo, un 9% no. Queda anotado como **pre-relleno de la cola** de
+        curaduría cuando se cure por uso real. **Las reglas por nombre** (`rooftop`→terraza) que
+        proponían las dos respuestas: **2,2% del catálogo** y con precisión dudosa ("Quinta X" es
+        un salón de fiestas).
       Lo que cambió es **cómo** se arregla, medido el 2026-07-31:
       - **`npm run curar` NO puede llenar Precio.** `FACETAS_SUGERIBLES`
         (`lib/curation/facetas.ts`) es `['ambiente','momento','actividad']`: Precio quedó fuera
@@ -132,6 +142,22 @@ son trabajo acotado con criterio de "listo" objetivo.
         precio inferido de una carta vieja no es un dato ralo, es un dato que miente.
       - **Prerrequisito de cualquier corrida futura**: el filtro de skip (ver § Mejoras futuras),
         o se paga dos veces por los mismos lugares.
+      - **Los ~2.746 tags sin cita se quedan** (decidido 2026-08-01). El cruce con OSM funcionó
+        como muestra independiente de 273 comparaciones: los tags **sin** cita coinciden **92%** y
+        los que **sí** la tienen, 84%. La hipótesis "el LLM sin evidencia inventa" no se sostiene,
+        y validar 100 a mano no cambiaría ninguna decisión. **Lo que sí hay que revisar a mano son
+        ~400**: `hasta-tarde` (173) + `trasnoche` (44), donde el acuerdo con OSM se cae a 29–50%, y
+        `happy-hour` (189, 89% sin cita), que ninguna fuente estructurada puede arbitrar y es la
+        afirmación más falsable de todas.
+      - **Ocultar el filtro de Precio** mientras tenga menos de N lugares etiquetados — mismo
+        criterio que CHIPS_ROTACION, que ya apaga los chips sin lugares vivos. Decidido el
+        2026-08-01: con OSM descartado como fuente de precio y el estimador sin priorizar, "se
+        llena solo" dejó de ser un plan, y un filtro que vacía la pantalla es peor que uno que no
+        está. Es chico y reversible.
+      - **El score de completitud NO se implementa** (decidido 2026-08-01, lo proponía la respuesta
+        1): ya hay una regla que reordena la búsqueda por plata (MONETIZACION F3) y tiene dueño. Un
+        segundo criterio sin jerarquía explícita vuelve el orden impredecible. Si algún día entra,
+        entra como desempate **dentro** del mismo nivel de destaque.
 - [ ] **~~3~~ · Hosting/prod (Neon + Vercel)** — **ahora es el #2** (ver arriba, ya con spec).
       La prioridad "bajísima" se fijó el 2026-07-27 con 5 ítems de v2 por delante, y hoy no hay
       ninguno. Es lo único que separa "todo implementado" de "usable", y **desbloquea el backlog
@@ -727,6 +753,24 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Enriquecimiento del catálogo — OSM/Overpass medido, y la decisión de NO hacerlo**
+      (2026-08-01, sesión Opus): se midió la hipótesis que había quedado abierta antes de escribir
+      ninguna línea de spec, que era exactamente la corrección de rumbo pedida. **16.949 POI de OSM
+      en AMBA** (menos que nuestros 18.993) y solo **15,5% con `opening_hours`**. Cruzados por
+      nombre normalizado + ≤200 m: matchean 18,2% (estricto) a 25,8% (con fuzzy), mediana **10 m**,
+      y **ganan ≥1 tag 1.267–1.703 lugares = 6,7–9,0% del catálogo**. En cobertura: Ambiente 5,0%
+      → 9,3–10,6% · Momento 6,1% → 9,6–10,9% · **Precio sigue en 0,0%**. El **techo también está
+      medido** (contando desde OSM: 1.374 POI con horarios y 1.591 con datos de ambiente en
+      categorías que llevamos): ya se captura el 78–82%, así que un matcheo mejor da ~2 puntos, no
+      un orden de magnitud. **Decidido: no va spec** — el número no paga el import + parser +
+      atribución, y menos con ODbL siendo **share-alike sobre bases derivadas** y el catálogo
+      siendo el activo del producto. De yapa, OSM sirvió de **árbitro independiente de la
+      curaduría** (273 comparaciones): los tags **sin cita coinciden 92%** contra 84% de los que sí
+      la tienen ⇒ **no se borran**; lo que se revisa a mano son ~400 (`hasta-tarde`, `trasnoche`,
+      `happy-hour`). También quedaron decididos el filtro de Precio (se oculta mientras esté vacío)
+      y el score de completitud (no se implementa: gana el destaque pago). Todo en
+      [`docs/product/cobertura-tags-2026-08-01.md`](cobertura-tags-2026-08-01.md) § 4 y § 5. **Cero
+      código**: los scripts de la medición son de un solo uso y quedaron en el scratchpad.
 - [x] **DEPLOY — el premium apagado, primer tramo de código de F1** (2026-08-01, sesión Opus):
       el estado free del tab de Suscripción deja de ofrecer un pago que no se puede cobrar y pasa
       a **medir el interés** (decisión 6). Tabla `premium_interest` (migración `0014`, aditiva,

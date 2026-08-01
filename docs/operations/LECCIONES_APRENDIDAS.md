@@ -5,6 +5,39 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un `200 OK` no dice que la respuesta sea buena (2026-08-01 · medición de OSM/Overpass)
+
+**Qué pasó.** Para medir cuánto aportaría OpenStreetMap al catálogo hubo que bajar los POI de AMBA
+con la Overpass API, en 64 tiles. Como el endpoint público se congestiona, el script rotaba entre
+tres mirrors. Uno de ellos, `overpass.osm.ch`, **responde HTTP 200 con JSON bien formado y cero
+elementos**: su base está vacía, y se delata solo en un campo que nadie mira
+(`osm3s.timestamp_osm_base: "116082"`, donde va una fecha ISO). El código chequeaba `res.ok` y
+guardaba el resultado. **Una corrida entera de 64 tiles terminó "exitosa" con 617 elementos en vez
+de 16.949**, y encima cacheada en disco: los tiles vacíos quedaron guardados como buenos y la
+siguiente corrida los iba a reusar. Se descubrió por olfato —el total era absurdo para AMBA—, no
+por ningún error.
+
+**Por qué no se ve.** Un mirror caído devuelve 5xx y el retry lo cubre. Un mirror **vacío** devuelve
+200. El happy path del código es exactamente el mismo, y si el dominio admite resultados legítimos
+en cero (un tile rural sin bares), no hay forma de distinguir "no hay nada acá" de "esta fuente no
+tiene nada". El fallback silencioso a datos vacíos es peor que el error: se propaga a la conclusión.
+
+**Qué hacer distinto:**
+
+1. **Validá el payload, no el status.** Si la respuesta trae un campo que prueba que la fuente está
+   viva (un timestamp, una versión, un total), chequealo antes de aceptarla. Acá fueron tres líneas
+   (`/^\d{4}-\d{2}-\d{2}T/.test(...)`) y habrían ahorrado una corrida entera.
+2. **Un resultado vacío de una fuente externa es sospechoso hasta que se demuestre lo contrario** —
+   sobre todo si lo vas a cachear. Cachear un vacío convierte un problema transitorio en permanente.
+3. **Antes de creerle a un agregado, mirá si el orden de magnitud cierra.** "617 POI en todo AMBA"
+   era imposible y estaba a la vista en la línea final del log. Aplica igual a cualquier número que
+   se vaya a escribir en un doc.
+
+*(La otra cicatriz de la misma sesión, más chica y específica de Overpass: `nwr["amenity"~"^(a|b|c)$"]`
+hace 504 en los tiles densos; la unión de statements con `=` exacto devuelve lo mismo en ~17 s.)*
+
+---
+
 ## Un hallazgo de QA puede generalizar de más, y la generalización sobrevive al bug (2026-07-31 · pase de deuda)
 
 **Qué pasó.** El H-1 de AUTH F2 fue un bug real: un `EXISTS` escrito a mano donde Drizzle renderizó
