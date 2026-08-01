@@ -103,7 +103,15 @@ son trabajo acotado con criterio de "listo" objetivo.
         **F0: crear Neon y restaurar el dump**, que ya trae la tabla.
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
-      al Tipo**. Lo que cambió es **cómo** se arregla, medido el 2026-07-31:
+      al Tipo**.
+      - 📊 **La medición completa está en
+        [`docs/product/cobertura-tags-2026-08-01.md`](cobertura-tags-2026-08-01.md)** (2026-08-01):
+        cobertura por faceta sobre los 18.993 publicados (Ambiente **5,0%** · Momento **6,1%** ·
+        Precio **0,0%**), qué rindió la curaduría, el **69% de tags sin cita textual**, la segunda
+        opinión de dos LLMs externos y las decisiones que quedaron pendientes. **Leerlo antes de
+        tocar esto.** Lo primero que pide: **medir OSM/Overpass antes de escribir ningún spec** —
+        el import de Overture NO trae horarios, y de un horario sale la faceta Momento entera.
+      Lo que cambió es **cómo** se arregla, medido el 2026-07-31:
       - **`npm run curar` NO puede llenar Precio.** `FACETAS_SUGERIBLES`
         (`lib/curation/facetas.ts`) es `['ambiente','momento','actividad']`: Precio quedó fuera
         por decisión del spec CURADURIA ("campo manual opcional en la cola, no algo que el LLM
