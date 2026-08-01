@@ -11,9 +11,11 @@ type Props = {
   user: { name: string; email: string }
   suscripcion: EstadoSuscripcion
   precioB2cArs: number
+  /** Ya dejó la señal del premium (DEPLOY, decisión 6). */
+  interesRegistrado?: boolean
 }
 
-export function CuentaClient({ user, suscripcion, precioB2cArs }: Props) {
+export function CuentaClient({ user, suscripcion, precioB2cArs, interesRegistrado }: Props) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-8">
       <BrandHeader />
@@ -26,7 +28,13 @@ export function CuentaClient({ user, suscripcion, precioB2cArs }: Props) {
       </header>
 
       <PerfilSection name={user.name} email={user.email} />
-      <SuscripcionPanel tipo="b2c" estado={suscripcion} precioArs={precioB2cArs} />
+      <SuscripcionPanel
+        tipo="b2c"
+        estado={suscripcion}
+        precioArs={precioB2cArs}
+        email={user.email}
+        interesRegistrado={interesRegistrado}
+      />
       <PasswordSection />
       <DangerZone />
     </main>

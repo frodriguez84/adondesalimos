@@ -76,8 +76,9 @@ son trabajo acotado con criterio de "listo" objetivo.
 > **no arregla ninguno de los dos problemas que la justificaban**, y el que sí arregla ya está
 > cubierto. Detalle abajo.
 
-- [ ] **2 · Hosting/prod (Neon + Vercel)** → spec: `docs/specs/planned/DEPLOY.md` — **decisiones
-      cerradas ✅ 2026-07-31** (sesión Fable de definiciones, sin código). Lo que se resolvió, con
+- [ ] **2 · Hosting/prod (Neon + Vercel)** → spec: `docs/specs/active/DEPLOY.md` — **decisiones
+      cerradas ✅ 2026-07-31** (sesión Fable de definiciones, sin código) · **primer tramo de código
+      ✅ 2026-08-01** (el premium apagado; el spec pasó a `active/`). Lo que se resolvió, con
       los porqués completos en el spec:
       - **El dominio no había que decidirlo: `adondesalimos.com.ar` ya está registrado** (zona
         vacía en Cloudflare, mismo patrón que turnia). La puerta de ida ya estaba cruzada. Libres
@@ -97,7 +98,9 @@ son trabajo acotado con criterio de "listo" objetivo.
         `premium_interest`, así que hacerlo primero deja el dump que viaja a Neon ya completo, en
         vez de tener que correr un `db:migrate` suelto contra prod. El copy, el schema (con el
         gotcha de los índices únicos **parciales** — `NULL ≠ NULL` en Postgres) y el conteo en
-        `/admin` están cerrados en el spec § *El premium apagado*.
+        `/admin` están cerrados en el spec § *El premium apagado*. **Ese tramo ya está
+        implementado ✅ 2026-08-01** (migración `0014`, QA DEPLOY-10/15/16/17 ✅) — lo que sigue es
+        **F0: crear Neon y restaurar el dump**, que ya trae la tabla.
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
       al Tipo**. Lo que cambió es **cómo** se arregla, medido el 2026-07-31:
@@ -715,6 +718,24 @@ son trabajo acotado con criterio de "listo" objetivo.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **DEPLOY — el premium apagado, primer tramo de código de F1** (2026-08-01, sesión Opus):
+      el estado free del tab de Suscripción deja de ofrecer un pago que no se puede cobrar y pasa
+      a **medir el interés** (decisión 6). Tabla `premium_interest` (migración `0014`, aditiva,
+      backup previo `adondesalimos_2026-08-01_111256.sql.gz`) con los **dos únicos parciales** que
+      el spec anticipó: `unique(user_id) where place_id is null` y `unique(user_id, place_id)
+      where place_id is not null` — un unique común dejaría entrar N filas B2C del mismo usuario
+      porque en Postgres `NULL ≠ NULL`, y el contador es justo el número que dispara prender el
+      cobro y pagar Vercel Pro (decisión 18). `POST /api/billing/interes` (rate limit propio 10/h
+      → sesión → zod → dominio), `lib/billing/interes.ts` como dueño de la regla —dedupe por
+      `onConflictDoNothing`, y el B2B gateado por `esDuenoDe` para que nadie infle el interés de un
+      lugar ajeno— y `lib/billing/apagado.ts` como **dueño único del interruptor**: el cobro está
+      apagado ⇔ falta `NEXT_PUBLIC_MP_PUBLIC_KEY`, sin flag en `app_settings` que sería una segunda
+      fuente de verdad. `/admin` → Suscripciones muestra el conteo **y los mails** (a quién se le
+      escribe el día que se abra). QA en vivo DEPLOY-10/15/16/17 ✅ + 2 casos extra (el confirmado
+      sobrevive al reload; un suscripto activo no ve la beta). Las filas del QA se borraron: el
+      dump de dev es el que se restaura en Neon y arrancar prod con el contador en 2 corrompe la
+      señal. **Sigue F0** (crear Neon y restaurar el dump, que ya trae la tabla).
 
 - [x] **Pase de deuda técnica — el tablero de `/admin` deja de subestimar el chat, y un bug del
       backlog que no existía** (2026-07-31, sesión Opus): los tres ítems del #1 de la cola

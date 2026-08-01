@@ -99,6 +99,13 @@
       "when": 1785517541293,
       "tag": "0013_furry_banshee",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785593627670,
+      "tag": "0014_mighty_puck",
+      "breakpoints": true
     }
   ]
 }

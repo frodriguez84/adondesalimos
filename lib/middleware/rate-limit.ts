@@ -99,6 +99,15 @@ const CHAT_WINDOW_MS = 60_000
 const FAVORITOS_MAX = 60
 const FAVORITOS_WINDOW_MS = 60_000
 
+/**
+ * "Avisame cuando abra" `POST /api/billing/interes` (DEPLOY, decisión 6): 10 por
+ * hora por IP. El dedupe real lo hacen los índices únicos parciales —repetir el
+ * click no suma filas—, así que esto solo corta el loop automatizado contra un
+ * endpoint que escribe. Bucket propio: dejar la señal no gasta el del checkout.
+ */
+const INTERES_MAX = 10
+const INTERES_WINDOW_MS = 60 * 60_000
+
 /** Poda: si el mapa crece más que esto, se limpian las ventanas vencidas. */
 const MAX_BUCKETS = 10_000
 
@@ -311,6 +320,21 @@ export function checkCheckoutRateLimit(request: Request): Response | null {
     CHECKOUT_MAX,
     CHECKOUT_WINDOW_MS,
     'Demasiados intentos de pago. Probá de nuevo en un rato.',
+  )
+}
+
+/**
+ * Rate limit de `POST /api/billing/interes` (DEPLOY, decisión 6): 10 por hora por
+ * IP. Cupo con prefijo propio: dejar la señal del premium no gasta el del checkout
+ * —que es duro a propósito— ni el de búsqueda.
+ */
+export function checkInteresRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(
+    request,
+    'interes',
+    INTERES_MAX,
+    INTERES_WINDOW_MS,
+    'Pará un poco. Probá de nuevo en un rato.',
   )
 }
 

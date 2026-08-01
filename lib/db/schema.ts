@@ -879,6 +879,43 @@ export const subscriptions = pgTable(
 )
 
 /**
+ * Interés en el premium mientras el cobro está apagado (DEPLOY, decisión 6). Una
+ * fila por click en "Avisame cuando abra": es la señal que dispara prender el
+ * cobro (decisión 18), no una suscripción.
+ *
+ * **`place_id` con el mismo criterio que `subscriptions`** (decisión 2 de
+ * MONETIZACION): `null` = B2C del usuario; con valor = B2B de ESE lugar. No hay
+ * enum de tipo.
+ *
+ * `user_id` not null: la señal requiere sesión — es de mayor intención y deja el
+ * mail para avisar a mano el día que se abra.
+ */
+export const premiumInterest = pgTable(
+  'premium_interest',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** `null` = B2C; con valor = B2B de ese lugar. */
+    placeId: uuid('place_id').references(() => places.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // ⚠️ Los dos únicos son PARCIALES a propósito. Un `unique(user_id, place_id)`
+    // común NO dedupea el caso B2C: en Postgres NULL ≠ NULL, así que cada doble
+    // click dejaría una fila más y el contador —que es el único punto de esta
+    // tabla— se inflaría solo.
+    uniqueIndex('premium_interest_b2c_idx')
+      .on(t.userId)
+      .where(sql`${t.placeId} IS NULL`),
+    uniqueIndex('premium_interest_b2b_idx')
+      .on(t.userId, t.placeId)
+      .where(sql`${t.placeId} IS NOT NULL`),
+  ],
+)
+
+/**
  * Guard de idempotencia de renovaciones + historial de cobros (MONETIZACION,
  * decisión 17). `mp_authorized_payment_id` es UNIQUE y se inserta **solo al
  * aprobar** —nunca al rechazar—, porque MP reusa el mismo id en el reintento
@@ -1190,6 +1227,8 @@ export type NewSubscription = typeof subscriptions.$inferInsert
 export type SubscriptionPayment = typeof subscriptionPayments.$inferSelect
 export type NewSubscriptionPayment = typeof subscriptionPayments.$inferInsert
 export type SubscriptionStatus = (typeof subscriptionStatusEnum.enumValues)[number]
+export type PremiumInterest = typeof premiumInterest.$inferSelect
+export type NewPremiumInterest = typeof premiumInterest.$inferInsert
 export type AiApiUsage = typeof aiApiUsage.$inferSelect
 export type ChatConversation = typeof chatConversations.$inferSelect
 export type NewChatConversation = typeof chatConversations.$inferInsert

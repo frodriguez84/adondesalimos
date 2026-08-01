@@ -1661,3 +1661,46 @@ mensaje" no ahorra.
 de integración del cupo toca `ai_api_usage` del mes real (hallazgo viejo de COSTOS_ADMIN, ya
 mitigado con snapshot/restore). Mirar los números después de los tests invita a creer que algo
 se rompió.
+
+---
+
+## QA de fase — DEPLOY (el premium apagado) (2026-08-01)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests ✅ 609/609 (56 archivos) · build ⏳ (pendiente:
+requiere el dev server parado)
+**Alcance:** el primer tramo de código de F1 — tabla `premium_interest` + endpoint +
+`SuscripcionPanel` con el cobro apagado + conteo en `/admin` (decisión 6 y § El premium
+apagado). **No** cubre el resto de F1 (`noindex`, `maxDuration`, `.env.example`) ni la
+migración a Neon.
+**Método:** tests de integración contra el Postgres de dev + QA en vivo con Playwright sobre
+`https://adondesalimos.ngrok.app`, con `NEXT_PUBLIC_MP_PUBLIC_KEY` **comentada en `.env` y el
+dev server reiniciado** (el interruptor es por entorno y las `NEXT_PUBLIC_` se inlinean en el
+bundle — sin reinicio no se ve nada).
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| DEPLOY-10 | Tab Suscripción con el cobro apagado: mensaje de beta, sin copy de desarrollador, click registrado | ✅ PASS | `/cuenta` con pepe@gmail.com (free): *"Todavía no abrimos los pagos. Estamos en beta. El premium está por salir: …"* + botón `Avisame cuando abra`. **No** aparece *"Configuración de pago incompleta"* (el Brick ya ni se monta). El click deja la fila |
+| DEPLOY-15 | Tab Suscripción en `/mi-negocio/[placeId]` (B2B): mismo mensaje con el pitch del plan del lugar | ✅ PASS | Kansas Grill & Bar (`6323f392…`, B2B cancelada) con frodriguez.este@gmail.com: mismo esqueleto, *"El plan del lugar está por salir: descripción, carta, novedades, hasta 15 fotos y el destaque en las búsquedas."* |
+| DEPLOY-16 | Doble click en "Avisame cuando abra": una sola fila; la segunda vez ya muestra el confirmado | ✅ PASS | `dblclick` real sobre el botón → `select … from premium_interest` = **1 fila** (`place_id` NULL). UI: *"✓ Listo, anotado. Te escribimos a **pepe@gmail.com** apenas abramos los pagos."* Los dos únicos **parciales** son los que lo sostienen: con un `unique(user_id, place_id)` común habrían entrado 2 (`NULL ≠ NULL`) |
+| DEPLOY-17 | `/admin` → Suscripciones: conteo y mails de los interesados, coincide con la base | ✅ PASS | Bloque *"Interés en el premium"* arriba de la tabla: **2** pidieron que les avisemos · `frodriguez.este@gmail.com · Kansas Grill & Bar` · `pepe@gmail.com · Premium (B2C)`. Coincide con las 2 filas de la base |
+| DEPLOY-16b | El confirmado sobrevive al reload (no es estado de cliente) | ✅ PASS | Reload de `/cuenta` → sigue el confirmado. Lo resuelve el server (`tieneInteres`), no el `useState` |
+| DEPLOY-16c | Un suscripto activo NO ve el mensaje de beta | ✅ PASS | `/cuenta` con frodriguez.este@gmail.com (B2C `active`, cancelación en curso): sigue mostrando *"Cancelada. Mantenés el acceso hasta el 24 de agosto de 2026."* El cobro apagado solo cambia el estado **free** |
+
+### Cubierto por tests, no por la pantalla
+
+`lib/billing/__tests__/interes.integration.test.ts` (5/5): dedupe B2C · dedupe B2B **por lugar**
+(dos lugares del mismo dueño son dos señales) · la señal B2C y la del lugar conviven · **no se
+puede anotar un lugar ajeno** (`NO_ES_DUENO`, gate `esDuenoDe`) · el conteo cuenta filas, no clicks.
+
+### Notas de operación
+
+- **Las 2 filas del QA se borraron al terminar** (`delete from premium_interest where user_id in
+  (…pepe, frodriguez.este…)` → 0 filas). Son datos, y el dump de dev es el que se restaura en Neon
+  (F0): dejarlas arrancaría prod con el contador en 2, que es justo el número que dispara prender
+  el cobro y pagar Vercel Pro (decisión 18). **Si se vuelve a hacer QA de esto, volver a limpiar
+  antes del dump.**
+- Backup previo a la migración: `backups/adondesalimos_2026-08-01_111256.sql.gz` (5,0 MB).
+- Migración `drizzle/0014_mighty_puck.sql`, aditiva, aplicada en dev. Los dos únicos salieron
+  parciales en el SQL generado (`WHERE "premium_interest"."place_id" IS NULL` / `IS NOT NULL`) —
+  verificado a mano antes de aplicar, no se asumió que Drizzle lo hiciera bien.

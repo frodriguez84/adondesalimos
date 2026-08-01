@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckoutModal } from '@/components/billing/checkout-modal'
+import { cobroApagado } from '@/lib/billing/apagado'
 import type { EstadoSuscripcion } from '@/lib/billing/estado'
 import type { TipoSuscripcion } from '@/lib/billing/types'
 
@@ -10,6 +11,12 @@ import type { TipoSuscripcion } from '@/lib/billing/types'
  * `/mi-negocio/[placeId]` (B2B). Muestra el estado (free/activo, período, aviso
  * `past_due`, cancelación en curso) y ofrece suscribirse (abre el Brick) o cancelar
  * (diferida, decisión 15). El estado ya viene reconciliado del server (lazy check).
+ *
+ * **Con el cobro apagado** (DEPLOY, decisión 6) el estado free cambia: en vez del
+ * pitch + "Suscribirme por $X/mes" —que llevaría al Brick a degradar con
+ * "Configuración de pago incompleta", copy de desarrollador— muestra el mensaje de
+ * beta y registra el interés. El interruptor es la ausencia de la key de MP
+ * (`cobroApagado`), así que en dev no cambia nada.
  */
 
 interface Props {
@@ -19,6 +26,10 @@ interface Props {
   estado: EstadoSuscripcion
   /** Precio vigente en ARS (lo muestra y valida el checkout, decisión 27). */
   precioArs: number
+  /** El de la cuenta: es a dónde se avisa cuando abra el cobro. */
+  email: string
+  /** Resuelto server-side: el confirmado sobrevive al reload. */
+  interesRegistrado?: boolean
 }
 
 const pesos = new Intl.NumberFormat('es-AR', {
@@ -34,13 +45,51 @@ const TITULO: Record<TipoSuscripcion, string> = {
   b2b: 'Plan del lugar',
 }
 
-export function SuscripcionPanel({ tipo, placeId, estado, precioArs }: Props) {
+/** Copy de la beta (DEPLOY, § El premium apagado): dice primero que no se puede pagar. */
+const PITCH_BETA: Record<TipoSuscripcion, string> = {
+  b2c: 'El premium está por salir: votaciones ilimitadas, historial y que la IA te arme la shortlist.',
+  b2b: 'El plan del lugar está por salir: descripción, carta, novedades, hasta 15 fotos y el destaque en las búsquedas.',
+}
+
+export function SuscripcionPanel({
+  tipo,
+  placeId,
+  estado,
+  precioArs,
+  email,
+  interesRegistrado = false,
+}: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
   const [cancelando, setCancelando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [anotado, setAnotado] = useState(interesRegistrado)
+  const [anotando, setAnotando] = useState(false)
 
   const finPeriodo = estado.currentPeriodEnd ? new Date(estado.currentPeriodEnd) : null
+  const apagado = cobroApagado()
+
+  async function avisarme() {
+    setError(null)
+    setAnotando(true)
+    try {
+      const res = await fetch('/api/billing/interes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tipo === 'b2b' ? { placeId } : {}),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || json.error) {
+        setError(json.error?.message ?? 'No pudimos anotarte. Probá de nuevo.')
+        return
+      }
+      setAnotado(true)
+    } catch {
+      setError('Error de conexión. Probá de nuevo.')
+    } finally {
+      setAnotando(false)
+    }
+  }
 
   async function cancelar() {
     setError(null)
@@ -118,6 +167,35 @@ export function SuscripcionPanel({ tipo, placeId, estado, precioArs }: Props) {
             </>
           )}
         </div>
+      ) : apagado ? (
+        <div className="flex flex-col gap-3">
+          {anotado ? (
+            <p className="text-sm text-muted-foreground">
+              ✓ Listo, anotado. Te escribimos a <strong className="text-foreground">{email}</strong>{' '}
+              apenas abramos los pagos.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Todavía no abrimos los pagos.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Estamos en beta. {PITCH_BETA[tipo]} Dejanos la señal y te escribimos apenas se
+                  pueda.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={avisarme}
+                disabled={anotando}
+                className="self-start rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {anotando ? 'Anotando…' : 'Avisame cuando abra'}
+              </button>
+            </>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
@@ -137,13 +215,16 @@ export function SuscripcionPanel({ tipo, placeId, estado, precioArs }: Props) {
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <CheckoutModal
-        open={abierto}
-        onClose={() => setAbierto(false)}
-        tipo={tipo}
-        placeId={placeId}
-        amountArs={precioArs}
-      />
+      {/* Con el cobro apagado el Brick no se monta: nada lo puede abrir. */}
+      {!apagado && (
+        <CheckoutModal
+          open={abierto}
+          onClose={() => setAbierto(false)}
+          tipo={tipo}
+          placeId={placeId}
+          amountArs={precioArs}
+        />
+      )}
     </section>
   )
 }

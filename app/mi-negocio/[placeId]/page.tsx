@@ -8,6 +8,8 @@ import { auth } from '@/lib/auth'
 import { desgloseEstadisticas, getPanelLugar } from '@/lib/negocio/query'
 import { getPrecioB2bArs } from '@/lib/billing/settings'
 import { estadoSuscripcionB2B } from '@/lib/billing/estado'
+import { cobroApagado } from '@/lib/billing/apagado'
+import { tieneInteres } from '@/lib/billing/interes'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
 import { DesglosePanel } from '@/components/negocio/desglose-panel'
 import { BrandHeader } from '@/components/shared/brand-header'
@@ -34,12 +36,14 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
   const lugar = await getPanelLugar(placeId, session.user.id)
   if (!lugar) notFound()
 
-  const [suscripcion, precioB2b, desglose] = await Promise.all([
+  const [suscripcion, precioB2b, desglose, interesRegistrado] = await Promise.all([
     estadoSuscripcionB2B(placeId),
     getPrecioB2bArs(),
     // Gateado por `owner_plan='paid'` en la query: `free` devuelve null y el
     // dueño se queda con el teaser de arriba (decisión 24).
     desgloseEstadisticas(placeId),
+    // Solo con el cobro apagado (DEPLOY, decisión 6).
+    cobroApagado() ? tieneInteres(session.user.id, placeId) : Promise.resolve(false),
   ])
 
   const ubicacion = [lugar.zone, lugar.address ?? lugar.locality].filter(Boolean).join(' · ')
@@ -83,7 +87,14 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
         )}
       </header>
 
-      <SuscripcionPanel tipo="b2b" placeId={placeId} estado={suscripcion} precioArs={precioB2b} />
+      <SuscripcionPanel
+        tipo="b2b"
+        placeId={placeId}
+        estado={suscripcion}
+        precioArs={precioB2b}
+        email={session.user.email}
+        interesRegistrado={interesRegistrado}
+      />
 
       {desglose && <DesglosePanel desglose={desglose} />}
 

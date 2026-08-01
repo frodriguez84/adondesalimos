@@ -13,6 +13,28 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-01 · DEPLOY — el premium apagado (primer tramo de código de F1) (Opus)
+
+- **Qué salió bien:** el spec traía el gotcha ya resuelto (índices únicos **parciales** porque
+  `NULL ≠ NULL`), así que lo único que hubo que hacer fue **verificar el SQL generado** por
+  Drizzle antes de aplicarlo — salió con los dos `WHERE` correctos. Escribir esa decisión en el
+  spec convirtió un bug sutil de contador inflado en un chequeo de treinta segundos. También pagó
+  el precedente: `subscriptions` ya usaba `place_id` nullable como discriminador B2C/B2B, y
+  copiarlo evitó inventar un enum de tipo.
+- **Qué frenó:** el QA del interruptor **no se puede hacer solo** — el mensaje de beta solo se ve
+  con `NEXT_PUBLIC_MP_PUBLIC_KEY` apagada, y como se inlinea en el bundle hay que editar `.env` y
+  reiniciar el server, dos cosas que hace Fer. Fueron dos idas y vueltas (apagar, verificar,
+  restaurar, re-verificar). Es el costo correcto de haber elegido la env var como único
+  interruptor: la alternativa (un flag en `app_settings`) daba un QA cómodo y una segunda fuente
+  de verdad sobre lo mismo. **No cambiar nada acá.**
+- **Qué cambiar:** una sola cosa, y ya está hecha: **el QA de una feature que escribe en la base
+  tiene que limpiar sus filas**. Las 2 de `premium_interest` sobrevivían al dump que se restaura
+  en Neon en F0, y prod arrancaba con el contador en 2 — justo el número que decide un gasto de
+  US$20/mes (decisión 18). Quedó anotado en `docs/qa/AnalisisQA.md` § *DEPLOY (el premium
+  apagado)* → *Notas de operación*, para la próxima corrida de este QA.
+
+---
+
 ## 2026-07-31 · Definiciones de deploy — spec DEPLOY escrito, cero código (Fable)
 
 - **Qué salió bien:** medir antes de deliberar. La sesión entró con "el dominio es la puerta de ida

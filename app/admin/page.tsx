@@ -7,6 +7,7 @@ import { sesionAdmin } from '@/lib/auth/sesion'
 import { claimsPorEstado } from '@/lib/claims/query'
 import { getHistorialPrecios, getPreciosActuales } from '@/lib/billing/settings'
 import { getSuscripcionesAdmin } from '@/lib/billing/admin'
+import { getInteresadosAdmin } from '@/lib/billing/interes'
 import { getCostosChat, getCupoChat, getSugerenciaPrecio, getUsoGoogle } from '@/lib/admin/costos'
 import { zonasConCola } from '@/lib/curation/query'
 import { ColaClient } from './cola-client'
@@ -43,6 +44,7 @@ export default async function AdminPage() {
     precios,
     historial,
     suscripciones,
+    interesados,
     costosChat,
     usoGoogle,
     cupoChat,
@@ -54,6 +56,7 @@ export default async function AdminPage() {
     getPreciosActuales(),
     getHistorialPrecios(),
     getSuscripcionesAdmin(),
+    getInteresadosAdmin(),
     getCostosChat(),
     getUsoGoogle(),
     getCupoChat(),
@@ -76,7 +79,9 @@ export default async function AdminPage() {
       <AdminTabs
         cola={<ColaClient pendientes={pendientes} aprobados={aprobados} />}
         precios={<PreciosClient precios={precios} historial={historial} />}
-        suscripciones={<SuscripcionesAdmin suscripciones={suscripciones} />}
+        suscripciones={
+          <SuscripcionesAdmin suscripciones={suscripciones} interesados={interesados} />
+        }
         costos={
           <div className="flex flex-col gap-6">
             <CostosAdmin chat={costosChat} google={usoGoogle} cupo={cupoChat} />
