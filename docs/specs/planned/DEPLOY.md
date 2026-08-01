@@ -139,6 +139,16 @@ Por la **ausencia de `NEXT_PUBLIC_MP_PUBLIC_KEY`** — exactamente la misma señ
 verdad sobre lo mismo, y prenderla sin la key devolvería al usuario al mensaje roto. La presencia
 de la key **es** el interruptor.
 
+**En dev no cambia nada.** El `.env` local tiene las tres vars de MP con valor, así que el
+checkout de dev sigue funcionando igual que hoy: el panel muestra el botón "Suscribirme por
+$X/mes" y el Brick monta normal. El interruptor es por entorno, sin flags ni ramas de código.
+
+⚠️ **Consecuencia para el QA (DEPLOY-10/15/16):** el mensaje de beta **no se puede ver en dev**
+sin apagar la var. Para verificarlo hay que vaciar `NEXT_PUBLIC_MP_PUBLIC_KEY` en `.env`,
+**reiniciar el dev server** (las `NEXT_PUBLIC_` se inlinean en el build del bundle de cliente, no
+se leen en caliente) y restaurarla al terminar. Dejar dev sin la key es lo que después hace creer
+que "el cobro se rompió".
+
 ### El copy (variante elegida: directa y honesta)
 
 Dice primero lo importante —que no se puede pagar— y recién después vende, así nadie se queda
