@@ -165,6 +165,38 @@ son trabajo acotado con criterio de "listo" objetivo.
       CHIPS_ROTACION con `place_tag_impressions_daily`, el gatillo del botón de Google OAuth
       ("funnel real de signups o lanzamiento público") y medir qué chip funciona.
 
+- [ ] **4 · Pulido de UI — cuatro hallazgos de Fer** (anotados 2026-08-01, usando la app). Los
+      cuatro verificados contra el código antes de escribirlos. **Se agrupan en dos sesiones**: los
+      tres primeros son mecánicos y sin decisiones abiertas; el cuarto no es solo visual.
+      - **Sesión A — pulido, sin decisiones (a · b · c):**
+      - **(a) El wordmark real en las pantallas de auth.** No falta marca: `app/(auth)/layout.tsx`
+        ya envuelve las cuatro (login · registro · recuperar · restablecer) y muestra "¿A dónde
+        salimos?" **como texto plano**. Falta que sea el wordmark de identidad —pin con gradiente +
+        tipografía— que el resto de la app usa vía `<BrandHeader />`
+        (`components/shared/wordmark.tsx`). **Un swap en un solo archivo arregla las cuatro
+        pantallas.** Es incoherencia de identidad, no ausencia.
+      - **(b) Falta `← Volver` en `/mis-lugares` y `/mis-votaciones`.** El patrón es idéntico en 8
+        pantallas (`app/cuenta/cuenta-client.tsx`) y justo en esas dos no está. Dos detalles al
+        hacerlo: en `/mis-votaciones` el header ya lo ocupa el botón "Armar votación" (hay que
+        decidir si el Volver va arriba del título o comparte fila), y `/mis-lugares` arma todo
+        desde el client component, así que el header vive ahí y no en la `page.tsx`. **De paso: esas
+        dos tampoco usan `<BrandHeader />`** y `/cuenta` sí — es el mismo problema que (a), por eso
+        van juntos.
+      - **(c) "Qué se encuentra en tu lugar" es un muro de tags.**
+        `app/mi-negocio/[placeId]/editor-client.tsx` mapea **todas las facetas con todos sus tags,
+        planos**: son ~96 y Cocina sola tiene 46, dentro de un formulario que además sigue con
+        Horarios abajo. **Fix propuesto**: cada faceta en un `<details>` plegado con el contador de
+        elegidos en el título ("Cocina · 3 elegidos"). Sin librería nueva ni rediseño. El buscador
+        de tags es la alternativa cara: probar primero lo plegable y medir si alcanza.
+      - **Sesión B — necesita decisión de producto antes de tocar código:**
+      - **(d) `/mis-votaciones` crece sin techo, y no es solo visual.** `misVotaciones`
+        (`lib/votaciones/query.ts`) **no tiene `LIMIT`**: trae todas las votaciones del usuario y
+        después todas las opciones de todas. El plan free ve solo la activa, así que **el que sufre
+        es premium** — justo a quien se le vendió el historial. Y cada card es pesada porque incluye
+        los controles de cerrar/cancelar, que **solo tienen sentido en la activa**. **Recomendación**:
+        activa arriba con la card completa, historial abajo en filas compactas (nombre · ganador ·
+        fecha) paginado o con "ver más" — arregla el largo y el costo de la query de una sola vez.
+
 ## Mejoras futuras (fuera de v1)
 
 - [ ] **💸 `npm run curar` re-cobra por los lugares ya curados — filtro de skip** (hallazgo
