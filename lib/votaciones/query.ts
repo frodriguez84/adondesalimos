@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt, ne, or, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   pollOptions,
@@ -221,22 +221,18 @@ export type VotacionDelPanel = {
 }
 
 /**
- * Las votaciones del creador para `/mis-votaciones` (decisión 19). El gate de plan
- * se aplica **en esta query**:
+ * Las votaciones **activas** del creador (`status='open' AND expires_at > now()`),
+ * con la card completa: conteo por opción, cerrar, cancelar, copiar link.
  *
- * - **free** (`incluirHistorial=false`): solo la **activa** (`status='open' AND
- *   expires_at > now()`) — para gestionarla/cerrarla. Las cerradas siguen vivas
- *   por su link, pero no hay lista persistente.
- * - **premium** (`incluirHistorial=true`): todas, más nuevas primero (el historial
- *   navegable es premium).
+ * **Sin `LIMIT` a propósito** (pulido de UI (d), decisión 4): premium no tiene tope
+ * de activas —el gate "1 activa" solo aplica al free (`acciones.ts`)— así que son N,
+ * pero son pocas por definición y todas necesitan sus controles. Lo que crece sin
+ * fin es el historial, y el techo está allá.
  *
- * Trae las opciones con su conteo: el creador elige el ganador al cerrar y el
- * default sugerido es el más votado (decisión 14).
+ * Las trae para los dos planes: el free ve su única activa para gestionarla
+ * (decisión 19); lo que le falta es el historial.
  */
-export async function misVotaciones(
-  userId: string,
-  incluirHistorial: boolean,
-): Promise<VotacionDelPanel[]> {
+export async function votacionesActivas(userId: string): Promise<VotacionDelPanel[]> {
   const filas = await db
     .select({
       id: polls.id,
@@ -250,11 +246,9 @@ export async function misVotaciones(
     })
     .from(polls)
     .where(
-      incluirHistorial
-        ? eq(polls.creatorId, userId)
-        : and(eq(polls.creatorId, userId), eq(polls.status, 'open'), sql`${polls.expiresAt} > now()`),
+      and(eq(polls.creatorId, userId), eq(polls.status, 'open'), sql`${polls.expiresAt} > now()`),
     )
-    .orderBy(sql`${polls.createdAt} DESC`)
+    .orderBy(desc(polls.createdAt))
 
   if (filas.length === 0) return []
 
@@ -305,6 +299,172 @@ async function opcionesConConteoPorPoll(
   for (const f of filas) {
     const actual = mapa.get(f.pollId) ?? []
     actual.push({ placeId: f.placeId, name: f.name, votos: f.votos })
+    mapa.set(f.pollId, actual)
+  }
+  return mapa
+}
+
+// ---------------------------------------------------------------------------
+// Historial del panel — premium, paginado (pulido de UI (d))
+// ---------------------------------------------------------------------------
+
+/** Cuántas filas de historial sirve una página (decisión 1: 20 + "Ver más"). */
+export const HISTORIAL_PAGE_SIZE = 20
+
+/** Cuántos nombres de opción se muestran cuando la votación no tiene título. */
+const OPCIONES_EN_TITULO = 2
+
+/**
+ * Una votación **terminada**, en versión compacta: lo justo para reconocerla y
+ * abrirla por su link. No trae conteos ni controles —cerrar y cancelar solo tienen
+ * sentido en una activa— y por eso no paga el `GROUP BY` sobre `poll_votes`.
+ *
+ * Los dos nombres que la hacen reconocible **no están en `polls`** (decisión 2):
+ * el del ganador sale de un join a `places` por `winner_place_id`, y el título,
+ * cuando el creador no puso uno, se arma con las primeras opciones.
+ */
+export type FilaHistorial = {
+  id: string
+  token: string
+  /** El del creador; `null` ⇒ la pantalla lo arma con `opciones`. */
+  title: string | null
+  /** Nunca `'cancelled'` ni `'open'`: el historial es cerradas y expiradas. */
+  estado: EstadoVisible
+  /** Nombre del lugar ganador; `null` si expiró sin que el creador lo eligiera. */
+  ganador: string | null
+  /** ISO: la fila viaja igual por RSC y por el endpoint del "Ver más". */
+  createdAt: string
+  /** Las primeras `OPCIONES_EN_TITULO`, para las que no tienen título. */
+  opciones: string[]
+  /** ¿Había más? ⇒ la pantalla cierra el título con "…". */
+  masOpciones: boolean
+}
+
+export type PaginaHistorial = { filas: FilaHistorial[]; nextCursor: string | null }
+
+/** La clave de orden de la última fila servida: `(created_at, id)`. */
+type CursorHistorial = { c: number; i: string }
+
+/**
+ * Mismo criterio que el cursor de la búsqueda (base64url de la clave de orden), con
+ * una implementación propia y mucho más chica: acá la clave es fija —fecha + id— y
+ * no hace falta la maquinaria de claves variables de `lib/search/query.ts`.
+ */
+function encodeCursorHistorial(c: CursorHistorial): string {
+  return Buffer.from(JSON.stringify(c)).toString('base64url')
+}
+
+function decodeCursorHistorial(raw: string | null): CursorHistorial | null {
+  if (!raw) return null
+  try {
+    const p = JSON.parse(Buffer.from(raw, 'base64url').toString())
+    return p && typeof p.c === 'number' && typeof p.i === 'string' ? (p as CursorHistorial) : null
+  } catch {
+    // Cursor manoseado: se sirve la primera página en vez de romper.
+    return null
+  }
+}
+
+/**
+ * El historial del creador — **premium** (decisión 19; el gate lo aplica quien
+ * llama: la página y el endpoint del "Ver más", los dos server-side).
+ *
+ * Qué entra (decisión 3): **cerradas y expiradas**; las **canceladas no** — no
+ * tienen nada que contar. Ordenado por `created_at DESC` con desempate por `id`,
+ * que es la misma clave del cursor: paginar así no repite ni saltea filas cuando
+ * dos votaciones comparten timestamp.
+ *
+ * Sirve `HISTORIAL_PAGE_SIZE` por página y pide una de más para saber si hay
+ * siguiente, sin pagar un `count()` (mismo truco que el motor de búsqueda).
+ */
+export async function historialDeVotaciones(
+  userId: string,
+  cursor: string | null = null,
+): Promise<PaginaHistorial> {
+  const desde = decodeCursorHistorial(cursor)
+
+  const filas = await db
+    .select({
+      id: polls.id,
+      token: polls.token,
+      title: polls.title,
+      status: polls.status,
+      createdAt: polls.createdAt,
+      expiresAt: polls.expiresAt,
+      ganador: places.name,
+    })
+    .from(polls)
+    // Una fila por votación: el ganador es un lugar, no una lista (decisión 2).
+    .leftJoin(places, eq(places.id, polls.winnerPlaceId))
+    .where(
+      and(
+        eq(polls.creatorId, userId),
+        ne(polls.status, 'cancelled'),
+        // Todo lo que ya no es activa: cerrada, o vencida aunque su columna siga
+        // `'open'` (la expiración es perezosa, decisión 11 — acá no se persiste).
+        or(eq(polls.status, 'closed'), sql`${polls.expiresAt} <= now()`),
+        desde
+          ? or(
+              lt(polls.createdAt, new Date(desde.c)),
+              and(eq(polls.createdAt, new Date(desde.c)), lt(polls.id, desde.i)),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(desc(polls.createdAt), desc(polls.id))
+    .limit(HISTORIAL_PAGE_SIZE + 1)
+
+  const hayMas = filas.length > HISTORIAL_PAGE_SIZE
+  const pagina = hayMas ? filas.slice(0, HISTORIAL_PAGE_SIZE) : filas
+  const ultima = pagina[pagina.length - 1]
+
+  // Solo las que no tienen título necesitan nombres: el resto ya lo trajo.
+  const nombres = await primerasOpciones(pagina.filter((f) => !f.title).map((f) => f.id))
+
+  const ahora = new Date()
+  return {
+    filas: pagina.map((f) => {
+      const lista = nombres.get(f.id) ?? []
+      return {
+        id: f.id,
+        token: f.token,
+        title: f.title,
+        estado: estadoVisible(f, ahora),
+        ganador: f.ganador,
+        createdAt: f.createdAt.toISOString(),
+        opciones: lista.slice(0, OPCIONES_EN_TITULO),
+        masOpciones: lista.length > OPCIONES_EN_TITULO,
+      }
+    }),
+    nextCursor:
+      hayMas && ultima
+        ? encodeCursorHistorial({ c: ultima.createdAt.getTime(), i: ultima.id })
+        : null,
+  }
+}
+
+/**
+ * Nombres de las opciones, en orden, de un lote de votaciones sin título.
+ *
+ * Sin conteo de votos —el historial no los muestra— y el corte de "las primeras 2"
+ * se hace en JS y no en el `WHERE`: `position` puede tener huecos (una sugerencia
+ * quitada, SUGERIR_EN_VOTACION) y `position <= 2` mentiría sobre el "…". El techo
+ * igual es duro: una página de historial × `MAX_OPCIONES_TOTAL`.
+ */
+async function primerasOpciones(pollIds: string[]): Promise<Map<string, string[]>> {
+  const mapa = new Map<string, string[]>()
+  if (pollIds.length === 0) return mapa
+
+  const filas = await db
+    .select({ pollId: pollOptions.pollId, name: places.name })
+    .from(pollOptions)
+    .innerJoin(places, eq(places.id, pollOptions.placeId))
+    .where(inArray(pollOptions.pollId, pollIds))
+    .orderBy(pollOptions.pollId, pollOptions.position)
+
+  for (const f of filas) {
+    const actual = mapa.get(f.pollId) ?? []
+    actual.push(f.name)
     mapa.set(f.pollId, actual)
   }
   return mapa

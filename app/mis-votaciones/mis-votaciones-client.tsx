@@ -5,13 +5,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import type { EstadoVisible } from '@/lib/votaciones/estado'
-import type { VotacionDelPanel } from '@/lib/votaciones/query'
+import type { FilaHistorial, VotacionDelPanel } from '@/lib/votaciones/query'
 
 /**
- * El panel del creador, del lado del cliente (F3). Lista cada votación con su
- * conteo y, para las **activas**, las dos acciones del creador: **cerrar**
- * (eligiendo el ganador, default = el más votado, decisión 14) y **cancelar**
- * (libera el cupo "1 activa" al instante, decisión 24).
+ * El panel del creador, del lado del cliente (F3 + pulido de UI (d)). Dos bloques
+ * con pesos distintos:
+ *
+ * - **Activas arriba, con la card completa**: conteo por opción y las acciones del
+ *   creador —**cerrar** (eligiendo ganador, default = el más votado, decisión 14) y
+ *   **cancelar** (libera el cupo "1 activa" al instante, decisión 24)—, que solo
+ *   tienen sentido mientras la votación está abierta.
+ * - **Historial abajo, en filas compactas** (premium): 20 y "Ver más" con cursor.
+ *   Sin controles: una cerrada no se cierra de nuevo.
  */
 
 const ETIQUETA: Record<EstadoVisible, string> = {
@@ -21,19 +26,131 @@ const ETIQUETA: Record<EstadoVisible, string> = {
   cancelled: 'Cancelada',
 }
 
+/** TZ fija: el día que se ve no depende del reloj de quien mira (ni del server). */
+const fecha = new Intl.DateTimeFormat('es-AR', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+})
+
+/**
+ * El título de una votación. Cuando el creador no puso uno se arma con los nombres
+ * de los lugares — misma regla en la card y en la fila del historial, que ahí llega
+ * ya recortada a 2 y con el "…" si había más (decisión 2 del pulido).
+ */
+function tituloDeVotacion(title: string | null, nombres: string[], hayMas = false): string {
+  return title || nombres.join(' · ') + (hayMas ? ' · …' : '')
+}
+
 export function MisVotaciones({
-  votaciones,
+  activas,
+  historial,
+  cursorInicial,
   esPremium,
 }: {
-  votaciones: VotacionDelPanel[]
+  activas: VotacionDelPanel[]
+  historial: FilaHistorial[]
+  cursorInicial: string | null
   esPremium: boolean
 }) {
   return (
-    <ul className="flex flex-col gap-4">
-      {votaciones.map((v) => (
-        <VotacionItem key={v.id} votacion={v} esPremium={esPremium} />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-6">
+      {activas.length > 0 && (
+        <ul className="flex flex-col gap-4">
+          {activas.map((v) => (
+            <VotacionItem key={v.id} votacion={v} esPremium={esPremium} />
+          ))}
+        </ul>
+      )}
+
+      {historial.length > 0 && <Historial inicial={historial} cursorInicial={cursorInicial} />}
+    </div>
+  )
+}
+
+/**
+ * El historial paginado. La primera página viene del server; el "Ver más" pide la
+ * siguiente con el cursor. **Botón, no scroll infinito** (decisión 1): a un panel
+ * al que no se le puede llegar al final no se le encuentra nada.
+ */
+function Historial({
+  inicial,
+  cursorInicial,
+}: {
+  inicial: FilaHistorial[]
+  cursorInicial: string | null
+}) {
+  const [filas, setFilas] = useState(inicial)
+  const [cursor, setCursor] = useState(cursorInicial)
+  const [cargando, setCargando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function verMas() {
+    if (!cursor || cargando) return
+    setCargando(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/votaciones/historial?cursor=${encodeURIComponent(cursor)}`)
+      const json = await res.json()
+      if (!res.ok || json?.error) {
+        setError(json?.error?.message ?? 'No pudimos traer más votaciones.')
+        return
+      }
+      setFilas((previas) => [...previas, ...json.data.filas])
+      setCursor(json.data.nextCursor)
+    } catch {
+      setError('No pudimos traer más votaciones. Probá de nuevo.')
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold text-muted-foreground">Anteriores</h2>
+
+      <ul className="flex flex-col gap-2">
+        {filas.map((f) => (
+          <li key={f.id}>
+            <Link
+              href={`/votacion/${f.token}`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-2.5 transition-colors hover:bg-secondary"
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-medium text-foreground">
+                  {tituloDeVotacion(f.title, f.opciones, f.masOpciones)}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {f.ganador ? `Ganó ${f.ganador}` : 'Terminó sin ganador'} ·{' '}
+                  {fecha.format(new Date(f.createdAt))}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
+                {ETIQUETA[f.estado]}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {cursor && (
+        <button
+          type="button"
+          onClick={verMas}
+          disabled={cargando}
+          className="rounded-xl border border-border py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+        >
+          {cargando ? 'Buscando…' : 'Ver más'}
+        </button>
+      )}
+    </section>
   )
 }
 
@@ -58,7 +175,10 @@ function VotacionItem({
   const masVotado = [...votacion.opciones].sort((a, b) => b.votos - a.votos)[0]
   const [ganador, setGanador] = useState<string>(masVotado?.placeId ?? '')
 
-  const titulo = votacion.title || votacion.opciones.map((o) => o.name).join(' · ')
+  const titulo = tituloDeVotacion(
+    votacion.title,
+    votacion.opciones.map((o) => o.name),
+  )
   const link = typeof window !== 'undefined' ? `${window.location.origin}/votacion/${votacion.token}` : ''
 
   async function copiar() {

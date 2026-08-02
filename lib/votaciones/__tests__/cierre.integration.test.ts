@@ -5,7 +5,7 @@ import { db } from '@/lib/db'
 import { pollOptions, polls, places, users } from '@/lib/db/schema'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { cancelarVotacion, cerrarVotacion, crearVotacion, votar } from '../acciones'
-import { misVotaciones } from '../query'
+import { historialDeVotaciones, votacionesActivas } from '../query'
 
 /**
  * Cierre, cancelación y panel (F3). Lo que no ve un helper puro:
@@ -173,40 +173,36 @@ describe.runIf(process.env.DATABASE_URL)('cancelar — libera el cupo "1 activa"
 })
 
 describe.runIf(process.env.DATABASE_URL)('panel — gate de plan (decisión 19)', () => {
-  it('free ve solo la activa; una expirada no aparece', async () => {
-    // Cerramos la del setup y creamos dos: una vigente, una expirada.
+  it('las activas son las abiertas y vigentes; una expirada no aparece', async () => {
+    // Cerramos la del setup y creamos otra vigente.
     await db.update(polls).set({ status: 'closed' }).where(eq(polls.id, pollId))
 
     const vigente = await crearVotacion(creadorId, { placeIds: [pub[0], pub[1]] })
     expect(vigente.ok).toBe(true)
 
-    // free: solo la vigente.
-    const freeVista = await misVotaciones(creadorId, false)
-    expect(freeVista).toHaveLength(1)
-    expect(freeVista[0].estado).toBe('open')
+    const activas = await votacionesActivas(creadorId)
+    expect(activas).toHaveLength(1)
+    expect(activas[0].estado).toBe('open')
 
-    // Empujamos la vigente al pasado: ya no es activa ⇒ desaparece del panel free.
+    // Empujamos la vigente al pasado: ya no es activa ⇒ pasa al historial.
     if (vigente.ok) {
       await db
         .update(polls)
         .set({ expiresAt: new Date(Date.now() - 60_000) })
         .where(eq(polls.id, vigente.data.pollId))
     }
-    expect(await misVotaciones(creadorId, false)).toHaveLength(0)
+    expect(await votacionesActivas(creadorId)).toHaveLength(0)
   })
 
-  it('premium ve el historial completo (cerradas y expiradas incluidas)', async () => {
+  it('el historial (premium) trae las cerradas y las expiradas', async () => {
     await db.update(polls).set({ status: 'closed' }).where(eq(polls.id, pollId))
-    const premiumVista = await misVotaciones(creadorId, true)
-    // Al menos la del setup (cerrada) aparece en el historial.
-    expect(premiumVista.length).toBeGreaterThanOrEqual(1)
-    expect(premiumVista.some((v) => v.id === pollId)).toBe(true)
+    const { filas } = await historialDeVotaciones(creadorId)
+    expect(filas.some((f) => f.id === pollId)).toBe(true)
   })
 
-  it('el panel trae el conteo por opción para elegir ganador', async () => {
+  it('la card activa trae el conteo por opción para elegir ganador', async () => {
     await votar(token, opciones[0].optionId, 'a')
-    const vista = await misVotaciones(creadorId, false)
-    const activa = vista.find((v) => v.id === pollId)
+    const activa = (await votacionesActivas(creadorId)).find((v) => v.id === pollId)
     expect(activa!.totalVotos).toBe(1)
     const op0 = activa!.opciones.find((o) => o.placeId === pub[0])
     expect(op0!.votos).toBe(1)

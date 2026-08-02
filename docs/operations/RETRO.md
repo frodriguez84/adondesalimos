@@ -13,6 +13,25 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-01 · Pulido de UI, sesión B (el historial de /mis-votaciones) — Opus
+
+- **Qué salió bien:** el bloque de las 5 decisiones en el BACKLOG funcionó como spec sin serlo, y
+  la decisión 2 justificó sola el haberlo escrito: *"nombre · ganador · fecha suena a `polls`, pero
+  ninguno de los dos nombres está ahí"*. Esa trampa —la que convierte "no traigas las opciones de
+  las cerradas" en un cambio de queries y no en un `LIMIT`— estaba nombrada **antes** de abrir el
+  archivo, con la decisión ya tomada (join por `winnerPlaceId` + 2 opciones y "…"). Implementar fue
+  ejecutar. Y el pedido decía "empezá por acá", que era cierto.
+- **Qué frenó:** nada de método. El único gasto real fue **sembrar 20 votaciones en la base de dev
+  para poder ver el "Ver más" en pantalla** (la primera página se ve con los datos reales, la
+  segunda no) — con su borrado verificado al terminar. Es el mismo costo que el QA de DEPLOY pagó
+  con `premium_interest`, y en los dos casos la deuda no fue sembrar sino acordarse de limpiar.
+- **Qué cambiar:** nada. La receta de "sembrar con marca en el token, verificar el conteo antes y
+  después, borrarlo en la misma sesión" ya quedó escrita **dos veces** en `AnalisisQA.md` §
+  *Notas de operación*; hacerla regla en `CLAUDE.md` sería una tercera copia de algo que hasta ahora
+  se cumplió solo.
+
+---
+
 ## 2026-08-01 · Pulido de UI, sesión A (a · b · c) — Opus
 
 - **Qué salió bien:** el triaje que separó los cuatro hallazgos en "mecánicos" y "necesita decisión

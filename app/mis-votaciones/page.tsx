@@ -5,7 +5,11 @@ import { redirect } from 'next/navigation'
 
 import { auth } from '@/lib/auth'
 import { esPremium } from '@/lib/votaciones/planes'
-import { misVotaciones } from '@/lib/votaciones/query'
+import {
+  historialDeVotaciones,
+  votacionesActivas,
+  type PaginaHistorial,
+} from '@/lib/votaciones/query'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { MisVotaciones } from './mis-votaciones-client'
 
@@ -13,20 +17,28 @@ import { MisVotaciones } from './mis-votaciones-client'
  * `/mis-votaciones` — el panel del creador (VOTACION F3, decisión 19). Sesión
  * requerida (decisión 20: el votante nunca ve un panel).
  *
- * **Gate de plan server-side** (decisión 19): `free` ve solo la **activa** (para
- * gestionarla/cerrarla); `premium` ve el **historial** completo. El corte se hace
- * en la query (`misVotaciones`), no en el cliente.
+ * **Gate de plan server-side** (decisión 19): las **activas** las ven los dos
+ * planes —el free tiene una sola y necesita gestionarla—; el **historial** es
+ * premium y ni siquiera se consulta para un free (decisión 5 del pulido: no hay
+ * teaser en gris de lo que no se puede abrir). El corte se hace acá y en la query,
+ * nunca en el cliente.
  */
 
 export const metadata: Metadata = { title: 'Mis votaciones — ¿A dónde salimos?' }
 export const dynamic = 'force-dynamic'
+
+const SIN_HISTORIAL: PaginaHistorial = { filas: [], nextCursor: null }
 
 export default async function MisVotacionesPage() {
   const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
   if (!session?.user) redirect('/login?callbackUrl=/mis-votaciones')
 
   const premium = await esPremium(session.user.id)
-  const votaciones = await misVotaciones(session.user.id, premium)
+  const [activas, historial] = await Promise.all([
+    votacionesActivas(session.user.id),
+    premium ? historialDeVotaciones(session.user.id) : Promise.resolve(SIN_HISTORIAL),
+  ])
+  const vacio = activas.length === 0 && historial.filas.length === 0
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
@@ -51,7 +63,7 @@ export default async function MisVotacionesPage() {
         </Link>
       </header>
 
-      {votaciones.length === 0 ? (
+      {vacio ? (
         <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6">
           <h2 className="text-base font-semibold text-foreground">
             {premium ? 'Todavía no armaste ninguna' : 'No tenés una votación activa'}
@@ -69,10 +81,15 @@ export default async function MisVotacionesPage() {
           </Link>
         </div>
       ) : (
-        <MisVotaciones votaciones={votaciones} esPremium={premium} />
+        <MisVotaciones
+          activas={activas}
+          historial={historial.filas}
+          cursorInicial={historial.nextCursor}
+          esPremium={premium}
+        />
       )}
 
-      {!premium && votaciones.length > 0 && (
+      {!premium && activas.length > 0 && (
         <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
           Con el plan premium vas a poder tener varias votaciones a la vez y el historial completo
           de las pasadas. Por ahora ves solo la activa; las cerradas siguen por su link.

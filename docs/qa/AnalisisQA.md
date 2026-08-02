@@ -1704,3 +1704,42 @@ puede anotar un lugar ajeno** (`NO_ES_DUENO`, gate `esDuenoDe`) · el conteo cue
 - Migración `drizzle/0014_mighty_puck.sql`, aditiva, aplicada en dev. Los dos únicos salieron
   parciales en el SQL generado (`WHERE "premium_interest"."place_id" IS NULL` / `IS NOT NULL`) —
   verificado a mano antes de aplicar, no se asumió que Drizzle lo hiciera bien.
+
+---
+
+## QA — Pulido de UI, sesión B: el historial de `/mis-votaciones` (2026-08-01)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** `npx tsc --noEmit` limpio · tests 615/615 ✅ (6 nuevos) · `npm run build`
+✅ (con el dev server parado; `/api/votaciones/historial` aparece en el manifiesto de rutas)
+**Alcance:** el ítem **(d)** del BACKLOG § *Pulido de UI*, contra las **5 decisiones cerradas por
+Fer el 2026-08-01** (ese bloque es el contrato; no hubo spec formal, mismo criterio que el pase de
+deuda técnica). `misVotaciones` sin `LIMIT` se parte en dos lecturas: `votacionesActivas` (card
+completa, sin tope) e `historialDeVotaciones` (filas compactas, 20 + cursor).
+**Método:** tests de integración contra el Postgres de dev (`historial.integration.test.ts`) + QA
+en vivo con Playwright sobre `https://adondesalimos.ngrok.app` con **22 votaciones terminadas**
+sembradas a propósito (19 de QA + las 3 reales), premium y free.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| PULIDO-D-01 | El historial sirve 20 y ofrece "Ver más" (decisión 1) | ✅ PASS | En vivo con 22 terminadas: exactamente **20 filas** + botón `Ver más`. La query pide 21 para saber si hay siguiente, sin `count()` (mismo truco que el motor de búsqueda) |
+| PULIDO-D-02 | "Ver más" trae la página siguiente sin repetir ni saltear, y el botón desaparece al agotarse | ✅ PASS | Click → **22 filas**, las 2 nuevas al final (`y ahora que?` y `¿Que hacemos?`), sin duplicados, y el botón ya no está. Cursor keyset `(created_at, id)` |
+| PULIDO-D-03 | Sin scroll infinito (decisión 1) | ✅ PASS | Es un `<button>`; no hay `IntersectionObserver` en la pantalla (a diferencia de `results-list.tsx`, que sí lo usa a propósito) |
+| PULIDO-D-04 | El nombre del ganador sale del join a `places` por `winner_place_id` (decisión 2) | ✅ PASS | En vivo: *"Ganó Salon de Fiestas Torre del Sol"*, *"Ganó Cine Lorca"*. Sin ganador ⇒ *"Terminó sin ganador"* (expirada sin cierre). Test: `el ganador sale del join…` |
+| PULIDO-D-05 | Sin título, la fila se arma con las 2 primeras opciones + "…" (decisión 2) | ✅ PASS | En vivo: *"Las Pizarras bistro · Grappa Cantina · …"* (esa votación tiene 3). Test: 2 opciones ⇒ `masOpciones=false`; 3 ⇒ `true`. **Con** título no se piden nombres (`opciones: []`): solo las sin título pagan la segunda query |
+| PULIDO-D-06 | Historial = cerradas y expiradas; **cancelada no** (decisión 3) | ✅ PASS | La cancelada de `frodriguez.este@gmail.com` no aparece en la pantalla ni en la query. Test: `cerradas y expiradas sí; cancelada y activa no`. Una expirada (sigue `status='open'`, vencida) se ve **Expirada** |
+| PULIDO-D-07 | Las activas van arriba con la card completa y **sin `LIMIT`** (decisión 4) | ✅ PASS | En vivo: la activa con conteo por opción, `Cerrar`, `Cancelar votación`, `Copiar link` y el interruptor de sugerencias; el historial abajo, **sin ninguno de esos controles**. `votacionesActivas` no lleva `limit()` (premium no tiene tope de activas: `acciones.ts:85` solo bloquea al free) |
+| PULIDO-D-08 | El free no ve teaser del historial (decisión 5) | ✅ PASS | `pepe@gmail.com` (free, 1 activa + 1 cerrada en la base): ve su activa y el párrafo de premium de siempre, y **no existe la sección "Anteriores"**. Para un free el historial ni se consulta (`page.tsx`) |
+| PULIDO-D-09 | El gate de plan se aplica en el server, también en el endpoint | ✅ PASS | `GET /api/votaciones/historial` → **401** anónimo (`NO_SESSION`) y **403** con sesión free (`NO_PREMIUM`, *"El historial de votaciones es del plan premium."*). El endpoint no es la puerta de atrás de la pantalla |
+| PULIDO-D-10 | Un cursor manoseado no rompe | ✅ PASS | Test: `historialDeVotaciones(userId, 'basura-no-base64')` sirve la primera página (mismo criterio que el cursor de la búsqueda) |
+| PULIDO-D-11 | El costo de la lectura baja de verdad | ✅ PASS | El historial **no** cuenta votos: se fue el `leftJoin` + `GROUP BY` sobre `poll_votes` para todas las votaciones de la historia. Quedan 2 queries acotadas por página (≤20 filas + ≤20×`MAX_OPCIONES_TOTAL` nombres, y solo de las sin título) |
+
+### Notas de operación
+
+- **Las 20 filas sembradas para el QA se borraron al terminar** (`delete from polls where token ~
+  '^__qa_hist__'` → 20 borradas, 0 quedan; los conteos por usuario volvieron exactos a los previos:
+  premium 1 open / 2 closed / 1 cancelled · pepe 1 open / 1 closed). Mismo cuidado que las filas de
+  `premium_interest` del QA de DEPLOY: el dump de dev es el que se restaura en Neon.
+- Sin migración: el cambio es de lectura. Backup del día ya existente
+  (`backups/adondesalimos_2026-08-01_111256.sql.gz`), verificado con `npm run backup:check`.
+- La sesión quedó **cerrada** (`POST /api/auth/sign-out`), no la de pepe.

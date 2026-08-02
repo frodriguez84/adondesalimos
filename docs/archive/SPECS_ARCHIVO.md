@@ -287,12 +287,15 @@ pero apagado (lo enciende el spec 7).
   `drizzle/0007_broad_sharon_carter.sql` (aditiva).
 - **Dominio** (`lib/votaciones/`): `acciones.ts` (`crearVotacion` con gate "1 activa" +
   `FOR UPDATE` del usuario · `votar` upsert · `cerrarVotacion`/`cancelarVotacion` solo creador) ·
-  `query.ts` (`getVotacionPublica` con expiración lazy · `getResultados` · `misVotaciones`
-  gateada por plan) · `estado.ts` (helpers puros: `estaActiva`/`estaExpirada`/`estadoVisible`) ·
+  `query.ts` (`getVotacionPublica` con expiración lazy · `getResultados` · el panel del creador,
+  que desde el pulido de UI del 2026-08-01 son **dos** lecturas: `votacionesActivas` +
+  `historialDeVotaciones` paginado y premium, donde antes había una sola `misVotaciones` sin
+  `LIMIT`) · `estado.ts` (helpers puros: `estaActiva`/`estaExpirada`/`estadoVisible`) ·
   `planes.ts` (`esPremium`) · `token.ts` · `validacion.ts` · `constantes.ts`.
 - **API**: `POST /api/votaciones` (crear) · `POST /api/votaciones/[token]/voto` (votar, setea
   cookie `voter_id`) · `GET /api/votaciones/[token]` (resultados en vivo) · `PATCH` (cerrar/
-  cancelar). Envelope `{ data, error }` + `STATUS_POR_CODIGO`, patrón de `claims`.
+  cancelar) · `GET /api/votaciones/historial` (el "Ver más" del panel; sesión + premium
+  server-side). Envelope `{ data, error }` + `STATUS_POR_CODIGO`, patrón de `claims`.
 - **Rutas** (`app/`): `votacion/nueva` (picker con búsqueda embebida) · `votacion/[token]`
   (pública, server-render sin Google, OG estático, conteo en vivo por polling) ·
   `mis-votaciones` (panel del creador). Entrada "Armar votación"/"Mis votaciones" en el menú.

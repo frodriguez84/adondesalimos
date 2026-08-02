@@ -165,7 +165,8 @@ son trabajo acotado con criterio de "listo" objetivo.
       CHIPS_ROTACION con `place_tag_impressions_daily`, el gatillo del botón de Google OAuth
       ("funnel real de signups o lanzamiento público") y medir qué chip funciona.
 
-- [ ] **4 · Pulido de UI — cuatro hallazgos de Fer** (anotados 2026-08-01, usando la app). Los
+- [x] **4 · Pulido de UI — cuatro hallazgos de Fer** (anotados 2026-08-01, usando la app).
+      **Cerrado entero el 2026-08-01** (sesión A: a·b·c; sesión B: d — ver § Hecho). Los
       cuatro verificados contra el código antes de escribirlos. **Se agrupan en dos sesiones**: los
       tres primeros son mecánicos y sin decisiones abiertas; el cuarto no es solo visual.
       - **Sesión A — pulido, sin decisiones (a · b · c): HECHA ✅ 2026-08-01** (ver § Hecho).
@@ -188,8 +189,9 @@ son trabajo acotado con criterio de "listo" objetivo.
         Horarios abajo. **Fix propuesto**: cada faceta en un `<details>` plegado con el contador de
         elegidos en el título ("Cocina · 3 elegidos"). Sin librería nueva ni rediseño. El buscador
         de tags es la alternativa cara: probar primero lo plegable y medir si alcanza.
-      - **Sesión B — necesita decisión de producto antes de tocar código:**
-      - **(d) `/mis-votaciones` crece sin techo, y no es solo visual.** `misVotaciones`
+      - **Sesión B — HECHA ✅ 2026-08-01** (ver § Hecho; QA `docs/qa/AnalisisQA.md` § *Pulido de
+        UI, sesión B*, PULIDO-D-01..11).
+      - **(d) ✅ `/mis-votaciones` crece sin techo, y no es solo visual.** `misVotaciones`
         (`lib/votaciones/query.ts`) **no tiene `LIMIT`**: trae todas las votaciones del usuario y
         después todas las opciones de todas. El plan free ve solo la activa, así que **el que sufre
         es premium** — justo a quien se le vendió el historial. Y cada card es pesada porque incluye
@@ -805,6 +807,20 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Pulido de UI — sesión B: el historial de `/mis-votaciones` (d)** (2026-08-01, sesión Opus).
+      `misVotaciones` (una query sin `LIMIT` que traía **todas** las votaciones del creador y después
+      **todas** las opciones de todas, con su `GROUP BY` sobre `poll_votes`) se parte en dos lecturas
+      con pesos distintos: **`votacionesActivas`** —card completa, sin tope, porque premium no tiene
+      tope de activas— y **`historialDeVotaciones`** —filas compactas, 20 + `Ver más` con cursor
+      keyset `(created_at, id)`—. El historial **no cuenta votos**: ahí estaba el costo. La decisión
+      2 era la que movía el código y se cumplió tal cual: el ganador sale de un **join a `places` por
+      `winner_place_id`** (una fila por votación) y el título de las sin título, de las **2 primeras
+      opciones + "…"**, pedidas **solo** para esas. Canceladas afuera (decisión 3); el free sigue sin
+      teaser (decisión 5) y para él el historial ni se consulta. Endpoint nuevo
+      `GET /api/votaciones/historial` con el **mismo gate server-side** que la pantalla (401 anónimo
+      · 403 free): un "Ver más" abierto no puede ser la puerta de atrás del plan. QA en vivo con 22
+      terminadas sembradas y **borradas al terminar** (11 IDs, `PULIDO-D-01..11`), 615 tests verdes
+      (6 nuevos en `historial.integration.test.ts`), `tsc --noEmit` limpio.
 - [x] **Pulido de UI — sesión A: los tres mecánicos (a · b · c)** (2026-08-01, sesión Opus).
       **(a)** `app/(auth)/layout.tsx` cambia el texto plano "¿A dónde salimos?" por `<BrandHeader />`:
       un swap en un archivo arregla las cuatro pantallas (login · registro · recuperar ·
