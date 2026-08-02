@@ -13,6 +13,24 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-01 · Alias de zonas (CABA sistemático + hitos) — Opus
+
+- **Qué salió bien:** medir antes de proponer. El pedido daba por hecho que los hitos se validaban
+  "mismo criterio data-backed que los barrios", y **el catálogo no da para eso**: 5 de 30 probados,
+  con Movistar Arena en 0 lugares. Haber corrido esa medición **antes** de preguntarle a Fer
+  convirtió una pregunta abierta ("¿te parece paralelizar?") en una decisión con números. Y el
+  fan-out adversarial pagó de una forma que no esperaba: no solo aportó cobertura, **detectó
+  errores** — los 7 desacuerdos entre agentes fueron exactamente los 7 casos que necesitaban
+  arbitraje, y en 3 los dos agentes estaban equivocados.
+- **Qué frenó:** nada de método. El ítem decía "cientos de hitos" y el resultado fueron 48: la
+  diferencia no es que se haya hecho de menos, es que **el ítem estimaba sin conocer el techo de la
+  evidencia**. Anotarlo importa porque la próxima pasada de alias va a chocar con el mismo techo.
+- **Qué cambiar:** nada nuevo en el método. Lo que sí quedó escrito donde corresponde es el aviso
+  de que `ALIASES` se paga en el prefijo del chat: está en `lib/zones/canon.ts`, arriba de la lista,
+  que es donde lo va a leer el que agregue el alias 136 — no en un doc que hay que acordarse de abrir.
+
+---
+
 ## 2026-08-01 · Pulido de UI, sesión B (el historial de /mis-votaciones) — Opus
 
 - **Qué salió bien:** el bloque de las 5 decisiones en el BACKLOG funcionó como spec sin serlo, y

@@ -1743,3 +1743,51 @@ sembradas a propósito (19 de QA + las 3 reales), premium y free.
 - Sin migración: el cambio es de lectura. Backup del día ya existente
   (`backups/adondesalimos_2026-08-01_111256.sql.gz`), verificado con `npm run backup:check`.
 - La sesión quedó **cerrada** (`POST /api/auth/sign-out`), no la de pepe.
+
+---
+
+## QA — Alias de zonas: CABA sistemático + hitos/POIs (2026-08-01)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** `npx tsc --noEmit` limpio · tests **618/618** ✅ (3 nuevos) ·
+`npm run build` ✅ (con el dev server parado)
+**Alcance:** los **dos** ítems de alias del BACKLOG § *Mejoras futuras* — CABA sistemático desde
+el GeoJSON de BA Data y la pasada de hitos/POIs. Sin spec: es tarea de datos, confirmado en la
+sesión de autoría de v2 (2026-07-29). **78 → 135 alias** (+8 barrios de CABA, +1 forma abreviada,
++48 hitos).
+**Método:** dos cruces geométricos con turf sobre los polígonos versionados de `data/zones/`
+(nunca "me suena"), más el catálogo de Postgres como árbitro. Los hitos salieron de **tres
+agentes independientes** con lentes distintas (por categoría · por zona · por qué tipea la gente),
+cruzados entre sí.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| ALIAS-01 | Los 48 barrios oficiales de CABA quedan cubiertos | ✅ PASS | Cruce por solapamiento de polígonos (`caba-barrios.geojson` × las 21 zonas): **38 ya estaban** (30 matchean por nombre de zona, 8 eran alias) y **10 faltaban**. Ningún barrio quedó sin zona |
+| ALIAS-02 | Cada alias nuevo de CABA cae geométricamente en su zona | ✅ PASS | Los 8 dan **100,0 % de solapamiento** con la zona a la que apuntan (Agronomía, Villa Real, San Cristóbal, Parque Chacabuco, Mataderos, Villa Lugano, Villa Soldati, Villa Riachuelo). Ninguno quedó por debajo del 90 % |
+| ALIAS-03 | No se pisa ningún alias curado a mano | ✅ PASS | De los 10 candidatos, **2 se descartaron por redundancia**: `Paternal` (ya lo cubre `La Paternal` por substring) y la forma con punto sin uso real. Palermo quedó afuera: se reparte 73/12/8/7 % entre sus 4 zonas, no tiene alias único |
+| ALIAS-04 | Un hito entra solo con corroboración independiente | ✅ PASS | Regla: **≥ 2 de 3 agentes** proponen el hito **y** sus coordenadas caen en la **misma** zona por point-in-polygon. De 105 propuestas: **42 corroboradas**, 43 con un solo agente (descartadas), 13 redundantes, 7 en conflicto |
+| ALIAS-05 | Los conflictos se arbitran con dato, no con criterio | ✅ PASS | Los 7 en disputa se resolvieron con lugares reales del catálogo en la dirección del hito. **En 3 el dato le ganó a los agentes**: `Distrito Arcos` es **palermo-soho** (7 lugares en Paraguay 4979) y no Hollywood ni Belgrano; `Hipódromo de Palermo` es botanico-alto-palermo (7 lugares en Libertador 4101), no Las Cañitas; `Cancha de Vélez` es flores-floresta (J. B. Justo 9200), no Devoto. `Unicenter` → martinez-acassuso (10 lugares, 100 %) |
+| ALIAS-06 | Una coordenada alucinada no sobrevive | ✅ PASS | `Movistar Arena`: 2 agentes decían villa-crespo y 1 chacarita. Verificado externamente (**Humboldt 450, Villa Crespo**) y contra el catálogo (Corrientes 6099 cae en villa-crespo). El agente que erró quedó afuera del resultado |
+| ALIAS-07 | Lo ambiguo por construcción se excluye, no se fuerza | ✅ PASS | **Campo de Polo descartado**: el polígono de `las-canitas` incluye parte del predio (documentado en `data/zones/README.md`), así que no tiene una zona única. `Ezeiza` también fuera: cae afuera de las 46 zonas, y los 3 agentes coincidían |
+| ALIAS-08 | Test de la propiedad, no de la lista | ✅ PASS | `lib/zones/__tests__/alias.test.ts`: todo alias apunta a un slug que existe en `ZONAS`, y no hay dos filas para el mismo texto normalizado |
+| ALIAS-09 | La cobertura de CABA queda blindada contra regresión | ✅ PASS | Tercer test: los **47 barrios** de `BARRIOS_POR_ZONA` resuelven a su zona por nombre o por alias. Cazó que `Villa Gral. Mitre` (la forma del archivo oficial) no resolvía con el curado `Villa General Mitre` → se agregó esa forma |
+| ALIAS-10 | El delta del prefijo del chat, medido | ✅ PASS | `count_tokens` (gratis) antes y después: **8.777 → 9.726 tokens (+949, +10,8 %)**, ~16,6 por alias. A tarifa Sonnet 5: **US$3,56 por cada 1.000 conversaciones nuevas** (cache write 1,25×) y US$0,28 por cada 1.000 mensajes que leen caché. Sigue 9,5× por encima del mínimo cacheable de Sonnet (1.024) |
+| ALIAS-11 | Un alias nuevo resuelve en la pantalla | ✅ PASS | En vivo con Playwright sobre `https://adondesalimos.ngrok.app`. **Hito**: tipear `movistar arena` ⇒ sugerencia *"Villa Crespo — Movistar Arena"*; click ⇒ `?z=villa-crespo` con lugares reales. **Barrio nuevo**: `mataderos` ⇒ *"Flores y Floresta — Mataderos"*; click ⇒ `?z=flores-floresta`. El alias se muestra como el "por qué" de la zona, que es el patrón ya existente |
+| ALIAS-12 | Atribución de la fuente | ✅ PASS | El GeoJSON de BA Data **ya estaba atribuido** en `/legales` desde el spec ZONAS (`app/legales/page.tsx:136`) — no hace falta sumar nada. Cero fuentes nuevas: no se usó OSM |
+
+### Notas de operación
+
+- **Carga a la base:** `npm run zones:load` → 46 zonas, **135 alias**. Es aditivo (upsert de zonas
+  sin tocar `active`, alias con `onConflictDoNothing`): no borra nada, así que no exigía backup.
+  Igual había uno del día (`npm run backup:check` ✅).
+- **Los alias NO son datos sueltos como la curaduría**: viven en `lib/zones/canon.ts`, o sea en
+  git. Una base recreada los recupera con `zones:load`. No aplica la advertencia de `place_tags`.
+- **Hallazgo lateral, preexistente y fuera de este alcance**: con una zona ya aplicada, el
+  desplegable de sugerencias **no aparece para nada** — ni zonas ni tags (`belgrano`, que es nombre
+  de zona y no alias, y `pizza`, que es un tag, tampoco sugieren con el chip puesto). O sea que el
+  autocompletar vive solo en la home vacía. No lo introdujo esta tarea y no se tocó; queda anotado
+  en el BACKLOG.
+- **El catálogo no sirve como fuente de hitos**, medido: de 30 hitos conocidos, solo **5** tenían
+  respaldo (Movistar Arena: 0 lugares; La Bombonera y Luna Park: 1). Overture trae gastronomía, y
+  un hito aparece solo si hay bares con su nombre. Por eso las coordenadas salieron del cruce de
+  agentes y el catálogo quedó como **árbitro**, que es donde sí rinde.

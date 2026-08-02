@@ -120,8 +120,17 @@ export const REGION_ORDER: readonly Region[] = ['caba', 'norte', 'oeste', 'sur']
  * no a ojo: cada alias apunta a la zona donde de verdad están sus lugares.
  *
  * Quedan **fuera** a propósito: localidades del conurbano profundo que ninguna
- * zona cubre (González Catán, Longchamps, Hudson…), hitos/POIs (otro eje, pasada
- * aparte — ver BACKLOG), y nombres ambiguos con calles famosas (Florida, Corrientes).
+ * zona cubre (González Catán, Longchamps, Hudson…) y nombres ambiguos con calles
+ * famosas (Florida, Corrientes).
+ *
+ * Tres tandas, cada una con su método de validación: la semilla de BUSQUEDA F2, la
+ * curaduría manual de 2026-07-27 (validada contra `place_zones` por coordenadas) y
+ * la pasada sistemática de 2026-08-01 — los 48 barrios oficiales de CABA cruzados
+ * por solapamiento de polígonos, más los hitos/POIs (ver el bloque de abajo).
+ *
+ * **Ojo antes de agregar en masa**: esta lista no la consume solo el buscador.
+ * `lib/ai/prompts.ts` la serializa entera dentro del prefijo cacheado del chat, así
+ * que cada alias se paga en TODAS las llamadas. Medir con `count_tokens` al tocarla.
  */
 export const ALIASES: readonly { alias: string; slug: string }[] = [
   // --- Semilla original (BUSQUEDA F2) ---
@@ -150,6 +159,22 @@ export const ALIASES: readonly { alias: string; slug: string }[] = [
   { alias: 'Tribunales', slug: 'retiro-microcentro' },
   { alias: 'Catalinas', slug: 'retiro-microcentro' },
   { alias: 'Constitución', slug: 'monserrat-congreso' },
+
+  // --- CABA sistemático (2026-08-01): los barrios oficiales que faltaban ---
+  // Derivados de los 48 barrios de BA Data cruzados por solapamiento de polígonos
+  // contra las 21 zonas (turf). Los 8 caen 100% dentro de su zona. Los otros 40
+  // barrios ya estaban cubiertos: 30 matchean por nombre de zona y 10 ya eran alias.
+  { alias: 'Agronomía', slug: 'devoto-villa-del-parque' },
+  // La forma abreviada del archivo oficial: "Villa General Mitre" (arriba) no la
+  // cubre por substring, y sin ella el barrio no resuelve al tipearlo como figura.
+  { alias: 'Villa Gral. Mitre', slug: 'devoto-villa-del-parque' },
+  { alias: 'Villa Real', slug: 'devoto-villa-del-parque' },
+  { alias: 'San Cristóbal', slug: 'monserrat-congreso' },
+  { alias: 'Parque Chacabuco', slug: 'caballito' },
+  { alias: 'Mataderos', slug: 'flores-floresta' },
+  { alias: 'Villa Lugano', slug: 'flores-floresta' },
+  { alias: 'Villa Soldati', slug: 'flores-floresta' },
+  { alias: 'Villa Riachuelo', slug: 'flores-floresta' },
 
   // --- Zona Norte (curaduría 2026-07-27) ---
   { alias: 'Munro', slug: 'olivos-vicente-lopez' },
@@ -211,4 +236,65 @@ export const ALIASES: readonly { alias: string; slug: string }[] = [
   { alias: 'Sourigues', slug: 'berazategui' },
   { alias: 'Zeballos', slug: 'florencio-varela' },
   { alias: 'Bosques', slug: 'florencio-varela' },
+
+  // --- Hitos y puntos de referencia (2026-08-01) -----------------------------
+  // Otro eje que los barrios: no son zonas chicas sino puntos que la gente usa
+  // para ubicarse ("cerca del Movistar Arena"). El catálogo es de gastronomía y
+  // casi no los tiene, así que la zona NO sale del catálogo: cada hito lo
+  // propusieron tres agentes independientes con su coordenada, y entra solo si
+  // >= 2 coincidieron Y sus puntos caen en la MISMA zona por point-in-polygon
+  // (turf) contra los polígonos de `data/zones/`. Los 7 casos en que los agentes
+  // se contradijeron se arbitraron con evidencia dura —lugares reales del
+  // catálogo en la dirección del hito— y en 3 de ellos el dato le ganó a los dos
+  // agentes (Distrito Arcos es palermo-soho, no Hollywood ni Belgrano).
+  // El Campo de Polo quedó afuera a propósito: lo parten `las-canitas` y
+  // `botanico-alto-palermo`, así que no tiene una zona única (ver data/zones/README).
+  { alias: 'Cancha de Independiente', slug: 'avellaneda' },
+  { alias: 'Cancha de Racing', slug: 'avellaneda' },
+  { alias: 'Barrancas de Belgrano', slug: 'belgrano' },
+  { alias: 'Estadio Monumental', slug: 'belgrano' },
+  { alias: 'Aeroparque', slug: 'botanico-alto-palermo' },
+  { alias: 'Ecoparque', slug: 'botanico-alto-palermo' },
+  { alias: 'Hipódromo de Palermo', slug: 'botanico-alto-palermo' },
+  { alias: 'Jardín Botánico', slug: 'botanico-alto-palermo' },
+  { alias: 'Jardín Japonés', slug: 'botanico-alto-palermo' },
+  { alias: 'La Rural', slug: 'botanico-alto-palermo' },
+  { alias: 'MALBA', slug: 'botanico-alto-palermo' },
+  { alias: 'Paseo Alcorta', slug: 'botanico-alto-palermo' },
+  { alias: 'Planetario', slug: 'botanico-alto-palermo' },
+  { alias: 'Parque Centenario', slug: 'caballito' },
+  { alias: 'Cementerio de la Chacarita', slug: 'chacarita-colegiales' },
+  { alias: 'Cancha de Vélez', slug: 'flores-floresta' },
+  { alias: 'Feria de Mataderos', slug: 'flores-floresta' },
+  { alias: 'Caminito', slug: 'la-boca-barracas' },
+  { alias: 'Cancha de Huracán', slug: 'la-boca-barracas' },
+  { alias: 'La Bombonera', slug: 'la-boca-barracas' },
+  { alias: 'Usina del Arte', slug: 'la-boca-barracas' },
+  { alias: 'Unicenter', slug: 'martinez-acassuso' },
+  { alias: 'Casa Rosada', slug: 'monserrat-congreso' },
+  { alias: 'Plaza de Mayo', slug: 'monserrat-congreso' },
+  { alias: 'Estadio Obras', slug: 'nunez' },
+  { alias: 'Abasto Shopping', slug: 'once-abasto' },
+  { alias: 'Distrito Arcos', slug: 'palermo-soho' },
+  { alias: 'Plaza Serrano', slug: 'palermo-soho' },
+  { alias: 'Puente de la Mujer', slug: 'puerto-madero' },
+  { alias: 'Reserva Ecológica', slug: 'puerto-madero' },
+  { alias: 'Cementerio de la Recoleta', slug: 'recoleta' },
+  { alias: 'Facultad de Derecho', slug: 'recoleta' },
+  { alias: 'Floralis Genérica', slug: 'recoleta' },
+  { alias: 'Hospital de Clínicas', slug: 'recoleta' },
+  { alias: 'CCK', slug: 'retiro-microcentro' },
+  { alias: 'Galerías Pacífico', slug: 'retiro-microcentro' },
+  { alias: 'Luna Park', slug: 'retiro-microcentro' },
+  { alias: 'Obelisco', slug: 'retiro-microcentro' },
+  { alias: 'Plaza San Martín', slug: 'retiro-microcentro' },
+  { alias: 'Teatro Colón', slug: 'retiro-microcentro' },
+  { alias: 'DOT Baires', slug: 'saavedra' },
+  { alias: 'Catedral de San Isidro', slug: 'san-isidro' },
+  { alias: 'Hipódromo de San Isidro', slug: 'san-isidro' },
+  { alias: 'Parque Lezama', slug: 'san-telmo' },
+  { alias: 'Plaza Dorrego', slug: 'san-telmo' },
+  { alias: 'Estación Tigre', slug: 'tigre-nordelta' },
+  { alias: 'Puerto de Frutos', slug: 'tigre-nordelta' },
+  { alias: 'Movistar Arena', slug: 'villa-crespo' },
 ]

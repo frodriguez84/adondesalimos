@@ -28,8 +28,9 @@ del porqué de este orden está en `docs/product/IDEAS.md` § Estado de la conve
 Orden decidido por Fer el 2026-07-27 (momentum → impacto). Los 4 specs se **escribieron** el
 2026-07-29 (sesión de autoría). El detalle de cada uno está en § Mejoras futuras, con link al spec.
 
-- [ ] **1 · Alias POIs + CABA sistemáticos** — **no es spec**, tarea de datos (`lib/zones/canon.ts`
-      § ALIASES). El quick-win: puede arrancar cuando se quiera.
+- [x] **1 · Alias POIs + CABA sistemáticos** — **no es spec**, tarea de datos (`lib/zones/canon.ts`
+      § ALIASES). **Cerrado ✅ 2026-08-01**: 78 → **135 alias** (CABA completo + 48 hitos), todo
+      validado con turf y arbitrado por el catálogo. QA `ALIAS-01..12`.
 - [x] **2 · Abierto ahora** → spec: `docs/specs/active/ABIERTO_AHORA.md` — **F1 ✅ 2026-07-30**
       (chip «Para ahora»). La **F2** (abierto real desde horarios de dueño) sigue **gateada** en
       ≥ 50 publicados con horarios propios (hoy **1**), así que el spec queda en `active/` y no
@@ -701,21 +702,31 @@ son trabajo acotado con criterio de "listo" objetivo.
       peatonal). Se cruzó con la propuesta de 2 IAs externas. Quedaron **fuera**: localidades del
       conurbano profundo sin cobertura de zona (González Catán, Longchamps, Hudson…), y los hitos/
       POIs (ver ítem nuevo abajo). En `lib/zones/canon.ts` § ALIASES.
-- [ ] **Alias de hitos/POIs (Movistar Arena, Unicenter, DOT, La Rural, Puerto de Frutos…)**
-      (batch limpieza, 2026-07-27). Eje distinto de los barrios: son puntos de referencia que la
-      gente tipea muchísimo y hay cientos. Merece una pasada propia y deliberada (no meter un puñado
-      suelto). Mapear cada hito → zona que lo contiene, mismo criterio data-backed que los barrios.
-      **⚠️ NO necesita spec** (confirmado en la sesión de autoría de v2, 2026-07-29): es **tarea de
-      datos** aditiva a `lib/zones/canon.ts` § ALIASES, sin decisiones de diseño que arbitrar. Es el
-      **quick-win #1 de implementación** de v2 y puede arrancar en cualquier sesión Opus. Va junto
-      con el ítem de CABA sistemáticos de abajo.
-- [ ] **Alias de CABA sistemáticos desde el GeoJSON oficial de BA Data** (idea de Fer, 2026-07-27).
-      CABA publica los límites de sus 48 barrios como GeoJSON abierto
-      (`data.buenosaires.gob.ar/dataset/barrios`, WGS84). Cruzándolo con las 46 zonas vía **turf**
-      (mismo stack que `lib/zones/`, sin Python) se podrían generar los alias de CABA completos y
-      correctos por solapamiento de polígonos. Límites: es solo CABA (el conurbano necesita otra
-      fuente) y NO trae los nombres informales de más búsqueda (Palermo Soho/Viejo, Barrio Chino,
-      Las Cañitas no existen ahí — esos se siguen curando a mano). Sumaría una atribución en `/legales`.
+- [x] **Alias de hitos/POIs (Movistar Arena, Unicenter, DOT, La Rural, Puerto de Frutos…)**
+      (batch limpieza, 2026-07-27). **Resuelto ✅ 2026-08-01**: **48 hitos** cargados. El método
+      tuvo que cambiar sobre la marcha porque **el catálogo no sirve como fuente de hitos** —de 30
+      probados, solo 5 tenían respaldo (Movistar Arena: **0 lugares**), ya que Overture trae
+      gastronomía y un hito aparece solo si hay bares con su nombre. Así que las coordenadas
+      salieron de **3 agentes independientes** y entra solo lo que ≥ 2 corroboran **con la misma
+      zona** por point-in-polygon; el catálogo quedó de **árbitro** en los 7 conflictos, y **en 3
+      le ganó a los agentes** (Distrito Arcos es palermo-soho, no Hollywood). Campo de Polo quedó
+      afuera: lo parten dos zonas. Ver QA `ALIAS-04..07`.
+- [x] **Alias de CABA sistemáticos desde el GeoJSON oficial de BA Data** (idea de Fer, 2026-07-27).
+      **Resuelto ✅ 2026-08-01**: el cruce por solapamiento con turf dio que los **48 barrios ya
+      estaban cubiertos en un 79 %** —30 matchean por nombre de zona y 8 eran alias— y faltaban
+      **8**, todos con 100,0 % de solapamiento (Agronomía, Villa Real, San Cristóbal, Parque
+      Chacabuco, Mataderos, Villa Lugano, Villa Soldati, Villa Riachuelo). La idea rindió menos en
+      volumen y más en **certeza**: ahora hay un test que afirma que los 47 barrios oficiales
+      resuelven, y cazó que `Villa Gral. Mitre` no resolvía. La atribución de BA Data **ya estaba**
+      en `/legales` desde el spec ZONAS: no hizo falta sumar nada. Ver QA `ALIAS-01..03, 09, 12`.
+- [ ] **El autocompletar desaparece apenas hay una zona elegida** (hallazgo del QA de alias,
+      2026-08-01). Verificado en vivo: en la home vacía el desplegable sugiere zonas y tags, pero
+      con un chip de zona aplicado (`?z=...`) **no sugiere nada** — ni `belgrano` (nombre de zona)
+      ni `pizza` (tag) ni un alias. Es preexistente, no lo introdujeron los alias nuevos, y puede
+      ser deliberado (en la pantalla de resultados el campo busca por nombre de lugar). Vale
+      revisarlo igual: justo ahí es donde el usuario querría **sumar** un filtro o cambiar de zona,
+      y los 135 alias recién cargados no se ven en esa pantalla. Decidir si es diseño o limitación
+      antes de tocar nada.
 - [ ] **Sugerencias del campo de texto sin trgm** (BUSQUEDA, 2026-07-20). F2 matchea tags y
       zonas con substring sin acentos sobre el catálogo en memoria (~150 items), en vez del
       trgm que pedía la decisión 14 — evita un fetch por tecla y a esa escala el trigrama no
@@ -807,6 +818,24 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Alias de zonas: CABA sistemático + hitos/POIs** (2026-08-01, sesión Opus). Los **dos**
+      ítems de alias de § *Mejoras futuras*, cerrados juntos: **78 → 135 alias**. (1) **CABA**: el
+      cruce por solapamiento de polígonos (turf) del GeoJSON de BA Data contra las 21 zonas mostró
+      que 38 de los 48 barrios ya estaban cubiertos y agregó los **8** que faltaban, todos con
+      100,0 % de solapamiento. (2) **Hitos**: **48**, y acá el método tuvo que cambiar sobre la
+      marcha — se midió primero que **el catálogo no sirve como fuente de hitos** (5 de 30
+      probados; Movistar Arena tiene **0 lugares**), así que las coordenadas salieron de **3
+      agentes independientes con lentes distintas** y entra solo lo que **≥ 2 corroboran cayendo en
+      la misma zona** por point-in-polygon. De 105 propuestas sobrevivieron 42; los 7 conflictos
+      los arbitró el catálogo por dirección y **en 3 el dato le ganó a los agentes** (Distrito
+      Arcos es `palermo-soho`, no Hollywood ni Belgrano). Campo de Polo y Ezeiza quedaron afuera a
+      propósito: uno lo parten dos zonas, el otro cae fuera de las 46. **La trampa que el ítem no
+      decía, medida**: `ALIASES` también viaja dentro del prefijo cacheado del chat, que pasó de
+      **8.777 a 9.726 tokens (+10,8 %)** — US$3,56 por cada 1.000 conversaciones nuevas. Tres tests
+      nuevos afirman la **propiedad** (todo alias apunta a un slug vivo, sin duplicados, y los 47
+      barrios oficiales resuelven); el tercero cazó `Villa Gral. Mitre`. Typecheck limpio, **618
+      tests**, build ✅. Cero fuentes nuevas (no se usó OSM) y la atribución de BA Data ya estaba.
+      QA `ALIAS-01..12`.
 - [x] **Pulido de UI — sesión B: el historial de `/mis-votaciones` (d)** (2026-08-01, sesión Opus).
       `misVotaciones` (una query sin `LIMIT` que traía **todas** las votaciones del creador y después
       **todas** las opciones de todas, con su `GROUP BY` sobre `poll_votes`) se parte en dos lecturas
