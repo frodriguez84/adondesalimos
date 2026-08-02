@@ -196,6 +196,26 @@ son trabajo acotado con criterio de "listo" objetivo.
         los controles de cerrar/cancelar, que **solo tienen sentido en la activa**. **Recomendación**:
         activa arriba con la card completa, historial abajo en filas compactas (nombre · ganador ·
         fecha) paginado o con "ver más" — arregla el largo y el costo de la query de una sola vez.
+      - **Las 5 decisiones, cerradas por Fer el 2026-08-01** (queda escribir el spec e implementar):
+        1. **Cuánto historial**: 20 de entrada + botón "Ver más" con cursor por `createdAt`. **Sin
+           scroll infinito** — un panel al que no se le puede llegar al final es peor que uno largo.
+        2. **Qué dice una fila del historial** — *acá está la trampa que el hallazgo no vio*:
+           "nombre · ganador · fecha" suena a `polls`, pero **ninguno de los dos nombres está ahí**.
+           El título, cuando el creador no puso uno, se arma con los nombres de las opciones
+           (`mis-votaciones-client.tsx`, `titulo = votacion.title || opciones.map(name).join(' · ')`)
+           y del ganador `polls` solo guarda `winnerPlaceId`. O sea que "no traigas las opciones de
+           las cerradas" **no es gratis**. Decidido: **join a `places` por `winnerPlaceId`** (una
+           fila por votación) para el nombre del ganador, y las **primeras 2 opciones + "…"** para
+           las que no tienen título — mantiene reconocible la votación, que es para lo que sirve.
+        3. **Qué entra al historial**: cerradas y expiradas **sí**, canceladas **no** (hoy entra
+           todo). Una cancelada no tiene nada que contar; si alguna vez se quieren ver, va como
+           filtro, nunca como default.
+        4. **"La activa" son varias**: premium **no tiene tope de activas** (`acciones.ts` solo
+           bloquea al free), así que el bloque de arriba es un **grupo de N cards completas** —
+           cerrar, cancelar, copiar link— y **no lleva `LIMIT`**: son pocas por definición. El
+           `LIMIT` y el "Ver más" son **solo del historial**.
+        5. **El free no ve teaser del historial** — queda como está hoy. Un teaser en gris de lo que
+           no podés abrir molesta más de lo que convierte. Decisión de monetización, de Fer.
 
 ## Mejoras futuras (fuera de v1)
 
