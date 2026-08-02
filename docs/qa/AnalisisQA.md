@@ -1782,11 +1782,15 @@ cruzados entre sí.
   Igual había uno del día (`npm run backup:check` ✅).
 - **Los alias NO son datos sueltos como la curaduría**: viven en `lib/zones/canon.ts`, o sea en
   git. Una base recreada los recupera con `zones:load`. No aplica la advertencia de `place_tags`.
-- **Hallazgo lateral, preexistente y fuera de este alcance**: con una zona ya aplicada, el
-  desplegable de sugerencias **no aparece para nada** — ni zonas ni tags (`belgrano`, que es nombre
-  de zona y no alias, y `pizza`, que es un tag, tampoco sugieren con el chip puesto). O sea que el
-  autocompletar vive solo en la home vacía. No lo introdujo esta tarea y no se tocó; queda anotado
-  en el BACKLOG.
+- **Falso negativo del propio QA, y cómo se cazó.** En la primera pasada pareció que con una zona
+  aplicada el desplegable **no sugería nada** (ni `belgrano` ni `pizza`), y se llegó a anotar como
+  hallazgo. Era **mentira del método, no del producto**: el dropdown depende del estado `enfocado`
+  (`search-shell.tsx:131`), que se prende en `onFocus`, y Playwright tipeó sin generar ese evento
+  (el campo ya era el `activeElement` después de navegar). Con un **click explícito** en el campo
+  antes de tipear, funciona: `belgrano` ⇒ *"Belgrano — Zona"* y `unicenter` ⇒ *"Martínez y Acassuso
+  — Unicenter"*, con el chip `Flores y Floresta` puesto. **El autocompletar anda con zona aplicada,
+  también para los alias nuevos.** Regla que queda: en QA con Playwright, **hacer click en el input
+  antes de tipear** — sin el click, un componente que depende de `onFocus` se ve roto sin estarlo.
 - **El catálogo no sirve como fuente de hitos**, medido: de 30 hitos conocidos, solo **5** tenían
   respaldo (Movistar Arena: 0 lugares; La Bombonera y Luna Park: 1). Overture trae gastronomía, y
   un hito aparece solo si hay bares con su nombre. Por eso las coordenadas salieron del cruce de

@@ -719,14 +719,6 @@ son trabajo acotado con criterio de "listo" objetivo.
       volumen y más en **certeza**: ahora hay un test que afirma que los 47 barrios oficiales
       resuelven, y cazó que `Villa Gral. Mitre` no resolvía. La atribución de BA Data **ya estaba**
       en `/legales` desde el spec ZONAS: no hizo falta sumar nada. Ver QA `ALIAS-01..03, 09, 12`.
-- [ ] **El autocompletar desaparece apenas hay una zona elegida** (hallazgo del QA de alias,
-      2026-08-01). Verificado en vivo: en la home vacía el desplegable sugiere zonas y tags, pero
-      con un chip de zona aplicado (`?z=...`) **no sugiere nada** — ni `belgrano` (nombre de zona)
-      ni `pizza` (tag) ni un alias. Es preexistente, no lo introdujeron los alias nuevos, y puede
-      ser deliberado (en la pantalla de resultados el campo busca por nombre de lugar). Vale
-      revisarlo igual: justo ahí es donde el usuario querría **sumar** un filtro o cambiar de zona,
-      y los 135 alias recién cargados no se ven en esa pantalla. Decidir si es diseño o limitación
-      antes de tocar nada.
 - [ ] **Sugerencias del campo de texto sin trgm** (BUSQUEDA, 2026-07-20). F2 matchea tags y
       zonas con substring sin acentos sobre el catálogo en memoria (~150 items), en vez del
       trgm que pedía la decisión 14 — evita un fetch por tecla y a esa escala el trigrama no

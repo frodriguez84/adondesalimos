@@ -22,12 +22,17 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
   fan-out adversarial pagó de una forma que no esperaba: no solo aportó cobertura, **detectó
   errores** — los 7 desacuerdos entre agentes fueron exactamente los 7 casos que necesitaban
   arbitraje, y en 3 los dos agentes estaban equivocados.
-- **Qué frenó:** nada de método. El ítem decía "cientos de hitos" y el resultado fueron 48: la
-  diferencia no es que se haya hecho de menos, es que **el ítem estimaba sin conocer el techo de la
-  evidencia**. Anotarlo importa porque la próxima pasada de alias va a chocar con el mismo techo.
-- **Qué cambiar:** nada nuevo en el método. Lo que sí quedó escrito donde corresponde es el aviso
-  de que `ALIASES` se paga en el prefijo del chat: está en `lib/zones/canon.ts`, arriba de la lista,
-  que es donde lo va a leer el que agregue el alias 136 — no en un doc que hay que acordarse de abrir.
+- **Qué frenó:** **el QA en vivo se auto-engañó y casi ensucia el backlog.** Tipeando con Playwright
+  sin hacer click en el campo, el desplegable no aparecía con una zona aplicada, y eso se reportó
+  como hallazgo ("el autocompletar no anda en la pantalla de resultados") — incluso con un ítem
+  escrito en `BACKLOG.md`. Era falso: el dropdown depende de `enfocado`, que se prende en `onFocus`,
+  y Playwright no generaba ese evento porque el input ya era el `activeElement`. Con click explícito
+  anda perfecto. Lo que lo cazó fue ir al código a explicar el síntoma **antes** de opinar sobre él;
+  si la explicación hubiera quedado en "será deliberado", el ítem falso se quedaba.
+- **Qué cambiar:** una sola, chica y concreta: **en QA con Playwright, click en el input antes de
+  tipear**. Quedó escrito en `LECCIONES_APRENDIDAS.md` y en la sección de QA, porque es de las que
+  se repiten. (El aviso de que `ALIASES` se paga en el prefijo del chat quedó en
+  `lib/zones/canon.ts`, arriba de la lista, no en un doc que hay que acordarse de abrir.)
 
 ---
 

@@ -5,6 +5,37 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## En QA con Playwright, tipear no es enfocar (2026-08-01 · alias de zonas)
+
+**Qué pasó.** Verificando en vivo que los alias nuevos resolvieran, el desplegable de sugerencias
+aparecía en la home vacía pero **no aparecía con una zona ya aplicada** — ni con un alias, ni con
+`belgrano` (nombre de zona), ni con `pizza` (un tag). El síntoma era consistente y reproducible, así
+que se reportó como hallazgo preexistente y **se llegó a escribir un ítem en `BACKLOG.md`** ("el
+autocompletar desaparece apenas hay una zona elegida"). **Era falso.** El dropdown depende del
+estado `enfocado` de `components/search/search-shell.tsx:131`, que se prende en `onFocus`; al tipear
+con `pressSequentially` sobre un input que **ya era el `activeElement`** después de navegar, el
+evento `focus` nunca se dispara y React nunca prende el estado. Con un click explícito en el campo
+antes de tipear, funciona perfecto (`unicenter` ⇒ *"Martínez y Acassuso — Unicenter"* con el chip
+`Flores y Floresta` puesto).
+
+**Por qué no se ve.** El falso negativo es **estable**: se repite igual todas las veces, con
+distintos términos, y encima tiene una explicación de producto que suena razonable ("en la pantalla
+de resultados el campo busca por nombre de lugar, será deliberado"). Esa coherencia es justo lo
+peligroso — un bug de método que se comporta como una decisión de diseño no se delata solo, y el
+QA lo firma con evidencia de pantalla.
+
+**Qué hacer distinto.**
+1. **Click en el input antes de tipear**, siempre, en cualquier verificación con Playwright. Es una
+   línea y elimina la clase entera de falso negativo.
+2. Ante un síntoma de UI que se va a reportar como hallazgo, **ir al código a explicarlo antes de
+   escribirlo**. Acá eso fue lo que lo cazó: la explicación no cerraba, y al mirar `search-shell`
+   apareció el `onFocus`. Un hallazgo que no se puede explicar en el código todavía no es un
+   hallazgo — es un síntoma, y puede ser del instrumento.
+3. Vale para todo componente que dependa de `onFocus`, `onBlur`, `onMouseEnter` o cualquier evento
+   que el usuario genera con el cuerpo y la automatización se puede saltear.
+
+---
+
 ## Un `200 OK` no dice que la respuesta sea buena (2026-08-01 · medición de OSM/Overpass)
 
 **Qué pasó.** Para medir cuánto aportaría OpenStreetMap al catálogo hubo que bajar los POI de AMBA
