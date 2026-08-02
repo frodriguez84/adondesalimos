@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Lock, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Lock, Plus, Trash2 } from 'lucide-react'
 
 import {
   Aviso,
@@ -395,6 +395,11 @@ function Seccion({
 /**
  * Una faceta con sus tags. Cocina viene con padres e hijos: los hijos se
  * indentan bajo su padre, igual que en el sheet de filtros de la búsqueda.
+ *
+ * Plegada por defecto (BACKLOG 2026-08-01): son ~96 tags entre todas y Cocina
+ * sola tiene 46 — abiertas de una eran un muro dentro de un formulario que
+ * además sigue con Horarios abajo. El contador en el título dice lo que hay
+ * elegido sin tener que desplegar. Acordeón nativo, como el de la ficha.
  */
 function Faceta({
   faceta,
@@ -407,44 +412,54 @@ function Faceta({
 }) {
   const padres = faceta.tags.filter((t) => t.parent === null)
   const hijosDe = (slug: string) => faceta.tags.filter((t) => t.parent === slug)
+  const cuantos = faceta.tags.filter((t) => elegidos.has(t.slug)).length
 
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {faceta.label}
-      </h3>
-      <div className="flex flex-wrap gap-1.5">
-        {padres.map((padre) => (
-          <TagToggle
-            key={padre.slug}
-            slug={padre.slug}
-            name={padre.name}
-            elegido={elegidos.has(padre.slug)}
-            alternar={alternar}
-          />
-        ))}
-      </div>
-      {padres.map((padre) => {
-        const hijos = hijosDe(padre.slug)
-        if (hijos.length === 0) return null
-        return (
-          <div key={`${padre.slug}-hijos`} className="flex flex-col gap-1 pl-3">
-            <p className="text-[11px] text-muted-foreground">{padre.name}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {hijos.map((hijo) => (
-                <TagToggle
-                  key={hijo.slug}
-                  slug={hijo.slug}
-                  name={hijo.name}
-                  elegido={elegidos.has(hijo.slug)}
-                  alternar={alternar}
-                />
-              ))}
+    <details className="group rounded-xl border border-border p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {faceta.label}
+          {cuantos > 0 && (
+            <span className="text-primary">{` · ${cuantos} ${cuantos === 1 ? 'elegido' : 'elegidos'}`}</span>
+          )}
+        </h3>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+
+      <div className="mt-3 flex flex-col gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {padres.map((padre) => (
+            <TagToggle
+              key={padre.slug}
+              slug={padre.slug}
+              name={padre.name}
+              elegido={elegidos.has(padre.slug)}
+              alternar={alternar}
+            />
+          ))}
+        </div>
+        {padres.map((padre) => {
+          const hijos = hijosDe(padre.slug)
+          if (hijos.length === 0) return null
+          return (
+            <div key={`${padre.slug}-hijos`} className="flex flex-col gap-1 pl-3">
+              <p className="text-[11px] text-muted-foreground">{padre.name}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {hijos.map((hijo) => (
+                  <TagToggle
+                    key={hijo.slug}
+                    slug={hijo.slug}
+                    name={hijo.name}
+                    elegido={elegidos.has(hijo.slug)}
+                    alternar={alternar}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )
-      })}
-    </div>
+          )
+        })}
+      </div>
+    </details>
   )
 }
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react'
 
 import { BotonGuardar } from '@/components/favoritos/boton-guardar'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { PlaceCard } from '@/components/shared/place-card'
 import type { ListaConLugares, LugarDeLista } from '@/lib/favoritos/query'
 import { ubicacionDeCard } from '@/lib/search/card'
@@ -38,6 +39,17 @@ export function MisLugares({
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      {/* El renglón del título ya lo ocupa el CTA: la marca y el volver van arriba. */}
+      <div className="flex items-center justify-between gap-3">
+        <BrandHeader />
+        <Link
+          href="/"
+          className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          ← Volver
+        </Link>
+      </div>
+
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Mis lugares</h1>
         {puedeCrear && !creando && (

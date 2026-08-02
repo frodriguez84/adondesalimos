@@ -13,6 +13,23 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-01 · Pulido de UI, sesión A (a · b · c) — Opus
+
+- **Qué salió bien:** el triaje que separó los cuatro hallazgos en "mecánicos" y "necesita decisión
+  de producto" hizo que esta sesión no tuviera ni una pregunta abierta: los tres ítems ya venían con
+  el archivo y el patrón a reusar señalados, así que fueron tres ediciones y el QA. El backlog venía
+  escrito con las rutas verificadas contra el código, y ninguna estaba desactualizada. La única
+  decisión que quedaba (dónde poner el `← Volver` cuando el renglón del título ya tiene un CTA) el
+  propio ítem la anticipaba y pedía explicitarla.
+- **Qué frenó:** nada de método. Lo único perdido fueron dos minutos por asumir `npm run typecheck`
+  cuando el proyecto nunca tuvo ese script — el hook, `/check` y `/qa-spec` usan `npx tsc --noEmit`
+  y son consistentes entre sí. El error fue mío, no del método; no hay nada que agregar.
+- **Qué cambiar:** nada. Agregar un alias `typecheck` a `package.json` para tapar un reflejo mío
+  sería sumar una segunda forma de invocar lo mismo, justo lo que la regla de *una regla, un dueño*
+  desaconseja.
+
+---
+
 ## 2026-08-01 · Enriquecimiento del catálogo — medir OSM antes de especear (Opus)
 
 - **Qué salió bien:** el orden del pedido —**medir primero, decidir después, y recién ahí escribir

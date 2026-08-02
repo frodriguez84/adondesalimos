@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { esPremium } from '@/lib/votaciones/planes'
 import { misVotaciones } from '@/lib/votaciones/query'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { MisVotaciones } from './mis-votaciones-client'
 
 /**
@@ -29,6 +30,17 @@ export default async function MisVotacionesPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      {/* El renglón del título ya lo ocupa el CTA: la marca y el volver van arriba. */}
+      <div className="flex items-center justify-between gap-3">
+        <BrandHeader />
+        <Link
+          href="/"
+          className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          ← Volver
+        </Link>
+      </div>
+
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Mis votaciones</h1>
         <Link

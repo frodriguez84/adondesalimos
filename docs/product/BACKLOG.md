@@ -168,21 +168,21 @@ son trabajo acotado con criterio de "listo" objetivo.
 - [ ] **4 · Pulido de UI — cuatro hallazgos de Fer** (anotados 2026-08-01, usando la app). Los
       cuatro verificados contra el código antes de escribirlos. **Se agrupan en dos sesiones**: los
       tres primeros son mecánicos y sin decisiones abiertas; el cuarto no es solo visual.
-      - **Sesión A — pulido, sin decisiones (a · b · c):**
-      - **(a) El wordmark real en las pantallas de auth.** No falta marca: `app/(auth)/layout.tsx`
+      - **Sesión A — pulido, sin decisiones (a · b · c): HECHA ✅ 2026-08-01** (ver § Hecho).
+      - **(a) ✅ El wordmark real en las pantallas de auth.** No falta marca: `app/(auth)/layout.tsx`
         ya envuelve las cuatro (login · registro · recuperar · restablecer) y muestra "¿A dónde
         salimos?" **como texto plano**. Falta que sea el wordmark de identidad —pin con gradiente +
         tipografía— que el resto de la app usa vía `<BrandHeader />`
         (`components/shared/wordmark.tsx`). **Un swap en un solo archivo arregla las cuatro
         pantallas.** Es incoherencia de identidad, no ausencia.
-      - **(b) Falta `← Volver` en `/mis-lugares` y `/mis-votaciones`.** El patrón es idéntico en 8
+      - **(b) ✅ Falta `← Volver` en `/mis-lugares` y `/mis-votaciones`.** El patrón es idéntico en 8
         pantallas (`app/cuenta/cuenta-client.tsx`) y justo en esas dos no está. Dos detalles al
         hacerlo: en `/mis-votaciones` el header ya lo ocupa el botón "Armar votación" (hay que
         decidir si el Volver va arriba del título o comparte fila), y `/mis-lugares` arma todo
         desde el client component, así que el header vive ahí y no en la `page.tsx`. **De paso: esas
         dos tampoco usan `<BrandHeader />`** y `/cuenta` sí — es el mismo problema que (a), por eso
         van juntos.
-      - **(c) "Qué se encuentra en tu lugar" es un muro de tags.**
+      - **(c) ✅ "Qué se encuentra en tu lugar" es un muro de tags.**
         `app/mi-negocio/[placeId]/editor-client.tsx` mapea **todas las facetas con todos sus tags,
         planos**: son ~96 y Cocina sola tiene 46, dentro de un formulario que además sigue con
         Horarios abajo. **Fix propuesto**: cada faceta en un `<details>` plegado con el contador de
@@ -785,6 +785,22 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Pulido de UI — sesión A: los tres mecánicos (a · b · c)** (2026-08-01, sesión Opus).
+      **(a)** `app/(auth)/layout.tsx` cambia el texto plano "¿A dónde salimos?" por `<BrandHeader />`:
+      un swap en un archivo arregla las cuatro pantallas (login · registro · recuperar ·
+      restablecer), verificadas una por una en vivo. **(b)** `/mis-lugares` y `/mis-votaciones`
+      suman marca + `← Volver`. **Decisión de layout**: en las dos, el renglón del título ya lo
+      ocupa un CTA primario ("Nueva lista" / "Armar votación"), así que el Volver va **arriba del
+      título, compartiendo fila con el `<BrandHeader />`** — mismo markup de link que `/cuenta`,
+      distinta ubicación, y las dos hermanas quedan idénticas entre sí. **(c)** Cada faceta del
+      editor del dueño (`app/mi-negocio/[placeId]/editor-client.tsx`) pasa a un `<details>` plegado
+      con el contador de elegidos en el título ("Cocina · 2 elegidos", nada si es 0): el muro de
+      ~96 tags queda en **6 renglones** y Horarios entra en la misma pantalla. Acordeón nativo, el
+      mismo patrón que `SemanaAcordeon` de la ficha; sin librería nueva y sin buscador de tags —
+      medir primero si lo plegable alcanza. QA en vivo: las 4 de auth, las 2 de Volver, y el editor
+      (desplegar Cocina con sus 46 tags, tildar/destildar y ver el contador seguir) — sin guardar,
+      la base quedó intacta. 609 tests verdes, `tsc --noEmit` limpio. **Queda abierto el (d)**
+      (`/mis-votaciones` sin `LIMIT`): necesita decisión de producto, es la sesión B.
 - [x] **Enriquecimiento del catálogo — OSM/Overpass medido, y la decisión de NO hacerlo**
       (2026-08-01, sesión Opus): se midió la hipótesis que había quedado abierta antes de escribir
       ninguna línea de spec, que era exactamente la corrección de rumbo pedida. **16.949 POI de OSM
