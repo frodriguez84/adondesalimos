@@ -102,6 +102,16 @@ son trabajo acotado con criterio de "listo" objetivo.
         `/admin` están cerrados en el spec § *El premium apagado*. **Ese tramo ya está
         implementado ✅ 2026-08-01** (migración `0014`, QA DEPLOY-10/15/16/17 ✅) — lo que sigue es
         **F0: crear Neon y restaurar el dump**, que ya trae la tabla.
+      - [ ] **Prerrequisito de F0 — QA integral #2** → plan: `docs/qa/PLAN-QA-INTEGRAL-2.md`
+        (**escrito ✅ 2026-08-02**, sin ejecutar). Las 7 features que entraron después del QA
+        integral del 2026-07-26 (favoritos · sugerir · rotación de chips · «Para ahora» · historial
+        de `/mis-votaciones` · premium apagado · 135 alias) tienen QA contra su propio spec y
+        **ninguna se cruzó con las demás**. ~39 casos `INT2-NN` en 3 sesiones de ejecución.
+        **El orden no se puede invertir**: QA → limpieza verificada **por conteo** (bloque F del
+        plan) → `backup:db` → dump a Neon. Ya pasó dos veces que el QA dejó filas en el dump
+        (`premium_interest` de DEPLOY, 20 votaciones del historial), y las de `premium_interest`
+        **disparan el gatillo de prender el cobro**. **F0 no arranca hasta que el bloque F cierre
+        en verde.** El plan deja 4 decisiones abiertas para Fer (§ 12).
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
       al Tipo**.
@@ -222,6 +232,28 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **🔴 El editor del dueño borra los tags de la curaduría** (hallazgo 2026-08-02, diseñando el
+      QA integral #2 — confirmado en código **y en datos**, sin ejecutar nada). `guardarContenido`
+      hace `tx.delete(placeTags).where(eq(placeTags.placeId, placeId))` **sin filtrar por `source`**
+      (`lib/negocio/acciones.ts:117`) y reemplaza el set entero por lo tildado en el formulario. El
+      docstring contempla borrar los de `import` (decisión 14: para SU lugar el dueño es mejor
+      fuente que Overture) — **pero la curaduría no existía cuando se escribió esa regla**: AUTH F3
+      es del 2026-07-21 y CURADURIA del 2026-07-27. Hoy hay **3.967 tags `source='admin'` sobre
+      1.202 lugares** que **no están en git ni en el seed** (§ Notas importantes de `CLAUDE.md`):
+      recuperarlos es re-correr `npm run curar` (~US$17) o restaurar un dump.
+      **Por qué urge antes del deploy:** el objetivo declarado del lanzamiento es conseguir dueños
+      que reclamen su lugar, y el plan de curaduría #3 es curar *"los ~200 que la gente más ve"* —
+      que son exactamente los que más chance tienen de ser reclamados. La colisión es estructural,
+      no accidental. Y el dueño los borra **sin enterarse**: es un click en "Guardar" de un
+      formulario que él cree que solo edita su teléfono (verificar además si el editor le muestra
+      los tags de curaduría ya tildados).
+      **Fix propuesto** (chico y quirúrgico): que el `delete` preserve `source='admin'`. La regla de
+      producto detrás, para decidir: **el dueño gana sobre lo que él tildó** (es su lugar), **la
+      curaduría sobrevive en lo que él no tocó** (es trabajo de la casa, pago, y no está en git).
+      Es **código ⇒ sesión aparte**. Se verifica como `INT2-40` en
+      `docs/qa/PLAN-QA-INTEGRAL-2.md`, y bloquea la decisión 12.3 de ese plan (que los tags del
+      dueño dejen de aplicarse al revocar un reclamo **no se puede implementar antes**: hoy no hay
+      a qué volver).
 - [ ] **💸 `npm run curar` re-cobra por los lugares ya curados — filtro de skip** (hallazgo
       2026-07-31, al preguntarse si había que re-correr la curaduría). `seleccionarLugaresDeZona`
       (`lib/curation/seleccion.ts`) **no excluye lo que ya tiene sugerencias**: ordena por
