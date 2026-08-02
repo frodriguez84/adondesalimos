@@ -13,6 +13,31 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-02 · Diseño del QA integral #2 — Opus
+
+- **Qué salió bien:** ir al código a explicar cada "definir expectativa" antes de dejarlo abierto.
+  Tres de las cuatro decisiones que iban a quedar pendientes ya estaban resueltas en el código con
+  su porqué escrito (el `200` vacío de `GET /api/favoritos`, el `404 SIN_SUSCRIPCION` de cancelar),
+  así que se cerraron sin trabajo. Y la cuarta, tirando del mismo hilo, destapó el hallazgo caro
+  del día: **`guardarContenido` borra los tags de la curaduría** (`tx.delete(placeTags)` sin filtrar
+  por `source`, `lib/negocio/acciones.ts:117`) — 3.967 tags sobre 1.202 lugares que no están en git.
+  Confirmado con dos `SELECT`, sin ejecutar un solo caso de QA. También pagó bien el fan-out de
+  lectura (3 Explore en paralelo) reservándome el contexto para lo que no se delega: decidir qué
+  cruces se descartan y por qué.
+- **Qué frenó:** un subagente devolvió `place_favorites`, `poll_lists` y `detail_views` como nombres
+  de tabla; **ninguno existe** (son `place_lists`/`place_list_items`, y `detail_views` es una
+  *columna* de `place_impressions_daily`). Iban derecho al `DELETE` de la limpieza — o sea, habrían
+  fallado justo en el paso que protege el dump que viaja a Neon. Un haiku leyendo specs devuelve
+  nombres **plausibles del dominio**, no verificados contra el código, y en prosa se leen igual de
+  bien que los correctos.
+- **Qué cambiar:** cuando un subagente devuelva **identificadores que después se van a ejecutar**
+  (tablas, columnas, endpoints, flags, env vars), verificarlos contra el código antes de escribirlos
+  — solo lo ejecutable, no todo el output. Cuesta un grep. Es el complemento del hallazgo del
+  2026-08-01: allá el instrumento mentía sobre la pantalla, acá sobre el esquema. Si se repite,
+  sube a `CLAUDE.md` § *Paralelismo y orquestación*.
+
+---
+
 ## 2026-08-01 · Alias de zonas (CABA sistemático + hitos) — Opus
 
 - **Qué salió bien:** medir antes de proponer. El pedido daba por hecho que los hitos se validaban
