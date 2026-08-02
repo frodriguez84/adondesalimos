@@ -1923,3 +1923,124 @@ nada. No se registra como hallazgo: el estado es local (`setAConfirmar`, sin red
 comportamiento es correcto y reproducible — lo más probable es que el primer click llegara antes
 de la hidratación. Se anota porque es la clase de síntoma que, sin explicación en el código,
 habría entrado como ❌ falso (§ 10.3 del plan).
+
+---
+
+## QA integral #2 — sesión 2 (bloques C + E) (2026-08-02)
+
+**Veredicto:** **APROBADO — 10 casos, 7 ✅ PASS + 3 ⚠️ documentados. Cero bugs de producto.**
+**Alcance:** `INT2-23..29` (bloque C) + `INT2-36`, `38`, `39` (bloque E), según
+`docs/qa/PLAN-QA-INTEGRAL-2.md` (§ 6, § 8). `INT2-37` (madrugada) sigue suelto y no bloquea.
+**Config:** A — dev normal, con `NEXT_PUBLIC_MP_PUBLIC_KEY` cargada.
+**Método:** Playwright MCP + `fetch` con sesión real contra `https://adondesalimos.ngrok.app`
++ `SELECT` directos al Postgres. Click en el input antes de tipear. Todo caso del bloque E anota
+**hora y día AR exactos**.
+
+### Marcas de arranque (sesión 2)
+
+- **Backup previo:** el mismo del día, `backups/adondesalimos_2026-08-02_141723.sql.gz`
+  (`npm run backup:check` → *hace 0 día(s)*).
+- **Reloj de la sesión:** **domingo 2026-08-02**, de las **14:50** a las **15:10 AR**
+  (= día **6** en la convención del proyecto, 0 = lunes).
+- **Valor viejo de `app_settings['chips.schedule']`**, capturado textual **antes** del primer
+  `UPDATE` (lección de la sesión 1 — el snapshot por conteo no ve un valor pisado):
+  ```json
+  [{"dias":[0,1,2,3,4],"desde":"17:00","hasta":"21:00","primero":["after-office"]},
+   {"dias":[4,5],"desde":"22:00","hasta":"05:00","primero":["salir-a-bailar"]},
+   {"dias":[5,6],"desde":"16:00","hasta":"19:00","primero":["merienda"]}]
+  ```
+  **Ya restaurado** al cerrar el bloque E, y verificado con un `SELECT` posterior.
+- **Premium aislado:** se usó **hugo** (`UPDATE users SET plan='premium'`), no
+  `frodriguez.este` — que es admin **y** dueño **y** premium a la vez, y por eso no sirve para
+  atribuirle nada a un solo eje.
+
+### Casos
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| INT2-23 | Premium × favoritos en las 3 superficies | ✅ PASS | hugo guarda **Fabric Sushi** y **Sushi Town** desde la **card** (botón → "Sacar de guardados" `[pressed]`, 2 filas en `place_list_items` sobre la default creada al vuelo). **Ficha** de Fabric Sushi: `Sacar de guardados` `[pressed]`. **Chat** ("Sushi en Martínez", 1 mensaje): trajo 5 lugares y pintó `[pressed]` **solo** en los 2 guardados, y `Guardar` en SushiClub Acassuso, Leny San y Dashi. El desfasaje se buscó donde podía estar: `GET /api/favoritos?ids=` con los 3 ids de Martínez devuelve los 2 guardados y **omite** el no guardado. Tres caminos (server render × 2 + lote), un solo dato |
+| INT2-24 | Cupo de 10 listas con la default incluida | ✅ PASS | hugo con su default ya creada: creaciones 1→9 → **201**; la **10ma** → **403 `LIMITE_LISTAS`**, *"Llegaste a las 10 listas. Borrá alguna para armar otra."* El error llega en la 10ma, no en la 11va. Sin fila en `app_settings` ⇒ rige el default de código (10), el caso que el docstring contempla. **La UI no miente**: con el cupo lleno el botón «Nueva lista» **no se renderiza** (`puedeCrear` viene del server, [page.tsx:32](../../app/mis-lugares/page.tsx#L32) → `puedeCrearLista`); se borró una lista y **reapareció**, así que la ausencia no es que el botón nunca esté |
+| INT2-25 | Historial premium con 21+ y el borde del cursor | ✅ PASS | 22 votaciones cerradas sembradas, con **Cerrada 20 y Cerrada 21 compartiendo `created_at` exacto** — el corte de página cae justo en el empate, que es el caso duro. Página 1 = 20 (01→20), «Ver más» → 21 y 22. **Cero duplicados, cero salteos**, `nextCursor: null` al agotar y el botón desaparece. El desempate por `id` hace lo que promete el docstring. *(La primera corrida dio un falso positivo — ver § Nota de método.)* |
+| INT2-26 | «Para ahora» × ficha con horarios propios | ⚠️ EXPECTATIVA DOCUMENTADA (no es ❌) | **Domingo 15:02 AR.** Kansas Grill & Bar es el **único** lugar con horarios de dueño y tiene el **domingo vacío**. Como sus tags no incluían ninguno de Momento, se le sembró `almuerzo`/`merienda` para poder cruzarlo. Resultado: **sale en `?t=almuerzo`** y su ficha dice **"Cerrado ahora"** con el acordeón *"Domingo: Cerrado"*. Es coherente con el diseño: el chip filtra por **tags curados de franja**, no por horarios reales. *Corrección al enunciado del plan:* el estado abierto/cerrado de la ficha **no** está gateado en ≥50 lugares — con horarios de dueño la ficha computa `estaAbierto(horarios, ahora)` siempre ([ficha-google.tsx:217](../../components/lugar/ficha-google.tsx#L217)); el gate de ≥50 es de otra superficie |
+| INT2-27 | Admin × `chips.schedule` | ✅ PASS | **Por dónde se edita hoy: solo por `UPDATE` a mano.** `/admin` tiene 5 tabs (Cola de aprobación · Precios · Suscripciones · Costos · Curaduría) y **ninguna** toca chips — coincide con el docstring de `rotacion.ts` (*"el setting es `jsonb` editado a mano con SQL"*). Un valor inválido **degrada en silencio al orden por `sort`** sin romper la home (detalle por variante en INT2-39) |
+| INT2-28 | Admin × contador de interés premium | ⚠️ CUENTA BIEN, con 2 observaciones al BACKLOG | Se sembraron 3 filas (**1 B2C** `place_id IS NULL` de pepe + **2 B2B**: pepe→Kansas, juan→Hard Rock). El tab muestra **"3 pidieron que les avisemos"** —el conteo real— y **distingue los dos ejes por fila**: `· Premium (B2C)` vs el nombre del lugar ([suscripciones.tsx:67](../../app/admin/suscripciones.tsx#L67)). Lo que **no** hace: (a) desagregar el contador por eje, y son dos economías distintas ($7.000 vs $15.000); (b) el número es `interesados.length`, **topeado en 200** por `getInteresadosAdmin()` — `contarInteresados()`, cuyo docstring dice *"el conteo, sin el techo del límite de la lista"*, existe y **solo la usa un test** |
+| INT2-29 | ¿Qué cuenta cada superficie? | ⚠️ ENTREGABLE = TABLA (ver abajo) | **El enunciado del plan quedó viejo: el chat SÍ suma `impressions`.** Verificado en datos, no en código nada más: **Dashi** salió únicamente en el chat y tiene **1 impresión** de hoy. El fix es de julio — el propio código lo cita: *"INT-05 (PULIDO): un lugar mostrado como card en el chat es tan impresión como uno mostrado en la búsqueda"* ([chat.ts:190](../../lib/ai/chat.ts#L190), commit `4c0c5cf`). La divergencia que INT-05 encontró **ya está cerrada** |
+| INT2-36 | «Para ahora» aplica los tags de la franja actual | ✅ PASS | **Domingo 15:01 AR** → franja **almuerzo** (11:00–15:29). El chip escribe `?t=almuerzo`, deja el filtro «Quitar Almuerzo» puesto y Filtros en 1. Contrastado contra la base: los 3 primeros resultados (Hard Rock Cafe, Fabric Sushi, La Farola de Cabildo) **tienen** el tag; **605** publicados lo tienen en total. Kansas Grill & Bar **no** aparecía y en la base **no** tenía el tag — el negativo también cierra |
+| INT2-38 | Regla de `chips.schedule` que cruza medianoche | ✅ PASS | Se editó la regla en vez de esperar al sábado 01:00. Regla `{"dias":[5],"desde":"22:00","hasta":"16:00","primero":["merienda"]}` = **sábado 22:00 → domingo 16:00**, evaluada el **domingo 15:04 AR**: el día 6 **no está** en `dias`, así que solo puede entrar por el tramo *"la madrugada de hoy pertenece a la regla que arrancó ayer"*. **`Merienda` saltó al primer lugar** (desplazando a `Tomar algo`). **Control negativo:** la misma regla con `dias:[4]` (viernes) → Merienda desaparece y vuelve `Tomar algo`. El cruce es la causa, no una coincidencia |
+| INT2-39 | `chips.schedule` inválido | ✅ PASS | **Domingo 15:05–15:07 AR.** Cuatro variantes, la home **nunca** se rompió y siempre degradó al orden por `sort`: (a) **objeto en vez de array** → orden por `sort`; (b) **mixto** — `dias:"lunes"` + `desde:"25:99"` + una regla buena en el mismo array → **las dos rotas se descartan y la buena sobrevive** (`Merienda` primero), que es el "regla por regla" del docstring, y la rota que pedía `salir-a-bailar` no se coló; (c) **slug inexistente** (`este-chip-no-existe`) → se ignora al cruzar con los chips vivos; (d) **`null`** → caso normal, sin log. *La variante "JSON roto" del plan **no es alcanzable**: la columna es `jsonb` y Postgres rechaza el `UPDATE` (`invalid input syntax for type json`) — el tipo la hace imposible.* El *"un solo log por proceso"* (`yaAviso`) se verificó **en código**, no en vivo: el `console.warn` sale por la terminal del dev server, que esta sesión no ve |
+
+### INT2-29 — Qué cuenta cada superficie (el entregable del caso)
+
+| Superficie | `impressions` | `detail_views` | `saves` | `taps` | `tag_impressions` | `destacados` |
+|---|---|---|---|---|---|---|
+| Home / búsqueda (server, `app/page.tsx`) | ✅ | — | — | — | ✅ | ✅ |
+| `/api/search` (scroll, mapa, **y el buscador de una votación**) | ✅ | — | — | — | ✅ | ✅ |
+| Ficha `app/lugar/[id]` | — | ✅ | — | — | — | — |
+| **Chat** (`lib/ai/chat.ts`) | ✅ *(desde `4c0c5cf`)* | — | — | — | ❌ | ❌ |
+| `POST /api/favoritos` (guardar, desde cualquier superficie) | — | — | ✅ | — | — | — |
+| `DELETE /api/favoritos` (sacar) | — | — | **no resta** (decisión 12: es histórico de eventos, no stock) | — | — | — |
+| `/api/lugar/[id]/tap` | — | — | — | ✅ | — | — |
+
+**Lo que queda como decisión de producto, no como bug:** el chat suma `impressions` pero **no**
+alimenta `place_tag_impressions_daily`. Ese agregado es el insumo de la **curaduría por uso real**
+(próximo ítem del backlog), así que hoy esa curaduría vería los tags de la búsqueda y **no** los
+del chat. Segundo punto, más chico: buscar dentro del **armado de una votación** suma impresiones
+igual que la home, porque es el mismo `/api/search` — al dueño se le cuenta una vista que ocurrió
+dentro de una votación privada.
+
+### Hallazgos (ninguno bloquea; van al BACKLOG)
+
+1. **El contador de interés premium se congela en 200.** `app/admin/suscripciones.tsx` muestra
+   `interesados.length` y la lista viene topeada (`getInteresadosAdmin(limite = 200)`).
+   `contarInteresados()` existe **para exactamente este problema** y no está cableada — solo la
+   llama un test. Hoy con 3 filas no se nota; a 201 interesados el tablero subestima el dato que
+   dispara el cobro. 🟢 solo código, puede ir después del deploy.
+2. **El contador no desagrega B2C de B2B.** La lista sí distingue por fila, el número de arriba
+   no. Son dos precios distintos ($7.000 vs $15.000): decisión de producto de Fer.
+3. **El chat no alimenta `place_tag_impressions_daily`** (ver arriba) → sesgo en la curaduría por
+   uso real antes de que esa curaduría exista. Barato de decidir ahora, caro de descubrir después.
+4. **Corrección de documentación, no de código:** el plan (§ 6, INT2-29) y el BACKLOG afirman que
+   *"el chat no suma impressions"*. Es falso desde `4c0c5cf` (PULIDO, julio). El enunciado
+   sobrevivió al fix.
+5. **Riesgo latente, no bug hoy:** el cursor del historial viaja como epoch en **milisegundos**,
+   y `created_at` en Postgres tiene **microsegundos**. Hoy no puede fallar porque la app inserta
+   `createdAt: ahora`, un `Date` de JS ([acciones.ts:112](../../lib/votaciones/acciones.ts#L112)) —
+   las 7 votaciones creadas por la app tienen los microsegundos en cero. Se materializaría si
+   alguna vez se insertaran votaciones **por SQL o por script** (backfill, import, seed) y dos
+   cayeran en el mismo milisegundo en el borde de página. Anotar el acoplamiento, no arreglarlo.
+
+### Estado sembrado / tocado — **ampliación** de la tabla de la sesión 1
+
+| Qué | Estado al cerrar la sesión 2 | Cómo se revierte |
+|-----|------------------------------|------------------|
+| `users.plan` de **hugo** | `free` → **`premium`** ⚠️ **sin revertir** (lo usa la sesión 3) | `update users set plan='free' where email='hugo@gmail.com'` |
+| `polls` | 7 → **29** (+22 `[QA2] Cerrada NN`, todas `closed`, creador hugo, `winner` = Hard Rock Cafe). **Sin `poll_options`** — el historial no las necesita cuando hay título | `delete from polls where title like '[QA2]%'` (cascada) |
+| `place_lists` | 1 → **11** (+1 default de hugo, nacida al guardar + **9** `QA2 · Lista NN`) | `delete from place_lists where name like 'QA2 ·%'` + la default de hugo |
+| `place_list_items` | 1 → **3** (+2 de hugo: Fabric Sushi, Sushi Town) | `delete` por `created_at >= 17:20:12` |
+| `premium_interest` | 0 → **3** (1 B2C de pepe · 2 B2B: pepe→Kansas, juan→Hard Rock) | `delete from premium_interest` (las 3 son del QA; la tabla estaba vacía) |
+| `place_tags` de Kansas | +2 filas `source='admin'` (`almuerzo`, `merienda`, sembradas para INT2-26) | ya cubierto por el `delete … and source='admin'` anotado en la sesión 1 |
+| **Canario de curaduría** | `place_tags source='admin'`: 3.967 → **3.970** (+1 sesión 1, +2 sesión 2) | **subió, no bajó** — sin pérdida de datos |
+| `app_settings['chips.schedule']` | tocado 7 veces y **restaurado al valor original** ✅ verificado | hecho |
+| `chat_conversations` / `chat_messages` | 15→**16** / 38→**40** (1 mensaje de chat, INT2-23) | `delete` por `created_at >= 17:20:12` |
+| `google_api_usage` (2026-08) | `details` 5 → **8** · `photos` → **4** (2 fichas abiertas: Fabric Sushi y Kansas) | se deja (decisión 2 del plan) |
+| Agregados diarios | más filas del 2026-08-02 en las 3 tablas | los tres `delete` del § 9 |
+| Sin tocar | `place_claims` (1) · `place_owner_content` (1) · `place_photos` (2) · `subscriptions` (3) · `users` (4) · `poll_votes` (19) | — |
+
+### Nota de método — el falso ❌ de INT2-25, y por qué no se escribió
+
+La primera corrida de INT2-25 **salteó una fila**: 22 sembradas, 21 servidas, y la que faltaba era
+justo la que empataba `created_at` en el borde. Tenía todo para ser un ❌ grande —el docstring
+promete explícitamente que el cursor *"no repite ni saltea filas cuando dos votaciones comparten
+timestamp"*—. La causa raíz se aisló en SQL: el cursor viaja truncado a milisegundos y la fila
+tenía microsegundos, así que no pasaba ni el `<` ni el `=`.
+
+**Pero el sub-milisegundo lo había puesto el instrumento, no el producto:** la siembra usó `now()`
+de Postgres, y la app inserta un `Date` de JS. Las 7 votaciones reales de la base tienen los
+microsegundos en cero. Se corrigió la siembra (`date_trunc('milliseconds', …)`, manteniendo el
+empate) y el caso pasó limpio.
+
+Es la **segunda vez consecutiva** que el instrumento fabrica un hallazgo — la sesión 1 lo tuvo con
+el editor del dueño. La regla del § 10.3 (*explicar el síntoma en el código antes de escribir un
+❌*) es lo que lo frenó las dos veces, y conviene extenderla: **cuando el QA siembra por SQL crudo,
+la siembra tiene que reproducir la precisión y los defaults que produce la app** — si no, se
+prueba un escenario que en producción no existe.

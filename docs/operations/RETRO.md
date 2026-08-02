@@ -13,6 +13,26 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-02 · QA integral #2, sesión 2 (bloques C+E) — Opus
+
+- **Qué salió bien:** dos costumbres pagaron solas. **Sembrar el caso duro a propósito** —hacer que
+  las votaciones 20 y 21 compartieran `created_at` exacto para que el corte de página cayera justo
+  en el empate— convirtió INT2-25 de "mirar 22 títulos" en una prueba del desempate por `id`. Y los
+  **controles negativos**: la regla del sábado alcanzó al domingo (INT2-38), pero recién con la misma
+  regla puesta en viernes —y Merienda desapareciendo— quedó probado que la causa era el cruce de
+  medianoche y no una coincidencia. Un ✅ sin control negativo es media evidencia.
+- **Qué frenó:** el instrumento, otra vez. INT2-25 salteó una fila y tenía todo para ser un ❌
+  grande contra una promesa explícita del docstring. La causa raíz era real —el cursor viaja en
+  milisegundos, `created_at` guarda microsegundos— pero **el sub-milisegundo lo había puesto mi
+  siembra**: usé `now()` de Postgres y la app inserta un `Date` de JS. Las 7 votaciones reales de la
+  base tienen los microsegundos en cero. Se corrigió la siembra y el caso pasó limpio. Segunda
+  sesión consecutiva en que el instrumento fabrica un hallazgo.
+- **Qué cambiar:** una sola, y es la generalización de lo anterior: **cuando el QA siembra por SQL
+  crudo, la siembra tiene que reproducir la precisión y los defaults que produce la app** — si no,
+  se prueba un escenario que en producción no existe. Va al § 10 del plan junto a la regla de
+  capturar valores viejos. _(Lo demás no califica: el enunciado viejo de INT2-29 y el gate de ≥50 de
+  INT2-26 son correcciones de doc, ya hechas en el QA, no cambios de método.)_
+
 ## 2026-08-02 · QA integral #2, sesión 1 (bloques A+B) — Opus
 
 - **Qué salió bien:** arreglar el 🔴 antes de ejecutar (§ 10 bis) obligó a ir al código, y ahí el

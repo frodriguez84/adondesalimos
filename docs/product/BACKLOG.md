@@ -232,6 +232,32 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Mejoras futuras (fuera de v1)
 
+- [ ] **El contador de interés premium se congela en 200** — hallazgo de `INT2-28` (QA integral #2,
+      sesión 2, 2026-08-02). El tab Suscripciones de `/admin` muestra `interesados.length`
+      (`app/admin/suscripciones.tsx:60`), y esa lista viene topeada por
+      `getInteresadosAdmin(limite = 200)`. `contarInteresados()` existe **para exactamente este
+      problema** —su docstring dice *"el conteo, sin el techo del límite de la lista"*— y **no está
+      cableada**: hoy solo la usa un test. Con 3 filas no se nota; a 201 interesados el tablero
+      subestima **el dato que dispara el cobro**. Es solo código ⇒ **no bloquea el dump a Neon**.
+- [ ] **El contador de interés no desagrega B2C de B2B** — decisión de producto, no bug (`INT2-28`).
+      La **lista** distingue bien por fila (`· Premium (B2C)` vs el nombre del lugar), pero el número
+      grande suma los dos ejes, que tienen **precios distintos** ($7.000 B2C · $15.000 B2B) y por lo
+      tanto umbrales distintos para decidir prender el cobro. ¿Se parte en dos números?
+- [ ] **El chat no alimenta `place_tag_impressions_daily`** — hallazgo de `INT2-29`. El chat **sí**
+      suma `impressions` (desde `4c0c5cf`), pero no registra los tags: `registrarTagsDeBusqueda` solo
+      se llama desde `app/page.tsx` y `/api/search`. Ese agregado es el insumo de la **curaduría por
+      uso real**, que es un ítem de esta misma cola: si se implementa así, la curaduría vería los
+      tags de la búsqueda y **no** los del chat. Barato de decidir ahora, caro de descubrir después.
+      Segundo punto, más chico: buscar dentro del **armado de una votación** suma impresiones igual
+      que la home (mismo `/api/search`) — al dueño se le cuenta una vista ocurrida en una votación
+      privada. Decidir si las dos cosas están bien así.
+- [ ] **Acoplamiento latente: el cursor del historial y la precisión de `created_at`** — no es un bug
+      hoy y **no hay que arreglarlo**; se anota para que nadie lo descubra a los golpes. El cursor de
+      `historialDeVotaciones` viaja como epoch en **milisegundos** y `created_at` en Postgres guarda
+      **microsegundos**; hoy no puede fallar porque la app inserta `createdAt: ahora`, un `Date` de
+      JS (`lib/votaciones/acciones.ts:112`). Se materializaría si alguna vez se insertaran votaciones
+      **por SQL o script** (backfill, import, seed) y dos cayeran en el mismo milisegundo en el borde
+      de página: la segunda se saltea. Lo encontró la propia siembra del QA (`INT2-25`).
 - [x] **🔴 El editor del dueño borra los tags de la curaduría** — **Resuelto ✅ 2026-08-02**, antes
       de ejecutar el QA integral #2 (opción A de Fer: § 10 bis manda arreglar un 🔴 antes de seguir).
       El `delete` de `guardarContenido` ahora borra todo lo que no es curaduría **más** la curaduría

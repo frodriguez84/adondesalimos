@@ -339,6 +339,13 @@ corrido **después** de la limpieza (ese es el dump que viaja a Neon).
    `https://adondesalimos.ngrok.app`, nunca `localhost`.
 8. **Registro:** cada caso va a `docs/qa/AnalisisQA.md` § *QA integral #2* con su ID `INT2-NN` y
    ✅/❌/⚠️ + evidencia. Los hallazgos que sean decisión de producto van también a `BACKLOG.md`.
+9. **La siembra por SQL crudo tiene que imitar a la app** — precisión, defaults y forma de los
+   datos (lección de la sesión 2). Sembrar con `now()` de Postgres le puso **microsegundos** a
+   `polls.created_at`, que la app nunca escribe (inserta un `Date` de JS, precisión de ms): eso
+   fabricó un salteo de paginación en `INT2-25` que **en producción no puede pasar**, y casi entra
+   como ❌. Si un caso necesita datos sembrados, primero mirar **cómo los escribe el código** —
+   `date_trunc('milliseconds', …)` en este caso— y recién después sembrarlos. Es la versión de
+   datos del § 10.3: *el instrumento también miente*.
 
 ---
 
