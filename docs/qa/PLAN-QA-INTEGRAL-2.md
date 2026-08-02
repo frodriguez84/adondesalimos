@@ -1,6 +1,8 @@
 # Plan de QA integral #2 — antes del deploy
 
-**Estado:** Escrito 2026-08-02 · **NO ejecutado**. Este archivo es el árbitro de las sesiones de
+**Estado:** Escrito 2026-08-02 · **Sesión 1 de 3 ejecutada** (2026-08-02, bloques A+B: 21 PASS,
+INT2-13 diferido a config B, cero bugs — `docs/qa/AnalisisQA.md` § *QA integral #2 — sesión 1*).
+Faltan la sesión 2 (C+E) y la 3 (D+F). Este archivo es el árbitro de las sesiones de
 ejecución (mismo rol que un spec: si un caso no está acá, no se corre; si un hallazgo no se puede
 explicar en el código, no se escribe).
 **Autor:** sesión Opus de diseño (pedido de Fer, 2026-08-02). Insumos extraídos por 3 subagentes
@@ -123,7 +125,7 @@ y falla si se rompe la continuidad (no solo si una pantalla está mal).
 | ID | Paso | Esperado |
 |----|------|----------|
 | INT2-12 | Dueño entra a `/mi-negocio/[Kansas]` con `owner_plan='free'` | Ve su panel; los 3 campos pagos y las fotos 4-15 **no** disponibles |
-| INT2-13 | Toca «Avisame cuando abra» (pitch B2B) | 1 fila en `premium_interest` con `place_id` = Kansas. **Doble click → sigue 1 fila** (índice único parcial) |
+| INT2-13 | Toca «Avisame cuando abra» (pitch B2B) — **⚠️ config B, va en la sesión 3** | 1 fila en `premium_interest` con `place_id` = Kansas. **Doble click → sigue 1 fila** (índice único parcial). **No es corrible acá**: en config A el panel muestra "Suscribirme por $ 15.000/mes" y ese botón no existe (verificado en vivo, sesión 1). Manda el § 11 |
 | INT2-14 | Sube a `owner_plan='paid'` por UPDATE, carga descripción/carta/novedad | Se guardan en `place_owner_content` (nunca en columnas de `places`) |
 | INT2-15 | Anónimo abre la ficha de Kansas | Ve los 3 extras + el botón de guardar funcionando sobre un lugar pago |
 | INT2-16 | Vuelve a `owner_plan='free'` y recarga la ficha como anónimo | Extras ocultos, filas intactas → cruza con la transición T3 |
@@ -260,6 +262,12 @@ eso el resultado no es reproducible ni refutable.
 **Anotar el timestamp de arranque del QA en la sección de `AnalisisQA.md` antes del primer caso.**
 Es lo que hace la limpieza verificable; sin él, "lo que sembró el QA" es una conjetura.
 
+**Y capturar el CONTENIDO de las filas que un caso va a pisar, no solo el conteo** (lección de la
+sesión 1). El snapshot de abajo cuenta filas: un `UPDATE` que sobrescribe `place_owner_content` o
+`app_settings` **no mueve ningún número** y el bloque F lo da por limpio. Antes del primer `UPDATE`
+de setup, un `SELECT` de los valores viejos — si no, revertir depende de abrir el `.sql.gz`. Aplica
+sobre todo a la sesión 3, donde las transiciones pisan bastante más.
+
 ### Snapshot ANTES / DESPUÉS
 
 Antes del primer caso y después de la limpieza, correr el **mismo** `SELECT` y comparar. El criterio
@@ -326,13 +334,42 @@ corrido **después** de la limpieza (ese es el dump que viaja a Neon).
    (§ 3 bis), así que este plan **sí** tiene casos de pago: INT2-31 (comprar) e INT2-41 (cancelar).
    Los dos requieren a Fer en el teclado; el resto del caso lo sigue Claude.
 6. **No tocar código.** Un bug real se registra con su ID y sigue el QA; el fix es sesión aparte con
-   OK de Fer.
+   OK de Fer. **Cuándo se arregla cada cosa: § 10 bis.**
 7. **Entorno:** el dev server lo levanta **Fer** en el puerto 5178; se verifica contra
    `https://adondesalimos.ngrok.app`, nunca `localhost`.
 8. **Registro:** cada caso va a `docs/qa/AnalisisQA.md` § *QA integral #2* con su ID `INT2-NN` y
    ✅/❌/⚠️ + evidencia. Los hallazgos que sean decisión de producto van también a `BACKLOG.md`.
 
 ---
+
+## 10 bis. Qué se hace con un bug cuando aparece
+
+**Regla: se anotan todos y se arreglan en lote al final, con dos excepciones tasadas.**
+
+**Por qué en lote y no a medida.** Un QA con el código cambiando debajo produce un informe que **no
+describe ninguna versión del producto**: la mitad de los casos corrió contra un build y la otra
+mitad contra otro, y ninguno de los dos existe en un commit. La pregunta "¿esto estaba verde el día
+del deploy?" deja de tener respuesta. Sumado a que el que acaba de arreglar es el peor juez de su
+propio fix (misma razón por la que `/qa-spec` usa un checker independiente), y a que **dos síntomas
+distintos suelen ser una sola causa raíz** — arreglar el primero apenas aparece produce dos fixes
+donde había uno.
+
+| Categoría | Qué hacer al encontrarlo |
+|---|---|
+| 🔴 **Destruye datos** (pérdida irrecuperable) | **Parar el QA.** Arreglar, o evitar el gesto que lo dispara, antes de seguir: cada caso que se corra encima destruye más. `INT2-40` es exactamente esto |
+| 🟡 **Bloquea un camino** | Anotar, **saltear el resto de ese bloque**, seguir con los bloques independientes. **No arreglar en caliente.** Si bloquea demasiado, se corta la sesión y se hace la de fix |
+| 🟢 **No bloqueante** (copy, orden, 400 vs 403) | Anotar y seguir. Va al lote del final. Es la mayoría |
+
+**El re-QA no es re-correr los 42 casos:** se re-corre el que falló **más los que tocan el mismo
+módulo**. El resto no cambió; volver a mirarlo es ceremonia que no se paga.
+
+**La cola de fixes se parte por una fecha límite objetiva, no por prioridad opinada:**
+
+- **Fix que necesita migración → ANTES del dump a Neon.** El schema del dump se congela en el
+  `pg_dump`, y correr un `db:migrate` suelto contra producción es justo lo que se evitó haciendo el
+  premium apagado antes de F0 (BACKLOG, ítem 2).
+- **Fix que es solo código → puede ir después del deploy.** Viaja con el próximo push desde git,
+  sin tocar la base.
 
 ## 11. Sesiones de ejecución — orden y estimación
 
@@ -341,7 +378,7 @@ porque un agujero de aislamiento cambia la prioridad de todo lo demás, y **F al
 
 | # | Sesión | Bloques | IDs | Config | Por qué en este orden |
 |---|--------|---------|-----|--------|----------------------|
-| 1 | **Caminos + gates** (~2-3 h) | A + B | INT2-01..22 | A | Los flujos end-to-end siembran los datos (votaciones, listas, contenido) que los bloques siguientes necesitan. Los gates se barren con esos datos frescos. **INT2-40 se corre acá**, junto a INT2-14: es el mismo gesto (el dueño guarda el editor) |
+| 1 | ✅ **Ejecutada 2026-08-02** — **Caminos + gates** (~2-3 h) | A + B | INT2-01..22 (menos el 13) | A | Los flujos end-to-end siembran los datos (votaciones, listas, contenido) que los bloques siguientes necesitan. Los gates se barren con esos datos frescos. **INT2-40 se corre acá**, junto a INT2-14: es el mismo gesto (el dueño guarda el editor) |
 | 2 | **Cruces + reloj** (~2 h) | C + E | INT2-23..29, 36, 38, 39 | A | Reusa lo sembrado en la sesión 1. Requiere los `UPDATE` de plan — anotarlos |
 | 3 | **Transiciones + pago + limpieza** (~2-3 h) | D + F | INT2-30..35, 41 → **pasada corta en config B**: INT2-13, 32, 42 → snapshot | A → **B** | Las transiciones **destruyen** el estado sembrado (bajar planes, revocar claims): van últimas. **Fer en el teclado** para INT2-31/41 (pago y cancelación) y para el restart del server al cambiar de config. La limpieza cierra y habilita el dump |
 | — | **Suelto** | E | INT2-37 | A | Madrugada (00:00–05:59). Lo mira Fer cuando le toque; **no bloquea el deploy** |

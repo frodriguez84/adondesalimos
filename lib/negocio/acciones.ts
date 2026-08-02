@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, ne, notInArray, or, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { placeOwnerContent, placePhotos, placeTags, places, tags } from '@/lib/db/schema'
 import { esDuenoDe, placeIdsDelUsuario } from '@/lib/claims/ownership'
@@ -64,11 +64,21 @@ export type ContenidoGuardado = { placeId: string; tagsGuardados: number }
  * Guarda el contenido del dueño y sus tags en un solo gesto (el editor es un
  * formulario, no dos).
  *
- * **Tags**: se reemplaza el set completo del lugar por lo tildado, con
- * `source='owner'` (decisión 15). Se borran también las de `import`: para SU
- * lugar el dueño aprobado es mejor fuente que Overture (decisión 14), y el
- * re-import ya no las toca. Los slugs que no existen o están inactivos se
- * descartan en silencio — el cliente no elige qué taxonomía hay.
+ * **Tags**: se reemplaza el set del lugar por lo tildado, con `source='owner'`
+ * (decisión 15). Se borran también las de `import`: para SU lugar el dueño
+ * aprobado es mejor fuente que Overture (decisión 14), y el re-import ya no las
+ * toca. Los slugs que no existen o están inactivos se descartan en silencio — el
+ * cliente no elige qué taxonomía hay.
+ *
+ * **Las de `admin` (curaduría) conservan su `source` si el dueño las dejó
+ * tildadas** (INT2-40). El editor las muestra tildadas sin distinguir de dónde
+ * vienen, así que un guardado inocente —el dueño corrigiendo su teléfono— las
+ * reescribía como `owner`: se perdía el rastro de las 3.967 filas que no están
+ * en git ni en el seed (~US$17 de re-corrida), y con la regla de "los tags del
+ * dueño dejan de aplicarse al revocar el reclamo" ese guardado terminaría
+ * apagando trabajo de la casa. Destildar una sí la borra: es su lugar, y una
+ * pantalla que dice "guardamos" y no guarda miente sobre en qué búsquedas
+ * aparece.
  */
 export async function guardarContenido(
   userId: string,
@@ -111,11 +121,22 @@ export async function guardarContenido(
       .values({ placeId, ...valores })
       .onConflictDoUpdate({ target: placeOwnerContent.placeId, set: valores })
 
-    await tx.delete(placeTags).where(eq(placeTags.placeId, placeId))
+    // Se va todo lo que no sea curaduría, más la curaduría que el dueño destildó.
+    await tx.delete(placeTags).where(
+      and(
+        eq(placeTags.placeId, placeId),
+        tagIds.length > 0
+          ? or(ne(placeTags.source, 'admin'), notInArray(placeTags.tagId, tagIds))
+          : undefined,
+      ),
+    )
     if (tagIds.length > 0) {
+      // `doNothing` sobre la PK (place_id, tag_id): la de curaduría que sobrevivió
+      // ya está y se queda como `admin`.
       await tx
         .insert(placeTags)
         .values(tagIds.map((tagId) => ({ placeId, tagId, source: 'owner' as const })))
+        .onConflictDoNothing()
     }
   })
 

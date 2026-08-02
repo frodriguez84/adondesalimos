@@ -1795,3 +1795,131 @@ cruzados entre sí.
   respaldo (Movistar Arena: 0 lugares; La Bombonera y Luna Park: 1). Overture trae gastronomía, y
   un hito aparece solo si hay bares con su nombre. Por eso las coordenadas salieron del cruce de
   agentes y el catálogo quedó como **árbitro**, que es donde sí rinde.
+
+---
+
+## QA integral #2 — sesión 1 (bloques A + B) (2026-08-02)
+
+**Veredicto:** _(en ejecución)_
+**Alcance:** `INT2-01..22` + `INT2-40`, según `docs/qa/PLAN-QA-INTEGRAL-2.md` (§ 4, § 5). Los
+bloques C/E van en la sesión 2 y D/F en la 3. **No re-corre** el DoD de ningún spec.
+**Config:** A — dev normal, con `NEXT_PUBLIC_MP_PUBLIC_KEY` cargada (§ 3 bis del plan).
+**Método:** Playwright MCP + `fetch` con sesión real contra `https://adondesalimos.ngrok.app`
+(dev server de Fer en 5178) + `SELECT` directos al Postgres (Docker, 5439). Click en el input
+antes de tipear, siempre. El estado anónimo se confirma con `GET /api/auth/get-session`.
+
+### Marcas de arranque (lo que hace verificable la limpieza del bloque F)
+
+- **Timestamp de arranque:** `2026-08-02 17:20:12.731877+00` (= 14:20 AR). Todo lo sembrado por
+  este QA tiene `created_at >=` ese valor.
+- **Backup previo:** `backups/adondesalimos_2026-08-02_141723.sql.gz` (5,0 M).
+- **Convención de marcado:** votaciones con título `[QA2]`, listas con nombre `QA2 ·`.
+
+### Snapshot ANTES (§ 9 del plan — el mismo `SELECT` se re-corre al cerrar la sesión 3)
+
+| tabla | filas | | tabla | filas |
+|---|---|---|---|---|
+| `place_lists` | 1 | | `place_owner_content` | 1 |
+| `place_list_items` | 0 | | `place_photos` | 2 |
+| `polls` | 6 | | `subscriptions` | 3 |
+| `poll_options` | 25 | | `users` | 4 |
+| `poll_votes` | 19 | | `chat_conversations` | 15 |
+| `premium_interest` | 0 | | `chat_messages` | 38 |
+| `place_claims` | 1 | | | |
+
+### INT2-40 — arreglado ANTES de ejecutar (decisión de Fer, opción A)
+
+El plan lo clasifica 🔴 *destruye datos*, y § 10 bis manda parar y arreglar antes de seguir. Fer
+eligió arreglar primero. **Al ir al código, el diagnóstico del BACKLOG resultó sobre-declarado en
+un punto y confirmado en otro:**
+
+- **El editor precarga como tildados TODOS los `place_tags`, sin distinguir `source`**
+  (`facetasConElegidos`, [query.ts:241](../../lib/negocio/query.ts#L241) → `elegidos` en
+  [editor-client.tsx:60](../../app/mi-negocio/[placeId]/editor-client.tsx#L60)). Así que guardar
+  sin tocar nada **no borraba** los tags de curaduría: los re-escribía con `source='owner'`. La
+  frase "sus tags admin desaparecen" solo era literal si el dueño **destildaba** uno.
+- **Pero la pérdida era real igual, y peor porque es invisible**: el canario de
+  `/consistency-check` cuenta `source='admin'` y habría bajado sin que nadie borrara nada; y con
+  la decisión 12.3 del plan (los tags del dueño dejan de aplicarse al revocar el reclamo), un
+  guardado inocente convertía trabajo pago de la casa en algo que una revocación apaga.
+- **Todavía no le pasó a nadie:** cero lugares con sugerencias aceptadas sin tags `admin`. El
+  canario sigue en **3.967 tags / 1.202 lugares**. No hubo nada que restaurar.
+- **Kansas nunca fue curado** (0 filas en `place_tag_suggestions`, sus 5 tags ya son `owner`), así
+  que `INT2-14` tal cual **no** reproduce el caso: hace falta sembrar un tag `admin` en Kansas
+  como setup (anotado abajo y revertido en la sesión 3).
+
+**Fix aplicado** (`lib/negocio/acciones.ts`, solo código, sin migración): el `delete` borra todo lo
+que no es curaduría **más** la curaduría que el dueño destildó; el `insert` de lo tildado lleva
+`onConflictDoNothing`, así que una fila `admin` que sobrevive **conserva su `source`**. Las de
+`import` tildadas siguen pasando a `owner` — decisión 14 intacta, y así el re-import de Overture no
+se lleva lo que el dueño confirmó. **Regla de producto** (Fer, 2026-08-02): *el dueño gana sobre lo
+que él tildó; la curaduría sobrevive en lo que él no tocó; destildar sí borra* — una pantalla que
+dice "guardamos" y no guarda mentiría sobre en qué búsquedas aparece su lugar.
+Test nuevo en `panel.integration.test.ts` (sobrevive tildada como `admin` · se va destildada).
+**Verificación:** `tsc --noEmit` EXIT 0 · **619/619** tests PASS (58 archivos).
+
+### Casos
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| INT2-01 | Home anónima: 4 chips + «Para ahora» | ✅ PASS | **Domingo 2026-08-02, 14:25 AR** → franja **almuerzo** (11:00–15:29). «Para ahora» va **primero** y no descuenta: 1 + 4 (`Salida con chongo`, `Salir a bailar`, `After office`, `Tomar algo`) + "Ver más". Tocarlo escribe `?t=almuerzo`, la franja correcta. **Ninguna regla de `chips.schedule` matchea a esa hora** (merienda arranca 16:00 el finde), así que el orden es el de `sort` — como corresponde. *Nota, no bug:* falta `Salida con amigos` (`sort` 0) porque **da 0** y la decisión 25 no lista chips vacíos: exige `precio-2`, que tiene **1 sola fila en todo el catálogo** (el hueco de Precio ya medido). Lo reemplaza `Tomar algo` (`sort` 9), exactamente lo que documenta [chips.ts:114-118](../../lib/search/chips.ts#L114) |
+| INT2-02 | Búsqueda por alias de zona | ✅ PASS | Con **click en el input antes de tipear**: `unicenter` → desplegable "Zonas → Martínez y Acassuso / Unicenter" → aplica `?z=martinez-acassuso`, chip "Quitar Martínez y Acassuso" puesto y resultados de la zona |
+| INT2-03 | Abrir ficha desde el resultado | ✅ PASS | Fabric Sushi (Martínez): la ficha carga con «Guardar» y «Compartir» visibles |
+| INT2-04 | «Guardar» sin sesión, en card **y** en ficha | ✅ PASS | Card → `/login?callbackUrl=%2F%3Fz%3Dmartinez-acassuso`; ficha → `/login?callbackUrl=%2Flugar%2F35a9ac19…`. Cada superficie manda a su propio destino. **Nada se escribió**: `place_list_items` seguía en **0** |
+| INT2-05 | Loguearse y volver | ✅ PASS | pepe se loguea desde ese login → vuelve a la ficha (no a la home) y ahí sí guarda: 1 fila en `place_list_items` (17:28:28, posterior al arranque) sobre la lista default de pepe |
+| INT2-06 | Free crea votación con 5 opciones | ✅ PASS | **juan** (pepe ya tenía una activa y el free topea en 1 — se usó otra cuenta en vez de tocar datos preexistentes). Al llegar a 5/5 los demás «Agregar» quedan **disabled**. Creada: `[QA2] ¿Dónde caemos?`, token `qEldE5XX22SF-9a7TJJKNg`, `allow_suggestions=true` |
+| INT2-07 | Anónimo vota sin cuenta | ✅ PASS | Sesión `null` confirmada por `get-session`. Vota por cookie `voter_id`: "Tu voto", "1 voto en total · Podés cambiar tu voto mientras esté abierta" |
+| INT2-08 | Anónimo sugiere 2 (su tope) y prueba la 3ra | ✅ PASS | Suma Bierhaus y Holzhacker (5+2=7). El botón se apaga con motivo: *"Ya sumaste 2 lugares. Dejale lugar al resto."* Y **el gate es server-side**, no solo UI: `POST …/opciones` → **409 `LIMITE_SUGERENCIAS`** |
+| INT2-09 | 2do dispositivo llega a 8 y prueba la 9na | ✅ PASS | Dispositivo 2 = cookie `voter_id` propia (curl con jar aparte). 8va → **201**. 9na → **409 `VOTACION_LLENA`**: *"Esta votación ya tiene 8 lugares, que es el máximo."* **Cita el total (8), no el techo del creador (5)** — los dos techos quedan bien separados. La UI dice lo mismo: *"La votación llegó a 8 lugares, que es el máximo"* |
+| INT2-10 | Quitar una sugerida que ya tiene votos | ✅ PASS | Bierhaus con 2 votos (uno de cada dispositivo). El creador toca «Sacar» → panel de confirmación **antes** de nada: *"Si lo sacás se pierden 2 votos. Esto no se puede deshacer."* + "Sí, sacarlo" / "Volver". Al confirmar: opción borrada y `poll_votes` de la votación en **0** — la cascada se llevó los dos |
+| INT2-11 | Cerrar y buscarla en `/mis-votaciones` | ✅ PASS | Free la ve como "Activa" con el copy del gate (*"Por ahora ves solo la activa; las cerradas siguen por su link"*). Al cerrar (con elección de ganador) sale del panel → estado vacío. En DB: `status=closed`, `closed_at`, `winner_place_id`. No entra a ningún historial: el free no lo tiene (INT2-21) |
+| INT2-12 | Dueño en `/mi-negocio/[Kansas]` con `owner_plan='free'` | ✅ PASS | Ve su panel; los 3 campos pagos **disabled** con el aviso "Activá el plan del lugar acá arriba"; fotos "**2 de 3** · El plan pago llega a 15" |
+| INT2-13 | «Avisame cuando abra» (pitch B2B) | ⏭️ DIFERIDO | **No es corrible en config A** y el plan se contradice: § 4 lo pone en la sesión 1, pero § 3 bis y § 11 lo asignan a la pasada de config B. Verificado en vivo: con `NEXT_PUBLIC_MP_PUBLIC_KEY` cargada, `/mi-negocio` muestra **"Suscribirme por $ 15.000/mes"**, no el botón de interés. Va a la sesión 3 junto a INT2-32 y INT2-42. `premium_interest` sigue en **0 filas** |
+| INT2-14 | `owner_plan='paid'` + cargar descripción/carta/novedad | ✅ PASS | Setup por `UPDATE` (revertido, ver abajo). Guardado OK → los 3 en `place_owner_content`. **No pueden ir a las columnas base**: `places` ni siquiera tiene columna `description` |
+| INT2-15 | Anónimo abre la ficha del lugar pago | ✅ PASS | Ve los 3 extras: novedad "[QA2] Happy hour de 18 a 20", link **"Ver la carta"** y bloque **"Sobre el lugar"**. El botón «Guardar» sobre un lugar pago funciona igual: → `/login?callbackUrl=%2Flugar%2F6323f392…` |
+| INT2-16 | Volver a `owner_plan='free'` y recargar | ✅ PASS | Los tres extras **desaparecen** de la ficha (`QA2` no aparece en ningún lado, ni "Ver la carta", ni "Sobre el lugar") y las filas siguen intactas en `place_owner_content` (`description`/`menu_url`/`news` NOT NULL). Ocultar ≠ borrar, confirmado sobre la ficha pública |
+| INT2-17 | Barrido del anónimo sobre las 6 superficies nuevas | ✅ PASS | Sesión `null` por `get-session` (nunca por cookies). `/mis-lugares` → `/login?callbackUrl=/mis-lugares` · `POST`+`DELETE /api/favoritos` → **401 NO_SESSION** · `POST /api/listas`, `PATCH`+`DELETE /api/listas/[id]` → **401** · `GET /api/votaciones/historial` → **401** · `POST /api/billing/interes` → **401** · `POST …/opciones` **sí funciona anónimo** (es la feature, no un gate): las dos sugerencias de INT2-08 entraron sin sesión. **`GET /api/favoritos?ids=…` → 200 `{guardados:[],listas:[]}` y no filtra nada**: se pidió con el id de Fabric Sushi, que **sí está guardado por pepe**, y los dos arrays vuelven vacíos |
+| INT2-18 | juan hace `PATCH`/`DELETE` sobre una lista ajena | ✅ PASS | Los dos → **404 `LISTA_NO_ENCONTRADA`** (oculta la existencia, mismo criterio que `/admin` y `/mi-negocio`). **Verificado en DB**: la lista sigue llamándose "Mis lugares", no "QA2 · HACK juan". El 403 de pantalla no habría alcanzado |
+| INT2-19 | Un votante borra la sugerencia **de otro dispositivo** | ✅ PASS | **403 `NO_AUTORIZADO`**: *"Solo podés sacar los lugares que sumaste vos."* Y el propio autor tampoco puede si ya tiene votos: **409 `OPCION_CON_VOTOS`** — lo que deja probado que el borrado de INT2-10 fue **por ser creador**, no por ser autor |
+| INT2-20 | Un votante borra una opción original del creador | ✅ PASS | **403 `OPCION_ORIGINAL`**: *"Esa opción es parte de la votación original y no se puede quitar."* |
+| INT2-21 | Free hace `GET /api/votaciones/historial` | ✅ PASS | **403 `NO_PREMIUM`** (no 401: la sesión existe, el plan no alcanza) — la distinción que pedía el plan |
+| INT2-22 | Free crea una 2da lista | ✅ PASS | **403 `LIMITE_LISTAS`** con juan teniendo **0 listas creadas**: el cupo **cuenta la default aunque todavía no exista**, que era justo el punto del caso |
+| INT2-40 | Guardar del dueño × tags de curaduría | ✅ PASS (sobre el fix) | Setup: se sembró `grupos-grandes` con `source='admin'` en Kansas (nunca fue curado). **Confirmado en vivo el "sin enterarse"**: el editor lo muestra **tildado e indistinguible** de los del dueño (`aria-pressed=true`, "Ambiente · 2 elegidos"). Tras guardar el formulario entero: la fila **sigue con `source='admin'`**, las del dueño siguen `owner`, y el tag **se aplica** en la ficha pública ("Grupos grandes"). Con el código anterior habría quedado `owner` |
+
+### Veredicto de la sesión 1
+
+**APROBADO — 22 casos ejecutados, 21 PASS + 1 diferido por configuración. Cero bugs nuevos.**
+El único 🔴 del plan (INT2-40) entró arreglado a esta sesión y quedó verificado en vivo.
+
+### Hallazgos que no son bugs (van al BACKLOG como decisión, no como fix)
+
+1. **El plan se contradice sobre INT2-13** (§ 4 lo pone en la sesión 1 · § 3 bis y § 11 en la
+   pasada de config B). Manda § 11: en config A el botón «Avisame cuando abra» no existe. Sin
+   cambio de código; se corrige la tabla del § 4 del plan.
+2. **`Salida con amigos` no llega a la home y la causa es de datos, no de código**: su chip exige
+   `precio-2` y la faceta Precio tiene **1 fila en 14.458 lugares**. Mientras Precio siga vacía,
+   el chip `sort` 0 nunca se ve — y lo mismo vale para cualquier chip futuro que incluya un tag de
+   Precio. Es el costo concreto del hueco ya medido (OSM no lo rinde), visible en la portada.
+
+### Estado sembrado / tocado (para la limpieza del bloque F, sesión 3)
+
+| Qué | Estado | Cómo se revierte |
+|-----|--------|------------------|
+| `place_list_items` | +1 (Fabric Sushi en la lista default de pepe) | `delete` por `created_at >= 17:20:12` |
+| `polls` + `poll_options` | +1 votación `[QA2] ¿Dónde caemos?` (closed) + 7 opciones | `delete from polls where title like '[QA2]%'` (cascada) |
+| `poll_votes` | +0 — los 2 que hubo cayeron con INT2-10 | nada |
+| `place_lists` | **sin cambios** (el free no pudo crear la 2da) | nada |
+| `premium_interest` | **sin cambios (0)** | nada |
+| `places.owner_plan` de Kansas | `free` → `paid` → **ya revertido a `free`** ✅ | hecho |
+| `place_tags` de Kansas | +1 fila `grupos-grandes` `source='admin'` (sembrada para INT2-40) | `delete from place_tags where place_id='6323f392…' and source='admin'` |
+| **`place_owner_content` de Kansas** | ⚠️ **`description`/`menu_url`/`news` PISADOS con texto `[QA2]`** | Los valores previos (del QA de AUTH F3) **no se capturaron antes de sobrescribir**: se restauran desde `backups/adondesalimos_2026-08-02_141723.sql.gz`. El conteo de filas no cambió, así que el snapshot del § 9 **no lo detecta** — anotado acá para que no se pase |
+| `google_api_usage` | `details` 3 → **5** (2 aperturas de ficha de Kansas); `photos` sin moverse | Se deja (decisión 2 del plan). `photos` quieto es lo correcto: el lugar tiene fotos propias |
+| Agregados diarios | filas del 2026-08-02 en `place_impressions_daily` / `place_tag_impressions_daily` / `place_taps_daily` | los tres `delete` del § 9 |
+
+### Nota de método
+
+El panel de confirmación de INT2-10 **no apareció al primer click** y sí al segundo, sin cambiar
+nada. No se registra como hallazgo: el estado es local (`setAConfirmar`, sin red) y el
+comportamiento es correcto y reproducible — lo más probable es que el primer click llegara antes
+de la hidratación. Se anota porque es la clase de síntoma que, sin explicación en el código,
+habría entrado como ❌ falso (§ 10.3 del plan).

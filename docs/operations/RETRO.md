@@ -13,6 +13,25 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-02 · QA integral #2, sesión 1 (bloques A+B) — Opus
+
+- **Qué salió bien:** arreglar el 🔴 antes de ejecutar (§ 10 bis) obligó a ir al código, y ahí el
+  diagnóstico heredado del BACKLOG resultó **sobre-declarado**: el editor precarga tildados *todos*
+  los `place_tags` sin distinguir `source`, así que guardar sin tocar no borraba la curaduría — la
+  reescribía como `owner`. Pérdida igual de real pero invisible, y con un fix distinto al propuesto.
+  Dos `SELECT` más mostraron que **todavía no le había pasado a nadie** (cero lugares afectados): no
+  hubo nada que restaurar. Corolario: *un hallazgo escrito ayer merece la misma verificación que un
+  síntoma de hoy* — la regla del § 10.3 vale también para lo que ya está anotado en un doc propio.
+- **Qué frenó:** poco. Un caso (INT2-13) no era corrible en la configuración de la sesión y el plan
+  se contradecía consigo mismo (§ 4 vs § 11); se detectó recién con el panel en pantalla. Corregido
+  en el plan. Y el snapshot por conteo del § 9 **no ve un UPDATE que pisa contenido sin cambiar el
+  número de filas**: `place_owner_content` de Kansas quedó sobrescrito y solo se recupera del backup
+  — quedó anotado a mano en el QA porque el criterio de "listo" del bloque F no lo detecta.
+- **Qué cambiar:** una sola cosa, y es barata: **capturar el contenido de las filas que un caso va a
+  pisar, no solo el conteo**. Un `SELECT` antes del primer `UPDATE` de setup habría evitado depender
+  del `.sql.gz`. No amerita regla nueva en `CLAUDE.md`; sí una línea en el § 9 del plan para las
+  sesiones 2 y 3, donde las transiciones pisan bastante más que esta.
+
 ## 2026-08-02 · Diseño del QA integral #2 — Opus
 
 - **Qué salió bien:** ir al código a explicar cada "definir expectativa" antes de dejarlo abierto.

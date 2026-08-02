@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { eq, like, sql } from 'drizzle-orm'
+import { eq, inArray, like, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import {
   placeClaims,
@@ -252,6 +252,43 @@ describe.runIf(process.env.DATABASE_URL)('la ficha consume el contenido del due�
     // Y la ficha —la pantalla— los muestra.
     const ficha = await getPlaceDetail(placeId)
     expect(ficha!.tags.map((t) => t.slug).sort()).toEqual(['bar', 'karaoke'])
+  })
+
+  /**
+   * INT2-40. El editor muestra las de curaduría tildadas sin decir de dónde
+   * vienen: guardar el teléfono no puede costar el trabajo pago de la casa (3.967
+   * filas que no están en git ni en el seed). Destildarla sí la borra — es su
+   * lugar.
+   */
+  it('una tag de curaduría sobrevive como admin si el dueño la deja tildada, y se va si la destilda', async () => {
+    const elegidas = await db
+      .select({ id: tags.id, slug: tags.slug })
+      .from(tags)
+      .where(inArray(tags.slug, ['bar', 'karaoke']))
+    if (elegidas.length < 2) return // taxonomía sin sembrar
+
+    const curada = elegidas.find((t) => t.slug === 'bar')!
+    await db.insert(placeTags).values({ placeId, tagId: curada.id, source: 'admin' })
+
+    // El dueño guarda con las dos tildadas (lo que le precargó el editor).
+    await guardarContenido(duenoId, placeId, payload({ tags: ['bar', 'karaoke'] }))
+
+    const filas = await db
+      .select({ slug: tags.slug, source: placeTags.source })
+      .from(placeTags)
+      .innerJoin(tags, eq(tags.id, placeTags.tagId))
+      .where(eq(placeTags.placeId, placeId))
+    expect(filas.find((f) => f.slug === 'bar')!.source).toBe('admin')
+    expect(filas.find((f) => f.slug === 'karaoke')!.source).toBe('owner')
+
+    // Ahora la destilda: eso sí es una decisión suya sobre su lugar.
+    await guardarContenido(duenoId, placeId, payload({ tags: ['karaoke'] }))
+
+    const despues = await db
+      .select({ tagId: placeTags.tagId })
+      .from(placeTags)
+      .where(eq(placeTags.placeId, placeId))
+    expect(despues.map((f) => f.tagId)).not.toContain(curada.id)
   })
 
   it('un slug inventado se descarta sin romper el guardado', async () => {

@@ -232,8 +232,25 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Mejoras futuras (fuera de v1)
 
-- [ ] **🔴 El editor del dueño borra los tags de la curaduría** (hallazgo 2026-08-02, diseñando el
-      QA integral #2 — confirmado en código **y en datos**, sin ejecutar nada). `guardarContenido`
+- [x] **🔴 El editor del dueño borra los tags de la curaduría** — **Resuelto ✅ 2026-08-02**, antes
+      de ejecutar el QA integral #2 (opción A de Fer: § 10 bis manda arreglar un 🔴 antes de seguir).
+      El `delete` de `guardarContenido` ahora borra todo lo que no es curaduría **más** la curaduría
+      que el dueño destildó, y el `insert` lleva `onConflictDoNothing`: una fila `admin` que
+      sobrevive **conserva su `source`**. Las de `import` tildadas siguen pasando a `owner`
+      (decisión 14 intacta, y así el re-import no se lleva lo que el dueño confirmó).
+      **Regla de producto cerrada:** el dueño gana sobre lo que él tildó · la curaduría sobrevive en
+      lo que él no tocó · **destildar sí borra** (una pantalla que dice "guardamos" y no guarda
+      mentiría sobre en qué búsquedas aparece su lugar). Test en `panel.integration.test.ts`;
+      619/619 verdes. Verificado en vivo como `INT2-40`.
+      **Dos correcciones al diagnóstico original**, halladas al ir al código: (a) el editor precarga
+      como tildados **todos** los `place_tags` sin distinguir `source`, así que guardar sin tocar no
+      los borraba — los reescribía como `owner`, que es una pérdida igual de real pero **invisible**
+      (rompe el canario y, con la decisión 12.3, deja que una revocación apague trabajo de la casa);
+      (b) **no le pasó a nadie todavía**: cero lugares con sugerencias aceptadas sin tags `admin`, el
+      canario intacto en 3.967/1.202. No hubo nada que restaurar. Es solo código ⇒ **no bloquea el
+      dump a Neon**. Queda abierto, como decisión de UI y no de datos: **el editor no distingue los
+      tags de curaduría de los propios** — verificado en vivo, aparecen tildados e iguales.
+      _(Detalle original del hallazgo, para contexto:)_ `guardarContenido`
       hace `tx.delete(placeTags).where(eq(placeTags.placeId, placeId))` **sin filtrar por `source`**
       (`lib/negocio/acciones.ts:117`) y reemplaza el set entero por lo tildado en el formulario. El
       docstring contempla borrar los de `import` (decisión 14: para SU lugar el dueño es mejor
@@ -254,6 +271,16 @@ son trabajo acotado con criterio de "listo" objetivo.
       `docs/qa/PLAN-QA-INTEGRAL-2.md`, y bloquea la decisión 12.3 de ese plan (que los tags del
       dueño dejen de aplicarse al revocar un reclamo **no se puede implementar antes**: hoy no hay
       a qué volver).
+- [ ] **Un chip de la home con un tag de Precio nunca se ve** (hallazgo 2026-08-02, `INT2-01` del QA
+      integral #2). `Salida con amigos` es el chip de `sort` 0 y **no llega a la home**: exige
+      `precio-2` y la faceta Precio tiene **1 fila en 14.458 lugares**, así que el chip da 0 y la
+      decisión 25 —correctamente— no lista chips vacíos; lo reemplaza `Tomar algo` (`sort` 9). No es
+      un bug: es el hueco de Precio ya medido (OSM no lo rinde, ver § Mejoras futuras) **apareciendo
+      en la portada**. **Decisión para Fer**, ninguna urgente: (a) dejarlo —la home igual muestra 4
+      chips con datos—; (b) sacarle `precio-2` a ese chip, que lo revive de inmediato; (c) esperar a
+      que Precio tenga datos. Vale como regla general: **un chip que incluya un tag de Precio está
+      apagado de hecho** mientras esa faceta siga vacía.
+
 - [ ] **💸 `npm run curar` re-cobra por los lugares ya curados — filtro de skip** (hallazgo
       2026-07-31, al preguntarse si había que re-correr la curaduría). `seleccionarLugaresDeZona`
       (`lib/curation/seleccion.ts`) **no excluye lo que ya tiene sugerencias**: ordena por
