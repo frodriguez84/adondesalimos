@@ -314,7 +314,16 @@ son trabajo acotado con criterio de "listo" objetivo.
         `tags.active`. En vivo: con el reclamo revocado, Kansas seguía saliendo **primero** en
         `?z=las-canitas&t=musica-en-vivo`. Importa porque **los tags deciden en qué búsquedas
         aparece el lugar**, y se revoca justamente cuando alguien no era quien decía ser.
-        **Sigue bloqueado por el ítem de arriba** (el editor del dueño): hoy no hay a qué volver.
+        ⚠️ **El bloqueo cambió de forma, no desapareció.** El fix de `INT2-40` —el editor preserva
+        la curaduría, commit `1139f3b`— **ya está**, así que ese no es el impedimento. Lo que queda
+        es que el editor **sigue borrando los `import` a propósito** (decisión 14: para su lugar el
+        dueño es mejor fuente que Overture), así que un lugar **sin curaduría** cuyo dueño guardó
+        alguna vez **se queda sin ningún tag** al revocar. Medido el 2026-08-02: **Kansas tiene 5
+        tags y los 5 son `owner`** ⇒ apagarlos lo saca de toda búsqueda por tag. **Hay que decidir
+        el fallback antes de implementar:** (a) re-derivar los `import` desde Overture al revocar,
+        (b) degradar los `owner` a `import` en vez de apagarlos, o (c) aceptar que el lugar quede
+        sin tags. Hoy afecta a **1 lugar** (el único con claim aprobado); escala cuando haya dueños
+        de verdad.
       - **Las fotos del dueño siguen visibles.** Este el plan lo daba por hecho y no ocurre:
         `fotosDeDueno` ([query.ts:230](../../lib/lugar/query.ts#L230)) no recibe `reclamado`, a
         diferencia del contenido ([:149](../../lib/lugar/query.ts#L149)) y los horarios
