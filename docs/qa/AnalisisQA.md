@@ -2335,3 +2335,798 @@ borrar las 2 filas a mano, con `npm run backup:db` antes
 que el docstring de `CHIPS_OBJETIVO` seguía diciendo *"8 devuelven 0"* y *"el único vivo es
 `salir-a-bailar`"* — quedó viejo con la curaduría de CURADURIA F3. Hoy son **8 de 9 vivos** (el único
 en 0 es `plan-tranqui`). El docstring ahora lleva los números medidos y fechados.
+
+---
+
+## PULIDO_BETA F1 — Auditoría de UX/UI de los 6 recorridos en mobile (2026-08-03)
+
+**Spec:** `docs/specs/active/PULIDO_BETA.md` (movido de `planned/` al arrancar esta sesión).
+**Qué es esto:** la fase **F1** del spec — **ver, no arreglar** (decisión 2). No se tocó una línea
+de código. Cada hallazgo trae los 6 campos de la decisión 7 (ruta · viewport · esperado ·
+observado · severidad **propuesta** · evidencia). **La severidad la confirma Fer en F2**
+(decisión 6); acá está propuesta, no decidida.
+
+**Método:** recorridos en vivo contra `https://adondesalimos.ngrok.app` con el MCP de Playwright,
+viewport **390×844**, más una pasada de control a **360 px** de ancho por recorrido (decisión 3).
+Ventana limpia sin sesión ni cookie de voto para R2 y R3 (decisión 14). Las capturas quedan en
+`.playwright-mcp/` (gitignoreada): por eso **cada hallazgo repite la evidencia decisiva en texto**,
+para que no dependa de un archivo que no viaja en git.
+
+**No se auditó** `/admin` ni `/legales` (fuera de scope explícito del spec).
+
+⚠️ **Dos numeraciones:** los hallazgos de abajo son `PBETA-R<n>-NN` (el entregable de F1). Los
+`PBETA-NN` del spec son otra cosa: verifican que el **spec** se cumplió.
+
+### Estado de la base (decisión 13) — llevado desde el arranque
+
+Conteos previos a la auditoría (2026-08-03 12:12 AR): polls 6 · poll_options 25 · poll_votes 19 ·
+place_claims 1 · place_lists 1 · place_list_items 0 · premium_interest 0 · users 4 ·
+chat_conversations 16 · chat_messages 40 · place_owner_content 1 · place_photos 2 ·
+`place_tags source='admin'` 3.967.
+
+| Qué se tocó | Estado | Cómo se revierte |
+|---|---|---|
+| `polls.expires_at` del token `pYBcg_6TgoNpebFNOgQ7wg` | **Modificado** — era `2026-08-03 15:09:45.613` (había expirado 3 min antes de arrancar); se corrió a `+6 h` para poder auditar una votación **abierta**, que es el estado principal de R2 | `UPDATE polls SET expires_at='2026-08-03 15:09:45.613' WHERE token='pYBcg_6TgoNpebFNOgQ7wg'` |
+| `poll_votes` — 1 voto emitido en esa votación (`adebc48a-af59-4ceb-8670-662f0cd64365`, opción Kalua) | **Pendiente de borrar** al cierre | `DELETE FROM poll_votes WHERE id='adebc48a-af59-4ceb-8670-662f0cd64365'` |
+| `poll_options` — se sumó "Kansas Grill & Bar" (`8c87d0d0-…`) probando *Sumar un lugar* | ✅ **Ya revertido** desde la propia UI ("Sacar"). `poll_options` volvió a **25** | — |
+| `polls.status` del token `bCC7kEsmhr3Vb9NReHOUFg` | **Modificado por la app, no por SQL**: estaba `open` con vencimiento del 2026-07-29; visitarlo disparó la expiración lazy y pasó a `closed`. Es el comportamiento diseñado | `UPDATE polls SET status='open' WHERE token='bCC7kEsmhr3Vb9NReHOUFg'` (se re-cerrará solo en la próxima visita) |
+
+---
+
+### R2 — Me invitaron a votar (sin cuenta)
+
+**Por qué arrancó por acá:** es el loop viral y el menos mirado; si la sesión se cortaba, este es el
+que tenía que quedar hecho.
+
+**Recorrido:** ventana sin cookies ni sesión → `/votacion/pYBcg_6TgoNpebFNOgQ7wg` (abierta, 3
+opciones, 4 votos) → votar → recargar → abrir una ficha y volver → *Sumar un lugar* → sacarlo →
+control a 360 px → estados **expirada** (`bCC7kEsmhr3Vb9NReHOUFg`), **cerrada con ganador**
+(`GPeDP-dIOCDVHlDbCIRGNA`) y **token inválido**.
+
+**Lo que funcionó bien** (no genera hallazgo, pero se verificó): el voto se registra al toque y el
+botón pasa a «✓ Tu voto» en naranja · el voto **sobrevive a la recarga** (cookie) · «Volver» desde
+la ficha vuelve a la votación y no a la home · el estado *cerrada con ganador* se lee perfecto
+(«Ganó Cine Lorca» + card con borde naranja y chip «Ganó») · el vacío del buscador dice «No
+encontramos lugares con ese nombre» · sumar y sacar un lugar funciona y borra la fila.
+
+**360 px:** sin desbordes. `document.scrollWidth` = `clientWidth` = 345 px (Chrome descuenta 15 px
+de scrollbar, así que el ancho real de contenido probado es **más chico** que el piso de Android).
+Único efecto: el H1 pasa de 3 a 4 líneas (ver PBETA-R2-04).
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R2-01 | Un link roto cae en el 404 default de Next: blanco, en inglés, sin salida | **BLOQUEANTE** |
+| PBETA-R2-02 | El link compartido no lleva imagen de preview (`og:image`) | MOLESTO |
+| PBETA-R2-03 | Nada dice quién invitó ni qué es la app | **BLOQUEANTE** |
+| PBETA-R2-04 | Sin título propio, el H1 es la lista de nombres concatenada | MOLESTO |
+| PBETA-R2-05 | Los toques principales miden menos de 44 px | MOLESTO |
+| PBETA-R2-06 | No se sabe hasta cuándo se puede votar | MOLESTO |
+| PBETA-R2-07 | «Podés cambiar tu voto» aparece recién **después** de votar | MOLESTO |
+| PBETA-R2-08 | La votación cerrada o expirada es un callejón sin salida | **BLOQUEANTE** |
+| PBETA-R2-09 | El sheet «Sumá un lugar» no tiene forma visible de cerrarse | MOLESTO |
+| PBETA-R2-10 | El subtítulo del sheet se alinea a la derecha del título | COSMÉTICO |
+| PBETA-R2-11 | El bloque de voto queda visualmente fuera de la card del lugar | MOLESTO |
+| PBETA-R2-12 | Los resultados se ven antes de votar | MOLESTO |
+| PBETA-R2-13 | El H1 no se actualiza cuando alguien suma un lugar | COSMÉTICO |
+
+#### PBETA-R2-01 — Un link roto cae en el 404 default de Next
+
+- **Ruta:** `/votacion/token-que-no-existe` (y **cualquier** ruta inexistente: se reprodujo igual en `/no-existe-esta-ruta`)
+- **Viewport:** 390×844
+- **Esperado:** una pantalla de la app —fondo oscuro, wordmark, «Ese link no anda» en castellano— con un camino de vuelta a la home.
+- **Observado:** la pantalla default de Next.js: **fondo blanco**, tipografía del sistema, `404 · This page could not be found`, **en inglés**, sin header, sin wordmark y **sin ningún link**. Rompe el tema oscuro de toda la app y la regla de copy en rioplatense. El `<title>` también sale en inglés (`404: This page could not be found.`).
+- **Por qué importa acá:** en R2 el usuario llega por un link pegado en WhatsApp. Un link cortado por el reenvío es el caso más común de todos, y esto es lo que ve.
+- **Severidad propuesta:** **BLOQUEANTE** — deja al usuario sin saber qué hacer y aparenta app rota.
+- **Evidencia:** `.playwright-mcp/pbeta-r2-15-token-invalido-404.png`. HTTP **404** confirmado por Playwright. Explicación en código (no fue como se encontró): no existen `app/not-found.tsx`, `app/error.tsx` ni `app/global-error.tsx`.
+
+#### PBETA-R2-02 — El link compartido no lleva imagen de preview
+
+- **Ruta:** `/votacion/[token]` — los `<meta>` del `<head>`
+- **Viewport:** N/A (es la tarjeta que dibuja WhatsApp/Telegram antes de abrir la app)
+- **Esperado:** una tarjeta con imagen —el logomark alcanza— para que el link no parezca spam.
+- **Observado:** el `head` trae `og:title` y `og:description` correctos y bien escritos (`"Votá entre Kalua Pizza Bar, Popolo Pizza, Doc Brown Brewery."`), pero **no hay ningún `og:image`** y `twitter:card` es `summary` (el formato sin imagen). La home (`/`) directamente **no declara ninguna etiqueta `og:` ni `twitter:`**.
+- **Severidad propuesta:** MOLESTO — es el primer pixel del loop viral, pero no traba el recorrido.
+- **Evidencia:** `curl` del head de la votación → 6 metas, ninguna `og:image`; `grep -oiE 'og:image'` sobre el HTML devuelve vacío. Mismo grep sobre `/` devuelve vacío para `og:` y `twitter:`.
+
+#### PBETA-R2-03 — Nada dice quién invitó ni qué es la app
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg`
+- **Viewport:** 390×844
+- **Esperado:** que un desconocido entienda en 5 segundos quién lo invitó, a qué, y qué es «¿A dónde salimos?».
+- **Observado:** arriba se lee `VOTACIÓN` (eyebrow gris de 12 px), el título, y abajo las cards con botones «Votar». **El nombre del creador no aparece en ninguna parte** —la votación es de "Pepe", que está en la base y no se muestra—, no hay una línea de instrucción («elegí a dónde querés ir»), y **no hay una sola frase que explique qué es la app**. Lo único que la nombra es el pie: «Armá tu propia votación desde ¿A dónde salimos?», que queda a **990 px de scroll** (fuera de pantalla al llegar) y es un link de **15 px de alto**.
+- **Severidad propuesta:** **BLOQUEANTE** — es el criterio explícito con el que el spec justifica R2 («un desconocido tiene que entender qué es esto en 5 segundos»). Se entiende *qué botón tocar*, no *dónde está parado*.
+- **Evidencia:** `.playwright-mcp/pbeta-r2-02-viewport.png` (llegada) y `pbeta-r2-04-pie.png` (pie). El snapshot de accesibilidad de la página entera no contiene la cadena «Pepe» ni ninguna descripción de la app.
+
+#### PBETA-R2-04 — Sin título propio, el H1 es la lista de nombres concatenada
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg`
+- **Viewport:** 390×844 y 360×844
+- **Esperado:** un encabezado que diga de qué se trata.
+- **Observado:** el H1 es `¿A dónde salimos? Kalua Pizza Bar · Popolo Pizza · Doc Brown Brewery` — **3 líneas a 390 px y 4 a 360 px**, ocupando el tercio superior de la pantalla para decir lo mismo que ya dicen las cards de abajo. No es un bug de datos: el `title` de esa votación es `NULL` y este es el **fallback**. Cuando el creador sí puso título se ve muy bien (`¿Que hacemos?`, una línea).
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r2-02-viewport.png` (390, 3 líneas) · `pbeta-r2-12-360px.png` (360, 4 líneas) · `pbeta-r2-14-cerrada-ganador.png` (contraste: votación **con** título propio).
+
+#### PBETA-R2-05 — Los toques principales miden menos de 44 px
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg` (+ el sheet *Sumar un lugar*)
+- **Viewport:** 390×844
+- **Esperado:** ~44×44 px de área de toque en las acciones principales, que es lo que se usa parado en la calle y con una mano.
+- **Observado**, medido con `getBoundingClientRect()`:
+
+  | Elemento | Medida | Nota |
+  |---|---|---|
+  | Botón **«Votar»** | **63 × 34** | Es *la* acción del recorrido y es el control más chico de la pantalla |
+  | Link **«Inicio»** (arriba a la derecha) | **35 × 20** | Además es ambiguo: no dice adónde va |
+  | Botón **«+»** de cada resultado del sheet | **32 × 32** | |
+  | Link **«¿A dónde salimos?»** del pie | **106 × 15** | Es la única salida de la página |
+  | Botón «Sumar un lugar» | 358 × 42 | El único cómodo |
+
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** tabla de arriba (medición directa en vivo) · `pbeta-r2-02-viewport.png` · snapshot con `boxes` del dialog.
+
+#### PBETA-R2-06 — No se sabe hasta cuándo se puede votar
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg`
+- **Viewport:** 390×844
+- **Esperado:** «cierra en 6 h» o una fecha — sobre todo porque las votaciones **expiran solas a las 72 h**.
+- **Observado:** en toda la página no hay una sola referencia temporal: ni cuándo se creó, ni cuándo cierra, ni cuánto queda. El que llega no sabe si tiene 5 minutos o 2 días, y el que ya votó no sabe hasta cuándo puede cambiarlo.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r2-02-viewport.png` + `pbeta-r2-04-pie.png` (la página completa: el único texto de estado es «5 votos en total · Podés cambiar tu voto mientras esté abierta»).
+
+#### PBETA-R2-07 — «Podés cambiar tu voto» aparece recién después de votar
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg`
+- **Viewport:** 390×844
+- **Esperado:** saber **antes** de tocar que el voto es reversible; es lo que abarata el click.
+- **Observado:** antes de votar el pie dice solo `4 votos en total`. Después de votar dice `5 votos en total · Podés cambiar tu voto mientras esté abierta`. La frase que quita el miedo aparece cuando el miedo ya no existe.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r2-02-viewport.png` (antes: «4 votos en total») vs `pbeta-r2-03-post-voto.png` (después: la frase completa).
+
+#### PBETA-R2-08 — La votación cerrada o expirada es un callejón sin salida
+
+- **Ruta:** `/votacion/bCC7kEsmhr3Vb9NReHOUFg` (expirada) y `/votacion/GPeDP-dIOCDVHlDbCIRGNA` (cerrada con ganador)
+- **Viewport:** 390×844
+- **Esperado:** que el que llega tarde tenga algo para hacer — armar la suya, ver el lugar que ganó, buscar cerca.
+- **Observado:** en la expirada se lee `Esta votación ya cerró. No se puede votar.` y debajo las 4 opciones con 0 votos, sin botones. **No hay ningún llamado a la acción**: la única salida sigue siendo el link de 15 px del pie. Dos problemas más de copy en la misma pantalla: (a) dice «ya cerró» pero **esta expiró sola** el 2026-07-29 — no la cerró nadie —, y el mensaje no distingue los dos casos ni dice cuándo pasó; (b) en la cerrada con ganador el estado se resuelve muy bien («Ganó Cine Lorca» + card con borde naranja), pero **tampoco ofrece un paso siguiente**.
+- **Por qué importa:** en un grupo de WhatsApp, llegar tarde al link es el caso más frecuente después de llegar a tiempo.
+- **Severidad propuesta:** **BLOQUEANTE** — deja al usuario sin saber qué hacer, en la pantalla donde más gente cae.
+- **Evidencia:** `pbeta-r2-13-expirada.png` · `pbeta-r2-14-cerrada-ganador.png`. Dato de la base que explica el copy: al visitarla, esa votación pasó de `open` a **`closed`** (expiración lazy) — no existe un estado `expired` distinto, y el copy es uno solo para los dos casos.
+
+#### PBETA-R2-09 — El sheet «Sumá un lugar» no tiene forma visible de cerrarse
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg` → botón «Sumar un lugar»
+- **Viewport:** 390×844
+- **Esperado:** una X o un «Cancelar» — el que abrió el sheet por curiosidad tiene que poder salir.
+- **Observado:** el `dialog` contiene **solo** el handle decorativo de arrastre, el título, el buscador y la lista. No hay botón de cerrar ni etiqueta de cierre en el árbol de accesibilidad. Salir depende de adivinar que se arrastra el handle o que se toca afuera.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r2-07-sheet-sumar.png` y el snapshot del `[role=dialog]`, cuyos únicos hijos son `heading`, `generic`, `textbox` y `list` — ningún `button` de cierre.
+
+#### PBETA-R2-10 — El subtítulo del sheet se alinea a la derecha del título
+
+- **Ruta:** `/votacion/[token]` → sheet «Sumá un lugar»
+- **Viewport:** 390×844
+- **Esperado:** el subtítulo debajo del título, como una bajada.
+- **Observado:** «Sumá un lugar» arranca en x=16 y «Buscalo por nombre» queda pegado al borde derecho (x=245, ancho 114) **en la misma línea**, leyéndose como dos elementos sin relación en vez de título + bajada.
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** snapshot con `boxes` del dialog: `heading "Sumá un lugar" [box=16,730,111,24]` y `generic "Buscalo por nombre" [box=245,736,114,16]` · `pbeta-r2-07-sheet-sumar.png`.
+
+#### PBETA-R2-11 — El bloque de voto queda visualmente fuera de la card del lugar
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg`
+- **Viewport:** 390×844
+- **Esperado:** que el botón que vota por un lugar se lea como parte de ese lugar.
+- **Observado:** la card (fondo más claro, borde redondeado) termina después de la zona, y **abajo, sobre el fondo de la página**, van el contador, la barra de progreso y el botón «Votar». Con tres bloques seguidos, la barra de un lugar queda más cerca de la card del *siguiente* que de la propia. Lo mismo pasa con los chips de origen («Lo sumó alguien del grupo», «Lo sumaste vos»), que flotan **arriba** de la card a la que se refieren, y la X de sacar queda a ~300 px de distancia horizontal del chip.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r2-02-viewport.png` y `pbeta-r2-11-sumado-nudge.png`.
+
+#### PBETA-R2-12 — Los resultados se ven antes de votar
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg`
+- **Viewport:** 390×844
+- **Esperado:** *(a definir por Fer — puede ser deliberado)* que la elección no venga anclada.
+- **Observado:** al llegar, antes de emitir ningún voto, ya se ven `0 votos / 0%`, `1 voto / 25%` y `3 votos / 75%` con las barras pintadas. El que llega último ve que uno ya ganó y vota eso o no vota.
+- **Nota:** puede ser una decisión de producto de `VOTACION` («resultados en vivo»); se anota porque se observó en el recorrido, y el triaje es de Fer.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r2-02-viewport.png` (estado de llegada, sin cookie de voto).
+
+#### PBETA-R2-13 — El H1 no se actualiza cuando alguien suma un lugar
+
+- **Ruta:** `/votacion/pYBcg_6TgoNpebFNOgQ7wg` → «Sumar un lugar»
+- **Viewport:** 390×844
+- **Esperado:** que el título y lo que hay en pantalla coincidan.
+- **Observado:** después de sumar «Kansas Grill & Bar» hay **4 lugares** en la lista y el H1 sigue diciendo `… Kalua Pizza Bar · Popolo Pizza · Doc Brown Brewery` (3). Se corrige solo al recargar. Solo afecta al fallback sin título propio (PBETA-R2-04).
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** `pbeta-r2-10-post-sumar.png` (H1 con 3 nombres, 4 cards abajo).
+
+---
+
+### R1 — Descubrir (llego, elijo zona, veo resultados, abro una ficha)
+
+**Recorrido:** `/` sin sesión → tocar un chip **sin** zona → volver → «Elegí zona» → Palermo Soho →
+«Ver 1.095 lugares» → listado → Mapa → Lista → ficha de *Congo Club Cultural* → horarios →
+volver → estado **sin resultados** → control a 360 px.
+
+**Lo que funcionó bien:** el headline y la bajada de la home dicen exactamente lo que hace la app y
+están en criollo («¿Qué sale?» / «Bares, restos, shows y birras cerca tuyo. Decidí sin dar mil
+vueltas.») · el CTA del selector de zona muestra el conteo **en vivo** antes de aplicar («Ver 1.095
+lugares») · el chip funciona sin zona elegida · la ficha carga con skeletons y después completa foto,
+rating, precio y horarios sin saltos raros · el vacío del listado está bien escrito («No encontramos
+nada con eso · Sacá alguno de los chips de arriba o ampliá la zona») · la ficha, ya cargada, entra
+completa y la barra fija de abajo **no tapa** el último contenido.
+
+**360 px:** sin desbordes ni en el listado ni en la ficha (`scrollWidth` = `clientWidth` = 345 px en
+las dos). El layout aguanta.
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R1-01 | El botón del selector de zona dice «Nada con eso» antes de que elijas nada | **BLOQUEANTE** |
+| PBETA-R1-02 | Elegir Palermo Soho arranca con Burger King y Subway | MOLESTO |
+| PBETA-R1-03 | El chip dice una zona y las cards dicen otra, sin nada que lo explique | MOLESTO |
+| PBETA-R1-04 | El listado no dice cuántos resultados hay ni dónde termina | MOLESTO |
+| PBETA-R1-05 | Desde la home no hay forma de enterarse de que existen las votaciones ni el chat | MOLESTO |
+| PBETA-R1-06 | El mapa no entra en pantalla | MOLESTO |
+| PBETA-R1-07 | «Cerrado ahora» no dice cuándo abre, y hoy no se distingue en la lista de horarios | MOLESTO |
+| PBETA-R1-08 | Los toques de la ficha quedan cortos (36–40 px) | COSMÉTICO |
+
+#### PBETA-R1-01 — El botón del selector de zona dice «Nada con eso» antes de que elijas nada
+
+- **Ruta:** `/` → botón «Elegí zona» (el primer control que toca un usuario nuevo)
+- **Viewport:** 390×844
+- **Esperado:** «Elegí una zona» o «Ver lugares» en gris, hasta que haya algo elegido.
+- **Observado:** al abrir el sheet, el CTA fijo al pie —naranja, ancho completo, 343×44— dice **«Nada con eso»**. Es el copy del estado *sin resultados* del listado («No encontramos nada con eso», que ahí sí está bien) reusado como etiqueta de botón. Le está diciendo «no hay nada» a alguien que **todavía no pidió nada**. Al elegir una zona el mismo botón pasa a «Ver 1.095 lugares»; al deseleccionarla vuelve a «Nada con eso».
+- **Atenuante:** el botón está `disabled`, así que no lleva a una pantalla vacía; el daño es de lectura, no de navegación.
+- **Severidad propuesta:** **BLOQUEANTE** — encaja literal en el criterio «miente» de la decisión 5, y pasa en el primer sheet que abre cualquiera que entre por la home. Es también de los más baratos de arreglar.
+- **Evidencia:** `.playwright-mcp/pbeta-r1-04-sheet-zona.png` (se lee «Nada con eso» al pie). Estado del botón medido en vivo: con 0 zonas `{txt:"Nada con eso", disabled:true, w:343, h:44}` · con Palermo Soho `{txt:"Ver 1.095 lugares", disabled:false}` · al deseleccionar vuelve a `{txt:"Nada con eso", disabled:true}`. El copy correcto del mismo caso está en `pbeta-r1-12-sin-resultados.png`.
+
+#### PBETA-R1-02 — Elegir Palermo Soho arranca con Burger King y Subway
+
+- **Ruta:** `/?z=palermo-soho`
+- **Viewport:** 390×844
+- **Esperado:** que la zona más emblemática de salir muestre primero lugares de salir.
+- **Observado:** los dos primeros resultados son **Burger King** y **Subway**. Las 8 primeras cards, en orden: Burger King · Subway · 70 30 Bar · La Choppería · Maricafe · Teatro el Piccolino · Lo de Joaquín Alberdi · Congo Club Cultural. Es la primera pantalla de catálogo que ve un usuario nuevo y la abren dos cadenas de fast food.
+- **Alcance:** no es «falta de curaduría» (los dos están bien clasificados como Restaurante): es el **orden** del listado, que no prioriza nada. El spec deja la curaduría fuera de scope, pero el criterio de orden es de producto y se decide acá.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `.playwright-mcp/pbeta-r1-06-resultados.png` y el volcado de las 8 primeras cards leído del DOM (arriba, textual).
+
+#### PBETA-R1-03 — El chip dice una zona y las cards dicen otra, sin nada que lo explique
+
+- **Ruta:** `/?z=palermo-soho`
+- **Viewport:** 390×844
+- **Esperado:** o solo lugares de la zona elegida, o una línea que avise que también entra lo que está a la vuelta.
+- **Observado:** arriba se ve el chip activo `Palermo Soho ×` y abajo hay cards rotuladas `Botánico y Alto Palermo` (las dos primeras) y `Palermo Hollywood`. **3 de las 8 primeras** son de otra zona. En ningún lado dice que el filtro incluye lo que está a menos de 400 m del borde.
+- **Contexto (para no re-litigar):** el buffer de 400 m es la decisión 5 de `ZONAS` y ya se investigó — la data está bien y Fer decidió documentarlo y no tocarlo (`AnalisisQA.md` § *Investigación — «búsqueda por zona trae lugares de zonas no adyacentes»*, 2026-07-26). **Lo que sigue sin resolver es que en pantalla no se explica**, que es un problema distinto y de este spec.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `.playwright-mcp/pbeta-r1-06-resultados.png` (chip «Palermo Soho» + cards «Botánico y Alto Palermo»).
+
+#### PBETA-R1-04 — El listado no dice cuántos resultados hay ni dónde termina
+
+- **Ruta:** `/?z=palermo-soho` y `/?t=bar,cerveceria` (chip sin zona)
+- **Viewport:** 390×844
+- **Esperado:** un «1.095 lugares» arriba del listado, y un final de lista.
+- **Observado:** el conteo existe y está bueno, pero **vive solo en el botón del sheet** y desaparece apenas entrás al listado: en la página de resultados no hay ninguna cifra. El listado además es scroll infinito sin techo visible: con el chip «Tomar algo» sin zona se cargaron **280 cards y 36.207 px de página en 12 tandas de scroll** sin llegar a ningún final ni a ningún «no hay más». En un celular eso es una página que no termina nunca y que se pone pesada.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** medición en vivo (`alturaFinal: 36207`, `cards: 280`, 12 iteraciones de scroll hasta cortar por límite del script) · `pbeta-r1-02-chip-sin-zona.png` · `pbeta-r1-03-fin-lista.png` · búsqueda de `/[\d.]+\s*lugares?/` en el texto visible del listado: el único match está dentro del sheet cerrado.
+
+#### PBETA-R1-05 — Desde la home no hay forma de enterarse de que existen las votaciones ni el chat
+
+- **Ruta:** `/` sin sesión
+- **Viewport:** 390×844
+- **Esperado:** que lo que diferencia a la app —decidir en grupo, y la IA— se pueda descubrir sin tener cuenta.
+- **Observado:** la home entera tiene **exactamente dos links**: `/login` («Ingresar») y `/legales` («Overture Maps y Google»). No hay ninguna referencia a votaciones, a `/chat`, a lo guardado ni a dar de alta un negocio. Un usuario nuevo puede usar la app entera creyendo que es un buscador de bares. Es el espejo de PBETA-R2-03: por un lado llegan invitados a votar que no saben que hay un buscador; por el otro, gente que busca y no sabe que se puede votar.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** volcado de todos los `a[href]` de la home → `[{Ingresar → /login}, {Overture Maps y Google → /legales}]` · `pbeta-r1-01-home.png`.
+
+#### PBETA-R1-06 — El mapa no entra en pantalla
+
+- **Ruta:** `/?z=palermo-soho` → botón «Mapa»
+- **Viewport:** 390×844
+- **Esperado:** que en mobile el mapa sea la pantalla, no un recuadro.
+- **Observado:** el mapa mide **341×589 px y arranca en y=449**, así que en una pantalla de 844 px se ve **el 67%**; el resto queda abajo del pliegue. Para verlo entero hay que scrollear la página (1.127 px de alto), que es justo el gesto que se pelea con el arrastre del mapa. El bloque de búsqueda (selector de zona + buscador + 6 chips + Filtros + chip activo) sigue ocupando los primeros **443 px** en modo mapa, sin colapsarse.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** medición en vivo del contenedor de MapLibre `{x:17, y:449, w:341, h:589}` con `document.body.scrollHeight = 1127` y `window.innerHeight = 844` · `pbeta-r1-07-mapa.png`.
+
+#### PBETA-R1-07 — «Cerrado ahora» no dice cuándo abre, y hoy no se distingue en la lista de horarios
+
+- **Ruta:** `/lugar/59b44cb5-1722-4e84-94c0-efd7ca6451fb` (Congo Club Cultural)
+- **Viewport:** 390×844
+- **Esperado:** «Cerrado · abre a las 19» — que es la única pregunta que importa cuando estás por salir.
+- **Observado:** dice `Cerrado ahora` y nada más; para saber cuándo abre hay que tocar «Ver horarios de la semana» y desplegar los 7 días. Y en ese despliegue **los 7 días se ven idénticos**: el de hoy no está resaltado, así que hay que acordarse de qué día es y buscar la fila a mano.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r1-09-ficha-pie.png` (estado colapsado) y `pbeta-r1-10-horarios.png` (los 7 días en el mismo gris, «lunes: Cerrado» sin ninguna marca de que hoy es lunes).
+
+#### PBETA-R1-08 — Los toques de la ficha quedan cortos
+
+- **Ruta:** `/lugar/59b44cb5-1722-4e84-94c0-efd7ca6451fb`
+- **Viewport:** 390×844
+- **Esperado:** ~44×44 px.
+- **Observado**, medido con `getBoundingClientRect()`: **Guardar 36×36** (el más chico, y es la puerta de entrada de R3) · Volver, Compartir, Llamar y Sitio web **40×40** · «Cómo llegar» 262×**40**. Están cerca del mínimo y bastante mejor que los de la votación (PBETA-R2-05, «Votar» 63×34), pero ninguno llega.
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** medición directa en vivo (tabla de arriba) · `pbeta-r1-09-ficha-pie.png`.
+
+---
+
+### R3 — Guardar (toco guardar, me topa el muro de cuenta, me registro, vuelvo)
+
+**Recorrido:** ventana limpia sin sesión → `/?z=palermo-soho` → tocar el marcador de una card →
+lo que pase → `/registro` (formulario vacío e inválido) → volver → tocar guardar → iniciar sesión
+con `hugo@gmail.com` → ver qué pasó con el lugar → guardar de verdad → menú de cuenta →
+`/mis-lugares` (con un lugar y vacío) → control a 360 px.
+
+**Desvío declarado:** no se completó un **alta nueva** de usuario. Con
+`requireEmailVerification: true` no hay login sin verificar el mail, y crear un usuario con un mail
+inventado deja una fila que no se puede terminar de usar y dispara un envío real de Resend. Se
+auditó el formulario de `/registro` (copy, campos, validaciones y errores) y el resto del recorrido
+se completó con la cuenta de prueba existente. **Lo que no se vio:** la pantalla de "te mandamos un
+mail", el mail en sí, y la vuelta después de verificar.
+
+**Lo que funcionó bien:** el `callbackUrl` conserva la búsqueda (`/login?callbackUrl=%2F%3Fz%3D
+palermo-soho`), así que volvés a la lista donde estabas y no a la home · las validaciones del
+registro son claras, en criollo y las tres a la vez («Email inválido», «La contraseña … 8
+caracteres», «Las contraseñas no coinciden») · guardar es instantáneo y el marcador se pinta de
+naranja · **el vacío de `/mis-lugares` es el mejor de la app**: «Todavía no guardaste nada · Cuando
+encuentres un lugar que te pinta, tocá el marcador de la card o de la ficha y queda acá para cuando
+lo necesites» con un botón «Buscar lugares» · el teaser de premium es honesto y no promete de más
+(«Por ahora tenés una sola»).
+
+**360 px:** sin desbordes en `/registro` ni en `/mis-lugares` (`scrollWidth` = `clientWidth` = 360).
+
+> **Nota de método (para la próxima sesión de QA en vivo):** el click sintético de Playwright
+> **tampoco dispara el botón de guardar** de la card — `browser_click` reporta éxito, no sale
+> ninguna request y no cambia nada. Hay que usar `element.click()` vía `evaluate`. Es la misma
+> lección del form del chat en `PULIDO`, pero **no es exclusiva de los `<form>`**. Sin esto, la
+> sesión estuvo a punto de anotar un BLOQUEANTE falso («guardar no guarda»).
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R3-01 | Tocar Guardar sin cuenta te expulsa a un login que no dice por qué estás ahí | **BLOQUEANTE** |
+| PBETA-R3-02 | `/registro` dice que la cuenta es para dueños de negocio, al que quiso guardar un bar | **BLOQUEANTE** |
+| PBETA-R3-03 | Después de loguearte, el lugar que querías guardar **no** queda guardado | **BLOQUEANTE** |
+| PBETA-R3-04 | Guardar no dice dónde quedó ni cómo volver a encontrarlo | MOLESTO |
+| PBETA-R3-05 | En `/mis-lugares` el título «Mis lugares» aparece dos veces seguidas | COSMÉTICO |
+| PBETA-R3-06 | La card de un lugar guardado pierde los tags que sí muestra en el listado | COSMÉTICO |
+
+#### PBETA-R3-01 — Tocar Guardar sin cuenta te expulsa a un login que no dice por qué estás ahí
+
+- **Ruta:** `/?z=palermo-soho` → marcador de una card → `/login?callbackUrl=%2F%3Fz%3Dpalermo-soho`
+- **Viewport:** 390×844
+- **Esperado:** un sheet o una pantalla que diga «Creá una cuenta y guardá tus lugares» — que conecte lo que el usuario acaba de hacer con lo que se le está pidiendo.
+- **Observado:** el toque provoca una **navegación de página completa** a `/login`, cuyo encabezado es `Iniciá sesión` / `Accedé a tu cuenta`. **En ninguna parte se menciona guardar, ni el lugar que tocó.** El usuario tocó un marcador en «Burger King» y aparece en un formulario de contraseña sin explicación. Es exactamente el momento que el spec marca como *«el primer momento en que la app pide algo; donde se pierde gente»*.
+- **Severidad propuesta:** **BLOQUEANTE** — deja al usuario sin saber qué pasó ni por qué.
+- **Evidencia:** `.playwright-mcp/pbeta-r3-01-muro-login.png` (la pantalla entera: wordmark, «Iniciá sesión», «Accedé a tu cuenta», email, contraseña, «¿No tenés cuenta? Registrate»). La URL de destino confirma que el contexto que se conserva es la búsqueda, no el lugar.
+
+#### PBETA-R3-02 — `/registro` dice que la cuenta es para dueños de negocio
+
+- **Ruta:** `/registro` (se llega desde «¿No tenés cuenta? Registrate» del muro de R3-01)
+- **Viewport:** 390×844
+- **Esperado:** «Creá tu cuenta» + una bajada que hable de lo que el usuario vino a hacer (guardar lugares, armar votaciones).
+- **Observado:** la bajada dice literalmente **«Necesaria para reclamar o registrar tu negocio»**. Es el copy del recorrido del **dueño** (R6) y está fijo para todos: el que venía de tocar el marcador en un bar lee que la cuenta sirve para otra cosa. La conclusión natural es «yo no tengo un negocio, esto no es para mí» — justo en la pantalla de conversión.
+- **Severidad propuesta:** **BLOQUEANTE** — miente sobre para qué sirve la cuenta, en el peor lugar posible. Es un cambio de una línea de copy.
+- **Evidencia:** `.playwright-mcp/pbeta-r3-02-registro.png` y `pbeta-r3-03-registro-errores.png` (la bajada es la misma en los dos estados, así que no es contextual).
+
+#### PBETA-R3-03 — Después de loguearte, el lugar que querías guardar no queda guardado
+
+- **Ruta:** `/?z=palermo-soho` → marcador de «Burger King» → `/login` → iniciar sesión → vuelta a `/?z=palermo-soho`
+- **Viewport:** 390×844
+- **Esperado:** volver con el lugar ya guardado, o al menos con el sheet de guardar abierto en ese lugar.
+- **Observado:** se vuelve a la lista correcta, pero **el marcador de Burger King sigue vacío**: la acción que disparó todo el desvío se perdió. El `callbackUrl` conserva la búsqueda (`?z=palermo-soho`) pero **no el lugar**, así que hay que encontrar la card de nuevo y volver a tocar. El usuario pagó el peaje de crear una cuenta y no recibió lo que pidió.
+- **Severidad propuesta:** **BLOQUEANTE** — rompe el recorrido en el punto exacto que R3 existe para probar.
+- **Evidencia:** `.playwright-mcp/pbeta-r3-04-vuelta-post-login.png` (post-login: la card de Burger King, marcador vacío). Confirmado en la base: `place_list_items` seguía en **0** después del login. Al guardar después a mano sí se creó la fila.
+
+#### PBETA-R3-04 — Guardar no dice dónde quedó ni cómo volver a encontrarlo
+
+- **Ruta:** `/?z=palermo-soho` con sesión → marcador de «70 30 Bar»
+- **Viewport:** 390×844
+- **Esperado:** un aviso corto tipo «Guardado en Mis lugares · Ver», o algo que enseñe dónde vive lo guardado.
+- **Observado:** el marcador se pinta de naranja y **no pasa nada más**: no hay toast, ni nombre de lista, ni link. Un usuario que guarda por primera vez no tiene forma de enterarse de que existe `/mis-lugares` salvo abriendo el menú del avatar y encontrando el ítem entre otros siete. El propio vacío de `/mis-lugares` explica muy bien el mecanismo… pero solo lo lee el que ya llegó.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r3-07-sheet-destino.png` (estado después de guardar: solo cambia el ícono) · `pbeta-r3-08-menu-cuenta.png` (el menú del avatar, con «Mis lugares» como cuarto ítem de ocho).
+
+#### PBETA-R3-05 — En `/mis-lugares` el título aparece dos veces seguidas
+
+- **Ruta:** `/mis-lugares` con al menos un lugar guardado
+- **Viewport:** 390×844
+- **Esperado:** un solo encabezado.
+- **Observado:** el H1 dice **«Mis lugares»** y tres líneas más abajo el nombre de la lista dice otra vez **«Mis lugares 1»**. Como la lista por defecto se llama igual que la página, se lee como un error de render más que como una jerarquía. (En el estado vacío no pasa: ahí el nombre de la lista no se muestra.)
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** `.playwright-mcp/pbeta-r3-09-mis-lugares.png`.
+
+#### PBETA-R3-06 — La card de un lugar guardado pierde los tags
+
+- **Ruta:** `/mis-lugares`
+- **Viewport:** 390×844
+- **Esperado:** la misma card del listado.
+- **Observado:** en el buscador «70 30 Bar» se muestra con sus tags (`Bar`, `Música en vivo`); en `/mis-lugares` la misma card muestra solo nombre y zona. Lo guardado se ve más pobre que lo encontrado, y son los tags los que te recuerdan **por qué** lo habías guardado.
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** `pbeta-r3-05-guardado.png` (en el listado, con tags) vs `pbeta-r3-09-mis-lugares.png` (en lo guardado, sin tags).
+
+---
+
+### R4 — Armar una votación (el lado emisor de R2)
+
+**Recorrido:** con sesión (`hugo@gmail.com`) → `/votacion/nueva` → buscar «congo» → agregar 2 lugares
+→ crear → pantalla de link listo → `/mis-votaciones` → «Cerrar» (hasta la confirmación, sin
+confirmar) → control a 360 px.
+
+**Se creó en la base:** la votación `3764bfd4-31c6-4918-8f09-74f0a9f0f9d1`, token
+`T84R9lgKIbm4338kjlzdEQ`, con 2 opciones y sin votos. Anotada en la tabla del cierre.
+
+**Lo que funcionó bien:** la pantalla de alta es de lo mejor de la app — H1 + bajada que dice el
+trato completo («Elegí 2 a 5 lugares y compartí el link al grupo»), contador «Tu shortlist 0/5»,
+vacío explicativo, placeholder con voz propia («¿Dónde el viernes?») y el check de sugerencias con
+su consecuencia escrita («hasta llegar a 8 en total. Vos podés sacar lo que sumen») · el buscador
+filtra al toque y muestra zona y tags · **el cierre pide confirmación y avisa el efecto colateral**:
+«Al cerrarla, sale de tu panel: la seguís viendo solo por su link» con la elección explícita de
+ganador · los dos teasers de premium (`/mis-votaciones` y `/mis-lugares`) están escritos con
+honestidad y sin prometer fechas.
+
+**360 px:** sin desbordes en `/votacion/nueva` ni en `/mis-votaciones`.
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R4-01 | En la pantalla del link no hay «Compartir»: solo «Copiar» | **BLOQUEANTE** |
+| PBETA-R4-02 | Nada te empuja a ponerle título, y sin título el link sale con el H1 feo de R2-04 | MOLESTO |
+| PBETA-R4-03 | «Cerrar» y «Cancelar votación», juntos y sin decir qué hace cada uno | MOLESTO |
+| PBETA-R4-04 | El botón de crear queda enterrado abajo de los resultados de búsqueda | MOLESTO |
+| PBETA-R4-05 | El link a compartir se muestra cortado y no se puede leer | COSMÉTICO |
+| PBETA-R4-06 | `/votacion/nueva` es la única pantalla sin el wordmark arriba | COSMÉTICO |
+
+#### PBETA-R4-01 — En la pantalla del link no hay «Compartir»: solo «Copiar»
+
+- **Ruta:** `/votacion/nueva` → «Crear votación y obtener link»
+- **Viewport:** 390×844
+- **Esperado:** un botón que abra el menú de compartir del celular y mande el link a un grupo de WhatsApp en un toque. Es **la** acción de la pantalla.
+- **Observado:** los tres controles son `Copiar` (naranja, junto al campo del link), `Ver la votación` y `Ir a mis votaciones`. **No hay compartir nativo**, así que el camino es: copiar → salir de la app → abrir WhatsApp → elegir el grupo → pegar. En mobile eso son 4 pasos y una salida de la app justo en el momento en que arranca el loop viral. Lo mismo pasa en `/mis-votaciones`, donde la única opción es «Copiar link». **La app ya sabe hacerlo**: la ficha de un lugar tiene su botón «Compartir».
+- **Severidad propuesta:** **BLOQUEANTE** — R4 existe para alimentar a R2, y este es el cuello exacto por donde pasa. Es además barato: el mismo componente que ya usa la ficha.
+- **Evidencia:** `.playwright-mcp/pbeta-r4-04-creada.png` (los tres botones de la pantalla de éxito) · `pbeta-r4-05-mis-votaciones.png` («Ver» / «Copiar link») · la ficha con «Compartir» en `pbeta-r1-09-ficha-pie.png`.
+
+#### PBETA-R4-02 — Nada te empuja a ponerle título
+
+- **Ruta:** `/votacion/nueva`
+- **Viewport:** 390×844
+- **Esperado:** que el creador sepa qué van a ver los demás si deja el título vacío.
+- **Observado:** el campo dice `Título (opcional)` y el placeholder `¿Dónde el viernes?`, y no pasa nada si lo dejás en blanco: se crea igual y **nunca se te vuelve a preguntar**. En la pantalla de éxito y en `/mis-votaciones` la votación aparece como `Congo Club Cultural · La Conga`. Es la causa directa de PBETA-R2-04, el H1 de 3-4 líneas que ve el invitado: **la falla se origina acá y se paga allá**.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r4-01-nueva.png` (el campo opcional) · `pbeta-r4-05-mis-votaciones.png` (la votación rotulada con los dos nombres) · la votación creada tiene `title = NULL` en la base.
+
+#### PBETA-R4-03 — «Cerrar» y «Cancelar votación», juntos y sin decir qué hace cada uno
+
+- **Ruta:** `/mis-votaciones`
+- **Viewport:** 390×844
+- **Esperado:** dos etiquetas que se distingan solas.
+- **Observado:** en la misma fila hay **«Cerrar»** (naranja, primario, a la izquierda) y **«Cancelar votación»** (gris, a la derecha). Antes de tocar, nada dice que «Cerrar» es *terminar la votación y elegir ganador* y que «Cancelar» es *anularla*; «Cerrar» además se lee naturalmente como «cerrar esta tarjeta / salir». La acción que termina la votación es la que está pintada con el color de acción primaria.
+- **Atenuante importante:** al tocar «Cerrar» **sí** aparece una confirmación muy bien resuelta («¿Quién ganó?» + el aviso de que sale del panel + elegir ganador + «Confirmar cierre» / «Volver»). El problema es la etiqueta, no la falta de red.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r4-05-mis-votaciones.png` (los dos botones juntos) · `pbeta-r4-06-cerrar.png` (la confirmación, que sí está bien).
+
+#### PBETA-R4-04 — El botón de crear queda enterrado abajo de los resultados de búsqueda
+
+- **Ruta:** `/votacion/nueva` con 2 lugares elegidos y una búsqueda activa
+- **Viewport:** 390×844
+- **Esperado:** que el botón de crear esté siempre a mano una vez que la shortlist es válida.
+- **Observado:** con la búsqueda «congo» activa hay **12 resultados** entre el buscador y el CTA, así que «Crear votación y obtener link» queda en **y = 1.480 px de una página de 1.560**, con un viewport de 844. Es decir: terminaste de elegir y tenés que scrollear toda la lista que ya no te interesa para poder crear. Con el teclado abierto en un celular es peor.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** medición en vivo `{y:1480, docH:1560, innerH:844, resultados:12}` · `pbeta-r4-03-shortlist-2.png`.
+
+#### PBETA-R4-05 — El link a compartir se muestra cortado
+
+- **Ruta:** `/votacion/nueva` → pantalla de éxito
+- **Viewport:** 390×844
+- **Esperado:** poder leer el link, aunque sea para verificar que es el correcto antes de mandarlo.
+- **Observado:** el campo muestra `https://adondesalimos.ngrok.a` y se corta. No hay forma de ver el link entero en pantalla.
+- **Severidad propuesta:** COSMÉTICO (el botón «Copiar» copia bien; es cuestión de confianza, no de función).
+- **Evidencia:** `pbeta-r4-04-creada.png`.
+
+#### PBETA-R4-06 — `/votacion/nueva` es la única pantalla sin el wordmark arriba
+
+- **Ruta:** `/votacion/nueva`
+- **Viewport:** 390×844
+- **Esperado:** el mismo encabezado que el resto.
+- **Observado:** la página arranca directo con el H1 «Armar votación». Todas las demás auditadas (home, `/votacion/[token]`, ficha, `/login`, `/registro`, `/mis-lugares`, `/mis-votaciones`) llevan arriba el wordmark «¿A DÓNDE SALIMOS?» linkeado a `/`. Acá el único link de la página es `← Volver`.
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** `pbeta-r4-01-nueva.png` · volcado del DOM: la página tiene **un solo** `a[href]` (`← Volver → /`) y `document.querySelector('a[href="/"] img')` devuelve `null`.
+
+---
+
+### R5 — Chat + premium apagado
+
+**Recorrido:** con sesión (`hugo@gmail.com`, plan free) → `/chat` → tocar la sugerencia de la
+propia app → leer la respuesta → chocar el gate → «Hacerme premium» → `/cuenta` → control a 360 px.
+
+**Costo real de esta pasada:** `hugo@gmail.com` ya tenía **2 de 3** mensajes de la probadita
+consumidos en 2026-08, así que alcanzó con **un solo mensaje** para ver la respuesta completa y el
+gate. Una llamada a Sonnet 5; `ai.chat_quota_trial` = 3 y `chat_usage_monthly` de hugo quedó en 3/3
+del mes 2026-08 (se renueva solo el 1º de septiembre; no hay nada que limpiar).
+
+**Lo que funcionó bien:** el vacío es de los mejores («Contame qué pinta hacer · Describilo con tus
+palabras y te tiro lugares reales») · el cupo restante se muestra **antes** de gastar, en el header ·
+la respuesta llegó en voz rioplatense, con las 3 recomendaciones citadas y sus cards abajo, y
+**admitiendo el problema en vez de inventar** («me trajo todo de Palermo Soho, no de Villa Crespo
+específicamente») · el gate está bien escrito y aparece pegado al último mensaje, sin modal ·
+después de gastar el cupo el input se deshabilita con un placeholder que lo explica.
+
+**360 px:** sin desbordes en `/chat` ni en `/cuenta`. Lo que sí empeora es el header (ver R5-01).
+
+> ⚠️ **Lo que NO se pudo auditar, y por qué.** La mitad del recorrido —**el premium anunciado como
+> "en camino"** (`DEPLOY` decisión 6), que es el copy nuevo y sin rodar que motiva a R5— **no se ve
+> en dev**. El interruptor es `cobroApagado()` (`lib/billing/apagado.ts`): está apagado ⇔ **no hay**
+> `NEXT_PUBLIC_MP_PUBLIC_KEY`, y el `.env` de dev **sí la tiene** (el propio docstring del módulo lo
+> dice: *«En dev el `.env` tiene la key, así que esto es `false` y no cambia nada»*). Por eso
+> `/cuenta` muestra el camino de cobro real —«Suscribirme por $ 7.000/mes»— y **no** el `PITCH_BETA`
+> («El premium está por salir: …») ni el botón «Avisame cuando abra». **Esto no es un hallazgo: es
+> el comportamiento diseñado.** Para auditarlo hace falta: (1) comentar
+> `NEXT_PUBLIC_MP_PUBLIC_KEY` en `.env`, (2) **reiniciar el dev server** —es `NEXT_PUBLIC_`, se
+> inlinea en el bundle, no alcanza con cambiar la var— y (3) recorrer `/cuenta`, el gate del chat y
+> `/mi-negocio/[placeId]`.
+>
+> ✅ **Resuelto en la misma sesión.** Fer comentó la var mientras la auditoría seguía en curso, así
+> que el escenario **sí se recorrió**: ver *R5 (addendum)* más abajo. Ojo con la receta: **no hizo
+> falta reiniciar el dev server**, Next tomó el cambio solo.
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R5-01 | La sugerencia que propone la app se come el único mensaje gratis y devuelve otra zona, diciendo que el catálogo no tiene lo que sí tiene | **BLOQUEANTE** |
+| PBETA-R5-02 | El header del chat se parte en dos líneas | MOLESTO |
+| PBETA-R5-03 | El gate no dice el precio ni que el cupo se renueva | MOLESTO |
+
+#### PBETA-R5-01 — La sugerencia de la app gasta el mensaje gratis y devuelve otra zona
+
+- **Ruta:** `/chat` → chip sugerido **«Una birra con amigos por Villa Crespo»** (texto de la app, no del usuario)
+- **Viewport:** 390×844
+- **Esperado:** que las 4 sugerencias que la app pone en la pantalla vacía sean consultas que el catálogo pueda contestar bien. Es la única demo gratis de la IA y la app elige el tema.
+- **Observado:** la respuesta llegó bien escrita y honesta en la forma, pero: **(a)** los 3 lugares recomendados están en **Palermo Soho**, ninguno en Villa Crespo; **(b)** el texto le dice al usuario *«parece que por esa zona no hay tanta carga en el catálogo»*, y eso **no es cierto**: Villa Crespo tiene **1.169 lugares** en el catálogo, de los cuales **244** están tagueados `bar` o `cerveceria`. El usuario se queda creyendo que la app no cubre su barrio.
+- **Alcance / cómo diagnosticarlo:** los *tool inputs* no se persisten (`chat_messages` guarda `content`, tokens y modelo, no la llamada a la herramienta), así que desde la base **no se puede saber** con qué filtros buscó — lo más probable es que «con amigos» haya agregado un tag que en Villa Crespo está poco curado. La herramienta para diagnosticarlo ya existe y está documentada: `npm run eval:chat`, que imprime los tool-inputs. **Ojo: reproducirlo cuesta tokens reales de Sonnet.**
+- **Severidad propuesta:** **BLOQUEANTE** — encaja en el criterio «miente» de la decisión 5, y pasa en la superficie donde la app promete más, con el único mensaje que el usuario tiene para juzgarla. El arreglo más barato ni siquiera toca el motor: cambiar las 4 sugerencias por consultas que el catálogo conteste.
+- **Evidencia:** `.playwright-mcp/pbeta-r5-03-respuesta.png` y el texto completo de la respuesta leído del DOM (arriba, citado). Contraste con la base: `select count(*) … where z.slug='villa-crespo'` → **1.169**; con `tag in ('bar','cerveceria')` → **244**.
+
+#### PBETA-R5-02 — El header del chat se parte en dos líneas
+
+- **Ruta:** `/chat`
+- **Viewport:** 390×844 y 360×844
+- **Esperado:** una sola línea: flecha · «Chat IA» · badge de cupo · «+» · historial.
+- **Observado:** con el badge en su texto más largo, **el título «Chat IA» se parte en «Chat / IA» y el badge en «Te quedan 0 / mensajes»**, y el header pasa a ocupar el doble de alto. Es la barra permanente de la pantalla, así que se come alto útil de conversación en todos los mensajes. A 360 px se ve igual de partido.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** medición en vivo: badge `145 × 40 px` y título `76 × 48 px` (un badge de una línea mide ~24 px de alto) · `pbeta-r5-03-respuesta.png` (390) · `pbeta-r5-05-chat-360.png` (360).
+
+#### PBETA-R5-03 — El gate no dice el precio ni que el cupo se renueva
+
+- **Ruta:** `/chat` con la probadita agotada
+- **Viewport:** 390×844
+- **Esperado:** que el que choca el muro pueda decidir ahí mismo: cuánto sale, y si esperando se le renueva.
+- **Observado:** el panel dice `Usaste tus mensajes de prueba` / `Hacete premium para seguir chateando con la IA todo el mes.` + botón `Hacerme premium`. **No aparece el precio** (el usuario tiene que tocar y caer en `/cuenta` para enterarse de los $ 7.000/mes) y **nada dice que el cupo se renueva**, cuando de hecho `chat_usage_monthly` es por mes y el 1º vuelve a haber probadita. El que no quiere pagar hoy se va creyendo que se quedó sin IA para siempre. Detalle menor del mismo panel: en una conversación nueva las 4 sugerencias siguen a la vista (atenuadas) invitando a tocar, justo arriba del cartel que dice que no se puede.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r5-03-respuesta.png` (el gate completo) · `pbeta-r5-05-chat-360.png` (sugerencias atenuadas + gate en la misma pantalla) · `ai.chat_quota_trial = 3` y `chat_usage_monthly` con columna `month` en `app_settings`/base.
+
+---
+
+
+#### R5 (addendum) — El premium "en camino", auditado con el cobro realmente apagado
+
+**Cómo se destrabó.** Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY` en `.env` durante la sesión y **Next
+tomó el cambio solo, sin reiniciar el dev server** (dato útil para la próxima: la receta de la nota
+de arriba es más cara de lo necesario, alcanza con comentar y recargar). Se recorrió el escenario
+completo y **la var se volvió a descomentar al terminar**.
+
+**Se creó y se borró en la base:** `premium_interest` `a6106b0c-e440-4412-b722-437e457b5d70`
+(hugo, sin `place_id`). Borrada al cierre; la tabla volvió a **0 filas**.
+
+**Lo que funcionó bien — y es la parte que más importaba mirar, porque es copy sin rodar:**
+
+- **`/cuenta` (B2C, plan free):** «**Todavía no abrimos los pagos.** · Estamos en beta. El premium
+  está por salir: votaciones ilimitadas, historial y que la IA te arme la shortlist. Dejanos la
+  señal y te escribimos apenas se pueda.» + botón «**Avisame cuando abra**». Dice primero que no se
+  puede pagar y recién después qué te perdés — el orden correcto. Cero rastro de los $ 7.000.
+- **`/mi-negocio/[placeId]` (B2B, `owner_plan='free'`):** el mismo patrón pero con **su propio
+  texto**, no el del consumidor: «El **plan del lugar** está por salir: descripción, carta,
+  novedades, hasta 15 fotos y el destaque en las búsquedas». La diferenciación b2c/b2b está bien
+  hecha.
+- **La confirmación:** «✓ Listo, anotado. Te escribimos a **hugo@gmail.com** apenas abramos los
+  pagos» — nombra el mail al que va a escribir, y **sobrevive a la recarga** (se resuelve
+  server-side), así que el que vuelve no recibe el pedido de nuevo.
+- **360 px:** sin desbordes en ninguna de las dos pantallas con el pitch puesto.
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R5-04 | Con los pagos cerrados, el gate del chat sigue diciendo «Hacete premium» y manda a una pantalla que te desmiente | **BLOQUEANTE** |
+| PBETA-R5-05 | «Contenido destacado» sigue diciendo «Activá el plan acá arriba», donde ya no hay nada que activar | MOLESTO |
+
+##### PBETA-R5-04 — El gate del chat no se entera de que los pagos están cerrados
+
+- **Ruta:** `/chat` con la probadita agotada, **con `cobroApagado() === true`**
+- **Viewport:** 390×844
+- **Esperado:** el mismo trato que en `/cuenta` — decir que todavía no se puede pagar y ofrecer dejar la señal.
+- **Observado:** el gate no cambia nada: sigue diciendo `Usaste tus mensajes de prueba` / `**Hacete premium** para seguir chateando con la IA todo el mes.` con el botón `Hacerme premium` → `/cuenta`. El usuario toca, llega, y ahí le dicen **«Todavía no abrimos los pagos»**. En la beta —que es el único escenario donde esto corre— el gate del chat le vende al usuario una acción que la app no puede cumplir, y lo manda a que se lo desmientan. Peor todavía en el caso ya visto: hugo **ya había dejado la señal** y el chat le seguía ofreciendo hacerse premium.
+- **Severidad propuesta:** **BLOQUEANTE** — criterio «miente» de la decisión 5, en la superficie donde la app promete más, y **solo pasa en producción** (en dev con la key puesta el camino es coherente). Es exactamente el tipo de cosa que R5 existe para cazar.
+- **Evidencia:** `.playwright-mcp/pbeta-r5-08-gate-chat-apagado.png` (el gate, con el cobro apagado) vs `pbeta-r5-06-cuenta-apagado.png` (`/cuenta`, misma sesión, mismo momento). `lib/billing/apagado.ts` es isomorfo y ya lo usan `/cuenta`, `/mi-negocio/[placeId]` y `suscripcion-panel.tsx`; el panel del chat es el que no lo consulta.
+
+##### PBETA-R5-05 — «Contenido destacado» manda a activar un plan que no se puede activar
+
+- **Ruta:** `/mi-negocio/6323f392-d42f-4d27-8f3f-8b51e2b3cd44`, sección *Contenido destacado*, **con `cobroApagado() === true`**
+- **Viewport:** 390×844
+- **Esperado:** que el candado de los campos pagos apunte a lo que **sí** hay arriba: dejar la señal.
+- **Observado:** el bloque de la suscripción, arriba, ya muestra el pitch de beta correcto; pero 2.000 px más abajo los campos pagos siguen deshabilitados con el texto **«Activá el plan del lugar acá arriba para editar estos campos»** — y «acá arriba» ya no tiene nada que activar, tiene un «Avisame cuando abra». Es la misma clase de problema que R5-04 (copy escrito para el mundo con cobro prendido que no cambia con el interruptor), pero acá el dueño ya está adentro del panel y no se pierde.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r5-09-negocio-apagado.png` (el pitch de arriba) + snapshot del árbol: `paragraph "Todavía no abrimos los pagos."` y `button "Avisame cuando abra"` conviviendo con `paragraph "Activá el plan del lugar acá arriba para editar estos campos."` en la misma página.
+
+---
+
+### R6 — Soy dueño (reclamo mi lugar y lo edito)
+
+**Recorrido:** con sesión de un usuario **sin** negocio (`hugo@gmail.com`) → `/registrar-negocio` →
+buscar «La Choppería» → «Es mío» → `/reclamar/[placeId]` → enviar la solicitud → confirmación →
+`/mi-negocio` con el reclamo **pendiente** → cambio de cuenta a la dueña aprobada
+(`frodriguez.este@gmail.com`) → `/mi-negocio` → panel de *Kansas Grill & Bar* → control a 360 px.
+
+**Se creó en la base:** el reclamo `4b4f143e-1f69-4e9c-a71a-7aba7cf62213` (hugo → La Choppería,
+`pending`). Anotado en la tabla del cierre.
+
+**Lo que funcionó bien:** `/registrar-negocio` explica el trato en una línea («Buscalo primero:
+puede estar cargado aunque todavía no aparezca en la app. Si está, lo reclamás; si no, lo damos de
+alta») · los resultados marcan «Cargado, todavía sin publicar» cuando corresponde · el formulario de
+reclamo dice **por qué** pide cada cosa y aclara que la revisión es a mano · la confirmación es
+clara y promete el canal («Recibimos tu solicitud. La revisamos a mano, una por una. Te avisamos por
+mail cuando esté resuelta») · el panel del dueño es completo y **honesto con el plan**: los campos
+pagos se ven pero deshabilitados, con el candado y el texto «Activá el plan del lugar acá arriba
+para editar estos campos» — muestra el valor sin mentir · muestra «10 visitas este mes» y «2/3
+fotos» · debajo de cada dato propio aclara qué se está mostrando hoy en la ficha.
+
+**360 px:** sin desbordes, ni siquiera en el panel del dueño, que es la pantalla más densa de la
+app (`scrollWidth` = `clientWidth` = 345).
+
+**Confirma PBETA-R4-06:** `/registrar-negocio` y `/reclamar/[placeId]` **tampoco** llevan el
+wordmark arriba (su único link es `← Volver`). Son 3 de 3 pantallas de "flujo" sin encabezado; no se
+abre ID nuevo, es el mismo hallazgo.
+
+| ID | Hallazgo | Severidad propuesta |
+|----|----------|---------------------|
+| PBETA-R6-01 | Un reclamo enviado es invisible: `/mi-negocio` dice «Todavía no tenés lugares» y te invita a mandarlo otra vez | MOLESTO |
+| PBETA-R6-02 | Entrar al panel de un lugar con reclamo pendiente cae en el 404 crudo de Next | MOLESTO |
+| PBETA-R6-03 | El panel del dueño mide 2.941 px y las fotos quedan **debajo** de «Guardar cambios» | MOLESTO |
+| PBETA-R6-04 | «¿No está en la lista? Registralo vos» parece un cartel, no un botón | MOLESTO |
+| PBETA-R6-05 | El buscador de negocios trae ruido: «La Choppería» devuelve pizzerías | COSMÉTICO |
+
+#### PBETA-R6-01 — Un reclamo enviado es invisible
+
+- **Ruta:** `/mi-negocio`, con un reclamo `pending` recién enviado
+- **Viewport:** 390×844
+- **Esperado:** ver el lugar reclamado con un estado «En revisión».
+- **Observado:** el panel dice **«Todavía no tenés lugares»** y el cuerpo cierra con **«Si todavía no la mandaste, empezá por acá»** + botón «Registrá tu negocio» — es decir, invita a mandar la solicitud que el usuario **acaba de mandar hace 40 segundos**. La solicitud pendiente no aparece por ningún lado de la app: el dueño no tiene forma de verificar que llegó, y el camino que se le ofrece es volver a empezar (con el riesgo de duplicar el reclamo).
+- **Por qué NO se propone BLOQUEANTE:** la pantalla anterior sí seteó la expectativa correcta («Te avisamos por mail cuando esté resuelta») y el propio cuerpo explica «Cuando aprobemos tu solicitud, el lugar aparece acá». El que leyó no queda perdido; el que vuelve más tarde, sí.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `.playwright-mcp/pbeta-r6-05-reclamo-enviado.png` (confirmación) y `pbeta-r6-06-mi-negocio-pendiente.png` (el panel, 40 s después). En la base, el reclamo existe: `4b4f143e-… · status pending · hugo@gmail.com · La Choppería`.
+
+#### PBETA-R6-02 — El panel de un lugar con reclamo pendiente cae en el 404 crudo
+
+- **Ruta:** `/mi-negocio/b994632e-199a-4a61-99f2-5e6e5383de49` (La Choppería, reclamo `pending` del propio usuario)
+- **Viewport:** 390×844
+- **Esperado:** «Tu solicitud está en revisión» dentro de la app.
+- **Observado:** HTTP **404** con la pantalla default de Next —blanca, en inglés, sin salida—, la misma de PBETA-R2-01. El caso llega solo: el link de «Mi negocio» del menú va a `/mi-negocio` (que está bien), pero el dueño que guardó la URL del reclamo, o que vuelve por el historial, aterriza acá.
+- **Severidad propuesta:** MOLESTO **como caso**; la causa raíz es PBETA-R2-01 (no existen `app/not-found.tsx` ni `error.tsx`) y ahí está propuesta como BLOQUEANTE. Arreglando aquella, esta mejora sola — aunque el mensaje ideal («en revisión») es un paso aparte.
+- **Evidencia:** navegación registrada por Playwright con `HTTP status: 404` sobre esa ruta, con la sesión del solicitante activa.
+
+#### PBETA-R6-03 — El panel del dueño mide 2.941 px y las fotos quedan debajo de «Guardar cambios»
+
+- **Ruta:** `/mi-negocio/6323f392-d42f-4d27-8f3f-8b51e2b3cd44` (Kansas Grill & Bar, dueño aprobado)
+- **Viewport:** 390×844
+- **Esperado:** poder guardar sin buscar el botón, y que lo que está abajo del botón no parezca fuera del formulario.
+- **Observado:** la página mide **2.941 px** (3,5 pantallas) y el **único** «Guardar cambios» está en **y = 2.526**, sin quedar fijo. Editar el teléfono obliga a scrollear cinco secciones (suscripción · contacto · tags · horarios · contenido destacado) para guardar. Y **«Fotos» está después del botón**, así que se lee como si quedara fuera de lo que se guarda — cuando en realidad las fotos se suben aparte y al instante, algo que la pantalla no dice.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** medición en vivo `{docH:2941, guardarY:2526, innerH:844}` · `pbeta-r6-09-panel-duenio.png` (captura de la página entera).
+
+#### PBETA-R6-04 — «¿No está en la lista? Registralo vos» parece un cartel, no un botón
+
+- **Ruta:** `/registrar-negocio?q=…`, al pie de los resultados
+- **Viewport:** 390×844
+- **Esperado:** que la salida para el dueño cuyo local no está cargado se vea como una acción.
+- **Observado:** el bloque **es** un `<button>`, pero está pintado con `border-dashed` + texto centrado en gris — que es exactamente el lenguaje visual que la app usa para sus **estados vacíos** (la home: «Elegí zona para arrancar»; el alta de votación: «Buscá lugares abajo y agregá 2 a 5»). Sin relleno, sin chevron y sin nada que lo distinga, se lee como un cartel informativo. Es el camino de todo dueño que no está en Overture, o sea el alta B2B entera.
+- **Severidad propuesta:** MOLESTO.
+- **Evidencia:** `pbeta-r6-03-alta-fallback.png` · DOM: `BUTTON` con `class="rounded-xl border border-dashed border-border p-5 text-center transition-colors"`.
+
+#### PBETA-R6-05 — El buscador de negocios trae ruido
+
+- **Ruta:** `/registrar-negocio?q=La+Choppería`
+- **Viewport:** 390×844
+- **Esperado:** el local buscado arriba y poco más.
+- **Observado:** los 3 primeros resultados son correctos (La Choppería · La Choppe · La Choppe Express) pero después vienen **PIZZERIA LA CHACHA**, **PIZZERÍA La Chiquita**, **Pizzeria La Chela**, **Pizzería La Chispa** y **Pizzería la Chacha**: 5 de 8 no tienen que ver. Un dueño mirando en el celular ve una lista mayormente ajena y tiene que leer con cuidado antes de tocar «Es mío» — y tocar mal reclama el negocio de otro. Se suma que las direcciones se cortan con «…» (`Juramento 52…`, `Avenida de May…`), que es justo el dato que sirve para distinguir dos locales del mismo nombre.
+- **Severidad propuesta:** COSMÉTICO.
+- **Evidencia:** `pbeta-r6-02-busqueda-negocio.png` y `pbeta-r6-03-alta-fallback.png`.
+
+---
+
+### PULIDO_BETA F1 — Cierre: la lista completa y el estado de la base
+
+**F1 está completa: los 6 recorridos, en vivo, a 390×844 y con control a 360 px.** Sale con **43
+hallazgos**. **Nada de esto está triado todavía**: la severidad de cada uno es una propuesta y la
+confirma o la baja Fer en **F2** (decisión 6).
+
+> El pendiente que tenía R5 —el premium "en camino", invisible en dev— **se destrabó en la misma
+> sesión**: Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY`, se recorrió el escenario entero y se volvió a
+> descomentar. Salieron 2 hallazgos más, uno de ellos BLOQUEANTE. Ver *R5 (addendum)*.
+
+#### Los 43 hallazgos por severidad propuesta
+
+| Severidad propuesta | Cuántos | IDs |
+|---|---|---|
+| **BLOQUEANTE** | **10** | R1-01 · R2-01 · R2-03 · R2-08 · R3-01 · R3-02 · R3-03 · R4-01 · R5-01 · R5-04 |
+| MOLESTO | 25 | R1-02, R1-03, R1-04, R1-05, R1-06, R1-07 · R2-02, R2-04, R2-05, R2-06, R2-07, R2-09, R2-11, R2-12 · R3-04 · R4-02, R4-03, R4-04 · R5-02, R5-03, R5-05 · R6-01, R6-02, R6-03, R6-04 |
+| COSMÉTICO | 8 | R1-08 · R2-10, R2-13 · R3-05, R3-06 · R4-05, R4-06 · R6-05 |
+
+_(10 + 25 + 8 = 43.) Por recorrido: R1 **8** · R2 **13** · R3 **6** · R4 **6** · R5 **5** · R6 **5**._
+
+#### Los 9 BLOQUEANTE propuestos, en una línea cada uno
+
+| ID | Qué | Dónde duele |
+|----|-----|-------------|
+| PBETA-R2-01 | El 404 de un link roto es la pantalla default de Next: blanca, en inglés, sin salida | El link que llega cortado por WhatsApp — y también R6-02 |
+| PBETA-R3-02 | `/registro` dice que la cuenta es «para reclamar o registrar tu negocio» al que quiso guardar un bar | La pantalla de conversión |
+| PBETA-R3-03 | Después de loguearte, el lugar que querías guardar **no** queda guardado | El único momento en que la app cobra algo |
+| PBETA-R3-01 | Tocar Guardar sin cuenta te expulsa a un login que no dice por qué estás ahí | Lo mismo, un paso antes |
+| PBETA-R4-01 | La pantalla del link recién creado no tiene «Compartir», solo «Copiar» | El cuello del loop viral |
+| PBETA-R2-03 | Al invitado no se le dice quién lo invitó ni qué es la app | La puerta de entrada de la mayoría |
+| PBETA-R2-08 | La votación cerrada o expirada no ofrece un paso siguiente | El que llega tarde al link |
+| PBETA-R5-01 | La sugerencia de la app gasta el mensaje gratis y afirma que el catálogo no tiene un barrio que sí tiene | La demo de la IA |
+| PBETA-R5-04 | Con los pagos cerrados, el gate del chat igual dice «Hacete premium» y te manda a que te desmientan | Solo pasa en la beta |
+| PBETA-R1-01 | El botón del selector de zona dice «Nada con eso» antes de que elijas nada | El primer control de la home |
+
+**Tres son de copy** (R3-02, R1-01 y la mitad de R2-08) y se arreglan cambiando strings. **Tres son
+de continuidad de estado** (R3-01, R3-03, y R2-03/R2-08 en cuanto a "qué hago ahora"). **Uno es una
+pantalla que no existe** (R2-01, `app/not-found.tsx`). **Uno es un botón que la app ya tiene en otro
+lado** (R4-01, el «Compartir» de la ficha). **Uno es una función que la app ya tiene y ese componente
+no consulta** (R5-04, `cobroApagado()`). **Uno hay que diagnosticar** (R5-01, con
+`npm run eval:chat`).
+
+#### 360 px — el criterio del DoD se cumple
+
+**Cero desbordes en los 6 recorridos.** Medido con `document.scrollWidth` vs `clientWidth` y un
+barrido de `getBoundingClientRect()` sobre todos los elementos, en: `/`, `/?z=…`, mapa,
+`/lugar/[id]`, `/votacion/[token]`, `/votacion/nueva`, `/mis-votaciones`, `/login`, `/registro`,
+`/mis-lugares`, `/chat`, `/cuenta`, `/registrar-negocio`, `/reclamar/[id]` y
+`/mi-negocio/[placeId]` (la más densa, 2.941 px de alto). Único efecto visible del ancho chico: el
+H1 de la votación sin título pasa de 3 a 4 líneas (PBETA-R2-04).
+
+#### La base quedó como estaba (decisión 13)
+
+Se corrió el `DELETE`/`UPDATE` de reversión al terminar y **los conteos volvieron a los del
+arranque**:
+
+| Tabla | Antes | Después | |
+|---|---|---|---|
+| polls · poll_options · poll_votes | 6 · 25 · 19 | **6 · 25 · 19** | ✅ |
+| place_claims · place_lists · place_list_items | 1 · 1 · 0 | **1 · 1 · 0** | ✅ |
+| premium_interest · users | 0 · 4 | **0 · 4** | ✅ |
+| place_owner_content · place_photos | 1 · 2 | **1 · 2** | ✅ |
+| `place_tags source='admin'` (canario de curaduría) | 3.967 | **3.967** | ✅ |
+| chat_conversations · chat_messages | 16 · 40 | 17 · 42 | ⚠️ **a propósito** |
+
+Lo revertido, con su `id`: voto `adebc48a-af59-4ceb-8670-662f0cd64365` · votación
+`3764bfd4-31c6-4918-8f09-74f0a9f0f9d1` (token `T84R9lgKIbm4338kjlzdEQ`, borrada con sus 2 opciones) ·
+reclamo `4b4f143e-1f69-4e9c-a71a-7aba7cf62213` · lista vacía `56c2479c-2428-4e7a-826e-0344418cd26e`
+· interés en el premium `a6106b0c-e440-4412-b722-437e457b5d70` (del addendum de R5) · la opción
+`8c87d0d0-…` ya se había sacado desde la propia UI durante R2. Restaurados:
+`polls.expires_at` de `pYBcg_6TgoNpebFNOgQ7wg` a `2026-08-03 15:09:45.613` y `polls.status` de
+`bCC7kEsmhr3Vb9NReHOUFg` a `open`.
+
+**Lo que queda a propósito, y por qué:**
+
+- **La conversación del chat (+1 conversación, +2 mensajes).** Es **uso real** y su costo ya quedó
+  contabilizado; borrarla desalinearía el historial del chat con `ai_api_usage`. Mismo criterio que
+  la lección del test que borraba `ai_api_usage` del mes real.
+- **`chat_usage_monthly` de `hugo@gmail.com`: 2 → 3 del mes 2026-08** (probadita agotada). No se
+  toca: se renueva solo el 1º de septiembre.
+- **2 sesiones de login** (hugo y frodriguez.este). `session` es estado de auth, no dato de
+  producto, y el **paso 5 de `DEPLOY` F0 ya limpia `users`/`session`/`account`** antes de subir el
+  dump a Neon.
+
+**El dump de F0 puede salir ahora**: F1 no tocó `app_settings`, ni chips, ni tags, ni curaduría.
+
+#### Lo que F1 **no** cubrió (para que no se descubra tarde)
+
+1. ~~El premium "en camino"~~ — **destrabado en la misma sesión** y auditado entero (ver *R5
+   (addendum)*): 2 hallazgos más, uno BLOQUEANTE. Lo único que no se probó de ese escenario es el
+   «Avisame cuando abra» **del lado B2B** (`/mi-negocio/[placeId]`, con `place_id`): se verificó
+   que el pitch B2B es el correcto y distinto del B2C, pero el botón se tocó solo en `/cuenta`
+   para no dejar una segunda fila que borrar.
+2. **El alta nueva de usuario end-to-end** (pantalla de "te mandamos un mail", el mail, y la vuelta
+   después de verificar): `requireEmailVerification: true` lo hace imposible sin un inbox real. Se
+   auditó el formulario y el resto del recorrido con una cuenta existente.
+3. **`/admin` y `/legales`**: fuera de scope explícito del spec.
+4. **Desktop**: el spec pide mirarlo «de reojo» y esta pasada fue íntegramente mobile.

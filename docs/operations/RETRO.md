@@ -13,6 +13,33 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-03 · PULIDO_BETA F1 — auditoría de los 6 recorridos en mobile — Opus
+
+- **Qué salió bien:** **arrancar por R2 y escribir cada sección apenas terminaba el recorrido**, en
+  vez de acumular y volcar al final. La consigna lo pedía y se pagó sola: cuando R2 quedó escrito
+  (13 hallazgos), el resto de la sesión ya no tenía nada crítico que perder. Segundo acierto:
+  **verificar contra la base antes de escribir un hallazgo**. Dos veces evitó anotar algo falso —
+  el «guardar no guarda» era el click sintético de Playwright, y el `#FF2D75` de los clusters del
+  mapa que parecía fuera de paleta está declarado como `--color-rosa` en `globals.css`. Y en R5, al
+  revés: chequear Villa Crespo (**1.169 lugares, 244 con tag bar**) convirtió «la IA no encontró
+  nada» en un BLOQUEANTE con evidencia.
+- **Qué frenó:** **el click sintético de Playwright no dispara los handlers de esta app**, y la
+  lección escrita en `PULIDO` decía «el form del chat», así que la sesión la leyó como un caso
+  particular de `<form>`. No lo es: falló igual en el botón de guardar de una card, en «+» de la
+  votación y en «Es mío». Se perdieron ~4 turnos y estuvo a un paso de un BLOQUEANTE falso. Segundo
+  freno, menor: el heredoc `<< 'EOF'` para anexar al QA se rompió al primer intento (lo que
+  `CLAUDE.md` ya avisa para los commits) — el camino que funciona es escribir al scratchpad con
+  Write y `cat >>`.
+- **Qué cambiar (una sola):** **generalizar la lección del click en `LECCIONES_APRENDIDAS.md`**: no
+  es «el form del chat», es «en QA en vivo, cualquier control de esta app se toca con
+  `element.click()` vía `evaluate`; `browser_click` reporta éxito sin disparar nada». Cuesta editar
+  un párrafo y evita que la próxima sesión de QA pierda lo mismo o anote un bug inexistente. Lo que
+  **no** hace falta cambiar: el formato de hallazgo de la decisión 7 (6 campos) se llenó 41 veces
+  sin fricción, y el corte «ver y arreglar en fases separadas» hizo exactamente lo que promete —
+  hubo tres cosas que gritaban para arreglar en el momento y ninguna se tocó.
+
+---
+
 ## 2026-08-03 · Ventana horaria + piso de la home + sugerencia de plan en el chat — Opus
 
 - **Qué salió bien:** **la cola llegó con los números ya medidos, y eso convirtió dos decisiones en

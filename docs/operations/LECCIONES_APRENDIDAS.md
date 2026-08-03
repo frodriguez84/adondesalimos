@@ -775,7 +775,7 @@ no colisione con datos reales (un mes imposible), o (b) guardar y restaurar el v
 setup/teardown. Nunca `delete` por la clave del período corriente. El fix puntual quedó como ítem
 en BACKLOG § Mejoras futuras.
 
-## El click sintético de Playwright puede no disparar un `<form onSubmit>` sin dar error (2026-07-27 · PULIDO)
+## El click sintético de Playwright puede no disparar un handler de React sin dar error (2026-07-27 · PULIDO · ampliada 2026-08-03 · PULIDO_BETA F1)
 
 **Qué pasó.** En el QA en vivo de `/chat`, `browser_click` sobre el botón "Enviar" (y sobre los
 chips de sugerencia con `onClick={() => enviar(s)}`) no disparaba ningún `POST /api/chat`: sin
@@ -798,6 +798,22 @@ de `click`, aunque el DOM reporte el elemento como clickeable.
 `onClick` crítico) que no reaccione a `browser_click` sin error visible: no asumir que el flujo
 está roto — probar `element.click()` vía `page.evaluate`/`browser_run_code_unsafe` antes de
 diagnosticar un bug de la app.
+
+**Ampliación (2026-08-03, `PULIDO_BETA` F1): NO es solo el form del chat.** Escrita como estaba, la
+lección se lee como un caso particular de `<form onSubmit>`, y por eso la auditoría de recorridos la
+descartó al toparse con lo mismo en otra pantalla. Falló igual, sin error y sin request, en: el
+**botón de guardar de una card** del listado (`aria-label="Guardar"`), el **«+»** del sheet *Sumar un
+lugar* de una votación, y **«Es mío»** de `/registrar-negocio`. Estuvo a un paso de anotarse como un
+BLOQUEANTE falso («guardar no guarda»).
+
+**La regla, en una línea:** en QA en vivo de esta app, **cualquier control se toca con
+`element.click()` vía `evaluate`** — `browser_click` reporta éxito igual, así que la única señal
+confiable de que la acción ocurrió es la **consecuencia** (una request en `browser_network_requests`,
+un cambio de estado en pantalla, o una fila en la base), nunca el resultado de la herramienta. Para
+inputs controlados por React, el equivalente es el setter nativo:
+`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el, v)` +
+`dispatchEvent(new Event('input',{bubbles:true}))`. Y sigue valiendo la lección de arriba (*tipear no
+es enfocar*): si el handler depende de `onFocus`, hay que enfocar aparte.
 
 ## Un auto-apply "aditivo" que reusa un `delete`-then-insert de reemplazo borra lo de la tanda anterior (2026-07-27 · CURADURIA F3)
 

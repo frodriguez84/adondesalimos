@@ -78,7 +78,12 @@ son trabajo acotado con criterio de "listo" objetivo.
 > cubierto. Detalle abajo.
 
 - [ ] **1.5 · Pulido de UX/UI para la beta** → spec:
-      `docs/specs/planned/PULIDO_BETA.md` — **escrito ✅ 2026-08-03** (sesión Opus, sin código).
+      `docs/specs/active/PULIDO_BETA.md` — **escrito ✅ 2026-08-03** (sesión Opus, sin código) ·
+      **F1 (auditoría) ✅ 2026-08-03**: los 6 recorridos en vivo a 390×844 + control a 360 px (cero
+      desbordes), **43 hallazgos** con evidencia en `docs/qa/AnalisisQA.md` § *PULIDO_BETA F1* —
+      **10 BLOQUEANTE propuestos, sin triar**. Incluye el premium "en camino" con el cobro
+      realmente apagado. La base quedó como estaba, así que **el dump de `DEPLOY` F0 puede salir
+      ya**. **Sigue F2: el triaje lo hace Fer**, no una sesión (decisión 6).
       **Se intercala antes del deploy por pedido de Fer**: *"ya que la vamos a lanzar en modo beta,
       debería estar óptima para los usuarios"*. Va **antes de `DEPLOY` F0** y el motivo es concreto
       (decisión 12 del spec): F0 restaura un dump en Neon y **el valor del dump es que esté
