@@ -712,3 +712,15 @@ alguien escribe mal el setting, la home **degrada al orden de siempre** en vez d
   `place_tag_impressions_daily` es lo que convierte esto en curaduría con evidencia (§ v2).
 - **`desde === hasta` cubre las 24 h del día listado**, consecuencia literal de la decisión 3. En
   `horarios.ts` ese mismo caso es un rango inválido: ahí significa "no abre", acá "siempre".
+
+**Ampliación posterior (2026-08-03, fuera del spec — ver `BACKLOG.md`):** la regla ganó un campo
+opcional **`solo: [...]`**, la capacidad inversa de `primero`: un chip nombrado ahí **no se ve fuera
+de la ventana**, ni en la home ni detrás de "Ver más". Sin eso, `after-office` estaba entre los 4 un
+domingo a las 11 pese a su regla L-V 17-21, porque una regla solo sabía *adelantar*. Lo que hay que
+saber: **`solo` y `primero` tienen semánticas distintas en el mismo array**. `primero` = gana la
+**primera** regla que matchea (es un orden, decisión 2); `solo` = **unión de todas** las reglas
+vigentes (es un permiso — si ganara la primera, una regla ajena que cubre esa hora decidiría sobre un
+chip que ni nombra). Por eso `primero` pasó a ser opcional —una regla puede solo restringir— y
+`chipsPrimero` saltea las reglas sin `primero`. El corte va en `chips.ts` **antes** de repartir
+home/resto, así un chip fuera de ventana tampoco entra por el `primero` de otra regla. Función nueva:
+`chipsFueraDeVentana(reglas, now)`.

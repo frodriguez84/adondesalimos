@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  chipsFueraDeVentana,
   chipsPrimero,
   DEFAULT_CHIPS_SCHEDULE,
   resetAvisoRotacion,
@@ -130,6 +131,83 @@ describe('chipsPrimero — prioridad y forma del resultado', () => {
   })
 })
 
+describe('chipsFueraDeVentana — un chip con `solo` no se ve fuera de su ventana', () => {
+  const reglas = validarReglas(DEFAULT_CHIPS_SCHEDULE)
+
+  const casos: [string, number, number, string[]][] = [
+    ['martes 18:00 ⇒ dentro de la ventana', MARTES, 18, []],
+    ['martes 10:00 ⇒ fuera (es día hábil, pero no la hora)', MARTES, 10, ['after-office']],
+    ['martes 21:00 ⇒ fuera (el `hasta` es exclusivo)', MARTES, 21, ['after-office']],
+    ['domingo 11:00 ⇒ fuera (el caso que lo motivó)', DOMINGO, 11, ['after-office']],
+    ['sábado 18:00 ⇒ fuera (la hora sí, el día no)', SABADO, 18, ['after-office']],
+    ['lunes 17:00 ⇒ dentro, justo en el borde', LUNES, 17, []],
+    ['viernes 20:00 ⇒ dentro, justo antes del otro borde', VIERNES, 20, []],
+  ]
+
+  for (const [rotulo, dia, hh, esperado] of casos) {
+    it(rotulo, () => {
+      expect([...chipsFueraDeVentana(reglas, enAR(dia, hh))]).toEqual(esperado)
+    })
+  }
+
+  it('un chip sin `solo` en ninguna regla nunca está restringido', () => {
+    // `salir-a-bailar` y `merienda` tienen regla pero no ventana: se ven a toda
+    // hora, que es el comportamiento de siempre.
+    for (const dia of [LUNES, SABADO, DOMINGO]) {
+      for (const hh of [3, 11, 18, 23]) {
+        const fuera = chipsFueraDeVentana(reglas, enAR(dia, hh))
+        expect(fuera.has('salir-a-bailar')).toBe(false)
+        expect(fuera.has('merienda')).toBe(false)
+      }
+    }
+  })
+
+  it('sin reglas no hay nada restringido', () => {
+    expect([...chipsFueraDeVentana([], enAR(DOMINGO, 11))]).toEqual([])
+  })
+
+  it('alcanza con que UNA de sus ventanas esté vigente (no gana la primera regla)', () => {
+    // A diferencia de `primero`, se miran todas las reglas: `solo` es un permiso.
+    const dos = validarReglas([
+      { dias: [LUNES], desde: '10:00', hasta: '12:00', solo: ['x'] },
+      { dias: [LUNES], desde: '20:00', hasta: '22:00', solo: ['x'] },
+    ])
+    expect(chipsFueraDeVentana(dos, enAR(LUNES, 11)).has('x')).toBe(false)
+    expect(chipsFueraDeVentana(dos, enAR(LUNES, 21)).has('x')).toBe(false)
+    expect(chipsFueraDeVentana(dos, enAR(LUNES, 15)).has('x')).toBe(true)
+  })
+
+  it('una regla vigente que no lo nombra no le abre la ventana a nadie', () => {
+    const mezcla = validarReglas([
+      { dias: [LUNES], desde: '10:00', hasta: '20:00', primero: ['otro'] },
+      { dias: [LUNES], desde: '18:00', hasta: '19:00', solo: ['x'] },
+    ])
+    expect(chipsFueraDeVentana(mezcla, enAR(LUNES, 11)).has('x')).toBe(true)
+    expect(chipsFueraDeVentana(mezcla, enAR(LUNES, 18)).has('x')).toBe(false)
+  })
+
+  it('la ventana también cruza la medianoche (misma semántica que `primero`)', () => {
+    const nocturna = validarReglas([
+      { dias: [VIERNES], desde: '22:00', hasta: '05:00', solo: ['trasnoche'] },
+    ])
+    expect(chipsFueraDeVentana(nocturna, enAR(VIERNES, 23)).has('trasnoche')).toBe(false)
+    expect(chipsFueraDeVentana(nocturna, enAR(SABADO, 2)).has('trasnoche')).toBe(false)
+    expect(chipsFueraDeVentana(nocturna, enAR(SABADO, 6)).has('trasnoche')).toBe(true)
+  })
+})
+
+describe('chipsPrimero — convivencia con las reglas que solo restringen', () => {
+  it('una regla sin `primero` no tapa a la siguiente que sí adelanta', () => {
+    // Sin esto, poner una ventana arriba de todo apagaría en silencio el
+    // adelanto de una regla posterior (gana la primera que matchea, decisión 2).
+    const reglas = validarReglas([
+      { dias: [MARTES], desde: '10:00', hasta: '20:00', solo: ['restringido'] },
+      { dias: [MARTES], desde: '18:00', hasta: '19:00', primero: ['adelantado'] },
+    ])
+    expect(chipsPrimero(reglas, enAR(MARTES, 18, 30))).toEqual(['adelantado'])
+  })
+})
+
 describe('validarReglas — un UPDATE mal tipeado no puede romper la home (decisión 6)', () => {
   const buena: ReglaRotacion = {
     dias: [LUNES],
@@ -154,6 +232,10 @@ describe('validarReglas — un UPDATE mal tipeado no puede romper la home (decis
     ['campos faltantes', { dias: [LUNES] }],
     ['null adentro del array', null],
     ['un string suelto', 'after-office'],
+    ['`solo` vacío', { ...buena, solo: [] }],
+    ['`solo` como string', { ...buena, solo: 'after-office' }],
+    ['`solo` con un slug vacío', { ...buena, solo: [''] }],
+    ['sin `primero` ni `solo` no hace nada', { dias: [LUNES], desde: '10:00', hasta: '12:00' }],
   ]
 
   for (const [rotulo, mala] of basura) {
@@ -183,6 +265,14 @@ describe('validarReglas — un UPDATE mal tipeado no puede romper la home (decis
     validarReglas('nada que ver')
     expect(warn).toHaveBeenCalledTimes(1)
     warn.mockRestore()
+  })
+
+  it('una regla con `solo` y sin `primero` es válida y no adelanta nada', () => {
+    const reglas = validarReglas([{ dias: [LUNES], desde: '10:00', hasta: '12:00', solo: ['x'] }])
+    expect(reglas).toHaveLength(1)
+    expect(reglas[0].primero).toEqual([])
+    expect(reglas[0].solo).toEqual(['x'])
+    expect(chipsPrimero(reglas, enAR(LUNES, 11))).toEqual([])
   })
 
   it('deduplica los slugs repetidos de una regla', () => {

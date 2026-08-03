@@ -233,6 +233,12 @@ Cicatrices reales — gotchas que sorprenden:
   de la columna `sort` a toda hora: depende del día y la hora en AR. Un setting ausente o inválido
   degrada al orden por `sort` **en silencio** — si la home "no rota", mirá primero
   `select value from app_settings where key='chips.schedule'`, no el código.
+- **Un chip vivo puede no verse por dos motivos más, y ninguno está en `occasion_chips`.** (a) Su
+  regla tiene `solo: [...]` ⇒ fuera de esa ventana **no aparece en ningún lado**, tampoco detrás de
+  "Ver más" (hoy: `after-office`, L-V 17-21). (b) Devuelve menos de `PISO_HOME` (**20**) lugares en
+  AMBA ⇒ no entra a los 4 de la home, ni siquiera forzado por la regla, pero **sí** sigue en "Ver
+  más" (hoy: `salida-con-chongo`, 1 lugar). El `> 0` de la decisión 25 es el piso de "Ver más", no
+  el de la home. Dueños: `lib/search/rotacion.ts` (ventana) y `lib/search/chips.ts` (piso).
 - **Commits que solo tocan `docs/` usan `spec(...)`/`docs:`, nunca `feat`** (ver arriba
   § Prefijos de commit). Un `feat` implica que hay código.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags

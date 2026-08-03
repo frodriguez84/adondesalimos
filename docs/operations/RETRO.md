@@ -13,6 +13,22 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-03 · Ventana horaria + piso de la home + sugerencia de plan en el chat — Opus
+
+- **Qué salió bien:** **la cola llegó con los números ya medidos, y eso convirtió dos decisiones en
+  dos renglones.** Elegir `PISO_HOME = 20` no requirió tocar la base: el ítem ya decía que entre 2 y
+  37 no hay ningún chip, así que 10 y 20 son hoy el mismo filtro y la elección se argumenta sola. Un
+  ítem de backlog con la medición adentro se implementa; uno con la intuición adentro se re-investiga.
+- **Qué frenó:** nada del método. Lo único que costó pensar fue propio del problema: **`solo` no
+  podía heredar el "gana la primera regla" de `primero`** — ese criterio es correcto para un orden y
+  veneno para un permiso, y con él una ventana puesta arriba apagaba en silencio el adelanto de las
+  reglas de abajo. Salieron dos semánticas en el mismo array, documentadas una al lado de la otra.
+- **Qué cambiar:** nada. Al contrario, se confirmó una regla que ya está escrita: el prompt reservaba
+  una decisión aparte (tocar el prefijo cacheado de 8.776 tokens + `eval:chat`, tokens reales) **por
+  si** el modelo no encadenaba las dos búsquedas de un combo. Probarlo primero costó un mensaje de
+  cupo y la decisión no hizo falta: encadena solo, con cercanía incluida. **Probar antes de instruir**
+  ya vale como default.
+
 ## 2026-08-03 · Los 5 temas abiertos del QA integral #2 — sesión de decisión — Opus
 
 - **Qué salió bien:** **verificar cada hallazgo contra el código antes de repetir su

@@ -9,10 +9,11 @@ import { CHIPS, CHIPS_OBJETIVO } from '@/lib/db/chips'
 import { getSetting } from '@/lib/db/settings'
 import { EMPTY_SEARCH } from '../params'
 import { countPlaces, searchPlaces } from '../query'
-import { CHIPS_EN_HOME, getOccasionChips } from '../chips'
+import { CHIPS_EN_HOME, getOccasionChips, PISO_HOME } from '../chips'
 import { FRANJAS, franjaActual, NOMBRE_AHORA, SLUG_AHORA } from '../ahora'
 import {
   CHIPS_SCHEDULE_KEY,
+  chipsFueraDeVentana,
   chipsPrimero,
   DEFAULT_CHIPS_SCHEDULE,
   validarReglas,
@@ -77,14 +78,25 @@ describe.runIf(process.env.DATABASE_URL)('chips de Ocasión', () => {
   it('los 9 chips objetivo del spec están sembrados aunque hoy no se listen', async () => {
     // La decisión 26: la curaduría objetivo queda escrita en la base, apagada
     // por conteo y no por `active`, para que se prenda sola sin deploy.
-    const { home, resto } = await getOccasionChips()
+    //
+    // `now` es fijo (martes 12:00 AR) y no el reloj de la corrida: con la ventana
+    // horaria, un chip con `solo` no se lista fuera de hora y el test pasaría o
+    // no según a qué hora se corra. Se descuentan los restringidos a esa hora.
+    const now = enAR(1, 12)
+    const { home, resto } = await getOccasionChips(now)
     const listados = new Set([...home, ...resto].map((c) => c.slug))
+    const fuera = chipsFueraDeVentana(
+      validarReglas(await getSetting<unknown>(CHIPS_SCHEDULE_KEY)),
+      now,
+    )
 
     for (const chip of CHIPS_OBJETIVO) {
       const n = await countPlaces({ ...EMPTY_SEARCH, tags: chip.tags })
       // Si tiene resultados tiene que estar listado, y si no, no. La foto de hoy
       // no se congela: solo se exige que las dos cosas sean coherentes.
-      expect(listados.has(chip.slug), `chip objetivo "${chip.slug}" (${n} lugares)`).toBe(n > 0)
+      expect(listados.has(chip.slug), `chip objetivo "${chip.slug}" (${n} lugares)`).toBe(
+        n > 0 && !fuera.has(chip.slug),
+      )
     }
   })
 
@@ -170,11 +182,50 @@ describe.runIf(process.env.DATABASE_URL)('chips de Ocasión', () => {
         const now = enAR(dia, horaAR)
         const { home, resto } = await getOccasionChips(now)
 
-        const vivos = new Set([...home, ...resto].map((c) => c.slug))
-        const esperados = chipsPrimero(reglas, now).filter((s) => vivos.has(s))
+        // Un chip que no llega al piso tampoco se adelanta: el forzado respeta
+        // `PISO_HOME` igual que un candidato `in_home`.
+        const conCuenta = new Map([...home, ...resto].map((c) => [c.slug, c.count]))
+        const esperados = chipsPrimero(reglas, now).filter(
+          (s) => (conCuenta.get(s) ?? 0) >= PISO_HOME,
+        )
         const ocasion = home.filter((c) => c.slug !== SLUG_AHORA).map((c) => c.slug)
 
         expect(ocasion.slice(0, esperados.length), `día ${dia} ${horaAR}:00 AR`).toEqual(esperados)
+      }
+    }
+  })
+
+  it('ningún chip de la home baja del piso de resultados', async () => {
+    // El piso es de la home y solo de la home: "Ver más" sigue pidiendo `> 0`.
+    // Verifica la regla, no la foto — el día que un chip flaco crezca, entra solo.
+    for (let dia = 0; dia < 7; dia++) {
+      for (const horaAR of [3, 12, 18, 23]) {
+        const { home } = await getOccasionChips(enAR(dia, horaAR))
+        for (const chip of home.filter((c) => c.slug !== SLUG_AHORA)) {
+          expect(chip.count, `chip "${chip.slug}" en la home, día ${dia} ${horaAR}:00`).toBeGreaterThanOrEqual(
+            PISO_HOME,
+          )
+        }
+      }
+    }
+  })
+
+  it('un chip con ventana no se ve fuera de ella, ni en la home ni en "Ver más"', async () => {
+    // La capacidad inversa de `primero`: con `solo`, After office deja de estar
+    // entre los 4 un domingo a las 11. Contra el setting real de la base.
+    const reglas = validarReglas(await getSetting<unknown>(CHIPS_SCHEDULE_KEY))
+
+    for (let dia = 0; dia < 7; dia++) {
+      for (const horaAR of [1, 11, 18, 23]) {
+        const now = enAR(dia, horaAR)
+        const { home, resto } = await getOccasionChips(now)
+        const listados = [...home, ...resto].map((c) => c.slug)
+        const fuera = [...chipsFueraDeVentana(reglas, now)]
+
+        expect(
+          listados.filter((s) => fuera.includes(s)),
+          `día ${dia} ${horaAR}:00 AR`,
+        ).toEqual([])
       }
     }
   })

@@ -74,8 +74,19 @@ function limpiarMarcadores(texto: string): string {
     .replace(/\s?\[\[lugar:[^\]]*$/g, '')
 }
 
+/**
+ * Las 4 de arranque. Además de dar un empujón, **enseñan a preguntar**: mucha
+ * gente no sabe cómo hablarle a la IA, y lo que se pone acá es lo que después
+ * escribe.
+ *
+ * La de plan es deliberada: el chat es la única superficie donde un combo ("cenar
+ * y después bailar") se puede pedir, porque son **dos búsquedas** y un chip solo
+ * sabe aplicar tags a la URL. Está acá para medir si la gente lo usa antes de
+ * decidir qué superficie merece — no hay nada en el prompt que sepa de "planes":
+ * el modelo encadena dos `buscar_lugares` por su cuenta.
+ */
 const SUGERENCIAS = [
-  'Algo tranqui con mi vieja en Palermo',
+  'Armame un plan: cenar y después bailar en Palermo',
   'Una birra con amigos por Villa Crespo',
   'Cena romántica, algo lindo',
   'Un café para laburar con wifi',

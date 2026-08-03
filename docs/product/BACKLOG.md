@@ -430,8 +430,24 @@ son trabajo acotado con criterio de "listo" objetivo.
       diciendo *"8 devuelven 0"* y *"el único vivo es `salir-a-bailar`"* — quedó viejo con la
       curaduría. Hoy son **8 de 9 vivos** (el único en 0 es `plan-tranqui`).
 
-- [ ] **Un chip de horario acotado sale a toda hora: falta "solo en esta ventana"** (observación de
+- [x] **Un chip de horario acotado sale a toda hora: falta "solo en esta ventana"** (observación de
       Fer, 2026-08-03: *"after office debería salir de lunes a viernes nada más, y desde las 17"*).
+      **Resuelto ✅ 2026-08-03**: se eligió el `solo: [...]` dentro de la regla (la otra opción era
+      una ventana por chip, que pedía migración). `chipsFueraDeVentana` (`lib\search\rotacion.ts`) y
+      un corte en `lib\search\chips.ts` **antes** de repartir home/resto — por eso un chip fuera de
+      ventana tampoco entra por el `primero` de otra regla. Fuera de hora **no se ve en ningún
+      lado**, tampoco detrás de "Ver más": «solo aparece dentro de su ventana» es literal.
+      **Tres cosas que salieron del código y no del ítem:** (1) `solo` se evalúa mirando **todas**
+      las reglas, no la primera que matchea como `primero` — es un permiso, no un orden, y si ganara
+      la primera, una regla ajena que cubre esa hora decidiría sobre un chip que ni nombra; (2) por
+      eso mismo `primero` pasó a ser opcional (una regla puede solo restringir, sin cambiarle el
+      orden a la home) y `chipsPrimero` ahora saltea las reglas sin `primero`, o poner una ventana
+      arriba de todo apagaría en silencio el adelanto de una regla posterior; (3) la home sigue
+      llenando sus 4 sin after-office (quedan 5 candidatos `in_home` sobre el piso), verificado a
+      mano y con el test de "no deja huecos".
+      **Solo `after-office` lleva ventana**: `salir-a-bailar` está en la home a toda hora igual que
+      antes — nadie lo pidió y sacarlo es una decisión de producto, no un arreglo. Es agregarle
+      `"solo": ["salir-a-bailar"]` a su regla con un UPDATE, sin deploy.
       **No es un bug de la regla**: `chips.schedule` ya tiene `after-office` en `dias: [0,1,2,3,4]`
       = **lunes a viernes** (la convención del proyecto es `0 = lunes`, no la de JS —
       `lib/search/rotacion.ts:23`) con ventana 17:00–21:00. El problema es lo que la feature **no
@@ -446,8 +462,18 @@ son trabajo acotado con criterio de "listo" objetivo.
       ⚠️ Al implementarlo: verificar que la home siga llenando sus 4 con el chip fuera de ventana
       (hoy hay margen — 8 de los 9 objetivo están vivos), y que un chip restringido no pueda entrar
       por la puerta de atrás del `primero` de otra regla.
-- [ ] **La home no tiene piso de resultados: un chip con 1 lugar ocupa un lugar de los 4**
-      (observación de Fer, 2026-08-03, sobre `salida-con-chongo`). La decisión 25 esconde el chip que
+- [x] **La home no tiene piso de resultados: un chip con 1 lugar ocupa un lugar de los 4**
+      (observación de Fer, 2026-08-03, sobre `salida-con-chongo`).
+      **Resuelto ✅ 2026-08-03**: `PISO_HOME = 20` en `lib\search\chips.ts`, aplicado también a los
+      chips **forzados** por `chips.schedule` (mismo criterio: adelantar a un chip flaco no le da
+      espalda). "Ver más" sigue pidiendo `> 0`, así que `salida-con-chongo` no desaparece: baja de
+      la portada. **Por qué 20 y no 10:** sobre los 18.993 publicados no hay ningún chip entre 2 y
+      37, así que hoy los dos hacen exactamente lo mismo — entre dos números equivalentes gana el
+      más exigente, porque el problema real es la división por zona. Es una constante: bajarlo es
+      una línea.
+      **La home hoy, verificada a las 5 horas de prueba:** `salida-con-amigos`(38) ·
+      `salir-a-bailar`(586) · `tomar-algo`(3.219) · `cenar-afuera`(11.438), con `after-office`(171)
+      entrando primero L-V 17-21 y `merienda`(176) el finde 16-19. La decisión 25 esconde el chip que
       da **0**, no el que da **1** — y `salida-con-chongo` da exactamente 1 con `sort` 1, o sea es el
       **segundo** de la portada. En una zona concreta eso es 0 casi siempre, y el usuario termina en
       la pantalla de "sin resultados" por haber tocado un atajo de la home.
@@ -476,6 +502,17 @@ son trabajo acotado con criterio de "listo" objetivo.
       beneficio: se prueba la capacidad **y** se le enseña al usuario otra forma de preguntarle a la
       IA — *"la gente no sabe mucho cómo hablarle a la IA ni de prompting"*. Sale
       `Algo tranqui con mi vieja en Palermo`; entra una de plan. Las otras 3 quedan igual.
+      **Primer paso hecho ✅ 2026-08-03** (el ítem sigue abierto: falta la superficie). Entró
+      `Armame un plan: cenar y después bailar en Palermo`.
+      **Probado en vivo, y la duda se despejó sola: el modelo encadena sin que nadie se lo enseñe.**
+      Sonnet hizo las **dos** búsquedas (restaurantes en Palermo + boliches en Palermo), las tituló
+      *"Para cenar"* / *"Para bailar después"* y cerró con la relación entre las dos —*"si cenás en
+      Soho, te conviene bailar en Kika o Buda Bar para no cruzar todo Palermo"*—, que es exactamente
+      la parte de "cercanía" que se creía que iba a faltar. El `prompts.ts:65` que empuja a no
+      repetir búsqueda no estorbó: dice *"volvé a buscar solo si cambiás algo de verdad"*, y un
+      combo cambia el tipo de lugar. **Entonces NO se toca el prefijo cacheado** — la decisión
+      aparte que este ítem reservaba (instruir al modelo sobre planes, con su `npm run eval:chat`)
+      **queda sin necesidad de tomarse**. Lo que falta sigue siendo la superficie, no la capacidad.
       **Copy propuesto** (para no re-derivarlo): `Armame un plan: cenar y después bailar en Palermo`.
       Enseña la fórmula "armame un plan", que es lo que se quiere que la gente copie, y deja la zona
       al final como las otras tres. La redacción original de Fer era *"…cenar en Palermo y después
@@ -1107,6 +1144,24 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Los chips de la home aprendieron a callarse, y el chat ya sabía armar planes** (2026-08-03,
+      sesión Opus). Las 3 observaciones de Fer sobre la home y el chat, en un lote. **645/645 tests**
+      (628 + 17 nuevos), typecheck limpio. Ninguna tocaba `drizzle/`: cero migraciones, todo
+      `app_settings` y constantes ⇒ nada bloqueaba `DEPLOY` F0.
+      **La ventana horaria (`solo`) fue la única con diseño de verdad**, y lo interesante no fue
+      elegir la forma sino descubrir que **`solo` no puede compartir la semántica de `primero`**: el
+      "gana la primera regla que matchea" (decisión 2 de CHIPS_ROTACION) es correcto para un orden y
+      **veneno** para un permiso — con esa regla, una ventana puesta arriba de todo apagaba en
+      silencio el adelanto de las reglas de abajo, y una regla ajena vigente decidía sobre un chip
+      que ni nombraba. Terminaron siendo dos semánticas distintas en el mismo array de reglas, cada
+      una documentada al lado de la otra.
+      **El piso de resultados y la sugerencia del chat fueron una línea cada uno** — y en los dos
+      casos el trabajo real fue el que ya estaba hecho: los números estaban medidos en la cola (por
+      eso `20` se justifica en dos renglones) y la sugerencia solo había que **probarla**.
+      **La única sorpresa vino de ahí:** el chat encadena las dos búsquedas de un combo por su
+      cuenta, con cercanía incluida. Se reservaba una decisión aparte por si no lo hacía (tocar el
+      prefijo cacheado de 8.776 tokens + `npm run eval:chat`, que cuesta tokens reales): **no hizo
+      falta**. Probar antes de instruir se pagó solo.
 - [x] **Los 5 temas abiertos que dejó el QA integral #2, decididos e implementados** (2026-08-03,
       sesión Opus de decisión). No eran bugs: eran decisiones de producto que nadie había tomado.
       Ninguno bloqueaba `DEPLOY` F0. **625/625 tests, typecheck limpio.** Uno por uno arriba

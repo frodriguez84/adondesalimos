@@ -5,7 +5,12 @@ import { getSetting } from '@/lib/db/settings'
 import { franjaActual, NOMBRE_AHORA, SLUG_AHORA } from './ahora'
 import { EMPTY_SEARCH } from './params'
 import { countPlaces } from './query'
-import { CHIPS_SCHEDULE_KEY, chipsPrimero, validarReglas } from './rotacion'
+import {
+  CHIPS_SCHEDULE_KEY,
+  chipsFueraDeVentana,
+  chipsPrimero,
+  validarReglas,
+} from './rotacion'
 
 /**
  * Los chips de Ocasión que la home puede dibujar (F3 de BUSQUEDA).
@@ -25,6 +30,11 @@ import { CHIPS_SCHEDULE_KEY, chipsPrimero, validarReglas } from './rotacion'
  * catálogo, no del contexto. Un chip que existe en AMBA pero no en la zona
  * elegida se muestra igual y cae en el estado de 0 resultados de la decisión 23,
  * que ya sabe rescatar al usuario.
+ *
+ * Sobre ese `> 0` hay **dos filtros más, y los dos son solo para la home**: el
+ * piso de `PISO_HOME` lugares (abajo) y la ventana horaria de `solo`
+ * (`rotacion.ts`). Un chip que no los pasa sigue existiendo detrás de "Ver más" —
+ * salvo el de ventana, que fuera de hora no se ve en ningún lado.
  */
 
 export type OccasionChipView = {
@@ -49,6 +59,25 @@ export type OccasionChips = {
 
 /** Cuántos chips **de Ocasión** entran en la home sin abrir "ver más" (decisión 6). */
 export const CHIPS_EN_HOME = 4
+
+/**
+ * Mínimo de lugares en AMBA para ocupar uno de los 4 de la home. **Es un piso
+ * distinto del `> 0`** que habilita "Ver más": un chip con 1 lugar sigue
+ * existiendo, pero no se gana la portada.
+ *
+ * El caso que lo motivó: `salida-con-chongo` da **1** lugar en todo AMBA y tiene
+ * `sort` 1, así que era el **segundo** chip de la home. Como la home pide zona
+ * primero, en una zona concreta ese 1 es 0 casi siempre — el usuario tocaba un
+ * atajo de la portada para caer en "sin resultados".
+ *
+ * Por qué 20: sobre los 18.993 publicados (medido el 2026-08-03) no hay ningún
+ * chip entre 2 y 37, así que hoy 10 y 20 hacen exactamente lo mismo —dejan afuera
+ * a `salida-con-chongo` (1) y no tocan al que le sigue, `salida-con-amigos` (38)—.
+ * Ante dos números equivalentes gana el más exigente, porque el problema real es
+ * la división por zona. Bajarlo es cambiar esta constante; el día que un chip
+ * caiga en la franja 2-19 va a ser una decisión con datos y no una hipótesis.
+ */
+export const PISO_HOME = 20
 
 /**
  * `now` es un parámetro (y no `new Date()` adentro) para poder testear la franja
@@ -107,9 +136,22 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
     })),
   )
 
+  // El setting se lee en cada request a propósito (no se cachea en módulo): un
+  // UPDATE tiene que cambiar la home sin reiniciar, igual que el umbral de
+  // confidence.
+  const reglas = validarReglas(await leerReglas)
+
+  // Ventana horaria: un chip con `solo` en su regla no se ve fuera de ella, ni en
+  // la home ni en "Ver más" (un after office un domingo a las 11 no existe). El
+  // corte va acá, antes de repartir, para que un chip fuera de ventana tampoco
+  // pueda colarse por el `primero` de otra regla.
+  const fueraDeVentana = chipsFueraDeVentana(reglas, now)
+
   // Un chip sin tags no filtra nada: devolvería el catálogo entero, que es la
   // pantalla que la decisión 2 evita. Se descarta con los que dan 0.
-  const vivos = conConteo.filter((c) => c.count > 0 && c.tags.length > 0)
+  const vivos = conConteo.filter(
+    (c) => c.count > 0 && c.tags.length > 0 && !fueraDeVentana.has(c.slug),
+  )
 
   // Decisión 6 (4 fijos en la home) + decisión 25 (los que dan 0 no se ven): la
   // home toma los primeros 4 **con datos** entre los marcados `in_home`. Sin
@@ -121,20 +163,22 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   // los chips que sirven a esta hora. Una regla puede traer uno con
   // `in_home = false` (decisión 11) —es lo único que hace la feature visible: los
   // 4 de la home ya incluyen los chips "de sentido común" a toda hora—, así que
-  // `in_home` es el candidato **por defecto**, no el único posible. El setting se
-  // lee en cada request a propósito (no se cachea en módulo): un UPDATE tiene que
-  // cambiar la home sin reiniciar, igual que el umbral de confidence.
-  const reglas = validarReglas(await leerReglas)
+  // `in_home` es el candidato **por defecto**, no el único posible.
+  //
+  // El piso se aplica acá, sobre los candidatos, y **también a los forzados por
+  // la regla**: mismo criterio: si un chip no tiene espalda para la portada,
+  // adelantarlo no se la da. Sigue estando en "Ver más", que solo pide `> 0`.
+  const paraHome = vivos.filter((c) => c.count >= PISO_HOME)
   const adelante = chipsPrimero(reglas, now)
   const forzados = adelante
-    .map((slug) => vivos.find((c) => c.slug === slug))
+    .map((slug) => paraHome.find((c) => c.slug === slug))
     .filter((c) => c !== undefined)
   const yaAdelante = new Set(forzados.map((c) => c.slug))
 
   // Un chip nombrado en la regla que devuelve 0 no está en `vivos`, así que no
   // entra acá y **no deja hueco**: el siguiente `in_home` ocupa su lugar
-  // (decisión 7 + decisión 25 de BUSQUEDA).
-  const candidatos = [...forzados, ...vivos.filter((c) => c.inHome && !yaAdelante.has(c.slug))]
+  // (decisión 7 + decisión 25 de BUSQUEDA). Lo mismo el que no llega al piso.
+  const candidatos = [...forzados, ...paraHome.filter((c) => c.inHome && !yaAdelante.has(c.slug))]
   const home = candidatos.slice(0, CHIPS_EN_HOME)
   const enHome = new Set(home.map((c) => c.slug))
 

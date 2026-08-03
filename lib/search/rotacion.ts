@@ -21,13 +21,27 @@ export const CHIPS_SCHEDULE_KEY = 'chips.schedule'
 
 /**
  * Una regla. `dias` usa la convención del proyecto **0 = lunes** (`DIAS`), no la
- * de JS; `primero` son slugs de `occasion_chips`.
+ * de JS; `primero` y `solo` son slugs de `occasion_chips`.
+ *
+ * Las dos listas hacen cosas distintas y **no** se implican entre sí:
+ *
+ *  - `primero` **adelanta**: mientras la regla matchea, esos chips van al frente
+ *    de la home aunque tengan `in_home = false` (decisión 11).
+ *  - `solo` **restringe**: un chip nombrado acá no se ve **en ningún lado** —ni
+ *    en la home ni detrás de "Ver más"— fuera de la ventana de las reglas que lo
+ *    nombran. Es la capacidad inversa: sin ella, un chip con `in_home = true`
+ *    está entre los 4 a toda hora por más ventana que tenga su regla (era el caso
+ *    de After office, visible un domingo a las 11 AM).
+ *
+ * Una regla tiene que traer al menos una de las dos. Solo `solo` es válido y
+ * útil: restringe sin cambiar el orden de la home.
  */
 export type ReglaRotacion = {
   dias: number[]
   desde: string
   hasta: string
   primero: string[]
+  solo?: string[]
 }
 
 /**
@@ -37,13 +51,24 @@ export type ReglaRotacion = {
  * evidencia. El `onConflictDoNothing` del seed no pisa un valor editado a mano.
  *
  * «Merienda del finde» es la única que se *ve* hoy: `merienda` tiene
- * `in_home = false` y vive detrás de "Ver más", mientras que `after-office` y
- * `salir-a-bailar` ya están entre los 4 de la home a toda hora (decisión 11). Va
- * solo sábado y domingo para no pisarse con After office entre semana —gana la
- * primera regla que matchea—.
+ * `in_home = false` y vive detrás de "Ver más", mientras que `salir-a-bailar` ya
+ * está entre los 4 de la home a toda hora (decisión 11). Va solo sábado y domingo
+ * para no pisarse con After office entre semana —gana la primera regla que
+ * matchea—.
+ *
+ * `after-office` es el único con `solo`: un after a las 11 de un domingo no
+ * existe. `salir-a-bailar` **no** lo lleva a propósito —nadie lo pidió y sacarlo
+ * de la home a toda hora es una decisión de producto, no un arreglo—; el día que
+ * se quiera, es agregarle `"solo": ["salir-a-bailar"]` a su regla con un UPDATE.
  */
 export const DEFAULT_CHIPS_SCHEDULE: ReglaRotacion[] = [
-  { dias: [0, 1, 2, 3, 4], desde: '17:00', hasta: '21:00', primero: ['after-office'] },
+  {
+    dias: [0, 1, 2, 3, 4],
+    desde: '17:00',
+    hasta: '21:00',
+    primero: ['after-office'],
+    solo: ['after-office'],
+  },
   { dias: [4, 5], desde: '22:00', hasta: '05:00', primero: ['salir-a-bailar'] },
   { dias: [5, 6], desde: '16:00', hasta: '19:00', primero: ['merienda'] },
 ]
@@ -62,6 +87,13 @@ export function resetAvisoRotacion(): void {
   yaAviso = false
 }
 
+/** `undefined` pasa (la lista es opcional); presente tiene que ser una lista de slugs no vacía. */
+function esListaDeSlugs(v: unknown): v is string[] | undefined {
+  if (v === undefined) return true
+  if (!Array.isArray(v) || v.length === 0) return false
+  return v.every((s) => typeof s === 'string' && s.length > 0)
+}
+
 function esReglaValida(raw: unknown): raw is ReglaRotacion {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
   const r = raw as Record<string, unknown>
@@ -70,9 +102,9 @@ function esReglaValida(raw: unknown): raw is ReglaRotacion {
     return false
   if (typeof r.desde !== 'string' || !esHoraValida(r.desde)) return false
   if (typeof r.hasta !== 'string' || !esHoraValida(r.hasta)) return false
-  if (!Array.isArray(r.primero) || r.primero.length === 0) return false
-  if (!r.primero.every((s) => typeof s === 'string' && s.length > 0)) return false
-  return true
+  if (!esListaDeSlugs(r.primero) || !esListaDeSlugs(r.solo)) return false
+  // Una regla que no adelanta ni restringe no hace nada: es un typo, no una regla.
+  return r.primero !== undefined || r.solo !== undefined
 }
 
 /**
@@ -99,7 +131,9 @@ export function validarReglas(raw: unknown): ReglaRotacion[] {
     desde: r.desde,
     hasta: r.hasta,
     // Un slug repetido en la misma regla no puede duplicar un chip en la home.
-    primero: [...new Set(r.primero)],
+    // Una regla que solo restringe se normaliza con `primero: []`.
+    primero: r.primero ? [...new Set(r.primero)] : [],
+    ...(r.solo ? { solo: [...new Set(r.solo)] } : {}),
   }))
 }
 
@@ -132,6 +166,40 @@ function matchea(r: ReglaRotacion, dia: number, minutos: number): boolean {
  */
 export function chipsPrimero(reglas: ReglaRotacion[], now: Date): string[] {
   const { dia, minutos } = partesEnAR(now)
-  const regla = reglas.find((r) => matchea(r, dia, minutos))
+  // Se saltea las reglas que **solo** restringen: no adelantan nada, así que
+  // tampoco pueden tapar el `primero` de una regla posterior que sí matchea.
+  const regla = reglas.find((r) => r.primero.length > 0 && matchea(r, dia, minutos))
   return regla ? regla.primero : []
+}
+
+/**
+ * Los slugs que en `now` **no pueden verse**: los que alguna regla nombra en
+ * `solo` y que ninguna regla vigente en este instante habilita.
+ *
+ * A diferencia de `primero`, acá se miran **todas** las reglas, no la primera que
+ * matchea (decisión 2). El motivo es que `solo` es un permiso, no un orden: si
+ * ganara la primera, una regla ajena que casualmente cubre esta hora decidiría
+ * sobre un chip que ni nombra. Dos reglas pueden abrirle dos ventanas al mismo
+ * chip (L-V 17-21 y sábado 20-24) y alcanza con que una esté vigente.
+ *
+ * El corte lo aplica `lib/search/chips.ts` **antes** de repartir home/resto, así
+ * que un chip fuera de ventana tampoco entra por la puerta de atrás del `primero`
+ * de otra regla.
+ */
+export function chipsFueraDeVentana(reglas: ReglaRotacion[], now: Date): Set<string> {
+  const { dia, minutos } = partesEnAR(now)
+  const restringidos = new Set<string>()
+  const habilitados = new Set<string>()
+
+  for (const r of reglas) {
+    if (!r.solo) continue
+    const vigente = matchea(r, dia, minutos)
+    for (const slug of r.solo) {
+      restringidos.add(slug)
+      if (vigente) habilitados.add(slug)
+    }
+  }
+
+  for (const slug of habilitados) restringidos.delete(slug)
+  return restringidos
 }
