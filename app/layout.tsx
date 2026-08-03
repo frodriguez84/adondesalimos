@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
 import './globals.css'
 
 const inter = Inter({
@@ -24,6 +25,9 @@ export default function RootLayout({
           React hidrate. Suprime SOLO el mismatch de atributos del <body>, no el
           de los componentes hijos. */}
       <body suppressHydrationWarning className="min-h-screen bg-background text-foreground font-sans">
+        {/* No pinta nada: retoma el guardado que quedó pendiente del otro lado
+            del login, aterrice donde aterrice el usuario (PBETA-R3-03). */}
+        <ReanudarGuardado />
         {children}
       </body>
     </html>

@@ -80,10 +80,15 @@ son trabajo acotado con criterio de "listo" objetivo.
 - [ ] **1.5 · Pulido de UX/UI para la beta** → spec:
       `docs/specs/active/PULIDO_BETA.md` — **escrito ✅ 2026-08-03** (sesión Opus, sin código) ·
       **F1 (auditoría) ✅ 2026-08-03**: los 6 recorridos en vivo a 390×844 + control a 360 px (cero
-      desbordes), **43 hallazgos** con evidencia en `docs/qa/AnalisisQA.md` § *PULIDO_BETA F1* —
-      **10 BLOQUEANTE propuestos, sin triar**. Incluye el premium "en camino" con el cobro
-      realmente apagado. La base quedó como estaba, así que **el dump de `DEPLOY` F0 puede salir
-      ya**. **Sigue F2: el triaje lo hace Fer**, no una sesión (decisión 6).
+      desbordes), **43 hallazgos** con evidencia en `docs/qa/AnalisisQA.md` § *PULIDO_BETA F1*.
+      Incluye el premium "en camino" con el cobro realmente apagado. La base quedó como estaba, así
+      que **el dump de `DEPLOY` F0 puede salir ya**.
+      **F2 (triaje) + F3 (fix) ✅ 2026-08-03**: Fer confirmó los **10 BLOQUEANTE** (ninguno bajó) y
+      los 10 están **arreglados y re-verificados en vivo**, cada uno en su recorrido completo —
+      `docs/qa/AnalisisQA.md` § *PULIDO_BETA F2 (triaje) + F3 (fix)*. Los **33 no bloqueantes** están
+      acá abajo en § Mejoras futuras, uno por línea con su ID. La base volvió a los conteos del
+      arranque. **Queda solo F4** (la app instalable: `app/manifest.ts` + íconos + `theme_color`),
+      que es código chico e independiente y puede ir en su propia sesión.
       **Se intercala antes del deploy por pedido de Fer**: *"ya que la vamos a lanzar en modo beta,
       debería estar óptima para los usuarios"*. Va **antes de `DEPLOY` F0** y el motivo es concreto
       (decisión 12 del spec): F0 restaura un dump en Neon y **el valor del dump es que esté
@@ -269,6 +274,60 @@ son trabajo acotado con criterio de "listo" objetivo.
            no podés abrir molesta más de lo que convierte. Decisión de monetización, de Fer.
 
 ## Mejoras futuras (fuera de v1)
+
+### Los 33 hallazgos no bloqueantes de `PULIDO_BETA` F1 (triados por Fer el 2026-08-03)
+
+De los 43 hallazgos de la auditoría de los 6 recorridos en mobile, **10 se confirmaron BLOQUEANTE y
+se arreglaron** en F3; estos 33 los bajó el triaje y **no se tocan hasta que Fer los priorice**
+(decisión 5 del spec: solo BLOQUEANTE se arregla, el resto cae acá). El detalle completo de cada uno
+—ruta, viewport, esperado, observado y evidencia— está en `docs/qa/AnalisisQA.md` § *PULIDO_BETA F1*;
+acá va la línea con su ID para poder elegir sin releer la auditoría entera.
+
+**R1 · Descubrir**
+- [ ] **PBETA-R1-02** (MOLESTO) — Palermo Soho abre con Burger King y Subway: el listado no prioriza nada. Es orden, no curaduría.
+- [ ] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
+- [ ] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
+- [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
+- [ ] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa.
+- [ ] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
+- [ ] **PBETA-R1-08** (COSMÉTICO) — toques de la ficha en 36–40 px (Guardar 36×36), abajo de los 44.
+
+**R2 · Me invitaron a votar**
+- [ ] **PBETA-R2-02** (MOLESTO) — el link compartido no lleva `og:image` y la home no declara ninguna `og:`/`twitter:`.
+- [ ] **PBETA-R2-04** (MOLESTO) — sin título propio, el H1 es la lista de nombres concatenada (3 líneas a 390 px, 4 a 360).
+- [ ] **PBETA-R2-05** (MOLESTO) — los toques principales miden menos de 44 px («Votar» 63×34, «Inicio» 35×20).
+- [ ] **PBETA-R2-06** (MOLESTO) — no se dice hasta cuándo se puede votar, y las votaciones vencen solas a las 72 h.
+- [ ] **PBETA-R2-07** (MOLESTO) — «Podés cambiar tu voto» aparece **después** de votar, cuando ya no hace falta.
+- [ ] **PBETA-R2-09** (MOLESTO) — el sheet «Sumá un lugar» no tiene forma visible de cerrarse.
+- [ ] **PBETA-R2-11** (MOLESTO) — el bloque de voto queda visualmente fuera de la card del lugar.
+- [ ] **PBETA-R2-12** (MOLESTO) — los resultados se ven antes de votar (puede ser deliberado: «resultados en vivo» de `VOTACION`).
+- [ ] **PBETA-R2-10** (COSMÉTICO) — el subtítulo del sheet se alinea a la derecha del título, no debajo.
+- [ ] **PBETA-R2-13** (COSMÉTICO) — el H1 no se actualiza cuando alguien suma un lugar (se corrige al recargar).
+
+**R3 · Guardar**
+- [ ] **PBETA-R3-04** (MOLESTO) — guardar no dice dónde quedó ni cómo volver a encontrarlo (no hay toast ni link a `/mis-lugares`).
+- [ ] **PBETA-R3-05** (COSMÉTICO) — en `/mis-lugares` el título aparece dos veces (la lista default se llama igual que la página).
+- [ ] **PBETA-R3-06** (COSMÉTICO) — la card de un lugar guardado pierde los tags que sí muestra en el listado.
+
+**R4 · Armar una votación**
+- [ ] **PBETA-R4-02** (MOLESTO) — nada empuja a ponerle título, y sin título el invitado ve el H1 feo de R2-04. La falla se origina acá y se paga allá.
+- [ ] **PBETA-R4-03** (MOLESTO) — «Cerrar» y «Cancelar votación» juntos, sin decir qué hace cada uno (la confirmación posterior sí está bien).
+- [ ] **PBETA-R4-04** (MOLESTO) — el botón de crear queda enterrado abajo de los resultados de búsqueda (y = 1.480 px).
+- [ ] **PBETA-R4-05** (COSMÉTICO) — el link a compartir se muestra cortado y no se puede leer entero.
+- [ ] **PBETA-R4-06** (COSMÉTICO) — `/votacion/nueva`, `/registrar-negocio` y `/reclamar/[placeId]` no llevan el wordmark arriba (3 de 3 pantallas de flujo).
+
+**R5 · Chat + premium apagado**
+- [ ] **PBETA-R5-01 (causa raíz)** — **el síntoma está tapado, el diagnóstico no se hizo.** Las 4 sugerencias ya no caen sobre tags flacos, pero sigue sin saberse **por qué** el motor devolvió Palermo Soho para «una birra con amigos por Villa Crespo» y afirmó que el barrio no tiene carga (tiene 207 lugares con `bar`). Los tool-inputs no se persisten: se diagnostica con `npm run eval:chat`, **que cuesta tokens reales de Sonnet**. Decisión de Fer del 2026-08-03: primero el síntoma, la causa cuando se justifique el gasto.
+- [ ] **PBETA-R5-02** (MOLESTO) — el header del chat se parte en dos líneas con el badge largo, y come alto en todos los mensajes.
+- [ ] **PBETA-R5-03** (MOLESTO) — el gate no dice el precio ni que el cupo se renueva el 1º del mes.
+- [ ] **PBETA-R5-05** (MOLESTO) — con el cobro apagado, «Contenido destacado» sigue diciendo «Activá el plan acá arriba», donde ya no hay nada que activar. **Es el hermano de R5-04**, que sí se arregló: mismo patrón (copy escrito para el mundo con cobro prendido), pero acá el dueño ya está adentro del panel y no se pierde.
+
+**R6 · Soy dueño**
+- [ ] **PBETA-R6-01** (MOLESTO) — un reclamo enviado es invisible: `/mi-negocio` dice «Todavía no tenés lugares» e invita a mandarlo otra vez.
+- [ ] **PBETA-R6-02** (MOLESTO) — el panel de un lugar con reclamo pendiente da 404. **Mejoró solo** con el `app/not-found.tsx` de R2-01 (ya no es la pantalla cruda de Next); lo que falta es el mensaje bueno («en revisión»).
+- [ ] **PBETA-R6-03** (MOLESTO) — el panel del dueño mide 2.941 px, «Guardar cambios» no queda fijo y las fotos van **debajo** del botón.
+- [ ] **PBETA-R6-04** (MOLESTO) — «¿No está en la lista? Registralo vos» usa el lenguaje visual de los estados vacíos y se lee como cartel, no como botón.
+- [ ] **PBETA-R6-05** (COSMÉTICO) — el buscador de negocios trae ruido (5 de 8 resultados ajenos) y corta las direcciones, que es el dato que distingue dos locales del mismo nombre.
 
 - [x] **El contador de interés premium se congela en 200** — hallazgo de `INT2-28` (QA integral #2,
       sesión 2, 2026-08-02). **Resuelto ✅ 2026-08-03**: `contarInteresados()` cableada en
@@ -1174,6 +1233,25 @@ son trabajo acotado con criterio de "listo" objetivo.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Los 10 bloqueantes de la beta, triados y arreglados** (2026-08-03, sesión Opus,
+      `PULIDO_BETA` F2+F3). Fer confirmó los 10 —**ninguno bajó de severidad**— y acotó dos:
+      R2-03 (nombre del creador **y** qué es la app) y **R5-01, donde eligió tapar el síntoma sin
+      diagnosticar la causa** para no gastar tokens de Sonnet; la causa quedó como ítem propio.
+      **Lo que cambió de forma al implementarlo, que es lo que vale registrar:**
+      **(a)** el arreglo de "guardar a través del login" **no podía vivir en el botón de guardar**.
+      Con scroll infinito, al volver del login la card muchas veces no está montada y el arreglo
+      habría fallado en silencio justo en las listas largas — terminó en el layout raíz, sin leer la
+      sesión, usando el **401 como señal** de "todavía no se logueó" para no consumir el pendiente.
+      **(b)** El copy nuevo de la votación cerrada **iba a mentir de otra forma**: la expiración
+      perezosa persiste `status='closed'` también en la que venció sola, así que "la cerró quien la
+      armó" habría salido en las dos. Se deriva de las fechas (`closed_at < expires_at`) y se
+      verificaron las dos ramas forzando el dato en la base y restaurándolo.
+      **(c)** Las 4 sugerencias del chat no se eligieron a ojo: se **midió la densidad** de cada tag
+      antes de escribirlas y ahí apareció el porqué del hallazgo — `romantico` tiene **71** lugares
+      en todo AMBA y `wifi-trabajar` **218**, así que dos de las cuatro viejas colgaban de tags que
+      casi no están curados. La regla quedó escrita en el docstring para la próxima.
+      El único ítem que sobrevive del lote es F4 (la app instalable).
 
 - [x] **Los chips de la home aprendieron a callarse, y el chat ya sabía armar planes** (2026-08-03,
       sesión Opus). Las 3 observaciones de Fer sobre la home y el chat, en un lote. **645/645 tests**

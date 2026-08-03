@@ -4,13 +4,14 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Share2 } from 'lucide-react'
 
+import { compartirLink } from '@/components/shared/boton-compartir'
 import { Button } from '@/components/ui/button'
 
 /**
  * Volver y compartir (FICHA, § Diseño). Cliente porque `router.back()` y la Web
- * Share API viven en el browser. Compartir la ficha por WhatsApp es el loop viral
- * del producto, así que el botón usa `navigator.share` cuando existe (mobile) y
- * cae a copiar el link al portapapeles cuando no (desktop) — nunca queda muerto.
+ * Share API viven en el browser. La regla de compartir (nativo con fallback a
+ * copiar) ya no vive acá: es `compartirLink`, que comparten esta ficha y las dos
+ * pantallas de votación (PBETA-R4-01). Acá queda solo la presentación de ícono.
  */
 export function FichaActions({
   nombre,
@@ -24,22 +25,10 @@ export function FichaActions({
   const [copiado, setCopiado] = React.useState(false)
 
   async function compartir() {
-    const url = window.location.href
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: nombre, url })
-      } catch {
-        // El usuario canceló el diálogo nativo: no es un error, no se hace nada.
-      }
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopiado(true)
-      window.setTimeout(() => setCopiado(false), 2000)
-    } catch {
-      // Sin permiso de portapapeles no hay fallback razonable; se ignora.
-    }
+    const resultado = await compartirLink(window.location.href, nombre)
+    if (resultado !== 'copiado') return
+    setCopiado(true)
+    window.setTimeout(() => setCopiado(false), 2000)
   }
 
   return (

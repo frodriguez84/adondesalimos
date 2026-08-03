@@ -13,6 +13,27 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-03 · PULIDO_BETA F2+F3 — triaje de los 10 y fix — Opus
+
+- **Qué salió bien:** **leer el código de los 10 antes de presentar el triaje**. Convirtió el costo
+  de cada arreglo en un dato («1 línea, `zone-sheet.tsx:209`») en vez de una estimación, y con eso
+  Fer confirmó los 10 en tres bloques sin repreguntar. Segundo acierto: **medir la base antes de
+  escribir copy**. Las 4 sugerencias del chat no se eligieron por gusto — al contar los tags apareció
+  que `romantico` tiene 71 lugares en todo AMBA y `wifi-trabajar` 218, o sea que dos de las cuatro
+  viejas estaban rotas por el mismo motivo que la que se auditó, no solo la de Villa Crespo.
+- **Qué frenó:** nada del método. Lo único que costó turnos fue propio del trabajo: **dos arreglos
+  cambiaron de forma al implementarlos** (el reanudador del guardado no podía vivir en el botón por
+  el scroll infinito; el copy de "cerró vs venció" no se podía leer del estado por la expiración
+  perezosa). La lección del click sintético, generalizada en la sesión anterior, **se pagó de una**:
+  todo se tocó con `element.click()` desde el primer turno y no se perdió ninguno.
+- **Qué cambiar:** **nada.** El corte de F1 (ver) y F3 (arreglar) hizo que esta sesión empezara con
+  43 hallazgos con evidencia y cero ambigüedad sobre qué tocar — no hubo una sola decisión de
+  producto improvisada. Y el «un hallazgo se verifica por su consecuencia, no por el resultado de la
+  herramienta» ya está escrito; se aplicó tal cual (fila en la base para R3-03, `navigator.share`
+  instrumentado para R4-01) y alcanzó.
+
+---
+
 ## 2026-08-03 · PULIDO_BETA F1 — auditoría de los 6 recorridos en mobile — Opus
 
 - **Qué salió bien:** **arrancar por R2 y escribir cada sección apenas terminaba el recorrido**, en

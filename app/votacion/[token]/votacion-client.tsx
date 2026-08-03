@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Check, MapPin, Plus, Search, X } from 'lucide-react'
 
 import { BottomSheet } from '@/components/ui/bottom-sheet'
@@ -48,6 +49,7 @@ export function VotacionPublicaCliente({
   allowSuggestionsInicial,
   misSugerenciasInicial,
   esCreador,
+  cerradaPorElCreador,
 }: {
   token: string
   estadoInicial: EstadoVisible
@@ -56,6 +58,11 @@ export function VotacionPublicaCliente({
   opciones: OpcionPublica[]
   votedOptionIdInicial: string | null
   allowSuggestionsInicial: boolean
+  /**
+   * La cerró alguien antes de tiempo, o venció sola. No se puede leer del estado:
+   * la expiración perezosa deja `status='closed'` en las dos (PBETA-R2-08).
+   */
+  cerradaPorElCreador: boolean
   /** Los `optionId` que sumó **este** dispositivo. Nunca viaja quién sumó qué. */
   misSugerenciasInicial: string[]
   esCreador: boolean
@@ -212,7 +219,14 @@ export function VotacionPublicaCliente({
 
   return (
     <div className="flex flex-col gap-5">
-      {!abierta && <BannerCerrada estado={estado} ganador={ganador} opciones={opciones} />}
+      {!abierta && (
+        <BannerCerrada
+          estado={estado}
+          ganador={ganador}
+          opciones={opciones}
+          cerradaPorElCreador={cerradaPorElCreador}
+        />
+      )}
 
       <ul className="flex flex-col gap-4">
         {opciones.map((o) => {
@@ -527,35 +541,58 @@ function SheetSumar({
   )
 }
 
-/** Banner de solo-lectura para cerrada / expirada / cancelada (decisión 15). */
+/**
+ * Banner de solo-lectura para cerrada / expirada / cancelada (decisión 15).
+ *
+ * PBETA-R2-08: además de decir qué pasó, ofrece un paso siguiente. El que llega
+ * tarde al link de WhatsApp es el segundo caso más frecuente de toda la app y
+ * antes se quedaba sin nada para hacer. Y el copy distingue los dos finales —
+ * venció sola a los 3 días, o la cerró quien la armó—, que el estado por sí solo
+ * no alcanza a decir: la expiración perezosa deja `closed` en los dos casos.
+ */
 function BannerCerrada({
   estado,
   ganador,
   opciones,
+  cerradaPorElCreador,
 }: {
   estado: EstadoVisible
   ganador: string | null
   opciones: OpcionPublica[]
+  cerradaPorElCreador: boolean
 }) {
-  if (estado === 'cancelled') {
-    return (
-      <div className="rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
-        Esta votación fue cancelada.
-      </div>
-    )
-  }
-
   const nombreGanador = ganador ? opciones.find((o) => o.placeId === ganador)?.name : null
 
+  const mensaje =
+    estado === 'cancelled' ? (
+      'Esta votación fue cancelada.'
+    ) : nombreGanador ? (
+      <>
+        Esta votación cerró. Ganó <span className="font-semibold">{nombreGanador}</span>.
+      </>
+    ) : cerradaPorElCreador ? (
+      'Quien la armó ya cerró esta votación. Ya no se puede votar.'
+    ) : (
+      'Esta votación venció: se cierran solas a los 3 días. Ya no se puede votar.'
+    )
+
   return (
-    <div className="rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground">
-      {nombreGanador ? (
-        <>
-          Esta votación cerró. Ganó <span className="font-semibold">{nombreGanador}</span>.
-        </>
-      ) : (
-        'Esta votación ya cerró. No se puede votar.'
-      )}
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground">
+      <p>{mensaje}</p>
+      <div className="flex gap-2">
+        <Link
+          href="/votacion/nueva"
+          className="flex-1 rounded-lg bg-primary py-2 text-center text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Armar la mía
+        </Link>
+        <Link
+          href="/"
+          className="flex-1 rounded-lg border border-border py-2 text-center text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+        >
+          Buscar lugares
+        </Link>
+      </div>
     </div>
   )
 }

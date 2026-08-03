@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+import { BotonCompartir } from '@/components/shared/boton-compartir'
 import type { EstadoVisible } from '@/lib/votaciones/estado'
 import type { FilaHistorial, VotacionDelPanel } from '@/lib/votaciones/query'
 
@@ -279,13 +280,13 @@ function VotacionItem({
         >
           Ver
         </Link>
-        <button
-          type="button"
-          onClick={copiar}
-          className="flex-1 rounded-lg border border-border py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-        >
-          {copiado ? 'Copiado' : 'Copiar link'}
-        </button>
+        {/* PBETA-R4-01: mismo botón que la ficha y la pantalla del link recién
+            creado. Donde no hay menú nativo copia, así que no se pierde "Copiar". */}
+        <BotonCompartir
+          url={link}
+          titulo={titulo}
+          className="flex-1 rounded-lg border border-border bg-transparent py-2 text-sm font-medium text-foreground hover:bg-secondary"
+        />
       </div>
 
       {/* Que el grupo sume lugares (SUGERIR_EN_VOTACION, decisión 10). Solo

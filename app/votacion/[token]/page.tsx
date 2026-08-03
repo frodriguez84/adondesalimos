@@ -30,6 +30,20 @@ export const dynamic = 'force-dynamic'
 // del request (un solo query, una sola expiración lazy). Mismo criterio que FICHA.
 const cargar = cache((token: string) => getVotacionPublica(token))
 
+/**
+ * ¿La cerró alguien, o venció sola? (PBETA-R2-08). El estado no alcanza: la
+ * expiración perezosa persiste `status='closed'` también en la que venció, así
+ * que la única señal es *cuándo* se cerró respecto de su vencimiento.
+ */
+function cerradaPorElCreador(v: { closedAt: Date | null; expiresAt: Date }): boolean {
+  return v.closedAt !== null && v.closedAt.getTime() < v.expiresAt.getTime()
+}
+
+/** Solo el nombre de pila: alcanza para reconocer a quien te invitó y no expone más. */
+function primerNombre(nombre: string): string {
+  return nombre.trim().split(/\s+/)[0] ?? nombre
+}
+
 function tituloDe(votacion: { title: string | null; opciones: { name: string }[] }): string {
   if (votacion.title) return votacion.title
   const nombres = votacion.opciones.map((o) => o.name)
@@ -88,12 +102,23 @@ export default async function VotacionPage({
 
       <header className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
+          {/* PBETA-R2-03: el que abre el link es un desconocido que no sabe quién
+              lo invitó ni qué es esto. El eyebrow decía "Votación" y nada más. */}
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Votación
+            {votacion.creatorName
+              ? `Te invitó ${primerNombre(votacion.creatorName)}`
+              : 'Te invitaron a votar'}
           </p>
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
             {tituloDe(votacion)}
           </h1>
+          {votacion.estado === 'open' && (
+            <p className="text-sm text-muted-foreground">
+              Elegí a dónde ir: votás sin crear cuenta. Esto es{' '}
+              <span className="text-foreground">¿A dónde salimos?</span>, la app para decidir la
+              salida con el grupo.
+            </p>
+          )}
         </div>
         <Link
           href="/"
@@ -113,6 +138,7 @@ export default async function VotacionPage({
         allowSuggestionsInicial={votacion.allowSuggestions}
         misSugerenciasInicial={misSugerencias}
         esCreador={esCreador}
+        cerradaPorElCreador={cerradaPorElCreador(votacion)}
       />
 
       <footer className="mt-auto pt-4 text-xs text-muted-foreground">

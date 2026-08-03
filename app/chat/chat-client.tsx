@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import { ArrowLeft, History, ListChecks, Loader2, Plus, Send, Sparkles, Trash2, X } from 'lucide-react'
 
 import { BotonGuardar } from '@/components/favoritos/boton-guardar'
+import { cobroApagado } from '@/lib/billing/apagado'
 import { PlaceCard } from '@/components/shared/place-card'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import type { ListaDestino } from '@/lib/favoritos/query'
@@ -84,12 +85,20 @@ function limpiarMarcadores(texto: string): string {
  * sabe aplicar tags a la URL. Está acá para medir si la gente lo usa antes de
  * decidir qué superficie merece — no hay nada en el prompt que sepa de "planes":
  * el modelo encadena dos `buscar_lugares` por su cuenta.
+ *
+ * **Regla al tocar esta lista (PBETA-R5-01):** la app elige el tema y gasta el
+ * único mensaje gratis, así que cada sugerencia tiene que caer sobre tags
+ * **densos**. Las viejas colgaban de tags de ambiente que casi no están curados
+ * —`romantico` 71 lugares en todo AMBA, `wifi-trabajar` 218— y el modelo terminaba
+ * contestando que el catálogo no cubre el barrio, que es mentira y es la peor
+ * primera impresión posible. Antes de cambiar una, contá los lugares del tag y de
+ * la zona en la base.
  */
 const SUGERENCIAS = [
   'Armame un plan: cenar y después bailar en Palermo',
-  'Una birra con amigos por Villa Crespo',
-  'Cena romántica, algo lindo',
-  'Un café para laburar con wifi',
+  'Una birra por Villa Crespo',
+  'Un café de especialidad por Belgrano',
+  'Algo con música en vivo por San Telmo',
 ]
 
 export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props) {
@@ -167,11 +176,19 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
           cta: null,
         }
       : sinCupo && plan === 'trial'
-        ? {
-            titulo: 'Usaste tus mensajes de prueba',
-            detalle: 'Hacete premium para seguir chateando con la IA todo el mes.',
-            cta: { href: '/cuenta', label: 'Hacerme premium' },
-          }
+        ? cobroApagado()
+          ? {
+              // PBETA-R5-04: con los pagos cerrados no se ofrece un pago. El botón que
+              // anota la señal vive en /cuenta (dueño único de esa acción).
+              titulo: 'Usaste tus mensajes de prueba',
+              detalle: 'Todavía no abrimos los pagos. Dejanos la señal y te escribimos apenas se pueda.',
+              cta: { href: '/cuenta', label: 'Dejar la señal' },
+            }
+          : {
+              titulo: 'Usaste tus mensajes de prueba',
+              detalle: 'Hacete premium para seguir chateando con la IA todo el mes.',
+              cta: { href: '/cuenta', label: 'Hacerme premium' },
+            }
         : sinCupo && plan === 'premium'
           ? {
               titulo: 'Llegaste al tope del mes',

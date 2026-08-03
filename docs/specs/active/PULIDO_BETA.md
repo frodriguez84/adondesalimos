@@ -2,10 +2,13 @@
 
 **Estado:** **Parcial** — **F1 ✅ 2026-08-03**: los 6 recorridos auditados en vivo a 390×844 (+ control
 a 360 px, cero desbordes), **43 hallazgos** con evidencia en [`docs/qa/AnalisisQA.md`](../../qa/AnalisisQA.md)
-§ *PULIDO_BETA F1* — **10 BLOQUEANTE propuestos**, sin triar. Incluye el premium "en camino" con el
+§ *PULIDO_BETA F1* — **10 BLOQUEANTE propuestos**. Incluye el premium "en camino" con el
 cobro realmente apagado (Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY` durante la sesión y se restauró al
 terminar). La base quedó como estaba (decisión 13).
-**F2 (triaje de Fer) · F3 (fix) · F4 (manifest) pendientes.**
+**F2 ✅ 2026-08-03** (Fer confirmó los 10, ninguno bajó; los 33 restantes al `BACKLOG` con su ID) ·
+**F3 ✅ 2026-08-03** (los 10 arreglados y re-verificados en vivo en su recorrido completo — QA §
+*PULIDO_BETA F2 (triaje) + F3 (fix)*; la base volvió a los conteos del arranque).
+**Falta solo F4 (manifest).**
 **Prioridad:** Alta — es lo último que separa la app de usuarios reales. Después del lanzamiento
 cada hallazgo cuesta más: lo encuentra un usuario en vez de nosotros, y en una beta el usuario que
 se traba no vuelve a probar.
@@ -100,9 +103,9 @@ saltean pantallas ni se entra por URL directa salvo que el usuario real también
 
 | Fase | Qué | Código |
 |---|---|---|
-| **F1 — Auditoría** | Los 6 recorridos en vivo, mobile, con evidencia. Sale la lista de hallazgos con IDs y severidad propuesta. | **ninguno** |
-| **F2 — Triaje** | Fer confirma o baja cada severidad. Lo no bloqueante se muda al `BACKLOG`. | ninguno |
-| **F3 — Fix** | Solo los BLOQUEANTE, y re-verificación en vivo de cada uno. | sí, acotado |
+| **F1 — Auditoría** ✅ | Los 6 recorridos en vivo, mobile, con evidencia. Sale la lista de hallazgos con IDs y severidad propuesta. | **ninguno** |
+| **F2 — Triaje** ✅ | Fer confirma o baja cada severidad. Lo no bloqueante se muda al `BACKLOG`. | ninguno |
+| **F3 — Fix** ✅ | Solo los BLOQUEANTE, y re-verificación en vivo de cada uno. | sí, acotado |
 | **F4 — App instalable** | `app/manifest.ts` + íconos + `theme_color`. **No depende de F1**: se puede hacer en paralelo o primero. | sí, chico |
 
 ## Implementación — F4 (lo único con alcance ya cerrado)
@@ -119,23 +122,26 @@ saltean pantallas ni se entra por URL directa salvo que el usuario real también
 
 ## Criterios de done (DoD)
 
-- [ ] Los **6 recorridos** tienen sección propia en `docs/qa/AnalisisQA.md` con IDs
-      `PBETA-R<n>-NN`, recorridos en vivo a 390×844.
-- [ ] **Todo hallazgo** trae ruta, viewport, esperado, observado, severidad y evidencia
-      (screenshot o snapshot) — decisión 7.
-- [ ] **Cada hallazgo tiene un destino explícito**: arreglado en F3, mudado al `BACKLOG` con su ID,
-      o descartado con motivo escrito. Ninguno queda sin destino.
-- [ ] **Cero hallazgos BLOQUEANTE abiertos** al cerrar el spec.
-- [ ] Cada BLOQUEANTE arreglado se **re-verificó en vivo** en su recorrido completo, no en la
-      pantalla suelta.
-- [ ] **Nada rompe a 360 px** de ancho en los 6 recorridos (decisión 3).
+- [x] Los **6 recorridos** tienen sección propia en `docs/qa/AnalisisQA.md` con IDs
+      `PBETA-R<n>-NN`, recorridos en vivo a 390×844. ✅ F1
+- [x] **Todo hallazgo** trae ruta, viewport, esperado, observado, severidad y evidencia
+      (screenshot o snapshot) — decisión 7. ✅ F1
+- [x] **Cada hallazgo tiene un destino explícito**: arreglado en F3, mudado al `BACKLOG` con su ID,
+      o descartado con motivo escrito. Ninguno queda sin destino. ✅ F2 — 10 arreglados + 33 al
+      backlog = 43, cero descartados
+- [x] **Cero hallazgos BLOQUEANTE abiertos** al cerrar el spec. ✅ F3
+- [x] Cada BLOQUEANTE arreglado se **re-verificó en vivo** en su recorrido completo, no en la
+      pantalla suelta. ✅ F3
+- [x] **Nada rompe a 360 px** de ancho en los 6 recorridos (decisión 3). ✅ F1 y re-medido en F3
+      sobre las pantallas tocadas
 - [ ] `app/manifest.ts` existe y la app **se ofrece para instalar** en Android por HTTPS; el ícono
       correcto aparece en la pantalla de inicio en iOS.
 - [ ] `theme_color` / `background_color` coinciden con la paleta de `HOME_IDENTIDAD` — no hay
       colores nuevos.
-- [ ] **La base quedó como estaba**: lo creado durante la auditoría, borrado o anotado con su `id`
-      (decisión 13).
-- [ ] typecheck + tests + build verdes (build con el dev server parado).
+- [x] **La base quedó como estaba**: lo creado durante la auditoría, borrado o anotado con su `id`
+      (decisión 13). ✅ F1 y F3
+- [ ] typecheck + tests + build verdes (build con el dev server parado). — **typecheck y 645 tests
+      ✅ en F3**; el build queda para el cierre del spec.
 
 ## QA manual (IDs propuestos)
 

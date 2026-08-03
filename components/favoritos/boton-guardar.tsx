@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bookmark } from 'lucide-react'
 
 import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { dejarPendiente } from '@/lib/favoritos/pendiente'
 import type { ListaDestino } from '@/lib/favoritos/query'
 import { cn } from '@/lib/utils'
 
@@ -107,8 +108,12 @@ export function BotonGuardar({
       e.stopPropagation()
 
       if (!autenticado) {
+        // El lugar viaja aparte del `callbackUrl` (PBETA-R3-03): al volver con
+        // sesión, `ReanudarGuardado` lo guarda solo. `motivo=guardar` es lo que
+        // le permite al login decir por qué estás ahí (PBETA-R3-01).
+        dejarPendiente(placeId)
         const destino = `${window.location.pathname}${window.location.search}`
-        router.push(`/login?callbackUrl=${encodeURIComponent(destino)}`)
+        router.push(`/login?callbackUrl=${encodeURIComponent(destino)}&motivo=guardar`)
         return
       }
       if (eligeDestino) {

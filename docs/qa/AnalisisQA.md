@@ -3130,3 +3130,144 @@ reclamo `4b4f143e-1f69-4e9c-a71a-7aba7cf62213` · lista vacía `56c2479c-2428-4e
    auditó el formulario y el resto del recorrido con una cuenta existente.
 3. **`/admin` y `/legales`**: fuera de scope explícito del spec.
 4. **Desktop**: el spec pide mirarlo «de reojo» y esta pasada fue íntegramente mobile.
+
+---
+
+## PULIDO_BETA F2 (triaje) + F3 (fix) — los 10 BLOQUEANTE, arreglados y re-verificados (2026-08-03)
+
+**Spec:** `docs/specs/active/PULIDO_BETA.md`. **Qué es esto:** el triaje de Fer sobre los 43
+hallazgos de F1 (decisión 6) y el arreglo de lo que quedó BLOQUEANTE (decisión 5), cada uno
+re-verificado **en su recorrido completo y en vivo**, no en la pantalla suelta.
+
+### F2 — El triaje (lo decidió Fer, hallazgo por hallazgo)
+
+**Los 10 propuestos BLOQUEANTE se confirmaron los 10.** Ninguno bajó de severidad. Dos salieron con
+el alcance acotado por Fer, y está anotado abajo. Los 33 restantes (25 MOLESTO + 8 COSMÉTICO)
+**se mudan al `BACKLOG` con su ID** y no se tocaron en esta sesión.
+
+| ID | Veredicto de Fer | Destino |
+|----|------------------|---------|
+| PBETA-R1-01 | BLOQUEANTE confirmado | **Arreglado** (F3) |
+| PBETA-R2-01 | BLOQUEANTE confirmado | **Arreglado** (F3) |
+| PBETA-R2-03 | BLOQUEANTE confirmado — **alcance: nombre del creador + qué es la app** | **Arreglado** (F3) |
+| PBETA-R2-08 | BLOQUEANTE confirmado (CTA **y** copy que distinga los dos finales) | **Arreglado** (F3) |
+| PBETA-R3-01 | BLOQUEANTE confirmado | **Arreglado** (F3) |
+| PBETA-R3-02 | BLOQUEANTE confirmado | **Arreglado** (F3) |
+| PBETA-R3-03 | BLOQUEANTE confirmado — **alcance: guardar al volver**, no solo "volver con el lugar a la vista" | **Arreglado** (F3) |
+| PBETA-R4-01 | BLOQUEANTE confirmado | **Arreglado** (F3) |
+| PBETA-R5-01 | BLOQUEANTE confirmado — **alcance: cambiar las 4 sugerencias, sin diagnosticar** | **Arreglado** (F3); la causa raíz → `BACKLOG` |
+| PBETA-R5-04 | BLOQUEANTE confirmado | **Arreglado** (F3) |
+
+**Los 33 restantes → `BACKLOG` con su ID** (decisión 5), sin excepción y sin descartados:
+MOLESTO — R1-02, R1-03, R1-04, R1-05, R1-06, R1-07 · R2-02, R2-04, R2-05, R2-06, R2-07, R2-09,
+R2-11, R2-12 · R3-04 · R4-02, R4-03, R4-04 · R5-02, R5-03, R5-05 · R6-01, R6-02, R6-03, R6-04.
+COSMÉTICO — R1-08 · R2-10, R2-13 · R3-05, R3-06 · R4-05, R4-06 · R6-05.
+**Ningún hallazgo quedó sin destino** (criterio del DoD): 10 arreglados + 33 al backlog = 43.
+
+> **R5-01, el que no se diagnosticó a propósito.** Fer eligió el camino barato: las 4 sugerencias
+> se cambiaron por consultas que el catálogo **sí** puede contestar, sin correr `npm run eval:chat`
+> (que cuesta tokens reales de Sonnet). **La causa raíz sigue abierta** —por qué el motor devolvió
+> Palermo Soho para una consulta de Villa Crespo— y va al `BACKLOG` con su ID. El síntoma que
+> importaba (la demo gratis miente sobre la cobertura del catálogo) está tapado; el diagnóstico es
+> un ítem propio.
+
+### F3 — Qué se tocó, y por qué así
+
+| ID | Arreglo | Archivos |
+|----|---------|----------|
+| R1-01 | `BotonAplicar` deja de reusar el copy de "sin resultados" cuando el borrador está **vacío**: deshabilitado manda sobre el conteo y el label lo pone el sheet (`etiquetaVacia`) | `components/search/zone-sheet.tsx` |
+| R3-02 | La bajada de `/registro` pasa a hablar de lo que trae a la mayoría; el negocio queda al final, no al principio | `app/(auth)/registro/page.tsx` |
+| R5-04 | El gate del chat consulta `cobroApagado()` — **la misma función** que ya usan `/cuenta`, `/mi-negocio/[placeId]` y `suscripcion-panel.tsx`. Con los pagos cerrados no ofrece un pago: manda a dejar la señal, que es lo único que la app puede cumplir | `app/chat/chat-client.tsx` |
+| R2-01 | `app/not-found.tsx` nuevo: tema de la app, castellano, wordmark y una salida a la home. Arregla de paso **R6-02** (el panel de un reclamo pendiente caía en el mismo 404 crudo) | `app/not-found.tsx` |
+| R4-01 | La regla de compartir sale de `ficha-actions.tsx` y pasa a **dueño único** (`compartirLink` + `BotonCompartir`), montada en la pantalla del link recién creado y en `/mis-votaciones`. La ficha usa el mismo helper | `components/shared/boton-compartir.tsx`, `components/lugar/ficha-actions.tsx`, `app/votacion/nueva/nueva-client.tsx`, `app/mis-votaciones/mis-votaciones-client.tsx` |
+| R3-03 | El `placeId` que se quiso guardar viaja en `sessionStorage` (no en la URL) y `ReanudarGuardado` lo consume al aterrizar con sesión, **aterrice donde aterrice**. El 401 **no** consume el pendiente | `lib/favoritos/pendiente.ts`, `components/favoritos/reanudar-guardado.tsx`, `components/favoritos/boton-guardar.tsx`, `app/layout.tsx` |
+| R3-01 | El login sabe por qué estás ahí (`motivo=guardar`): «Entrá para guardarlo» | `app/(auth)/login/page.tsx`, `components/favoritos/boton-guardar.tsx` |
+| R2-03 | La votación dice **quién invitó** (`users.name`, solo el nombre de pila) y **qué es la app**, arriba y no a 990 px de scroll | `lib/votaciones/query.ts`, `app/votacion/[token]/page.tsx` |
+| R2-08 | La cerrada/vencida ofrece «Armar la mía» y «Buscar lugares», y el copy distingue los dos finales | `app/votacion/[token]/votacion-client.tsx`, `app/votacion/[token]/page.tsx` |
+| R5-01 | Las 4 sugerencias apuntan a tags densos, con la regla escrita en el docstring para la próxima | `app/chat/chat-client.tsx` |
+
+**Tres decisiones de implementación que valen la pena, porque no eran obvias:**
+
+1. **El pendiente de guardar va en `sessionStorage`, no en la URL** (`?guardar=<id>`). Mismo patrón
+   que la shortlist del chat, y además un link de un tercero no puede guardarle un lugar a nadie.
+2. **`ReanudarGuardado` vive en el layout raíz, no en el botón.** Con scroll infinito, al volver del
+   login la card del lugar **muchas veces no está montada**; si el reanudador viviera en
+   `BotonGuardar`, el arreglo fallaría en silencio justo en las listas largas. Y no lee la sesión:
+   el **401 es la señal** de "todavía no se logueó" y en ese caso no consume el pendiente.
+3. **"La cerró alguien" vs "venció sola" no se puede leer del estado.** La expiración perezosa
+   persiste `status='closed'` en los dos casos, así que el copy nuevo habría mentido de otra forma.
+   Se deriva de las fechas: `closed_at < expires_at` ⇒ la cerró quien la armó. Verificado en las dos
+   ramas (ver abajo).
+
+### Re-verificación en vivo — los 10, en recorrido completo
+
+Contra `https://adondesalimos.ngrok.app` con Playwright, **390×844** y control a **360 px**. Como en
+F1, el click sintético no dispara los handlers: todo se tocó con `element.click()` vía `evaluate` y
+**cada efecto se confirmó por su consecuencia** (URL, `sessionStorage`, llamada a `navigator.share`,
+fila en la base), nunca por el resultado de la herramienta.
+
+| ID | Cómo se verificó | Resultado |
+|----|------------------|-----------|
+| PBETA-R1-01 | Home → sheet de zona en sus **tres** estados | Sin zonas: `{txt:"Elegí una zona", disabled:true}` · con Palermo Soho: `{txt:"Ver 1.095 lugares", disabled:false}` · al deseleccionar vuelve a «Elegí una zona». **El caso legítimo sigue vivo**: con `?q=zzzqqq` + Palermo Soho el mismo botón dice `{txt:"Nada con eso", disabled:false}` ✅ |
+| PBETA-R2-01 | `/no-existe-esta-ruta` y `/ruta-que-no-existe` | HTTP **404** con `<title>` «Ese link no anda · ¿A dónde salimos?», `body` en `rgb(13,13,31)` (el tema de la app), `lang="es"`, wordmark y link «Buscar lugares» → `/`. Sin desborde a 390 ni a 360 ✅ |
+| PBETA-R2-03 | Link de votación **sin sesión** (se cerró la sesión con `/api/auth/sign-out`) | Header: `TE INVITÓ PEPE` + H1 + «Elegí a dónde ir: votás sin crear cuenta. Esto es ¿A dónde salimos?, la app para decidir la salida con el grupo.» La bajada aparece **solo si está abierta** (en la cerrada sería falsa) ✅ |
+| PBETA-R2-08 | Las **tres** ramas, con la base como oráculo | Vencida (`pYBcg…`, `closed_at > expires_at`): «Esta votación venció: se cierran solas a los 3 días…» · cerrada con ganador (`GPeDP…`): «Esta votación cerró. Ganó Cine Lorca.» · cerrada por el creador sin ganador (forzando `closed_at = expires_at - 1h` en `yKSV9…`, **restaurado después**): «Quien la armó ya cerró esta votación.» Las tres con «Armar la mía» y «Buscar lugares» ✅ |
+| PBETA-R3-01 | Recorrido de R3 desde cero, sin sesión | El tap manda a `/login?callbackUrl=%2F%3Fz%3Dpalermo-soho&motivo=guardar` y la pantalla dice **«Entrá para guardarlo»** / «Lo guardamos en tus lugares apenas entres…» ✅ |
+| PBETA-R3-02 | `/registro` en el mismo recorrido | «Para guardar lugares, armar votaciones con tu grupo y reclamar tu negocio» ✅ |
+| PBETA-R3-03 | **El recorrido entero**: card → login → alta de sesión → vuelta → `/mis-lugares` | Antes del login: `sessionStorage['ads:guardar-pendiente'] = d3695142-…` (Burger King). Después: pendiente `null`, el marcador vuelve como `aria-label="Sacar de guardados"` y **la base confirma la fila** `place_list_items 7bef2986-… → Burger King · lista de hugo@gmail.com`. El lugar aparece en `/mis-lugares` ✅ |
+| PBETA-R4-01 | R4 completo: `/votacion/nueva` → 2 lugares → crear → pantalla del link → `/mis-votaciones` | Con `navigator.share` instrumentado: la pantalla del link llama `{title:"Votá a dónde salimos", url:".../votacion/JiRtDBJy…"}` y `/mis-votaciones` `{title:"Congo Club Cultural · Circo Congo", url: el mismo}`. **Sin `navigator.share`** (desktop) el botón copia y pasa a «Link copiado» — no se perdió «Copiar» ✅ |
+| PBETA-R5-01 | `/chat` (sin gastar un solo mensaje: hugo ya tenía la probadita agotada) | Las 4 en pantalla: «Armame un plan: cenar y después bailar en Palermo» · «Una birra por Villa Crespo» · «Un café de especialidad por Belgrano» · «Algo con música en vivo por San Telmo». Densidad medida en la base **antes** de elegirlas ✅ |
+| PBETA-R5-04 | `/chat` con la probadita agotada **y `cobroApagado() === true`** (Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY` durante la sesión y la restauró al terminar) | El gate dice «Todavía no abrimos los pagos. Dejanos la señal y te escribimos apenas se pueda.» + «Dejar la señal» → `/cuenta`, donde **efectivamente** está «Avisame cuando abra». El embudo cierra ✅. Con la key puesta el camino viejo sigue intacto («Hacete premium») ✅ |
+
+**Por qué las sugerencias nuevas son estas y no otras** (R5-01). Se midió la densidad real antes de
+escribirlas, porque el problema no era el copy sino que el tema elegido no tiene catálogo detrás:
+
+| Tag | Lugares | |
+|---|---|---|
+| `romantico` | **71** en todo AMBA | era el de «Cena romántica, algo lindo» |
+| `wifi-trabajar` | **218** en AMBA (6 en Palermo Soho, 8 en Villa Crespo) | era el de «Un café para laburar con wifi» |
+| `bar` / `cerveceria` en Villa Crespo | **207 / 37** | el catálogo **sí** podía contestar la vieja: el sobre-filtrado vino de otro lado (→ backlog) |
+| `cafe-especialidad` en Belgrano | **101** | nueva |
+| `musica-en-vivo` en San Telmo | **38** | nueva |
+
+### 360 px — sigue sin desbordes
+
+Medido con `scrollWidth` vs `clientWidth` y barrido de `getBoundingClientRect()` en las pantallas
+tocadas: `/` y el sheet de zona, `/votacion/[token]` (abierta y cerrada), `/registro`, `/login`,
+`/mis-lugares`, `/mis-votaciones`, `/chat` (con el gate apagado) y el 404 nuevo. **Cero elementos
+fuera del viewport.** Único cambio de alto: el header de la votación pasa de 110 a **174 px** a 390
+y a **204 px** a 360, por la bajada nueva de R2-03 — es texto que antes no estaba, no un desborde.
+
+### La base quedó como estaba (decisión 13)
+
+| Tabla | Antes | Después | |
+|---|---|---|---|
+| polls · poll_options · poll_votes | 6 · 25 · 19 | **6 · 25 · 19** | ✅ |
+| place_lists · place_list_items | 1 · 0 | **1 · 0** | ✅ |
+| premium_interest · users · place_claims | 0 · 4 · 1 | **0 · 4 · 1** | ✅ |
+| `place_tags source='admin'` (canario de curaduría) | 3.967 | **3.967** | ✅ |
+| chat_conversations · chat_messages | sin cambio | **sin cambio** | ✅ (no se gastó ningún mensaje de IA) |
+
+Lo creado y revertido, con su `id`: votación `f19a9132-29f6-426d-824c-f3daa4a6421a` (token
+`JiRtDBJy-71Z5bZ0z6wrtQ`, borrada con sus 2 opciones) · favorito
+`7bef2986-e85e-451c-b9f5-6ea25e1542cb` · la lista default de `hugo@gmail.com`
+`90f4dbc9-4ae9-48ae-8527-2a31a85fe072` (la creó el propio guardado, quedó vacía y se borró).
+Restaurados: `polls` de `pYBcg_6TgoNpebFNOgQ7wg` (`expires_at` a `2026-08-03 15:09:45.613`,
+`status='open'`, `closed_at=NULL` — se había reabierto 6 h para ver el estado abierto de R2-03) y
+`closed_at` de `yKSV9_YUiNKVobQhCeMnPg` a `2026-07-31 15:09:13.191` (se había forzado para ver la
+rama "la cerró el creador"). **Queda a propósito**: la sesión de `hugo@gmail.com` y el cierre de la
+de `frodriguez.este@gmail.com` — `session` es estado de auth y el paso 5 de `DEPLOY` F0 la limpia.
+
+### Gate técnico
+
+`npx tsc --noEmit` limpio · **645 tests en 58 archivos, todos verdes** (`npm test`). El `build` va
+al final, con el dev server parado (comparten `.next`, lección de BUSQUEDA).
+
+### Lo que este tramo **no** cubrió
+
+1. **La causa raíz de R5-01** (por qué el motor devolvió otra zona): decisión explícita de Fer, va
+   al `BACKLOG` con su ID. Se diagnostica con `npm run eval:chat`, que cuesta tokens de Sonnet.
+2. **El alta nueva de usuario end-to-end**: sigue bloqueada por `requireEmailVerification` (mismo
+   límite que F1). El tramo nuevo de R3-03 se verificó con una cuenta existente, que recorre el
+   mismo código: `ReanudarGuardado` no distingue si la sesión es nueva o vieja.
+3. **F4 (la app instalable)**: no se tocó. Es lo único que le queda al spec.

@@ -72,7 +72,11 @@ export default function RegisterPage() {
     <div className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-8">
       <div>
         <h1 className="text-xl font-bold text-foreground">Creá tu cuenta</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Necesaria para reclamar o registrar tu negocio</p>
+        {/* PBETA-R3-02: la bajada era la del dueño (R6) y la lee todo el mundo, sobre
+            todo el que viene de tocar Guardar. Primero lo que trae acá a la mayoría. */}
+        <p className="mt-1 text-sm text-muted-foreground">
+          Para guardar lugares, armar votaciones con tu grupo y reclamar tu negocio
+        </p>
       </div>
 
       {/* method="post" evita que un submit pre-hidratación serialice las credenciales en la URL. */}

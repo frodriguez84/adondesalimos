@@ -28,6 +28,9 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') ?? '/'
   const resetOk = searchParams.get('reset') === 'ok'
+  // PBETA-R3-01: el que llega acá desde "Guardar" no pidió iniciar sesión, así
+  // que la pantalla tiene que decirle por qué está parado en un formulario.
+  const vinoAGuardar = searchParams.get('motivo') === 'guardar'
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
@@ -56,8 +59,14 @@ function LoginForm() {
   return (
     <div className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-8">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Iniciá sesión</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Accedé a tu cuenta</p>
+        <h1 className="text-xl font-bold text-foreground">
+          {vinoAGuardar ? 'Entrá para guardarlo' : 'Iniciá sesión'}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {vinoAGuardar
+            ? 'Lo guardamos en tus lugares apenas entres. Si no tenés cuenta, hacela acá abajo.'
+            : 'Accedé a tu cuenta'}
+        </p>
       </div>
 
       {resetOk && (

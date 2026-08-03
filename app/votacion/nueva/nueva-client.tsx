@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MapPin, Plus, Search, Sparkles, X } from 'lucide-react'
 
+import { BotonCompartir } from '@/components/shared/boton-compartir'
 import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
 import {
   MAX_OPCIONES,
@@ -364,11 +365,15 @@ function VotacionCreada({ link }: { link: string }) {
         <button
           type="button"
           onClick={copiar}
-          className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          className="shrink-0 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
         >
           {copiado ? 'Copiado' : 'Copiar'}
         </button>
       </div>
+
+      {/* PBETA-R4-01: mandarlo al grupo es LA acción de esta pantalla. Copiar y
+          salir a WhatsApp a mano queda como respaldo, no como único camino. */}
+      <BotonCompartir url={link} titulo="Votá a dónde salimos" etiqueta="Compartir al grupo" />
 
       <div className="flex flex-col gap-2">
         <Link

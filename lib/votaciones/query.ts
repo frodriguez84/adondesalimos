@@ -8,6 +8,7 @@ import {
   placeZones,
   places,
   tags,
+  users,
   zones,
   type PollOptionOrigin,
 } from '@/lib/db/schema'
@@ -44,6 +45,11 @@ export type VotacionPublica = {
   id: string
   token: string
   title: string | null
+  /**
+   * Quién armó la votación (PBETA-R2-03): sin esto, el invitado no sabe quién lo
+   * invitó ni a qué. Es lo único que viaja del creador — nunca su mail ni su id.
+   */
+  creatorName: string | null
   /** Ya resuelta la expiración perezosa: una `open` vencida se ve `expired`. */
   estado: EstadoVisible
   winnerPlaceId: string | null
@@ -75,8 +81,10 @@ export async function getVotacionPublica(token: string): Promise<VotacionPublica
       allowSuggestions: polls.allowSuggestions,
       expiresAt: polls.expiresAt,
       closedAt: polls.closedAt,
+      creatorName: users.name,
     })
     .from(polls)
+    .leftJoin(users, eq(users.id, polls.creatorId))
     .where(eq(polls.token, token))
     .limit(1)
 
@@ -104,6 +112,7 @@ export async function getVotacionPublica(token: string): Promise<VotacionPublica
     id: poll.id,
     token: poll.token,
     title: poll.title,
+    creatorName: poll.creatorName,
     estado: estadoVisible(poll, ahora),
     winnerPlaceId: poll.winnerPlaceId,
     totalVotos,

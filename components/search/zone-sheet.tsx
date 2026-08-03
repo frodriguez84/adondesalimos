@@ -175,6 +175,7 @@ export function ZoneSheet({
         <BotonAplicar
           count={count}
           disabled={seleccion.length === 0 && !gps}
+          etiquetaVacia="Elegí una zona"
           onClick={() => onApply({ zones: seleccion, gps })}
         />
       </div>
@@ -186,14 +187,20 @@ export function ZoneSheet({
  * Compartido por los dos sheets. `null` muestra el label sin número: el conteo
  * viaja por red y un "0" mientras carga desanima una búsqueda que sí tiene
  * resultados.
+ *
+ * Deshabilitado manda sobre el conteo (PBETA-R1-01): "Nada con eso" es la
+ * respuesta a una búsqueda, y con el borrador vacío el usuario todavía no pidió
+ * nada. El label de ese estado lo pone el sheet, que es el que sabe qué falta.
  */
 export function BotonAplicar({
   count,
   disabled,
+  etiquetaVacia = 'Ver lugares',
   onClick,
 }: {
   count: number | null
   disabled?: boolean
+  etiquetaVacia?: string
   onClick: () => void
 }) {
   return (
@@ -203,11 +210,13 @@ export function BotonAplicar({
       disabled={disabled}
       className="sticky bottom-0 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
     >
-      {count === null
-        ? 'Ver lugares'
-        : count === 0
-          ? 'Nada con eso'
-          : `Ver ${count.toLocaleString('es-AR')} ${count === 1 ? 'lugar' : 'lugares'}`}
+      {disabled
+        ? etiquetaVacia
+        : count === null
+          ? 'Ver lugares'
+          : count === 0
+            ? 'Nada con eso'
+            : `Ver ${count.toLocaleString('es-AR')} ${count === 1 ? 'lugar' : 'lugares'}`}
     </button>
   )
 }
