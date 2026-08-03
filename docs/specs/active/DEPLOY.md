@@ -5,6 +5,7 @@
 **Gate:** Ninguno para F0/F1/F2. **F3 (encender el cobro) está gateada** — ver decisión 18.
 **Bloquea:** la curaduría de cobertura (#3 de la cola post-v2), que depende de datos de uso reales; ABIERTO_AHORA F2; el afinado de CHIPS_ROTACION.
 **Depende de:** `CLAUDE.md` § Reversibilidad · § Disciplina de costos de Google · § Redes de seguridad · `docs/specs/done/MONETIZACION.md` (decisión 15, cancelación) · `docs/specs/done/CHAT_IA.md` (decisión 15, kill switch) · `docs/specs/done/AUTH.md` (decisión 23, rate limit; F1 diferida = Google OAuth)
+**⚠️ Orden:** `docs/specs/planned/PULIDO_BETA.md` va **antes de F0** (su decisión 12). No es preferencia: F0 restaura un dump y el valor del dump es que esté fresco — si el pulido toca algo que vive en la base, F0 se hace dos veces. Además `PULIDO_BETA` F4 (la app instalable, `manifest.ts`) cubre terreno vecino a los 4 cambios chicos de F1.
 
 ---
 

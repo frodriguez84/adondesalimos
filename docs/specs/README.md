@@ -26,8 +26,12 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-_(Sin specs en cola: DEPLOY pasó a `active/` el 2026-08-01 al implementarse su primer tramo. Lo
-que queda en la carpeta son stubs de redirect de specs ya movidos.)_
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [PULIDO_BETA](planned/PULIDO_BETA.md) | Pulido de UX/UI para la beta: auditoría de los **6 recorridos reales** en mobile (390×844) con ver y arreglar en fases separadas, + la app **instalable** (`manifest.ts`, de donde sale el splash gratis). Solo lo BLOQUEANTE se arregla; el resto lo tría Fer. | 🔵 En diseño — va **antes de `DEPLOY` F0** (decisión 12) |
+
+_(El resto de la carpeta son stubs de redirect de specs ya movidos: DEPLOY pasó a `active/` el
+2026-08-01 al implementarse su primer tramo.)_
 
 Los cuatro specs de **v2** —escritos en la sesión de autoría del 2026-07-29, en el orden de
 implementación decidido por Fer (momentum → impacto, IDEAS § Estado de la conversación

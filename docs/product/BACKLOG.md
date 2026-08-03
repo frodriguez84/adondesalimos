@@ -77,6 +77,32 @@ son trabajo acotado con criterio de "listo" objetivo.
 > **no arregla ninguno de los dos problemas que la justificaban**, y el que sí arregla ya está
 > cubierto. Detalle abajo.
 
+- [ ] **1.5 · Pulido de UX/UI para la beta** → spec:
+      `docs/specs/planned/PULIDO_BETA.md` — **escrito ✅ 2026-08-03** (sesión Opus, sin código).
+      **Se intercala antes del deploy por pedido de Fer**: *"ya que la vamos a lanzar en modo beta,
+      debería estar óptima para los usuarios"*. Va **antes de `DEPLOY` F0** y el motivo es concreto
+      (decisión 12 del spec): F0 restaura un dump en Neon y **el valor del dump es que esté
+      fresco** — si esta pasada toca algo que vive en la base, F0 se hace dos veces.
+      **No es repetir `PULIDO`** (2026-07-27): esa pasada fue **por hallazgos** (4 tracks ya
+      anotados + `/admin` en tabs) y el QA integral #2 verificó que las cosas **funcionen**.
+      Ninguna de las dos preguntó *"¿esto se entiende desde un celular si es la primera vez que lo
+      ves?"*, que es la única que importa para una beta mobile.
+      **Lo que lo estructura:** se audita por **recorridos** (6, no pantallas sueltas: lo que rompe
+      es la transición y el estado en el que llegás), a **390×844**, **en vivo con Playwright** (un
+      hallazgo de UX que no se vio en pantalla es una hipótesis), y **ver y arreglar son fases
+      separadas** — F1 no toca una línea de código. Tres severidades y **solo BLOQUEANTE se
+      arregla**; el resto lo tría Fer y cae acá. Es lo que evita que una pasada de UX se vuelva
+      infinita.
+      **El recorrido que más pesa es R2** (*me invitaron a votar*): es el loop viral, por ahí van a
+      entrar los primeros usuarios y es el que menos se miró con ojos frescos.
+      **Splash screen: DESCARTADA con motivo** (decisión 8, para que no vuelva en tres semanas). En
+      la web el splash **crea** el hueco que en una app nativa tapa, y la home es la búsqueda:
+      empeora el LCP a cambio de nada (`logo_2.png` pesa 1,4 MB). **Lo que sí va (decisión 9): la
+      app instalable** — hoy **no existe `app/manifest.ts`**, solo `favicon.ico` e `icon.png`. Con
+      manifest, Android dibuja el splash con el ícono y el color de marca **gratis** y solo para
+      quien la instaló, más "agregar a la pantalla de inicio". iOS recibe ícono y standalone pero
+      **no** splash: su startup image es una por tamaño de pantalla, cola de mantenimiento
+      permanente por un cuarto de segundo (decisión 10).
 - [ ] **2 · Hosting/prod (Neon + Vercel)** → spec: `docs/specs/active/DEPLOY.md` — **decisiones
       cerradas ✅ 2026-07-31** (sesión Fable de definiciones, sin código) · **primer tramo de código
       ✅ 2026-08-01** (el premium apagado; el spec pasó a `active/`). Lo que se resolvió, con
