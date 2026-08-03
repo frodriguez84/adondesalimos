@@ -430,6 +430,70 @@ son trabajo acotado con criterio de "listo" objetivo.
       diciendo *"8 devuelven 0"* y *"el único vivo es `salir-a-bailar`"* — quedó viejo con la
       curaduría. Hoy son **8 de 9 vivos** (el único en 0 es `plan-tranqui`).
 
+- [ ] **Un chip de horario acotado sale a toda hora: falta "solo en esta ventana"** (observación de
+      Fer, 2026-08-03: *"after office debería salir de lunes a viernes nada más, y desde las 17"*).
+      **No es un bug de la regla**: `chips.schedule` ya tiene `after-office` en `dias: [0,1,2,3,4]`
+      = **lunes a viernes** (la convención del proyecto es `0 = lunes`, no la de JS —
+      `lib/search/rotacion.ts:23`) con ventana 17:00–21:00. El problema es lo que la feature **no
+      sabe hacer**: una regla solo **adelanta** (`primero`), y `after-office` tiene `in_home = true`,
+      así que igual está entre los 4 de la home **a toda hora, todos los días** — domingo 11 AM
+      incluido. El propio comentario de `rotacion.ts:41` lo dice: *"ya están entre los 4 de la home a
+      toda hora"*.
+      **Qué falta:** la capacidad inversa — que un chip **solo** aparezca dentro de su ventana. Se
+      puede resolver con un `solo: [...]` en la regla (mismo `app_settings`, sin deploy y sin
+      migración) o con una ventana por chip. Toca `lib/search/rotacion.ts` (validación + una función
+      nueva) y el corte de `lib/search/chips.ts`. **Puerta de ida y vuelta.**
+      ⚠️ Al implementarlo: verificar que la home siga llenando sus 4 con el chip fuera de ventana
+      (hoy hay margen — 8 de los 9 objetivo están vivos), y que un chip restringido no pueda entrar
+      por la puerta de atrás del `primero` de otra regla.
+- [ ] **La home no tiene piso de resultados: un chip con 1 lugar ocupa un lugar de los 4**
+      (observación de Fer, 2026-08-03, sobre `salida-con-chongo`). La decisión 25 esconde el chip que
+      da **0**, no el que da **1** — y `salida-con-chongo` da exactamente 1 con `sort` 1, o sea es el
+      **segundo** de la portada. En una zona concreta eso es 0 casi siempre, y el usuario termina en
+      la pantalla de "sin resultados" por haber tocado un atajo de la home.
+      **Medido el 2026-08-03** (18.993 publicados): hoy `bar|wine-bar ∧ romantico ∧ hasta-tarde` = 1
+      · sin `hasta-tarde` = 12 · sin `romantico` = 56 · **el tag `romantico` entero = 71**.
+      **O sea aflojar la combinación no lo salva: el techo es el tag.** Eso es curaduría, no código.
+      **Lo que sí es código y es la regla general:** un piso para entrar a la home, distinto del
+      `> 0` que habilita "ver más". Una línea en `lib/search/chips.ts:112` + elegir el número; con lo
+      medido, un piso de 10 o 20 deja afuera solo a chongo y no toca a ningún otro. **Puerta de ida y
+      vuelta.** Decidir también si un chip **forzado por `chips.schedule`** respeta el piso (debería:
+      mismo criterio).
+- [ ] **Combos / "armame un plan" — se prueba desde el chat, no con un chip** (idea de Fer,
+      2026-08-03: *elegir "ir a comer y después a bailar", "teatro y después cenar"*).
+      **Por qué la idea es buena:** un combo **no sufre** lo que mata a los chips. Un chip es un AND
+      de filtros y por eso se queda sin resultados; un combo son **dos búsquedas separadas**, cada
+      una tan densa como ya es (11.438 restaurantes y 586 boliches, no la intersección de nada). Es
+      un problema de **secuencia y cercanía**, no de escasez de tags.
+      ⚠️ **La trampa estructural: un chip NO puede expresar un combo.** Todo el mecanismo del chip es
+      "aplicar tags a la URL" (`lib/search/chips.ts:14-15`); un combo necesita dos resultados y una
+      relación entre ellos ("que estén cerca"), que no entra en un query string de tags. La pregunta
+      no es *qué chip* sino **qué superficie**, y ahí el costo real no es el motor: es decidir si un
+      "plan" es una entidad nueva o es **una votación con paradas** — ya existe una entidad que
+      modela "un grupo eligiendo una salida".
+      **Primer paso decidido por Fer (barato, sin superficie nueva):** cambiar una de las 4
+      sugerencias del chat (`app/chat/chat-client.tsx:77-82`) por una de plan, y medir ahí. Doble
+      beneficio: se prueba la capacidad **y** se le enseña al usuario otra forma de preguntarle a la
+      IA — *"la gente no sabe mucho cómo hablarle a la IA ni de prompting"*. Sale
+      `Algo tranqui con mi vieja en Palermo`; entra una de plan. Las otras 3 quedan igual.
+      **Copy propuesto** (para no re-derivarlo): `Armame un plan: cenar y después bailar en Palermo`.
+      Enseña la fórmula "armame un plan", que es lo que se quiere que la gente copie, y deja la zona
+      al final como las otras tres. La redacción original de Fer era *"…cenar en Palermo y después
+      bailar **cerca**"*; se corrió el "cerca" porque el motor no tiene distancia entre lugares y el
+      modelo lo va a resolver como "misma zona" igual — la palabra promete algo que no existe. Es
+      copy: puerta de ida y vuelta, decidilo al implementarlo si te suena mejor la otra.
+      ⚠️ **Verificar en vivo antes de darlo por probado:** el prompt **no sabe de planes** y encima
+      empuja levemente en contra (`prompts.ts:65`: *"si la primera búsqueda ya te trajo suficientes,
+      con eso alcanza"*). Cambiar de restaurante a boliche sí es "cambiar algo de verdad", así que
+      debería encadenar — pero si no lo hace, la sugerencia falla justo en lo primero que toca un
+      usuario nuevo. **Si hay que instruirlo en el prompt es una decisión aparte**: toca el prefijo
+      cacheado (8.776 tokens) y obliga a `npm run eval:chat`, que cuesta tokens reales.
+      Dato para el que lo toque: la sugerencia que sale es **el ejemplo textual de `prompts.ts:82`** y
+      un caso de `eval-chat.ts` — el ejemplo sigue en el prompt, pero están apareadas por diseño.
+      **Lo que le falta al motor para hacerlo en serio** (recién si prende): un "cerca de" —distancia
+      entre dos lugares—, acotado porque ya hay coords y turf. Los combos curados a mano ("Plan
+      clásico de Palermo") son la versión cara y van al final, no al principio.
+
 - [ ] **💸 `npm run curar` re-cobra por los lugares ya curados — filtro de skip** (hallazgo
       2026-07-31, al preguntarse si había que re-correr la curaduría). `seleccionarLugaresDeZona`
       (`lib/curation/seleccion.ts`) **no excluye lo que ya tiene sugerencias**: ordena por
