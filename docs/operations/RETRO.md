@@ -13,6 +13,26 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-03 · Fixes de código del QA integral #2 (INT2-33 + INT2-28) — Opus
+
+- **Qué salió bien:** **el BACKLOG evitó un bug en vez de solo describirlo.** El fix de las fotos
+  estaba mal en su primera versión —gateaba `getPlaceDetail` y dejaba el `tieneFotoDueno` del
+  enriquecimiento leyendo `place_photos`, así que la ficha revocada quedaba **sin ninguna foto**— y
+  los 622 tests lo daban por bueno. Lo frenó un ítem escrito el 2026-07-21 que ya tenía la trampa
+  nombrada con las dos funciones: *"hay que tocar DOS lugares o ninguno"*. Es la primera vez que la
+  cola paga como red de seguridad y no como lista de pendientes.
+- **Qué frenó:** nada del método. La única fricción real fue **de secuencia y estaba prevista en el
+  prompt**: leer el ítem viejo del BACKLOG *antes* de escribir el fix habría ahorrado una pasada de
+  Playwright (se verificó en vivo el fix incompleto, se vio 0 imágenes, y recién ahí apareció el
+  ítem). El orden de lectura que el prompt fijaba —QA, BACKLOG, código— era el correcto; lo que
+  fallé fue leer del BACKLOG **solo los 3 ítems nuevos**, no lo que ya había sobre el mismo archivo.
+- **Qué cambiar:** una, chica y ya aplicada acá: **al arreglar un archivo, buscar en el BACKLOG por
+  el nombre de la función que se toca, no solo por el ID del hallazgo.** `grep tieneFotoDueno` sobre
+  `docs/` devolvía la trampa entera en una línea. Es la versión "cola de trabajo" de la regla que ya
+  existe para el código (*buscar primero lo que ya existe*), y no necesita regla nueva en `CLAUDE.md`:
+  cabe como hábito en el paso 1 del ciclo de fixes. _(Lo demás no califica: la decisión 12.3 se
+  resolvió en un turno porque el prompt traía las tres opciones medidas — eso funcionó.)_
+
 ## 2026-08-02 · QA integral #2, sesión 3 (bloques D+F) — Opus
 
 - **Qué salió bien:** **el backup previo al QA se usó como segunda fuente de verdad, no solo como

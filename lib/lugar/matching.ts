@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placePhotos, places } from '@/lib/db/schema'
 import { isPlacePublished } from '@/lib/db/visibility'
+import { tieneDuenoAprobado } from '@/lib/claims/ownership'
 import type { GoogleMatchStatus } from '@/lib/db/schema'
 import type { PlaceEnrichment } from './enrichment'
 
@@ -60,15 +61,21 @@ export async function getPlaceForEnrichment(id: string): Promise<PlaceEnrichment
   )
   if (!publicado) return null
 
-  // ¿Hay al menos una foto de dueño? Decide la prioridad de la foto (decisión 3):
-  // si la hay, el enriquecimiento NO pide foto a Google (FICHA-10). Se resuelve en
-  // el server —no se confía en el cliente— y recién después de la visibilidad, para
-  // no consultar en un lugar oculto. Existencia, no las fotos: `limit(1)`.
-  const [fotoDueno] = await db
-    .select({ id: placePhotos.id })
-    .from(placePhotos)
-    .where(eq(placePhotos.placeId, id))
-    .limit(1)
+  // ¿Hay al menos una foto de dueño **que se esté mostrando**? Decide la prioridad
+  // de la foto (decisión 3): si la hay, el enriquecimiento NO pide foto a Google
+  // (FICHA-10). Se resuelve en el server —no se confía en el cliente— y recién
+  // después de la visibilidad, para no consultar en un lugar oculto. Existencia,
+  // no las fotos: `limit(1)`.
+  //
+  // El reclamo aprobado entra en la cuenta por la misma razón que en la ficha
+  // (INT2-33): con el reclamo revocado las fotos dejan de mostrarse, así que si
+  // acá siguieran contando, el lugar quedaría **sin ninguna foto** — ni la del
+  // ex-dueño ni la de Google. Son los dos lugares que deciden sobre fotos y se
+  // tocan juntos o no se toca ninguno.
+  const [reclamado, [fotoDueno]] = await Promise.all([
+    tieneDuenoAprobado(id),
+    db.select({ id: placePhotos.id }).from(placePhotos).where(eq(placePhotos.placeId, id)).limit(1),
+  ])
 
   return {
     id: place.id,
@@ -80,7 +87,7 @@ export async function getPlaceForEnrichment(id: string): Promise<PlaceEnrichment
     googlePlaceId: place.googlePlaceId,
     googleMatchStatus: place.googleMatchStatus,
     googleMatchedAt: place.googleMatchedAt,
-    tieneFotoDueno: Boolean(fotoDueno),
+    tieneFotoDueno: Boolean(fotoDueno) && reclamado,
   }
 }
 

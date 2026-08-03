@@ -60,7 +60,10 @@ export type PlaceDetail = {
   horariosDueno: HorariosSemana | null
   /** Todos los tags activos, ordenados por `sort`. */
   tags: FichaTag[]
-  /** Fotos del dueño, ordenadas. Vacío hasta el spec de reclamo (dec. 3). */
+  /**
+   * Fotos del dueño, ordenadas. Vacío si el lugar no tiene reclamo aprobado:
+   * revocar las apaga igual que al resto del contenido (INT2-33), sin borrarlas.
+   */
   ownerPhotos: string[]
   /** Único dato de Google persistido: alimenta el deep link "cómo llegar". */
   googlePlaceId: string | null
@@ -157,6 +160,13 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
   const semana = reclamado ? normalizarSemana(contenidoDueno?.openingHours) : null
   const horariosDueno = semana && tieneAlgunHorario(semana) ? semana : null
 
+  // Las fotos siguen la misma condición que el contenido y los horarios (QA
+  // integral #2, INT2-33): sin reclamo aprobado no se muestran. Faltaba, y una
+  // foto subida por alguien a quien se le revocó el reclamo —el caso típico es
+  // fraude— seguía publicada. Las filas de `place_photos` **no se tocan**, y el
+  // objeto en R2 tampoco: ocultar ≠ borrar, igual que el contenido pago.
+  const ownerPhotos = reclamado ? fotosDueno : []
+
   return {
     id: place.id,
     name: place.name,
@@ -173,7 +183,7 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
     news: contenido.news,
     horariosDueno,
     tags: tagsDelLugar,
-    ownerPhotos: fotosDueno,
+    ownerPhotos,
     googlePlaceId: place.googlePlaceId,
     reclamado,
   }
@@ -226,7 +236,11 @@ async function contenidoDeDueno(id: string) {
   return fila ?? null
 }
 
-/** Fotos del dueño, ordenadas. Vacío hasta que el spec de reclamo las cargue. */
+/**
+ * Fotos del dueño, ordenadas. **Trae las filas sin condición**: el gate por
+ * reclamo aprobado lo aplica el llamador, igual que con el contenido y los
+ * horarios — una sola forma de preguntar "¿tiene dueño aprobado?".
+ */
 async function fotosDeDueno(id: string): Promise<string[]> {
   const filas = await db
     .select({ url: placePhotos.url })

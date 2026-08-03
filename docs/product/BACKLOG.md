@@ -239,13 +239,16 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Mejoras futuras (fuera de v1)
 
-- [ ] **El contador de interés premium se congela en 200** — hallazgo de `INT2-28` (QA integral #2,
-      sesión 2, 2026-08-02). El tab Suscripciones de `/admin` muestra `interesados.length`
-      (`app/admin/suscripciones.tsx:60`), y esa lista viene topeada por
-      `getInteresadosAdmin(limite = 200)`. `contarInteresados()` existe **para exactamente este
-      problema** —su docstring dice *"el conteo, sin el techo del límite de la lista"*— y **no está
-      cableada**: hoy solo la usa un test. Con 3 filas no se nota; a 201 interesados el tablero
-      subestima **el dato que dispara el cobro**. Es solo código ⇒ **no bloquea el dump a Neon**.
+- [x] **El contador de interés premium se congela en 200** — hallazgo de `INT2-28` (QA integral #2,
+      sesión 2, 2026-08-02). **Resuelto ✅ 2026-08-03**: `contarInteresados()` cableada en
+      `app/admin/page.tsx` y el número del panel sale de ahí, no de `interesados.length`. La lista
+      **sigue topeada** en 200 a propósito (son los mails a los que se les escribe, no un dataset);
+      cuando el total la supera, el panel lo dice: *"Abajo, los 200 más nuevos."*
+      _(Detalle original:)_ el tab Suscripciones mostraba `interesados.length` y esa lista viene de
+      `getInteresadosAdmin(limite = 200)`. `contarInteresados()` existía **para exactamente este
+      problema** —su docstring dice *"el conteo, sin el techo del límite de la lista"*— y no estaba
+      cableada: solo la usaba un test. Con 3 filas no se notaba; a 201 interesados el tablero
+      subestimaba **el dato que dispara el cobro**.
 - [ ] **El contador de interés no desagrega B2C de B2B** — decisión de producto, no bug (`INT2-28`).
       La **lista** distingue bien por fila (`· Premium (B2C)` vs el nombre del lugar), pero el número
       grande suma los dos ejes, que tienen **precios distintos** ($7.000 B2C · $15.000 B2B) y por lo
@@ -304,9 +307,24 @@ son trabajo acotado con criterio de "listo" objetivo.
       `docs/qa/PLAN-QA-INTEGRAL-2.md`, y bloquea la decisión 12.3 de ese plan (que los tags del
       dueño dejen de aplicarse al revocar un reclamo **no se puede implementar antes**: hoy no hay
       a qué volver).
-- [ ] **Revocar un reclamo no apaga los tags ni las fotos del dueño** (hallazgos 2026-08-02,
-      `INT2-33` del QA integral #2, sesión 3). Al revocar, el contenido de texto **sí** vuelve a
-      Overture (teléfono, web, socials, horarios — verificado en vivo), pero quedan dos huecos:
+- [x] **Revocar un reclamo no apaga los tags ni las fotos del dueño** (hallazgos 2026-08-02,
+      `INT2-33` del QA integral #2, sesión 3). **Resuelto ✅ 2026-08-03**, los dos huecos, con la
+      decisión de fallback que faltaba tomada por Fer: **(a) re-derivar los `import` desde Overture
+      al revocar**.
+      - **Tags:** `revertirTagsAOverture` (`lib/claims/ownership.ts`) borra las `owner` y repone las
+        que Overture da por `places.overture_category`, **dentro de la TX** de `decidirClaim`. La
+        curaduría (`admin`) no se toca —`onConflictDoNothing`, conserva su `source`—. El mapa se
+        mudó a **`lib/overture/tag-map.ts`** (dos consumidores; `scripts → lib`, nunca al revés).
+      - **Fotos:** se gatean por reclamo aprobado en **los dos** lugares que deciden sobre fotos —
+        `getPlaceDetail` y el `tieneFotoDueno` de `getPlaceForEnrichment`—. Las filas de
+        `place_photos` y los objetos en R2 **no se tocan**: ocultar ≠ borrar.
+      - ⚠️ **La trampa del ítem de AUTH F3 era real y se cayó en ella**: con solo el primero gateado,
+        la ficha revocada quedó con **cero** fotos (ni la del ex-dueño ni la de Google), verificado
+        en vivo. Lo detectó **este BACKLOG**, no los tests. Ver `docs/qa/AnalisisQA.md` § *Fixes del
+        QA integral #2*.
+      _(Detalle original del hallazgo, para contexto:)_ Al revocar, el contenido de texto **sí**
+      volvía a Overture (teléfono, web, socials, horarios — verificado en vivo), pero quedaban dos
+      huecos:
       - **Los tags `source='owner'` siguen aplicándose.** Es la **decisión 12.3 del plan de QA**, que
         resulta **no implementada**: `decidirClaim` no toca `place_tags`
         ([acciones.ts:238-267](../../lib/claims/acciones.ts#L238)) y **ningún** lector de tags filtra
@@ -721,7 +739,13 @@ son trabajo acotado con criterio de "listo" objetivo.
       la búsqueda para arreglar nada. Quedó el riesgo real nombrado en comentario (*no mover esos
       fragmentos a una posición de SELECT*) y corregida la afirmación general en
       `lib/claims/query.ts`. Ver `docs/qa/AnalisisQA.md` § *Pase de deuda técnica*, DEUDA-07/08 y H-1.
-- [ ] **Las fotos del dueño no se ocultan al revocar el reclamo** (AUTH F3, 2026-07-21).
+- [x] **Las fotos del dueño no se ocultan al revocar el reclamo** (AUTH F3, 2026-07-21).
+      **Resuelto ✅ 2026-08-03** junto con `INT2-33` (ver arriba): se gatean **los dos** lugares que
+      deciden sobre fotos, que es exactamente lo que este ítem advertía. **Ocultar, no borrar** —
+      las filas y los objetos en R2 quedan intactos.
+      **Lo que este ítem proponía y NO se hizo** (sigue abierto abajo, como ítem propio): que el
+      admin pueda además **borrar** las fotos cuando revoca por abuso.
+      _(Detalle original, para contexto:)_
       🔸 **Tiene una decisión de producto abierta adelante — ver `docs/product/IDEAS.md`
       § Usuarios y roles.** No implementar hasta que esté resuelta.
 
@@ -753,6 +777,16 @@ son trabajo acotado con criterio de "listo" objetivo.
       reusando `limpiarFotosDeUsuario`. Evita la trampa de arriba por completo —no gatea nada,
       borra— y le da al admin la única información que el código no puede deducir: por qué
       revocó.
+- [ ] **Revocar por abuso debería poder borrar las fotos, no solo ocultarlas** (desprendido del
+      ítem de arriba al resolverlo, 2026-08-03). Hoy `decidirClaim` trata igual dos casos que no lo
+      son: revocar **por abuso** (se hizo pasar por dueño, subió fotos ofensivas), donde las fotos
+      tienen que desaparecer de verdad, y revocar **por corrección** (el local cambió de manos, se
+      equivocó el admin), donde son una contribución real al catálogo. Con el fix de `INT2-33` las
+      dos terminan igual: **ocultas y vivas**, que es el default correcto pero deja el caso de abuso
+      a medias — el objeto sigue en R2 y su URL sigue siendo pública para quien la tenga.
+      **Lo más barato que resuelve las dos:** un checkbox *"quitar las fotos"* en el rechazo de
+      `/admin`, **default apagado**, que borre filas + objetos reusando `limpiarFotosDeUsuario`. Le
+      da al admin la única información que el código no puede deducir: **por qué** revocó.
 - [ ] **Reordenar las fotos del panel** (AUTH F3, 2026-07-21). `place_photos.sort` existe y
       la ficha usa la primera como portada, pero el editor no deja arrastrar: hoy el orden es
       el de subida y para cambiar la portada hay que borrar y volver a subir. Drag & drop o
@@ -838,7 +872,7 @@ son trabajo acotado con criterio de "listo" objetivo.
 - [ ] **Actividad está pegada a un solo Tipo: cruzar las dos facetas da casi siempre cero**
       (BUSQUEDA, 2026-07-20). 12 de 13 tags de Actividad conviven con exactamente un Tipo
       (`musica-en-vivo` solo con `teatro-espacio-cultural`, `dj` solo con `boliche`…), porque
-      `scripts/overture/tag-map.ts` mapea cada categoría de Overture a un Tipo y una Actividad
+      `lib/overture/tag-map.ts` mapea cada categoría de Overture a un Tipo y una Actividad
       a la vez. No es un bug del motor de búsqueda: la semántica AND funciona, los datos no la
       acompañan. Se despega con curaduría o dueños, o revisando el tag-map para asignar
       Actividad por otros criterios además de la categoría.
@@ -963,6 +997,22 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Los 3 fixes de código del QA integral #2, aplicados en lote** (2026-08-03, sesión Opus).
+      `INT2-33` (tags **y** fotos al revocar) + `INT2-28` (el contador topeado). **622/622 tests**
+      (619 + 3 nuevos), typecheck limpio, verificado en vivo sobre Kansas y con la base restaurada
+      al estado exacto previo. Ninguno tenía migración ⇒ ninguno bloqueaba `DEPLOY` F0, y por eso
+      se hicieron **después** del informe: un informe con el código cambiando debajo no describe
+      ninguna versión del producto.
+      **La decisión que faltaba la tomó Fer**: al revocar, los tags del dueño se van y **se
+      re-derivan los `import` desde Overture** (opción a). Salió barata porque
+      `places.overture_category` está persistida — es un lookup local, no un re-import. El mapa se
+      mudó a `lib/overture/tag-map.ts` (`scripts → lib`, nunca al revés).
+      **Lo que casi se rompe, y quién lo evitó:** el fix de las fotos estaba **mal** en su primera
+      versión —gateaba `getPlaceDetail` y no el `tieneFotoDueno` del enriquecimiento, con lo que la
+      ficha revocada quedaba **sin ninguna foto**, ni la del ex-dueño ni la de Google— y los 622
+      tests lo daban por bueno. Lo frenó **un ítem de este BACKLOG escrito el 2026-07-21**, que ya
+      tenía la trampa nombrada con las dos funciones. Primera vez que la cola **evita** un bug en
+      vez de solo describirlo. Detalle en `docs/qa/AnalisisQA.md` § *Fixes del QA integral #2*.
 - [x] **QA integral #2 — ejecutado entero, y F0 desbloqueado** (2026-08-02, 3 sesiones Opus).
       **42 casos `INT2-NN`, 39 ✅ + 3 hallazgos documentados, cero bloqueantes, cero datos
       perdidos.** Cubrió los cruces entre las 7 features que entraron después del QA integral de

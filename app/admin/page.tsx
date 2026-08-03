@@ -7,7 +7,7 @@ import { sesionAdmin } from '@/lib/auth/sesion'
 import { claimsPorEstado } from '@/lib/claims/query'
 import { getHistorialPrecios, getPreciosActuales } from '@/lib/billing/settings'
 import { getSuscripcionesAdmin } from '@/lib/billing/admin'
-import { getInteresadosAdmin } from '@/lib/billing/interes'
+import { contarInteresados, getInteresadosAdmin } from '@/lib/billing/interes'
 import { getCostosChat, getCupoChat, getSugerenciaPrecio, getUsoGoogle } from '@/lib/admin/costos'
 import { zonasConCola } from '@/lib/curation/query'
 import { ColaClient } from './cola-client'
@@ -45,6 +45,7 @@ export default async function AdminPage() {
     historial,
     suscripciones,
     interesados,
+    totalInteresados,
     costosChat,
     usoGoogle,
     cupoChat,
@@ -57,6 +58,9 @@ export default async function AdminPage() {
     getHistorialPrecios(),
     getSuscripcionesAdmin(),
     getInteresadosAdmin(),
+    // El número va aparte de la lista: la lista está topeada en 200 y el conteo
+    // es el dato que dispara prender el cobro (INT2-28).
+    contarInteresados(),
     getCostosChat(),
     getUsoGoogle(),
     getCupoChat(),
@@ -80,7 +84,11 @@ export default async function AdminPage() {
         cola={<ColaClient pendientes={pendientes} aprobados={aprobados} />}
         precios={<PreciosClient precios={precios} historial={historial} />}
         suscripciones={
-          <SuscripcionesAdmin suscripciones={suscripciones} interesados={interesados} />
+          <SuscripcionesAdmin
+            suscripciones={suscripciones}
+            interesados={interesados}
+            totalInteresados={totalInteresados}
+          />
         }
         costos={
           <div className="flex flex-col gap-6">

@@ -29,13 +29,16 @@ const fecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit
 export function SuscripcionesAdmin({
   suscripciones,
   interesados,
+  totalInteresados,
 }: {
   suscripciones: SuscripcionAdmin[]
   interesados: InteresadoAdmin[]
+  /** El conteo real, **sin** el techo de la lista (INT2-28). */
+  totalInteresados: number
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <InteresPremium interesados={interesados} />
+      <InteresPremium interesados={interesados} total={totalInteresados} />
       {suscripciones.length === 0 ? (
         <p className="text-sm text-muted-foreground">Todavía no hay suscripciones.</p>
       ) : (
@@ -45,20 +48,35 @@ export function SuscripcionesAdmin({
   )
 }
 
-/** El interés medido mientras el cobro está apagado (DEPLOY, decisión 6). */
-function InteresPremium({ interesados }: { interesados: InteresadoAdmin[] }) {
+/**
+ * El interés medido mientras el cobro está apagado (DEPLOY, decisión 6).
+ *
+ * El número sale de `total` y **no** de `interesados.length`: la lista viene
+ * topeada en 200 y este contador es el que dispara prender el cobro (decisión
+ * 18) — a 201 interesados, contar las filas subestimaba el disparador (INT2-28).
+ */
+function InteresPremium({
+  interesados,
+  total,
+}: {
+  interesados: InteresadoAdmin[]
+  total: number
+}) {
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Interés en el premium
       </h3>
-      {interesados.length === 0 ? (
+      {total === 0 ? (
         <p className="text-sm text-muted-foreground">Todavía nadie pidió que le avisemos.</p>
       ) : (
         <>
           <p className="text-sm text-foreground">
-            <strong className="text-lg font-semibold">{interesados.length}</strong>{' '}
-            {interesados.length === 1 ? 'pidió que le avisemos' : 'pidieron que les avisemos'}.
+            <strong className="text-lg font-semibold">{total}</strong>{' '}
+            {total === 1 ? 'pidió que le avisemos' : 'pidieron que les avisemos'}.
+            {total > interesados.length ? (
+              <span className="text-muted-foreground"> Abajo, los {interesados.length} más nuevos.</span>
+            ) : null}
           </p>
           <ul className="flex flex-col gap-1 rounded-2xl border border-border p-3 text-sm">
             {interesados.map((i) => (

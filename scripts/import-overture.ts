@@ -5,9 +5,9 @@ import { db } from '@/lib/db'
 import { reemplazarTagsDeImport } from '@/lib/claims/ownership'
 import { AMBA_BBOX } from '@/lib/geo/amba'
 import { places, tags } from '@/lib/db/schema'
+import { tagsForCategory } from '@/lib/overture/tag-map'
 import { EXCLUDE_CATEGORIES, INCLUDE_CATEGORIES, isIncluded } from './overture/categories'
 import { toStringArray } from './overture/normalize'
-import { tagsForCategory } from './overture/tag-map'
 
 /**
  * Import del catálogo desde Overture Maps.

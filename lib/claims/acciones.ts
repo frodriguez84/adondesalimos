@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { placeClaims, places, users } from '@/lib/db/schema'
 import { asignarZonasDeLugar } from '@/lib/zones/persistir'
 import { cancelarSuscripcionDeLugar } from '@/lib/billing/baja'
-import { tieneDuenoAprobado } from './ownership'
+import { revertirTagsAOverture, tieneDuenoAprobado } from './ownership'
 import type { AltaPayload, Decision, ReclamoPayload } from './validacion'
 
 /**
@@ -155,7 +155,12 @@ export type ClaimDecidido = {
  *   señal que el score.
  * - Rechazar un pendiente ⇒ el lugar queda exactamente como estaba.
  * - Rechazar un **aprobado** es la revocación (decisión 10): baja el override, y
- *   un `source='owner'` vuelve a ser invisible por la regla normal.
+ *   un lugar con `places.source = 'owner'` —dado de alta por un dueño— vuelve a
+ *   ser invisible por la regla normal (sin override y con `confidence` null, no
+ *   llega al umbral). **Ojo: eso es `places.source`, no `place_tags.source`** —
+ *   dos columnas distintas, con el mismo nombre y el mismo valor `'owner'`. Las
+ *   **tags** del dueño no se apagan solas: las revierte a Overture
+ *   `revertirTagsAOverture` (decisión 12.3), acá abajo.
  *
  * El mail lo manda el llamador, y solo si `yaEstaba` es falso.
  */
@@ -253,6 +258,10 @@ export async function decidirClaim(
         .update(places)
         .set({ publishOverride: false, updatedAt: new Date() })
         .where(eq(places.id, claim.placeId))
+
+      // Las tags del dueño se van con el reclamo y vuelven las de Overture
+      // (decisión 12.3). Dentro de la TX: o se revoca todo, o no se revoca nada.
+      await revertirTagsAOverture(claim.placeId, tx)
     }
   })
 

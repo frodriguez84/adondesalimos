@@ -2,9 +2,10 @@ import 'dotenv/config'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { and, eq, like, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { placeClaims, placeZones, places, users, zones } from '@/lib/db/schema'
+import { placeClaims, placeTags, placeZones, places, tags, users, zones } from '@/lib/db/schema'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { isPlacePublished, publishedWhere } from '@/lib/db/visibility'
+import { tagsForCategory } from '@/lib/overture/tag-map'
 import { crearAlta, crearReclamo, decidirClaim } from '../acciones'
 import { tieneDuenoAprobado } from '../ownership'
 import { buscarCatalogoCompleto, getLugarAReclamar } from '../query'
@@ -211,6 +212,88 @@ describe.runIf(process.env.DATABASE_URL)('reclamo y aprobación', () => {
     expect(revocado.ok && revocado.data.revocado).toBe(true)
     expect(await estaPublicado(placeId)).toBe(false)
     expect(await tieneDuenoAprobado(placeId)).toBe(false)
+  })
+})
+
+/**
+ * Decisión 12.3: al revocar, las tags que puso el dueño se van y vuelven las de
+ * Overture. Las tags deciden **en qué búsquedas aparece un lugar**, y un reclamo
+ * revocado no puede seguir sesgando el catálogo.
+ *
+ * Se re-derivan en vez de solo borrarse porque el editor del dueño borra las de
+ * `import` a propósito (decisión 14): sin reponerlas, un lugar sin curaduría
+ * quedaría sin ninguna tag.
+ */
+describe.runIf(process.env.DATABASE_URL)('las tags del dueño al revocar', () => {
+  const CATEGORIA = 'pizza_restaurant' // → ['restaurante', 'pizza']
+
+  /** Las tags del lugar como `slug:source`, ordenadas. */
+  async function tagsDe(id: string): Promise<string[]> {
+    const filas = await db
+      .select({ slug: tags.slug, source: placeTags.source })
+      .from(placeTags)
+      .innerJoin(tags, eq(tags.id, placeTags.tagId))
+      .where(eq(placeTags.placeId, id))
+    return filas.map((f) => `${f.slug}:${f.source}`).sort()
+  }
+
+  /** Un lugar de Overture con categoría, y las tags que se le pasen. */
+  async function lugarCon(
+    nombre: string,
+    puestas: { slug: string; source: 'owner' | 'admin' }[],
+  ): Promise<string> {
+    const [place] = await db
+      .insert(places)
+      .values({
+        source: 'overture',
+        name: `${PREFIJO} ${nombre}`,
+        lat: OBELISCO.lat,
+        lng: OBELISCO.lng,
+        confidence: 0.3,
+        overtureCategory: CATEGORIA,
+      })
+      .returning({ id: places.id })
+
+    for (const p of puestas) {
+      const [tag] = await db.select({ id: tags.id }).from(tags).where(eq(tags.slug, p.slug))
+      await db.insert(placeTags).values({ placeId: place.id, tagId: tag.id, source: p.source })
+    }
+    return place.id
+  }
+
+  /** Aprueba un reclamo del lugar y después lo revoca. */
+  async function reclamarYRevocar(id: string) {
+    const creado = await crearReclamo(userA, { kind: 'claim', placeId: id, ...solicitante })
+    if (!creado.ok) throw new Error('no se creó el claim')
+    await decidirClaim(creado.data.claimId, { accion: 'approve' }, ADMIN)
+    await decidirClaim(creado.data.claimId, { accion: 'reject', motivo: 'No era el dueño' }, ADMIN)
+  }
+
+  it('se van las del dueño y vuelven las de Overture — el lugar no queda sin tags', async () => {
+    if (!hayDb) return
+    // El caso real (Kansas): todas sus tags son del dueño, porque el editor
+    // borró las de import al guardar.
+    const id = await lugarCon('solo owner', [{ slug: 'karaoke', source: 'owner' }])
+
+    await reclamarYRevocar(id)
+
+    const esperadas = tagsForCategory(CATEGORIA).map((s) => `${s}:import`).sort()
+    expect(esperadas.length).toBeGreaterThan(0)
+    expect(await tagsDe(id)).toEqual(esperadas)
+  })
+
+  it('la curaduría no se toca y conserva su source', async () => {
+    if (!hayDb) return
+    const id = await lugarCon('con curaduría', [
+      { slug: 'karaoke', source: 'owner' },
+      { slug: 'aire-libre', source: 'admin' },
+      // Una curada que **también** mapea desde Overture: el insert no la pisa.
+      { slug: 'pizza', source: 'admin' },
+    ])
+
+    await reclamarYRevocar(id)
+
+    expect(await tagsDe(id)).toEqual(['aire-libre:admin', 'pizza:admin', 'restaurante:import'])
   })
 })
 

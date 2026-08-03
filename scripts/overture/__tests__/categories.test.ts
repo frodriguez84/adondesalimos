@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TAXONOMIA } from '@/lib/db/taxonomy'
+import { CATEGORY_TAG_MAP, tagsForCategory } from '@/lib/overture/tag-map'
 import { EXCLUDE_CATEGORIES, INCLUDE_CATEGORIES, isIncluded } from '../categories'
-import { CATEGORY_TAG_MAP, tagsForCategory } from '../tag-map'
 
 const SLUGS = new Set(TAXONOMIA.flatMap((f) => f.tags.map((t) => t.slug)))
 const TIPOS = new Set(TAXONOMIA.find((f) => f.facet === 'tipo')!.tags.map((t) => t.slug))

@@ -24,7 +24,7 @@
  *
  * ## La restricción estructural que limita lo que un chip puede ser
  *
- * `scripts/overture/tag-map.ts` deriva los tags de la categoría de Overture, así
+ * `lib/overture/tag-map.ts` deriva los tags de la categoría de Overture, así
  * que **todo tag que no es de Tipo viene pegado a su Tipo por construcción**.
  * Medido: `aire-libre` solo convive con `cerveceria`, `wifi-trabajar` solo con
  * `cafe`, `desayuno` solo con `restaurante`, `merienda` solo con `cafe`. Las

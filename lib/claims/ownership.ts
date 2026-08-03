@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm'
 import { db, type DbOrTx } from '@/lib/db'
-import { placeClaims, placeTags } from '@/lib/db/schema'
+import { placeClaims, placeTags, places, tags } from '@/lib/db/schema'
+import { tagsForCategory } from '@/lib/overture/tag-map'
 
 /**
  * Quién es dueño de qué — fuente única de "este lugar está reclamado".
@@ -106,4 +107,55 @@ export async function reemplazarTagsDeImport(
   }
 
   return { protegidos: protegidos.size }
+}
+
+/**
+ * **La contracara de la decisión 14**: al revocar un reclamo, las tags que puso
+ * el dueño se van y vuelven las que Overture da por la categoría del lugar
+ * (decisión 12.3 del QA integral #2, `INT2-33`).
+ *
+ * El porqué: **las tags deciden en qué búsquedas aparece un lugar**, y un
+ * reclamo se revoca justamente cuando alguien no era quien decía ser — no puede
+ * seguir sesgando el catálogo. Es la misma regla que ya rige el contenido y los
+ * horarios ("revocar devuelve la ficha a Overture"), aplicada a las tags.
+ *
+ * Por qué **re-derivar** y no solo borrar: el editor del dueño borra las de
+ * `import` a propósito (decisión 14), así que un lugar sin curaduría cuyo dueño
+ * guardó alguna vez quedaría sin ninguna tag. La categoría de Overture está
+ * persistida (`places.overture_category`), así que la reconstrucción es un
+ * lookup local — no necesita re-import ni salir a S3.
+ *
+ * Lo que **no** toca: las de `source='admin'` (curaduría). El `insert` va con
+ * `onConflictDoNothing`, así que una tag curada que también mapea desde Overture
+ * conserva su `source`.
+ *
+ * Un slug del mapeo que no exista en `tags` se saltea en silencio: el import
+ * tira error porque ahí es un bug de datos, pero acá no se puede fallar una
+ * revocación por un hueco de la taxonomía.
+ */
+export async function revertirTagsAOverture(placeId: string, tx: DbOrTx = db): Promise<void> {
+  const borradas = await tx
+    .delete(placeTags)
+    .where(and(eq(placeTags.placeId, placeId), eq(placeTags.source, 'owner')))
+    .returning({ tagId: placeTags.tagId })
+
+  // Sin tags del dueño no hay nada que reponer: las de import ya están.
+  if (borradas.length === 0) return
+
+  const [place] = await tx
+    .select({ category: places.overtureCategory })
+    .from(places)
+    .where(eq(places.id, placeId))
+    .limit(1)
+
+  const slugs = tagsForCategory(place?.category)
+  if (slugs.length === 0) return
+
+  const filas = await tx.select({ id: tags.id }).from(tags).where(inArray(tags.slug, slugs))
+  if (filas.length === 0) return
+
+  await tx
+    .insert(placeTags)
+    .values(filas.map((t) => ({ placeId, tagId: t.id, source: 'import' as const })))
+    .onConflictDoNothing()
 }

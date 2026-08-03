@@ -2212,3 +2212,70 @@ comparten) fabrica un falso positivo igual que una siembra mal hecha. Y cuando l
 *"el valor A fue reemplazado por el valor B"*, **A y B suelen parecerse mucho** —es el mismo negocio,
 el mismo teléfono, la misma web— así que `includes` es justo la herramienta que no discrimina: ahí
 va comparación exacta.
+
+---
+
+## Fixes del QA integral #2 — los tres hallazgos de código (2026-08-03)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests ✅ **622/622** (619 + 3 nuevos) · build ⏳ (se corre
+con el dev server parado)
+**Alcance:** los 3 hallazgos 🟢 *solo código* que dejó el QA integral #2 — `INT2-33` (dos huecos al
+revocar un reclamo) e `INT2-28` (el contador topeado). **Ninguno tenía migración**, así que por el
+§ 10 bis del plan iban después del deploy y no bloquearon `DEPLOY` F0. Se aplicaron **en lote y
+después** del informe a propósito: un informe con el código cambiando debajo no describe ninguna
+versión del producto.
+
+| ID | Qué se arregló | Resultado | Evidencia |
+|----|----------------|-----------|-----------|
+| INT2-33a | Las **tags `source='owner'` se apagan al revocar** y vuelven las de Overture (decisión 12.3) | ✅ FIX | `revertirTagsAOverture` en [ownership.ts](../../lib/claims/ownership.ts), llamada **dentro de la TX** de `decidirClaim` ([acciones.ts](../../lib/claims/acciones.ts)). 2 tests nuevos en `claims.integration.test.ts` |
+| INT2-33b | Las **fotos del dueño se apagan al revocar**, sin borrarse | ✅ FIX | `getPlaceDetail` gatea `ownerPhotos` por `reclamado` ([query.ts](../../lib/lugar/query.ts)) **y** `getPlaceForEnrichment` gatea `tieneFotoDueno` ([matching.ts](../../lib/lugar/matching.ts)). Test nuevo que cubre los dos + la fila viva |
+| INT2-28 | El **contador de interés premium** deja de congelarse en 200 | ✅ FIX | `contarInteresados()` cableada en [app/admin/page.tsx](../../app/admin/page.tsx); la lista sigue topeada y el panel avisa "Abajo, los N más nuevos" cuando el total la supera |
+
+### La decisión que faltaba (12.3) — Fer eligió el fallback (a)
+
+El bloqueo no era el porqué sino el fallback: el editor del dueño borra las de `import` a propósito
+(decisión 14), así que un lugar **sin curaduría** cuyo dueño guardó alguna vez se quedaba **sin
+ningún tag** al revocar (medido: Kansas, 5 tags y los 5 `owner`). Opciones ofrecidas: (a) re-derivar
+los `import` desde Overture · (b) degradar `owner` → `import` · (c) aceptar el lugar sin tags.
+**Fer eligió (a)**, que además es la regla que ya rige el contenido y los horarios —*revocar devuelve
+la ficha a Overture*— aplicada a las tags.
+
+Lo que lo hizo barato: **`places.overture_category` está persistida**, así que la re-derivación es un
+lookup local contra `CATEGORY_TAG_MAP` — no necesita re-import ni salir a S3. El mapa se movió de
+`scripts/overture/tag-map.ts` a **`lib/overture/tag-map.ts`**: ahora tiene dos consumidores y la
+dirección de dependencias del proyecto es `scripts → lib`, nunca al revés. La curaduría (`admin`) no
+se toca: el `insert` va con `onConflictDoNothing`, así que una tag curada que también mapea desde
+Overture **conserva su `source`**.
+
+Corregido también el **docstring que hizo tropezar a una sesión** ([acciones.ts:158](../../lib/claims/acciones.ts#L158)):
+decía *"un `source='owner'` vuelve a ser invisible por la regla normal"* hablando de `places.source`,
+y leído rápido parecía prometer justo lo que la 12.3 pedía sobre `place_tags.source`. Ahora nombra la
+columna y apunta al fix.
+
+### El agujero que encontró el BACKLOG, no los tests: media corrección era peor que el bug
+
+**El fix de las fotos estaba mal la primera vez y los 622 tests lo daban por bueno.** Gatear solo
+`getPlaceDetail` deja al endpoint de enriquecimiento viendo las filas de `place_photos`: cree que hay
+foto de dueño, **no le pide la foto a Google**, y la ficha revocada queda **sin ninguna foto** — ni la
+del ex-dueño ni la de Google. Peor que el bug original.
+
+**Verificado en vivo, y las dos veces:** con el claim revocado por SQL, la ficha de Kansas primero
+quedó en **0 imágenes** (media corrección) y, con `tieneFotoDueno` gateado también, en **1 imagen de
+`lh3.googleusercontent.com`** (correcto). Con el claim restaurado vuelve la de `r2.dev`.
+
+Lo salvó **el BACKLOG**, no el código ni la suite: el ítem de AUTH F3 (2026-07-21) ya tenía escrita
+la trampa —*"hay que tocar DOS lugares o ninguno"*— con los dos nombres de función. Es la primera vez
+que un ítem viejo de la cola **evita** un bug en vez de solo describirlo. El test nuevo la deja
+cubierta: asserta `tieneFotoDueno` en los dos estados, no solo `ownerPhotos`.
+
+### Estado de la base al cerrar
+
+**Kansas restaurado y verificado con `SELECT`:** `status='approved'` · `decided_at` original
+(`2026-07-24 23:13:00.12`) · `admin_notes` NULL · `publish_override` = `t` · `owner_plan='free'` ·
+**2 fotos** · **5 tags `owner`** (la revocación se hizo por SQL sobre `status`, no por `decidirClaim`,
+justamente para no disparar la reversión de tags sobre datos reales).
+
+**Costo de la verificación en vivo:** 1 foto de Google (`google_api_usage` 2026-08 `photos` = 5,
+`details` = 15 — muy por debajo de los topes). Los tests de integración crean y borran sus propios
+fixtures bajo prefijo. **Canario de curaduría intacto.**

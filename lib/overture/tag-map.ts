@@ -1,6 +1,11 @@
 /**
  * Mapeo `taxonomy.primary` → slugs de la taxonomía propia.
  *
+ * Vive en `lib/` y no en `scripts/` porque tiene **dos** consumidores: el import
+ * (`scripts/import-overture.ts`) y la revocación de un reclamo, que re-deriva
+ * las tags de Overture cuando se van las del dueño (`lib/claims/ownership.ts`).
+ * La dirección de dependencias del proyecto es `scripts → lib`, nunca al revés.
+ *
  * Es **semilla, no reemplazo**: da el Tipo (y la Cocina cuando la categoría la
  * implica) para que el catálogo nazca navegable. Lo que no mapea a Cocina queda
  * solo con su Tipo, y Ambiente lo completan el dueño o el admin.
