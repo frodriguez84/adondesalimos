@@ -102,8 +102,15 @@ son trabajo acotado con criterio de "listo" objetivo.
         `/admin` están cerrados en el spec § *El premium apagado*. **Ese tramo ya está
         implementado ✅ 2026-08-01** (migración `0014`, QA DEPLOY-10/15/16/17 ✅) — lo que sigue es
         **F0: crear Neon y restaurar el dump**, que ya trae la tabla.
-      - [ ] **Prerrequisito de F0 — QA integral #2** → plan: `docs/qa/PLAN-QA-INTEGRAL-2.md`
-        (**escrito ✅ 2026-08-02**, sin ejecutar). Las 7 features que entraron después del QA
+      - [x] **Prerrequisito de F0 — QA integral #2 — ✅ EJECUTADO ENTERO 2026-08-02.**
+        **APROBADO CON HALLAZGOS: 42 casos, 39 ✅ + 3 documentados, cero bloqueantes.** El bloque F
+        cerró **en verde con diff = 0** en las 13 tablas, el canario de curaduría volvió exacto a
+        **3.967** y el dump quedó en `backups/adondesalimos_2026-08-02_211243.sql.gz`. **⇒ F0 está
+        desbloqueado: ese es el archivo que se restaura en Neon.** Los 3 hallazgos son 🟢 solo
+        código (viajan con el próximo push, no necesitan migración) y están abajo. Único caso no
+        corrido: `INT2-37` (madrugada), declarado suelto desde el diseño. Detalle:
+        `docs/qa/AnalisisQA.md` §§ *QA integral #2 — sesión 1 / 2 / 3*.
+        → plan: `docs/qa/PLAN-QA-INTEGRAL-2.md`. Las 7 features que entraron después del QA
         integral del 2026-07-26 (favoritos · sugerir · rotación de chips · «Para ahora» · historial
         de `/mis-votaciones` · premium apagado · 135 alias) tienen QA contra su propio spec y
         **ninguna se cruzó con las demás**. ~39 casos `INT2-NN` en 3 sesiones de ejecución.
@@ -297,6 +304,48 @@ son trabajo acotado con criterio de "listo" objetivo.
       `docs/qa/PLAN-QA-INTEGRAL-2.md`, y bloquea la decisión 12.3 de ese plan (que los tags del
       dueño dejen de aplicarse al revocar un reclamo **no se puede implementar antes**: hoy no hay
       a qué volver).
+- [ ] **Revocar un reclamo no apaga los tags ni las fotos del dueño** (hallazgos 2026-08-02,
+      `INT2-33` del QA integral #2, sesión 3). Al revocar, el contenido de texto **sí** vuelve a
+      Overture (teléfono, web, socials, horarios — verificado en vivo), pero quedan dos huecos:
+      - **Los tags `source='owner'` siguen aplicándose.** Es la **decisión 12.3 del plan de QA**, que
+        resulta **no implementada**: `decidirClaim` no toca `place_tags`
+        ([acciones.ts:238-267](../../lib/claims/acciones.ts#L238)) y **ningún** lector de tags filtra
+        por `source` ni por dueño aprobado — búsqueda, ficha, chat y votaciones filtran solo por
+        `tags.active`. En vivo: con el reclamo revocado, Kansas seguía saliendo **primero** en
+        `?z=las-canitas&t=musica-en-vivo`. Importa porque **los tags deciden en qué búsquedas
+        aparece el lugar**, y se revoca justamente cuando alguien no era quien decía ser.
+        **Sigue bloqueado por el ítem de arriba** (el editor del dueño): hoy no hay a qué volver.
+      - **Las fotos del dueño siguen visibles.** Este el plan lo daba por hecho y no ocurre:
+        `fotosDeDueno` ([query.ts:230](../../lib/lugar/query.ts#L230)) no recibe `reclamado`, a
+        diferencia del contenido ([:149](../../lib/lugar/query.ts#L149)) y los horarios
+        ([:157](../../lib/lugar/query.ts#L157)), que sí lo usan. **Fix simétrico y chico**: pasarle
+        `reclamado`, igual que a los otros dos. **No depende del otro ítem** — se puede hacer solo.
+      - ⚠️ **Trampa de lectura, anotada para el que lo arregle:**
+        [acciones.ts:158](../../lib/claims/acciones.ts#L158) dice *"un `source='owner'` vuelve a ser
+        invisible por la regla normal"* y **no habla de tags**: se refiere a `places.source` (el
+        **lugar** dado de alta por un dueño). `place_tags.source` es otro enum. Dos columnas
+        distintas con el mismo nombre y el mismo valor; leído rápido, el docstring parece garantizar
+        algo que el código no hace.
+      🟢 Solo código ⇒ puede ir **después** del deploy.
+- [ ] **`/cuenta` ofrece "Cancelar suscripción" a un premium que no tiene suscripción** (hallazgo
+      2026-08-02, `INT2-32`). **El estado va a existir en producción**: con el cobro apagado, un
+      `UPDATE` a mano de Fer es el único camino a premium (beta tester, regalo, dueño que lo pidió),
+      y ese usuario **no tiene fila en `subscriptions`**. Hoy `/cuenta` le muestra "Premium" +
+      *"$ 7.000 por mes."* **sin fecha de renovación** —la única señal, ilegible para el usuario— y
+      el botón de cancelar igual. Al tocarlo: **404** + *"No tenés una suscripción activa para
+      cancelar."*, que contradice al badge de dos líneas arriba. No rompe nada.
+      **Decisión de producto:** (a) no ofrecer cancelar sin fila viva, o (b) un copy que explique
+      que es un premium de cortesía y no hay nada que cancelar. Recomendación: **(a)** — el botón
+      que no puede cumplir es peor que su ausencia. 🟢 Solo código.
+- [ ] **Las 3 `subscriptions` del baseline son de QA de julio, y una está `active`** (anotado
+      2026-08-02, bloque F del QA integral #2). El criterio de limpieza fue *diff = 0 contra el
+      ANTES de la sesión 1*, y estas tres **ya estaban ahí**, así que el dump las conserva:
+      `mp_payer_email = test_user_…@testuser.com` (sandbox de MP) y una con
+      `current_period_end = 2026-08-24`. Es **el mismo riesgo** que el plan advertía para la sub
+      comprada en INT2-31 —*"una sub viva en el dump la reactiva cualquier reconciliación lazy"*—
+      solo que preexistente. **Decisión de Fer ANTES de F0**, porque viaja en el dump: borrarlas y
+      arrancar Neon con `subscriptions` en cero, o dejarlas. Recomendación: **borrarlas** — ninguna
+      corresponde a un pago real y la de julio con período abierto es la única que puede hacer algo.
 - [ ] **Un chip de la home con un tag de Precio nunca se ve** (hallazgo 2026-08-02, `INT2-01` del QA
       integral #2). `Salida con amigos` es el chip de `sort` 0 y **no llega a la home**: exige
       `precio-2` y la faceta Precio tiene **1 fila en 14.458 lugares**, así que el chip da 0 y la
@@ -894,6 +943,32 @@ son trabajo acotado con criterio de "listo" objetivo.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **QA integral #2 — ejecutado entero, y F0 desbloqueado** (2026-08-02, 3 sesiones Opus).
+      **42 casos `INT2-NN`, 39 ✅ + 3 hallazgos documentados, cero bloqueantes, cero datos
+      perdidos.** Cubrió los cruces entre las 7 features que entraron después del QA integral de
+      julio, que tenían QA contra su propio spec y **nunca se habían cruzado entre sí**. Sesión 1
+      (A+B: caminos end-to-end y gates, 21 PASS) · sesión 2 (C+E: cruces rol × feature y
+      sensibilidad al reloj, 7 PASS + 3 ⚠️) · sesión 3 (D+F: transiciones de estado, el pago real
+      y la limpieza). **El bloque F cerró en verde**: snapshot ANTES == DESPUÉS con **diff = 0** en
+      las 13 tablas, canario de curaduría de vuelta en **3.967** exacto, los 3 `delete` de
+      agregados diarios corridos (−201 impresiones, −133 de tags) y los acumuladores mensuales
+      conservados (decisión 2 del plan). **El dump que viaja a Neon es
+      `backups/adondesalimos_2026-08-02_211243.sql.gz`.**
+      **Lo que encontró la sesión 3** (todo 🟢 solo código, sin migración ⇒ puede ir después del
+      deploy): revocar un reclamo **no apaga los tags ni las fotos del dueño** (`INT2-33`) y
+      `/cuenta` **ofrece cancelar a un premium sin suscripción** (`INT2-32`). Los tres ítems están
+      arriba, en la cola. **Lo que confirmó que funciona:** bajar de premium **oculta sin borrar**
+      en los dos ejes (`INT2-30`), un solo pago prende **las tres** superficies premium
+      (`INT2-31`), la cancelación es **diferida** de verdad (`INT2-41`), el destaque en búsqueda se
+      **apaga al instante** (`INT2-34`) y el tope global del chat **degrada sin cobrar el intento**
+      (`INT2-35`). Y se corrió al fin `INT2-13`, que había quedado diferido dos veces por
+      configuración de entorno.
+      **Lección de método, tercera consecutiva:** el instrumento fabricó síntomas las tres
+      sesiones (el editor · los microsegundos de `now()` · esta vez, aserciones con `includes`
+      sobre substrings que dos valores comparten). Las tres veces lo frenó la misma regla —§ 10.3
+      del plan, *explicar el síntoma en el código antes de escribir un ❌*—. Detalle en
+      `docs/qa/AnalisisQA.md` y en `docs/operations/RETRO.md`.
 
 - [x] **Alias de zonas: CABA sistemático + hitos/POIs** (2026-08-01, sesión Opus). Los **dos**
       ítems de alias de § *Mejoras futuras*, cerrados juntos: **78 → 135 alias**. (1) **CABA**: el

@@ -1,10 +1,14 @@
 # Plan de QA integral #2 — antes del deploy
 
-**Estado:** Escrito 2026-08-02 · **Sesión 1 de 3 ejecutada** (2026-08-02, bloques A+B: 21 PASS,
-INT2-13 diferido a config B, cero bugs — `docs/qa/AnalisisQA.md` § *QA integral #2 — sesión 1*).
-Faltan la sesión 2 (C+E) y la 3 (D+F). Este archivo es el árbitro de las sesiones de
-ejecución (mismo rol que un spec: si un caso no está acá, no se corre; si un hallazgo no se puede
-explicar en el código, no se escribe).
+**Estado:** ✅ **EJECUTADO ENTERO (2026-08-02) — las 3 sesiones cerradas.** Veredicto global:
+**APROBADO CON HALLAZGOS — 42 casos corridos, 39 ✅ + 3 documentados, cero bloqueantes, cero datos
+perdidos.** El bloque F cerró en **verde con diff = 0** en las 13 tablas y el canario de curaduría
+volvió exacto a 3.967 ⇒ **DEPLOY F0 queda desbloqueado**. Sesión 1 (A+B, 21 PASS) · sesión 2 (C+E,
+7 PASS + 3 ⚠️) · sesión 3 (D+F, 7 PASS + 3 hallazgos). Único caso **no corrido**: `INT2-37`
+(franja de madrugada), que ya estaba declarado como suelto y **no bloquea**. Detalle por caso en
+`docs/qa/AnalisisQA.md` §§ *QA integral #2 — sesión 1 / 2 / 3*.
+Este archivo fue el árbitro de las sesiones de ejecución (mismo rol que un spec: si un caso no está
+acá, no se corre; si un hallazgo no se puede explicar en el código, no se escribe).
 **Autor:** sesión Opus de diseño (pedido de Fer, 2026-08-02). Insumos extraídos por 3 subagentes
 read-only sobre los specs de las 7 features nuevas.
 **Antecedente:** `docs/qa/PLAN_QA_INTEGRAL.md` (2026-07-26, IDs `INT-01..15`, 10 cruces PASS).
@@ -386,8 +390,8 @@ porque un agujero de aislamiento cambia la prioridad de todo lo demás, y **F al
 | # | Sesión | Bloques | IDs | Config | Por qué en este orden |
 |---|--------|---------|-----|--------|----------------------|
 | 1 | ✅ **Ejecutada 2026-08-02** — **Caminos + gates** (~2-3 h) | A + B | INT2-01..22 (menos el 13) | A | Los flujos end-to-end siembran los datos (votaciones, listas, contenido) que los bloques siguientes necesitan. Los gates se barren con esos datos frescos. **INT2-40 se corre acá**, junto a INT2-14: es el mismo gesto (el dueño guarda el editor) |
-| 2 | **Cruces + reloj** (~2 h) | C + E | INT2-23..29, 36, 38, 39 | A | Reusa lo sembrado en la sesión 1. Requiere los `UPDATE` de plan — anotarlos |
-| 3 | **Transiciones + pago + limpieza** (~2-3 h) | D + F | INT2-30..35, 41 → **pasada corta en config B**: INT2-13, 32, 42 → snapshot | A → **B** | Las transiciones **destruyen** el estado sembrado (bajar planes, revocar claims): van últimas. **Fer en el teclado** para INT2-31/41 (pago y cancelación) y para el restart del server al cambiar de config. La limpieza cierra y habilita el dump |
+| 2 | ✅ **Ejecutada 2026-08-02** — **Cruces + reloj** (~2 h) | C + E | INT2-23..29, 36, 38, 39 | A | Reusa lo sembrado en la sesión 1. Requiere los `UPDATE` de plan — anotarlos |
+| 3 | ✅ **Ejecutada 2026-08-02** — **Transiciones + pago + limpieza** | D + F | INT2-30..35, 41 → **pasada corta en config B**: INT2-13, 32, 42 → snapshot | A → **B** | Las transiciones **destruyen** el estado sembrado (bajar planes, revocar claims): van últimas. **Fer en el teclado** para INT2-31 (pago) y para el restart del server al cambiar de config; INT2-41 (cancelar) no lleva tarjeta y lo disparó Claude. La limpieza cerró y habilitó el dump |
 | — | **Suelto** | E | INT2-37 | A | Madrugada (00:00–05:59). Lo mira Fer cuando le toque; **no bloquea el deploy** |
 
 **Antes de cerrar la sesión 3: restaurar `NEXT_PUBLIC_MP_PUBLIC_KEY` en `.env`.** Si el dump viaja

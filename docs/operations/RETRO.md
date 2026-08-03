@@ -13,6 +13,29 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-02 · QA integral #2, sesión 3 (bloques D+F) — Opus
+
+- **Qué salió bien:** **el backup previo al QA se usó como segunda fuente de verdad, no solo como
+  póliza.** Extraerle los conteos al `.sql.gz` de las 14:17 confirmó el snapshot ANTES uno a uno, y
+  además desmintió dos cosas que la sesión traía escritas: que la lista de pepe tenía un item
+  preexistente (no: `place_list_items` era 0, el item lo había sembrado el QA) y que
+  `hugo.chat_trial_used = 2` había que revertirlo (no: ya era 2). Sin eso, la limpieza habría
+  dejado una fila de más y corregido un contador que estaba bien. **El dump no es solo para
+  restaurar: es el único registro no editable de cómo estaba el mundo antes.**
+- **Qué frenó:** el instrumento otra vez, y por tercera sesión consecutiva — pero con una forma
+  nueva. En `INT2-33` la ficha revocada daba **tres** síntomas y **dos eran míos**: buscar el
+  substring `kansasgrillandbar.com.ar` matchea igual la web del dueño (`https://…`) que la de
+  Overture (`http://www.…`), y buscar `"Cerrado ahora"` daba `true` con un texto que pinta Google,
+  no el dueño. Los dos habrían entrado como ❌ contra un comportamiento que funciona bien. La regla
+  del § 10.3 los frenó, igual que en las sesiones 1 y 2.
+- **Qué cambiar:** una sola, y es hermana de la de la sesión 2. Aquella dijo *"si sembrás por SQL,
+  imitá a la app"*; esta agrega el lado de la lectura: **cuando lo que se prueba es "el valor A fue
+  reemplazado por B", comparar exacto, nunca `includes`** — porque A y B casi siempre se parecen
+  (es el mismo negocio, el mismo teléfono, la misma web) y el substring no discrimina. Ya está
+  escrita en `docs/qa/AnalisisQA.md` § *Nota de método* de esta sesión; si hay un QA #3, va al § 10
+  del plan junto a las otras dos. _(Lo demás no califica: el `admin_notes` pisado es un cuarto caso
+  del patrón que el § 10 ya cubre —capturar valores viejos—, no una regla nueva.)_
+
 ## 2026-08-02 · QA integral #2, sesión 2 (bloques C+E) — Opus
 
 - **Qué salió bien:** dos costumbres pagaron solas. **Sembrar el caso duro a propósito** —hacer que

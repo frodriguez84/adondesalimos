@@ -2044,3 +2044,171 @@ el editor del dueño. La regla del § 10.3 (*explicar el síntoma en el código 
 ❌*) es lo que lo frenó las dos veces, y conviene extenderla: **cuando el QA siembra por SQL crudo,
 la siembra tiene que reproducir la precisión y los defaults que produce la app** — si no, se
 prueba un escenario que en producción no existe.
+
+---
+
+## QA integral #2 — sesión 3 (bloques D + F) (2026-08-02)
+
+**Veredicto:** **APROBADO CON HALLAZGOS — 10 casos: 7 ✅ PASS + 3 ⚠️/❌ documentados. Ningún
+bloqueante; ningún dato perdido.** Los tres hallazgos son de comportamiento esperado-vs-real, van al
+BACKLOG y **no bloquean DEPLOY F0** (ninguno necesita migración — § 10 bis del plan).
+**Alcance:** `INT2-30..35`, `41` (bloque D, config A) → pasada de config B (`INT2-13`, `32`, `42`)
+→ bloque F (limpieza + snapshot + dump), según `docs/qa/PLAN-QA-INTEGRAL-2.md` §§ 7, 9, 11.
+`INT2-37` (madrugada) sigue suelto y no bloquea. `INT2-40` ya se había corrido en la sesión 1.
+**Método:** Playwright MCP + `fetch` con sesión real contra `https://adondesalimos.ngrok.app`
++ `SELECT` directos al Postgres. Click en el input antes de tipear. **El pago lo hizo Fer**
+(INT2-31); la cancelación de INT2-41 la disparó Claude desde la UI propia — no hay tarjeta de por
+medio.
+
+### Marcas de arranque (sesión 3)
+
+- **Backup previo:** `backups/adondesalimos_2026-08-02_152039.sql.gz`, **hecho al arrancar esta
+  sesión** — no se reusó el de las 14:17, que era anterior a todo lo sembrado por las sesiones 1 y
+  2. Esta es la sesión que revoca claims y baja planes: la más destructiva de las tres.
+- **Reloj:** domingo **2026-08-02**, de las **15:20** a las **21:12 AR** (con un corte largo entre
+  INT2-31 y la pasada de config B, esperando a Fer).
+- **Valores viejos capturados ANTES del primer `UPDATE`** (§ 10 del plan): `ai.chat_monthly_cap` =
+  **5000** · `place_claims` de Kansas = `approved`, `decided_at` 2026-07-24 23:13:00.12,
+  `admin_notes` **NULL** · `places.owner_plan` de Kansas = `free`, `publish_override` = `t`.
+- **El backup previo al QA como segunda fuente.** Los conteos de
+  `adondesalimos_2026-08-02_141723.sql.gz` (previo a la sesión 1) se extrajeron del `.sql.gz` y
+  **coinciden uno a uno con el snapshot ANTES declarado**. El target del bloque F quedó validado de
+  forma independiente, no solo por lo que anotó la sesión 1.
+
+### Casos — bloque D (config A)
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| INT2-30 | **premium → free** (el gordo) | ✅ PASS | hugo premium con **10 listas** (1 default + 9 `QA2 ·`), **3 votaciones activas** creadas por la app (`POST /api/votaciones` 201×3 — y eso *es* el control positivo: un free habría sido rechazado en la 2da) y **22 en historial**. Se sembró a propósito 1 lugar en `QA2 · Lista 01` y otro en `Lista 09`, porque los 2 que ya había estaban en la **default** —la lista que sobrevive al corte— y sin eso el punto (d) no se probaba. Al bajar a free: **(a)** las 9 desaparecen de `/mis-lugares` y **las 10 filas siguen vivas** en `place_lists` (4 items intactos), con copy que lo explica (*"Con premium podés armar varias listas… Por ahora tenés una sola"*); **(b)** las 3 activas **siguen abiertas y visibles**, pero la 4ta → **409 `LIMITE_ACTIVA`** y el 409 **no dejó fila** (`polls` 32 antes y después); **(c)** `/api/votaciones/historial` → **403 `NO_PREMIUM`** y la pantalla deja de listar las 22 (0 cerradas, sin «Ver más»); **(d)** al volver a premium reaparecen las 9 listas **con sus 4 items**, incluidos los 2 que estaban en listas ocultas |
+| INT2-31 | **free agota el trial → paga → recupera** | ✅ PASS | pepe free con trial **3/3**. Las tres superficies verificadas **apagadas antes** del pago: chat (*"Usaste tus mensajes de prueba"*, input `disabled`, CTA → `/cuenta`), historial **403**, `POST /api/listas` **403 `LIMITE_LISTAS`**. **Pago hecho por Fer** en el Brick de MP. Después, con el mismo pago: `users.plan` → `premium`, fila `active` en `subscriptions` ($ 7.000, B2C, período hasta 2026-09-03) y **las tres se prenden**: chat **0 → 30 mensajes** y sin gate, historial **200**, crear lista **201**. **Detalle fino que cierra bien:** `chat_trial_used` queda en **3** y el cupo premium arranca en **30 limpio** — son dos contadores distintos (decisión 5/6) y el trial gastado no se descuenta del cupo pago |
+| INT2-41 | **Cancelación real de la suscripción** | ✅ PASS | Cancelada desde `/cuenta`. Pantalla: el badge **sigue "Premium"** + *"Cancelada. Mantenés el acceso hasta el **2 de septiembre de 2026**. Después vuelve a free."*, y el botón desaparece. DB: `status` sigue **`active`**, `cancel_at_period_end` = **t**, `canceled_at` seteado y `current_period_end` **intacto** — la cancelación diferida de la decisión 15. Acceso vivo confirmado después de cancelar (historial 200, crear lista 201). **La fecha no es un bug de un día:** `2026-09-03 00:04 UTC` es el **2 a las 21:04 AR**. **No hizo falta consultar a MP para cerrarlo:** [cancelacion.ts:46-58](../../lib/billing/cancelacion.ts#L46) cancela el preapproval **primero** y solo escribe en la DB si MP contestó OK (si falla → 502 y no toca nada), así que la fila con `cancel_at_period_end=true` **es** la evidencia de que MP se enteró |
+| INT2-34 | **owner_plan paid → free** | ✅ PASS | Lo que faltaba era el **destaque en búsqueda**, y se probó con las dos puntas: con Kansas en `paid` (**el único** `owner_plan='paid'` de la base ⇒ señal limpia) `?z=las-canitas` muestra el rótulo **"Destacado" 1 vez y Kansas 1 vez** (el dedupe de la decisión 21 no lo duplica en el orgánico); al bajar a `free` el rótulo pasa a **0** y Kansas sigue en el orgánico. **Se apaga al instante**, sin caché, como promete el docstring de `buscarDestacados`. Los 3 campos pagos se ocultan con las filas vivas, y el contenido **no pago** del dueño (teléfono, web, horarios) **sigue** — que es lo correcto. ⚠️ **Las "fotos 4-15 ocultas" NO se verificaron:** Kansas tiene 2 fotos y subir 13 más no paga el rato. Se dice, no se simula |
+| INT2-35 | **Tope global de chat agotado** | ✅ PASS | Cap viejo capturado (**5000**) antes de tocarlo. Con `ai.chat_monthly_cap = 1` y `ai_api_usage` del mes en 1 (`1 >= cap`, [cupo.ts:83](../../lib/ai/cupo.ts#L83)): el chat **degrada**, no rompe — **503** y en pantalla *"El chat está descansando un rato / Se pausó por un ratito. Volvé más tarde y seguimos."* **Y no cobra el intento:** el cupo del usuario quedó intacto, `ai_api_usage` **no** incrementó y no se insertó ni un `chat_message` ni una conversación — el gate corta antes de gastar. Control positivo: restaurado a 5000, el chat responde normal y el cupo baja de 29 a 28 |
+| INT2-33 | **Revocar reclamo del dueño** | ❌ **2 hallazgos** (ver abajo) | Revocado por el **endpoint real de admin** (`PATCH /api/admin/claims/[id]`, `revocado: true`), no por SQL. **Lo que sí funciona:** el contenido vuelve a Overture sin borrar la fila — teléfono `11 4776 4100` → `+541147764100`, web `https://…` → `http://www.…`, social Instagram del dueño → Facebook de Overture, horarios propios apagados, y **"¿Sos el dueño?" reaparece**. `publish_override` baja a `f` y las subs no se tocan. **Lo que no:** los tags `source='owner'` y las fotos del dueño **siguen aplicándose**. Kansas tiene `confidence 0.9993` ≫ umbral `0.5`, así que sigue publicado por confidence y el hallazgo **no queda enmascarado** por una despublicación |
+
+### Casos — pasada de config B (`NEXT_PUBLIC_MP_PUBLIC_KEY` vaciada + restart del server por Fer)
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| INT2-13 | Dueño toca «Avisame cuando abra» | ✅ PASS | **Se corrió al fin** — quedó diferido dos veces porque en config A ese botón no existe (el panel muestra "Suscribirme por $ 15.000/mes"). En config B aparece, y al tocarlo: **1 fila** en `premium_interest` con `place_id` = Kansas, el botón desaparece y confirma *"Listo, anotado. Te escribimos a frodriguez.este@gmail.com apenas abramos los pagos."* **Idempotencia:** 2 `POST` más al endpoint → **201 con `{nuevo: false}`** las dos veces y **sigue 1 fila**. **Control implícito del índice único parcial:** pepe ya tenía una fila →Kansas y el dueño pudo crear la suya ⇒ el índice es por **(user_id, place_id)**, no por lugar |
+| INT2-32 | **Premium sin suscripción × botón de cancelar** | ⚠️ **CALLEJÓN CONFIRMADO** (no destructivo) | El escenario es **real en producción**, no artefacto: con el cobro apagado, un `UPDATE` a mano de Fer es el único camino a premium. Con hugo (premium, **sin fila en `subscriptions`**), `/cuenta` muestra "Premium" + *"$ 7.000 por mes."* **sin fecha de renovación** —esa ausencia es la única señal de que no hay sub, y el usuario no puede leerla— **y ofrece igual el botón "Cancelar suscripción"**. Al tocarlo: **404** y el mensaje inline *"No tenés una suscripción activa para cancelar."*, que **contradice** al "Premium" de dos líneas arriba. **No rompe nada** (hugo sigue premium, sin efectos en DB). Es decisión de producto → BACKLOG |
+| INT2-42 | **Espejo de prod: el embudo del premium apagado** | ✅ PASS | **El embudo cierra.** juan free con trial 3/3 → el gate del chat ofrece *"Hacete premium…"* con CTA **"Hacerme premium" → `/cuenta`** → y en config B `/cuenta` **no vende**: *"Todavía no abrimos los pagos. Estamos en beta. El premium está por salir… Dejanos la señal y te escribimos apenas se pueda."* + botón **«Avisame cuando abra»**. **No hay checkout muerto ni promesa colgada.** Se recorrió la última milla: al tocar el botón, fila B2C creada (`place_id IS NULL`) + *"Listo, anotado. Te escribimos a juan@gmail.com…"*. Observación menor de copy, no ❌: el CTA promete *"hacete premium"* y la pantalla entrega *"todavía no abrimos"* — la pantalla lo maneja con gracia, pero el CTA promete un poco más de lo que puede dar |
+
+### Hallazgos (ninguno bloquea F0; los tres van al BACKLOG)
+
+1. **🟢 Los tags `source='owner'` siguen aplicándose después de revocar el reclamo** — la
+   **decisión 12.3 del plan no está implementada**, que es exactamente lo que el plan anticipó
+   (*"si el código hoy no lo hace, es hallazgo, no un fix a mitad del QA"*). `decidirClaim` **no
+   toca `place_tags`** ([acciones.ts:238-267](../../lib/claims/acciones.ts#L238)) y **ningún lector
+   de tags filtra por `source` ni por dueño aprobado**: búsqueda
+   ([query.ts:167](../../lib/search/query.ts#L167)), ficha
+   ([query.ts:188](../../lib/lugar/query.ts#L188)), chat
+   ([tools.ts:140](../../lib/ai/tools.ts#L140)) y votaciones filtran **solo** por `tags.active`.
+   *En vivo:* con el reclamo revocado, Kansas seguía saliendo **primero** en
+   `?z=las-canitas&t=musica-en-vivo`, un tag que puso el dueño. Es lo que la decisión 12.3 quiere
+   evitar: **los tags deciden en qué búsquedas aparece un lugar**, y un reclamo revocado —que se
+   revoca justamente cuando alguien no era quien decía ser— no puede seguir sesgando el catálogo.
+   Sigue bloqueado por `INT2-40` (hoy no hay a qué volver).
+   > **Ojo con el docstring que parece decir lo contrario.** [acciones.ts:158](../../lib/claims/acciones.ts#L158)
+   > dice *"un `source='owner'` vuelve a ser invisible por la regla normal"* y **no habla de tags**:
+   > se refiere a `places.source` (enum `place_source`, un **lugar** dado de alta por un dueño, que
+   > sin `publish_override` y con `confidence` null queda despublicado). `place_tags.source` es otro
+   > enum (`place_tag_source`). **Dos columnas distintas, con el mismo nombre y el mismo valor** —
+   > leído rápido, el docstring parece garantizar algo que el código no hace.
+2. **🟢 Las fotos del dueño siguen visibles después de revocar** — **este el plan lo daba por hecho**
+   (*"las fotos dejan de mostrarse"*) y **no ocurre**. `fotosDeDueno`
+   ([query.ts:230](../../lib/lugar/query.ts#L230)) consulta `place_photos` por `place_id` **y nada
+   más**: no recibe `reclamado`, a diferencia del contenido
+   ([query.ts:149](../../lib/lugar/query.ts#L149)) y los horarios
+   ([query.ts:157](../../lib/lugar/query.ts#L157)), que **sí** lo usan y por eso sí se apagan. Es el
+   mismo argumento de la decisión 12.3 con contenido visual: una foto subida por alguien a quien se
+   le revocó el reclamo sigue publicada en la ficha. Fix simétrico y chico: pasarle `reclamado`,
+   igual que a los otros dos.
+3. **🟢 `/cuenta` ofrece "Cancelar suscripción" a un premium sin suscripción** (INT2-32). Decisión de
+   producto: o la UI no ofrece cancelar cuando no hay fila viva, o el 404 se explica con un copy que
+   no contradiga al badge "Premium". Hoy no rompe nada, pero el estado **va a existir** en prod
+   (beta testers, regalos, dueños que lo pidan).
+
+### Bloque F — limpieza verificable por conteo
+
+**Snapshot ANTES == snapshot DESPUÉS: diff = 0 en las 13 tablas.**
+
+| Tabla | ANTES (sesión 1) | Al arrancar la sesión 3 | DESPUÉS | Diff |
+|---|---|---|---|---|
+| `place_lists` | 1 | 11 | **1** | 0 |
+| `place_list_items` | 0 | 3 | **0** | 0 |
+| `polls` | 6 | 29 | **6** | 0 |
+| `poll_options` | 25 | 32 | **25** | 0 |
+| `poll_votes` | 19 | 19 | **19** | 0 |
+| `premium_interest` | 0 | 3 | **0** | 0 |
+| `chat_conversations` | 15 | 16 | **15** | 0 |
+| `chat_messages` | 38 | 40 | **38** | 0 |
+| `place_claims` | 1 | 1 | **1** | 0 |
+| `place_owner_content` | 1 | 1 | **1** | 0 |
+| `place_photos` | 2 | 2 | **2** | 0 |
+| `subscriptions` | 3 | 3 | **3** | 0 |
+| `users` | 4 | 4 | **4** | 0 |
+
+**Canario de curaduría:** `place_tags source='admin'` **3.970 → 3.967**, el número exacto de antes
+del QA. Los 3 borrados son los que sembró el QA sobre Kansas. **No hubo pérdida de datos.**
+
+**Lo que el conteo NO detecta — los cuatro valores pisados, revertidos y verificados con `SELECT`:**
+
+| Qué | Cómo estaba | Cómo quedó |
+|---|---|---|
+| `place_owner_content` de Kansas (`description`/`menu_url`/`news`) | pisados con texto `[QA2]` en la sesión 1 | **NULL** los tres + `updated_at` al original (`2026-07-22 22:55:54.551`), recuperados del backup `141723` |
+| `place_claims.status` de Kansas | revocado por INT2-33 | **`approved`** + `publish_override` = `t` (restaurado apenas terminó el caso, porque config B necesitaba a Kansas con dueño) |
+| `place_claims.admin_notes` | pisado con *"[QA2] Revocación de prueba"* | **NULL** + `decided_at` al original. **Cuarto caso del patrón, descubierto en esta sesión** |
+| `app_settings['ai.chat_monthly_cap']` | bajado a 1 por INT2-35 | **5000** |
+
+**Flags revertidos** (verificados contra el backup previo al QA, no contra la memoria de la sesión):
+`hugo` → `free` · `pepe` → `free` + `chat_trial_used` 0 · `juan` → `chat_trial_used` 0 ·
+`frodriguez.este` sigue `premium` **porque ya lo era** (su sub `active` es del 2026-07-24, no del
+QA) · `hugo.chat_trial_used` = **2**, que **también era su valor previo** — el backup lo confirma ·
+`places.owner_plan` de Kansas = `free` · `chips.schedule` intacto (lo restauró la sesión 2).
+
+**Agregados diarios borrados** (§ 9): `place_impressions_daily` **−201** ·
+`place_tag_impressions_daily` **−133** · `place_taps_daily` −0. **Acumuladores mensuales
+conservados** (decisión 2 del plan): `ai_api_usage` 2026-08 = 1 · `chat_usage_monthly` ·
+`google_api_usage`.
+
+**La suscripción comprada se borró**, como decidió Fer: cancelar deja la fila (`status='active'` con
+`cancel_at_period_end`), así que sin borrarla el diff cerraba en 4. La evidencia de INT2-41 vive en
+este documento, que es donde tiene que estar; una sub de sandbox viva en el dump la puede reactivar
+cualquier reconciliación lazy.
+
+**Backup final:** `backups/adondesalimos_2026-08-02_211243.sql.gz` (5,0M), corrido **después** de la
+limpieza. **Ese es el dump de DEPLOY F0.**
+
+#### Fuera de alcance del criterio, pero anotado (§ 10.3: se dice, no se arregla)
+
+Las **3 filas preexistentes de `subscriptions`** que el diff conserva **ya son de QA de julio**
+(`mp_payer_email = test_user_…@testuser.com`, sandbox de MP), y **una está `active`** con
+`current_period_end` = **2026-08-24**. O sea: el riesgo que el plan advierte para la sub de INT2-31
+—*"una sub viva en el dump la reactiva cualquier reconciliación lazy"*— **ya estaba en el baseline**,
+y el criterio "diff = 0 contra el ANTES de la sesión 1" lo deja pasar por construcción. **Decisión de
+Fer antes de F0**, no de este QA: se limpian o se dejan. → BACKLOG.
+
+### Nota de método — esta vez el instrumento mintió tres veces seguidas, y ninguna llegó al informe
+
+En INT2-33, la primera lectura de la ficha revocada daba **tres** síntomas: el website del dueño
+seguía, los horarios seguían y la foto seguía. Dos eran míos:
+
+- **El website:** el del dueño era `https://kansasgrillandbar.com.ar` y el de Overture
+  `http://www.kansasgrillandbar.com.ar`. La comprobación buscaba el substring
+  `kansasgrillandbar.com.ar`, que **matchea los dos**. Con comparación exacta sobre los `href`, el
+  del dueño había desaparecido: funcionaba bien.
+- **Los horarios:** buscar `"Cerrado ahora"|"Abierto ahora"` daba `true`, pero ese texto lo pinta
+  **Google**, no el dueño. Los horarios propios (lunes 09-18, viernes 20-02) **sí** habían
+  desaparecido. De hecho el estado *cambió* de "Cerrado ahora" a "Abierto ahora" al revocar, que es
+  la señal de que dejó de usar los del dueño.
+- **La foto** era real, y quedó como hallazgo 2.
+
+Es la **tercera sesión consecutiva** en que el instrumento fabrica un síntoma (sesión 1: el editor;
+sesión 2: los microsegundos de `now()`; sesión 3: los substrings). La regla del § 10.3 —*explicar el
+síntoma en el código antes de escribir un ❌*— es lo que lo frenó las tres veces. Lo nuevo de esta
+sesión es de dónde salió: **una aserción demasiado laxa** (`includes` de un substring que dos valores
+comparten) fabrica un falso positivo igual que una siembra mal hecha. Y cuando lo que se prueba es
+*"el valor A fue reemplazado por el valor B"*, **A y B suelen parecerse mucho** —es el mismo negocio,
+el mismo teléfono, la misma web— así que `includes` es justo la herramienta que no discrimina: ahí
+va comparación exacta.
