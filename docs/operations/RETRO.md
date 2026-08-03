@@ -13,6 +13,24 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-03 · Los 5 temas abiertos del QA integral #2 — sesión de decisión — Opus
+
+- **Qué salió bien:** **verificar cada hallazgo contra el código antes de repetir su
+  recomendación.** El prompt lo pedía explícitamente y pagó: **3 de 5 cambiaron de forma**. El
+  checkbox de borrar fotos se convirtió en un script (la función que iba a reusar era por *usuario*,
+  no por *lugar*, y el argumento que lo justificaba ya estaba resuelto por `admin_notes`); el chip de
+  Precio resultaron ser dos; y la mitad del hallazgo del chat directamente no ocurría. **Un hallazgo
+  de QA describe el código del día que se escribió** — tratarlo como estado actual es lo que hace
+  que una sesión implemente la solución de un problema que ya cambió.
+- **Qué frenó:** nada del método. Lo único caro fue el chip: editar `lib/db/chips.ts` no alcanzaba
+  porque `db:seed` no actualiza los tags de un chip existente, y eso no estaba escrito en ningún
+  lado — se descubrió leyendo `scripts/seed.ts:194`. Ya quedó anotado en el BACKLOG y en el QA.
+- **Qué cambiar:** nada nuevo. La única regla que se sumó vive donde tiene que vivir (el docstring
+  de `CHIPS_OBJETIVO`: un chip con tag de Precio está apagado de hecho), no en un doc más. El
+  fan-out de 4 `implementador` en paralelo sobre archivos disjuntos funcionó sin fricción; el único
+  ruido fueron los avisos de "hay trabajo ajeno en el working tree", que es cada agente viendo a los
+  otros — esperable y no vale una regla.
+
 ## 2026-08-03 · Fixes de código del QA integral #2 (INT2-33 + INT2-28) — Opus
 
 - **Qué salió bien:** **el BACKLOG evitó un bug en vez de solo describirlo.** El fix de las fotos

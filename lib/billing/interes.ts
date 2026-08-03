@@ -97,8 +97,31 @@ export async function getInteresadosAdmin(limite = 200): Promise<InteresadoAdmin
     .limit(limite)
 }
 
-/** El conteo, sin el techo del `limite` de la lista. */
-export async function contarInteresados(): Promise<number> {
-  const [fila] = await db.select({ total: sql<number>`count(*)::int` }).from(premiumInterest)
-  return fila?.total ?? 0
+export type ConteoInteresados = {
+  /** Señal de usuario (`place_id` null). */
+  b2c: number
+  /** Señal de dueño por el plan de un lugar (`place_id` con valor). */
+  b2b: number
+  total: number
+}
+
+/**
+ * El conteo, sin el techo del `limite` de la lista y **abierto por eje**: el gate
+ * que decide prender el cobro (decisión 18) es por eje, no por el total — un "10"
+ * agregado puede ser 10 B2C (gatillo cumplido) o 7 B2C + 3 B2B (cumplido hace
+ * rato por la otra vía). El disparador B2B es **1**, el número más fácil de
+ * perder dentro de un total (INT2-28).
+ *
+ * Los tres salen de una sola pasada sobre `premium_interest` con
+ * `count(*) filter (where ...)`.
+ */
+export async function contarInteresados(): Promise<ConteoInteresados> {
+  const [fila] = await db
+    .select({
+      b2c: sql<number>`count(*) filter (where ${premiumInterest.placeId} is null)::int`,
+      b2b: sql<number>`count(*) filter (where ${premiumInterest.placeId} is not null)::int`,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(premiumInterest)
+  return fila ?? { b2c: 0, b2b: 0, total: 0 }
 }

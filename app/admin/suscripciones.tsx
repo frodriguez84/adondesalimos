@@ -1,5 +1,5 @@
 import type { SuscripcionAdmin } from '@/lib/billing/admin'
-import type { InteresadoAdmin } from '@/lib/billing/interes'
+import type { ConteoInteresados, InteresadoAdmin } from '@/lib/billing/interes'
 import type { SubscriptionStatus } from '@/lib/db/schema'
 
 /**
@@ -29,16 +29,16 @@ const fecha = new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit
 export function SuscripcionesAdmin({
   suscripciones,
   interesados,
-  totalInteresados,
+  conteoInteresados,
 }: {
   suscripciones: SuscripcionAdmin[]
   interesados: InteresadoAdmin[]
-  /** El conteo real, **sin** el techo de la lista (INT2-28). */
-  totalInteresados: number
+  /** El conteo real por eje, **sin** el techo de la lista (INT2-28). */
+  conteoInteresados: ConteoInteresados
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <InteresPremium interesados={interesados} total={totalInteresados} />
+      <InteresPremium interesados={interesados} conteo={conteoInteresados} />
       {suscripciones.length === 0 ? (
         <p className="text-sm text-muted-foreground">Todavía no hay suscripciones.</p>
       ) : (
@@ -51,17 +51,22 @@ export function SuscripcionesAdmin({
 /**
  * El interés medido mientras el cobro está apagado (DEPLOY, decisión 6).
  *
- * El número sale de `total` y **no** de `interesados.length`: la lista viene
+ * El número sale de `conteo` y **no** de `interesados.length`: la lista viene
  * topeada en 200 y este contador es el que dispara prender el cobro (decisión
  * 18) — a 201 interesados, contar las filas subestimaba el disparador (INT2-28).
+ *
+ * Y va **abierto por eje**, porque el gate de la decisión 18 es por eje: el total
+ * solo esconde de qué lado está la señal, y el disparador B2B es el más chico.
+ * Los umbrales no viven acá: el spec dice que esos números se ajustan.
  */
 function InteresPremium({
   interesados,
-  total,
+  conteo,
 }: {
   interesados: InteresadoAdmin[]
-  total: number
+  conteo: ConteoInteresados
 }) {
+  const { b2c, b2b, total } = conteo
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -77,6 +82,10 @@ function InteresPremium({
             {total > interesados.length ? (
               <span className="text-muted-foreground"> Abajo, los {interesados.length} más nuevos.</span>
             ) : null}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Premium (B2C): <strong className="font-semibold text-foreground">{b2c}</strong> · Plan del
+            lugar (B2B): <strong className="font-semibold text-foreground">{b2b}</strong>
           </p>
           <ul className="flex flex-col gap-1 rounded-2xl border border-border p-3 text-sm">
             {interesados.map((i) => (

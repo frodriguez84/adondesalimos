@@ -411,6 +411,13 @@ Activos de seguridad del proyecto. Toda sesión debe saber que existen y cuándo
   de datos → backup ya) y los **gates numéricos de specs que ya se cumplieron** sin que nadie se
   entere. Correlo después de una corrida de curaduría, un cambio en `app_settings` o al retomar el
   proyecto tras un parate.
+- **Borrado real de las fotos de un lugar** — `scripts/borrar-fotos.ts` (`npm run fotos:borrar --
+  <placeId>`). ⚠️ **Puerta de ida: el objeto de R2 no vuelve.** Es para el caso de **abuso** (se
+  hizo pasar por dueño, subió fotos ofensivas); revocar un reclamo por corrección **oculta y no
+  borra**, y ese sigue siendo el default. Existe como script y **no** como botón de `/admin` a
+  propósito: la única acción irreversible del producto no va en el camino de un click. Pide escribir
+  el nombre del lugar para confirmar. La regla vive en `borrarFotosDeLugar` (`lib/negocio/acciones.ts`),
+  de la que también depende el borrado de cuenta — no escribir una segunda.
 - **Termómetro de calidad de búsqueda del chat** — `scripts/eval-chat.ts` (`npm run eval:chat`).
   Corre casos reales contra prompt+tool+motor+Sonnet, imprime los tool-inputs y **chequea que no
   vuelva la trampa de `precio` ni el sobre-filtrado de escape-room**. **Cuesta tokens reales

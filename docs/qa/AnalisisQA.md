@@ -2279,3 +2279,59 @@ justamente para no disparar la reversión de tags sobre datos reales).
 **Costo de la verificación en vivo:** 1 foto de Google (`google_api_usage` 2026-08 `photos` = 5,
 `details` = 15 — muy por debajo de los topes). Los tests de integración crean y borran sus propios
 fixtures bajo prefijo. **Canario de curaduría intacto.**
+
+---
+
+## Los 5 temas abiertos del QA integral #2 — decididos e implementados (2026-08-03)
+
+**Contexto:** el QA integral #2 cerró con 39 ✅ + 3 hallazgos, y sus dos fixes de código se aplicaron
+en `f7697c9`. Lo que quedó no eran bugs: eran **decisiones de producto que nadie había tomado**.
+Ninguno bloqueaba `DEPLOY` F0. Esta sesión los decidió uno por uno y los implementó.
+**625/625 tests · typecheck limpio · sin migraciones.** El detalle de cada decisión, con su porqué y
+lo que se decidió **no** hacer, está en `docs/product/BACKLOG.md`.
+
+| ID | Tema | Decisión | Dónde |
+|---|---|---|---|
+| `INT2-32` | `/cuenta` ofrecía cancelar a un premium sin fila en `subscriptions` | Con `activo && status === null`: sin botón + copy de cortesía. Cubre B2C y B2B (panel compartido) | `components/billing/suscripcion-panel.tsx` |
+| `INT2-28` | El contador de interés no desagregaba los ejes | `contarInteresados()` → `{ b2c, b2b, total }` en una query; el panel muestra los dos | `lib/billing/interes.ts` · `app/admin/suscripciones.tsx` |
+| `INT2-29` | El chat no alimentaba `place_tag_impressions_daily` | Sí registra, misma tabla, sin columna `source`, **atribuido por llamada a la tool** | `lib/ai/chat.ts` · `lib/ai/tools.ts` |
+| `INT2-01` | Un chip de la home con un tag de Precio nunca se ve | `precio-2` fuera de los **dos** chips que lo tenían (0→38 y 1→187) | `lib/db/chips.ts` + `DELETE` de 2 filas de `chip_tags` |
+| — | Revocar por abuso solo ocultaba las fotos | `borrarFotosDeLugar` + `npm run fotos:borrar`. **Script, no botón** | `lib/negocio/acciones.ts` · `scripts/borrar-fotos.ts` |
+
+### Lo que cambió por verificar contra el código antes de creerle al hallazgo
+
+**De los 5, 3 cambiaron de forma.** Un hallazgo de QA describe el código del día que se escribió:
+
+- **El checkbox que no se hizo.** La propuesta era *"un checkbox en el rechazo de `/admin` que borre
+  reusando `limpiarFotosDeUsuario`"*. Dos problemas al leer el código: esa función es **por usuario**
+  (borra las fotos de *todos* sus lugares) y revocar es **por lugar** — reusarla habría borrado fotos
+  de lugares con el reclamo todavía aprobado; y el argumento que justificaba el click (*"le da al
+  admin la información que el código no puede deducir"*) ya no aplica: el motivo del rechazo **se
+  persiste** en `place_claims.admin_notes`.
+- **El chip de Precio eran dos.** `salida-con-amigos` (`sort` 0, home) y `primera-cita`. El "1
+  resultado" de `primera-cita` era, literalmente, el único lugar de toda la faceta Precio.
+- **La búsqueda dentro de una votación nunca registró tags.** El hallazgo lo planteaba junto al del
+  chat; las dos pantallas llaman `/api/search?q=…` **solo con texto libre**, así que
+  `registrarTagsDeBusqueda` ahí corta sola. Lo único que suma es `impressions`, y se decidió que está
+  bien: una vista en una pantalla privada es una vista.
+
+### La trampa de atribución del chat (no la vio ningún test)
+
+El set de grounding del chat es `seenPrevios ∪ idsNuevos`: **un lugar citado puede venir de una
+búsqueda de dos turnos atrás, con otros tags**, y en un mismo turno puede haber varias llamadas a la
+tool con tags distintos. La implementación obvia —"los tags del turno × los lugares citados"— habría
+escrito datos mal en un agregado **que no se puede reconstruir**. Quedó atribuido **por llamada**:
+de cada `buscar_lugares`, solo sus ids que además fueron citados.
+
+### El costo escondido de cambiar un chip
+
+Editar `lib/db/chips.ts` **no alcanza**: el seed inserta `chip_tags` solo si el chip no tiene ninguno
+(`scripts/seed.ts:194`), así que `db:seed` no actualiza los tags de un chip existente. Hubo que
+borrar las 2 filas a mano, con `npm run backup:db` antes
+(`backups/adondesalimos_2026-08-02_224123.sql.gz`). La red que avisa si se hace una sola mitad es
+`chips.integration.test.ts`, que compara el código contra la base.
+
+**Efecto colateral registrado:** al medir los 9 chips objetivo para escribir el cambio se encontró
+que el docstring de `CHIPS_OBJETIVO` seguía diciendo *"8 devuelven 0"* y *"el único vivo es
+`salir-a-bailar`"* — quedó viejo con la curaduría de CURADURIA F3. Hoy son **8 de 9 vivos** (el único
+en 0 es `plan-tranqui`). El docstring ahora lleva los números medidos y fechados.

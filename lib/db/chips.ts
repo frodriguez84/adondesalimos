@@ -54,19 +54,33 @@ export type ChipSeed = {
 }
 
 /**
- * Los 9 de la tabla del spec. **8 devuelven 0 con el catálogo de hoy** — están
- * acá como intención registrada, no como curaduría vigente.
+ * Los 9 de la tabla del spec. Nacieron con 8 en cero —intención registrada, no
+ * curaduría vigente— y la corrida de CURADURIA F3 los despertó. Medidos sobre
+ * los 18.993 publicados de AMBA (2026-08-02, ya sin `precio-2`): `salir-a-bailar`
+ * 586 · `cumpleanos` 246 · `primera-cita` 187 · `merienda` 176 · `after-office`
+ * 171 · `cena-familiar` 107 · `salida-con-amigos` 38 · `salida-con-chongo` 1 ·
+ * `plan-tranqui` 0. En una zona concreta son uno o dos órdenes menos, que es
+ * como se usan de verdad (la home pide zona primero).
  *
- * El único vivo es `salir-a-bailar` (586), y conviene saber por qué: sus 575
- * `dj` + 11 `salsa-bachata` cubren *exactamente* los 586 `boliche`, así que la
- * faceta Actividad no filtra nada. En los hechos es un chip de un solo Tipo.
+ * De `salir-a-bailar` conviene saber por qué anda: sus 575 `dj` + 11
+ * `salsa-bachata` cubren *exactamente* los 586 `boliche`, así que la faceta
+ * Actividad no filtra nada. En los hechos es un chip de un solo Tipo.
+ *
+ * **Regla general (INT2-01):** un chip que incluya un tag de la faceta Precio
+ * está apagado de hecho. Precio tiene 1 lugar en todo el catálogo y no hay
+ * fuente que la llene — OSM se midió y da cero para Precio, y la curaduría IA
+ * tampoco lo asigna. No agregar `precio-*` a un chip hasta que eso cambie.
  */
 export const CHIPS_OBJETIVO: readonly ChipSeed[] = [
   {
     slug: 'salida-con-amigos',
     name: 'Salida con amigos',
     inHome: true,
-    tags: ['bar', 'cerveceria', 'grupos-grandes', 'precio-2'],
+    // Sin `precio-2`: la faceta Precio tiene 1 lugar en 18.993 publicados y no
+    // hay fuente que la llene (OSM se midió y da cero), así que un chip que la
+    // exija está apagado para siempre — este daba 0 y no llegaba nunca a la home
+    // pese a ser el `sort` 0 (INT2-01). Sin él quedan 38 lugares en AMBA.
+    tags: ['bar', 'cerveceria', 'grupos-grandes'],
   },
   {
     slug: 'salida-con-chongo',
@@ -90,7 +104,9 @@ export const CHIPS_OBJETIVO: readonly ChipSeed[] = [
     slug: 'primera-cita',
     name: 'Primera cita',
     inHome: false,
-    tags: ['bar', 'cafe', 'restaurante', 'tranqui', 'romantico', 'precio-2'],
+    // Sin `precio-2`, mismo motivo que `salida-con-amigos`: con él daba 1 (el
+    // único lugar de toda la faceta Precio), sin él da 187.
+    tags: ['bar', 'cafe', 'restaurante', 'tranqui', 'romantico'],
   },
   {
     slug: 'cumpleanos',

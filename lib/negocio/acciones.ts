@@ -238,6 +238,45 @@ async function contarFotosDe(placeId: string): Promise<number> {
   return fila?.total ?? 0
 }
 
+export type FotosBorradas = { filas: number; objetos: number }
+
+/**
+ * **Destruye** las fotos de un lugar: las filas de `place_photos` y los objetos
+ * en R2. Es la única implementación de "borrar fotos de un lugar" — la usan la
+ * limpieza al eliminar cuenta y `scripts/borrar-fotos.ts`.
+ *
+ * No se puede deshacer y por eso no cuelga de ningún botón: revocar un reclamo
+ * **oculta** las fotos (el default correcto, porque revocar suele ser una
+ * corrección), y esto es para el caso de abuso — el que se hizo pasar por dueño
+ * y subió algo que no puede seguir siendo público aunque nadie lo vea en la
+ * ficha. Se corre a mano, con el motivo ya escrito en `place_claims.admin_notes`.
+ *
+ * La fila se borra **aunque R2 falle** (mismo criterio que `quitarFoto`), así que
+ * `objetos` puede venir menor que `filas`: lo que quedó huérfano en el bucket.
+ */
+export async function borrarFotosDeLugar(placeId: string): Promise<FotosBorradas> {
+  const borradas = await db
+    .delete(placePhotos)
+    .where(eq(placePhotos.placeId, placeId))
+    .returning({ url: placePhotos.url })
+
+  let objetos = 0
+  for (const foto of borradas) {
+    // `null` = la URL no es de nuestro bucket: no pedimos un DELETE sobre una
+    // clave arbitraria (ver `claveDeUrl`).
+    const clave = claveDeUrl(foto.url)
+    if (!clave) continue
+    try {
+      await borrarFoto(clave)
+      objetos++
+    } catch (error) {
+      console.error('[fotos] R2 delete:', error)
+    }
+  }
+
+  return { filas: borradas.length, objetos }
+}
+
 /**
  * Borra las fotos de los lugares de un usuario, en R2 y en la base (edge case
  * "eliminar cuenta de un dueño"; F2 dejó esta parte para F3).
@@ -256,16 +295,10 @@ async function contarFotosDe(placeId: string): Promise<number> {
 export async function limpiarFotosDeUsuario(userId: string): Promise<void> {
   try {
     const placeIds = await placeIdsDelUsuario(userId)
-    if (placeIds.length === 0) return
-
-    const borradas = await db
-      .delete(placePhotos)
-      .where(inArray(placePhotos.placeId, placeIds))
-      .returning({ url: placePhotos.url })
-
-    for (const foto of borradas) {
-      const clave = claveDeUrl(foto.url)
-      if (clave) await borrarFoto(clave).catch(() => {})
+    // Lugar por lugar, delegando en el dueño de la regla: son pocos y esto corre
+    // una vez, al eliminar la cuenta.
+    for (const placeId of placeIds) {
+      await borrarFotosDeLugar(placeId)
     }
   } catch (error) {
     console.error('[fotos] limpieza al eliminar cuenta:', error)

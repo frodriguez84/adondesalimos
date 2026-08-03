@@ -16,7 +16,13 @@ import {
 } from '@/lib/db/schema'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { getPlaceDetail } from '@/lib/lugar/query'
-import { agregarFoto, guardarContenido, limpiarFotosDeUsuario, quitarFoto } from '../acciones'
+import {
+  agregarFoto,
+  borrarFotosDeLugar,
+  guardarContenido,
+  limpiarFotosDeUsuario,
+  quitarFoto,
+} from '../acciones'
 import { desgloseEstadisticas, getPanelLugar, misLugares, visitasDelMes } from '../query'
 import { CONTENIDO_VACIO } from '../validacion'
 import { semanaVacia } from '../horarios'
@@ -604,6 +610,44 @@ describe.runIf(process.env.DATABASE_URL)('limpieza al eliminar la cuenta del due
       .from(placePhotos)
       .where(eq(placePhotos.placeId, placeId))
     expect(quedan).toHaveLength(1)
+  })
+})
+
+describe.runIf(process.env.DATABASE_URL)('borrado destructivo de las fotos de un lugar', () => {
+  it('borra las de ese lugar y no toca las de otro', async () => {
+    const [otro] = await db
+      .insert(places)
+      .values({
+        source: 'overture',
+        name: `${PREFIJO} Otro`,
+        lat: OBELISCO.lat,
+        lng: OBELISCO.lng,
+        confidence: 0.9,
+      })
+      .returning({ id: places.id })
+
+    // URLs fuera de nuestro bucket: `claveDeUrl` devuelve null y no se llama a
+    // R2 (mismo truco que los tests de limpieza al eliminar la cuenta).
+    await db.insert(placePhotos).values([
+      { placeId, url: 'https://no-es-nuestro-bucket.example/a.jpg', sort: 0 },
+      { placeId, url: 'https://no-es-nuestro-bucket.example/b.jpg', sort: 1 },
+      { placeId: otro.id, url: 'https://no-es-nuestro-bucket.example/c.jpg', sort: 0 },
+    ])
+
+    const { filas, objetos } = await borrarFotosDeLugar(placeId)
+    expect(filas).toBe(2)
+    // Ninguna URL era del bucket, así que no había objeto que borrar.
+    expect(objetos).toBe(0)
+
+    const quedan = await db
+      .select({ placeId: placePhotos.placeId })
+      .from(placePhotos)
+      .where(inArray(placePhotos.placeId, [placeId, otro.id]))
+    expect(quedan.map((f) => f.placeId)).toEqual([otro.id])
+  })
+
+  it('un lugar sin fotos no rompe: cero filas, cero objetos', async () => {
+    expect(await borrarFotosDeLugar(placeId)).toEqual({ filas: 0, objetos: 0 })
   })
 })
 

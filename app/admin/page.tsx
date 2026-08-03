@@ -45,7 +45,7 @@ export default async function AdminPage() {
     historial,
     suscripciones,
     interesados,
-    totalInteresados,
+    conteoInteresados,
     costosChat,
     usoGoogle,
     cupoChat,
@@ -58,8 +58,8 @@ export default async function AdminPage() {
     getHistorialPrecios(),
     getSuscripcionesAdmin(),
     getInteresadosAdmin(),
-    // El número va aparte de la lista: la lista está topeada en 200 y el conteo
-    // es el dato que dispara prender el cobro (INT2-28).
+    // Los números van aparte de la lista: la lista está topeada en 200 y el
+    // conteo por eje es el dato que dispara prender el cobro (INT2-28).
     contarInteresados(),
     getCostosChat(),
     getUsoGoogle(),
@@ -87,7 +87,7 @@ export default async function AdminPage() {
           <SuscripcionesAdmin
             suscripciones={suscripciones}
             interesados={interesados}
-            totalInteresados={totalInteresados}
+            conteoInteresados={conteoInteresados}
           />
         }
         costos={

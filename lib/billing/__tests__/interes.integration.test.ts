@@ -151,6 +151,21 @@ describe.skipIf(!process.env.DATABASE_URL)('interés en el premium', () => {
     const antes = await contarInteresados()
     await registrarInteres(userId, {})
     await registrarInteres(userId, {})
-    expect(await contarInteresados()).toBe(antes + 1)
+
+    const despues = await contarInteresados()
+    expect(despues.b2c).toBe(antes.b2c + 1)
+    expect(despues.b2b).toBe(antes.b2b)
+    expect(despues.total).toBe(antes.total + 1)
+  })
+
+  it('el conteo separa los ejes: el lugar suma en B2B, no en B2C', async () => {
+    if (!hayDb) return
+    const antes = await contarInteresados()
+    await registrarInteres(userId, { placeId: lugares[0] })
+
+    const despues = await contarInteresados()
+    expect(despues.b2b).toBe(antes.b2b + 1)
+    expect(despues.b2c).toBe(antes.b2c)
+    expect(despues.total).toBe(antes.total + 1)
   })
 })

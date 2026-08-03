@@ -249,18 +249,33 @@ son trabajo acotado con criterio de "listo" objetivo.
       problema** —su docstring dice *"el conteo, sin el techo del límite de la lista"*— y no estaba
       cableada: solo la usaba un test. Con 3 filas no se notaba; a 201 interesados el tablero
       subestimaba **el dato que dispara el cobro**.
-- [ ] **El contador de interés no desagrega B2C de B2B** — decisión de producto, no bug (`INT2-28`).
-      La **lista** distingue bien por fila (`· Premium (B2C)` vs el nombre del lugar), pero el número
-      grande suma los dos ejes, que tienen **precios distintos** ($7.000 B2C · $15.000 B2B) y por lo
-      tanto umbrales distintos para decidir prender el cobro. ¿Se parte en dos números?
-- [ ] **El chat no alimenta `place_tag_impressions_daily`** — hallazgo de `INT2-29`. El chat **sí**
-      suma `impressions` (desde `4c0c5cf`), pero no registra los tags: `registrarTagsDeBusqueda` solo
-      se llama desde `app/page.tsx` y `/api/search`. Ese agregado es el insumo de la **curaduría por
-      uso real**, que es un ítem de esta misma cola: si se implementa así, la curaduría vería los
-      tags de la búsqueda y **no** los del chat. Barato de decidir ahora, caro de descubrir después.
-      Segundo punto, más chico: buscar dentro del **armado de una votación** suma impresiones igual
-      que la home (mismo `/api/search`) — al dueño se le cuenta una vista ocurrida en una votación
-      privada. Decidir si las dos cosas están bien así.
+- [x] **El contador de interés no desagrega B2C de B2B** — decisión de producto, no bug (`INT2-28`).
+      **Resuelto ✅ 2026-08-03**: `contarInteresados()` devuelve `{ b2c, b2b, total }` en una sola
+      query (`count(*) filter`) y el panel muestra los dos ejes debajo del total.
+      **Lo que decidió la discusión**: el gate de la decisión 18 de `DEPLOY` es literalmente **por
+      eje** (*"≥10 clicks de usuarios distintos **o** el primer dueño que pida el plan B2B"*), así
+      que el número agregado no podía responder la única pregunta para la que existe — un "10" puede
+      ser 10 B2C o 7 B2C + 3 B2B, y el disparador B2B es **1**, el número más fácil de perder dentro
+      de un total. **Los umbrales NO se hardcodearon**: el spec dice que esos números se ajustan.
+      _(Detalle original:)_ la lista ya distinguía por fila (`· Premium (B2C)` vs el nombre del
+      lugar); el número grande sumaba dos ejes con precios distintos ($7.000 B2C · $15.000 B2B).
+- [x] **El chat no alimenta `place_tag_impressions_daily`** — hallazgo de `INT2-29`.
+      **Resuelto ✅ 2026-08-03**: el chat registra los tags, en la **misma tabla y sin columna
+      `source`** (los dos consumidores —panel del dueño y curaduría por uso— quieren lo mismo:
+      demanda; separarlos era especular, y era la última ventana barata para hacerlo porque después
+      de F0 la tabla tiene datos reales).
+      ⚠️ **La trampa que casi escribe datos mal, anotada para el que lo lea después:** el set de
+      grounding es `seenPrevios ∪ idsNuevos`, así que un lugar citado puede venir de una búsqueda de
+      **dos turnos atrás**, con otros tags, y en un mismo turno puede haber varias llamadas a la tool
+      con tags distintos. La atribución quedó **por llamada**: de cada `buscar_lugares` se registran
+      solo sus ids que además fueron citados; un citado que no salió de ninguna llamada de este turno
+      no se atribuye a nada. `ejecutarBuscarLugares` devuelve ahora los slugs ya normalizados para
+      que nadie re-parsee el input crudo del modelo.
+      **Segundo punto, decidido que SÍ está bien así:** buscar dentro del armado de una votación
+      suma `impressions` al dueño. Es una persona real mirando ese lugar para decidir si va —
+      exactamente lo que la métrica dice contar; que la pantalla sea privada no la hace menos vista.
+      Además esas dos pantallas llaman `/api/search?q=…` **solo con texto libre**, así que los tags
+      nunca se registraban ahí (el BACKLOG original lo planteaba como si fueran las dos cosas).
 - [ ] **Acoplamiento latente: el cursor del historial y la precisión de `created_at`** — no es un bug
       hoy y **no hay que arreglarlo**; se anota para que nadie lo descubra a los golpes. El cursor de
       `historialDeVotaciones` viaja como epoch en **milisegundos** y `created_at` en Postgres guarda
@@ -354,8 +369,19 @@ son trabajo acotado con criterio de "listo" objetivo.
         distintas con el mismo nombre y el mismo valor; leído rápido, el docstring parece garantizar
         algo que el código no hace.
       🟢 Solo código ⇒ puede ir **después** del deploy.
-- [ ] **`/cuenta` ofrece "Cancelar suscripción" a un premium que no tiene suscripción** (hallazgo
-      2026-08-02, `INT2-32`). **El estado va a existir en producción**: con el cobro apagado, un
+- [x] **`/cuenta` ofrece "Cancelar suscripción" a un premium que no tiene suscripción** (hallazgo
+      2026-08-02, `INT2-32`). **Resuelto ✅ 2026-08-03** con la opción (a) **reforzada**: con
+      `activo && status === null` no se pinta el botón **y** va un copy que explica que es de
+      cortesía (*"Te activamos el Premium nosotros: no vence ni se cobra…"*). El BACKLOG proponía
+      (a) *o* (b) como excluyentes y no lo son: sacar el botón sin decir nada deja al premium con un
+      panel mudo —ni renovación ni acción—, que es la otra mitad del mismo problema.
+      **No hizo falta ninguna query nueva**: el discriminador ya estaba en `EstadoSuscripcion`
+      (`activo` sale del flag, `status` de la fila viva). Y **cubre los dos ejes de una**, porque el
+      panel es compartido: el caso B2B es incluso más probable, ya que `places.owner_plan` se cambia
+      con un `UPDATE` documentado hasta el spec 7. **Queda fuera**: `POST /api/billing/cancel` sigue
+      devolviendo 404 para un premium de cortesía — ya no hay botón que lo dispare, pero si alguna
+      otra superficie ofrece cancelar, el mismo choque vuelve.
+      _(Detalle original:)_ **el estado va a existir en producción**: con el cobro apagado, un
       `UPDATE` a mano de Fer es el único camino a premium (beta tester, regalo, dueño que lo pidió),
       y ese usuario **no tiene fila en `subscriptions`**. Hoy `/cuenta` le muestra "Premium" +
       *"$ 7.000 por mes."* **sin fecha de renovación** —la única señal, ilegible para el usuario— y
@@ -383,15 +409,26 @@ son trabajo acotado con criterio de "listo" objetivo.
       se pierde: el gate es por email. ⚠️ **Ojo al implementarlo:** `session` y `account` **no
       tienen FK a `users`** (better-auth las creó sin foreign key) ⇒ **no cascadean** y necesitan su
       propio `DELETE`; lo mismo `place_owner_content` y `place_photos`, que cuelgan de `place_id`.
-- [ ] **Un chip de la home con un tag de Precio nunca se ve** (hallazgo 2026-08-02, `INT2-01` del QA
-      integral #2). `Salida con amigos` es el chip de `sort` 0 y **no llega a la home**: exige
-      `precio-2` y la faceta Precio tiene **1 fila en 14.458 lugares**, así que el chip da 0 y la
-      decisión 25 —correctamente— no lista chips vacíos; lo reemplaza `Tomar algo` (`sort` 9). No es
-      un bug: es el hueco de Precio ya medido (OSM no lo rinde, ver § Mejoras futuras) **apareciendo
-      en la portada**. **Decisión para Fer**, ninguna urgente: (a) dejarlo —la home igual muestra 4
-      chips con datos—; (b) sacarle `precio-2` a ese chip, que lo revive de inmediato; (c) esperar a
-      que Precio tenga datos. Vale como regla general: **un chip que incluya un tag de Precio está
-      apagado de hecho** mientras esa faceta siga vacía.
+- [x] **Un chip de la home con un tag de Precio nunca se ve** (hallazgo 2026-08-02, `INT2-01` del QA
+      integral #2). **Resuelto ✅ 2026-08-03**: se le sacó `precio-2` a **los dos** chips que lo
+      tenían. `salida-con-amigos` pasó de **0 a 38** lugares y vuelve a la home; `primera-cita`, de
+      **1 a 187** detrás de "ver más".
+      **Lo que cambió al medirlo contra la base** (y no al leer el hallazgo): eran **dos** chips, no
+      uno — y ese "1" de `primera-cita` era, literalmente, el único lugar de toda la faceta Precio.
+      **"Esperar datos de Precio" no era una opción real**: OSM ya se midió y da cero para Precio, y
+      la curaduría IA tampoco lo asigna (3.967 tags `admin` y un solo `precio-2`). Un chip
+      permanentemente muerto en `sort` 0 es peor que uno flaco.
+      ⚠️ **Costo escondido, para el próximo que cambie un chip:** editar `lib/db/chips.ts` **no
+      alcanza**. El seed inserta `chip_tags` solo si el chip no tiene ninguno
+      (`scripts/seed.ts:194`), así que `db:seed` **no actualiza los tags de un chip existente** —
+      hubo que borrar las 2 filas a mano (con `npm run backup:db` antes). El test
+      `chips.integration.test.ts` compara código contra base, así que los dos tienen que moverse
+      juntos: es la red que avisa si te olvidás de una mitad.
+      **Regla general, ahora escrita en el docstring de `CHIPS_OBJETIVO`:** un chip que incluya un
+      tag de la faceta Precio está apagado de hecho mientras esa faceta siga vacía.
+      **Efecto colateral registrado:** al medir los 9 objetivo se actualizó el docstring, que seguía
+      diciendo *"8 devuelven 0"* y *"el único vivo es `salir-a-bailar`"* — quedó viejo con la
+      curaduría. Hoy son **8 de 9 vivos** (el único en 0 es `plan-tranqui`).
 
 - [ ] **💸 `npm run curar` re-cobra por los lugares ya curados — filtro de skip** (hallazgo
       2026-07-31, al preguntarse si había que re-correr la curaduría). `seleccionarLugaresDeZona`
@@ -777,16 +814,25 @@ son trabajo acotado con criterio de "listo" objetivo.
       reusando `limpiarFotosDeUsuario`. Evita la trampa de arriba por completo —no gatea nada,
       borra— y le da al admin la única información que el código no puede deducir: por qué
       revocó.
-- [ ] **Revocar por abuso debería poder borrar las fotos, no solo ocultarlas** (desprendido del
-      ítem de arriba al resolverlo, 2026-08-03). Hoy `decidirClaim` trata igual dos casos que no lo
-      son: revocar **por abuso** (se hizo pasar por dueño, subió fotos ofensivas), donde las fotos
-      tienen que desaparecer de verdad, y revocar **por corrección** (el local cambió de manos, se
-      equivocó el admin), donde son una contribución real al catálogo. Con el fix de `INT2-33` las
-      dos terminan igual: **ocultas y vivas**, que es el default correcto pero deja el caso de abuso
-      a medias — el objeto sigue en R2 y su URL sigue siendo pública para quien la tenga.
-      **Lo más barato que resuelve las dos:** un checkbox *"quitar las fotos"* en el rechazo de
-      `/admin`, **default apagado**, que borre filas + objetos reusando `limpiarFotosDeUsuario`. Le
-      da al admin la única información que el código no puede deducir: **por qué** revocó.
+- [x] **Revocar por abuso debería poder borrar las fotos, no solo ocultarlas** (desprendido del
+      ítem de arriba al resolverlo, 2026-08-03). **Resuelto ✅ 2026-08-03, pero NO como decía este
+      ítem: la capacidad sí, el botón no.** Quedó `borrarFotosDeLugar(placeId)` en
+      `lib/negocio/acciones.ts` (y `limpiarFotosDeUsuario` ahora **delega** en ella, en vez de tener
+      su propia copia de la regla) + el script `npm run fotos:borrar -- <placeId>`, que lista las
+      fotos, avisa que borra filas **y** objetos de R2, y exige que el operador **escriba el nombre
+      del lugar** para confirmar. Sin `--force`, sin y/n.
+      **Por qué no el checkbox que este ítem proponía:** es la única acción irreversible del
+      producto (el objeto de R2 no vuelve) y no tiene por qué estar a un click en `/admin`, donde un
+      mis-click destruye las fotos de un dueño legítimo. El argumento a favor del checkbox era *"le
+      da al admin la información que el código no puede deducir: por qué revocó"* — pero eso **ya se
+      persiste**: el rechazo tiene textarea obligatoria y se guarda en `place_claims.admin_notes`.
+      La limpieza puede ocurrir después sin perder información.
+      ⚠️ **Dos correcciones a la propuesta original, verificadas en el código:** (1)
+      `limpiarFotosDeUsuario` **no servía "tal cual"** — es por **usuario** (borra las fotos de
+      *todos* sus lugares) y revocar es por **lugar**; reusarla habría borrado fotos de lugares con
+      el reclamo todavía aprobado. (2) Borrar el objeto **no es un botón de olvido**: se sube con
+      `immutable, max-age=31536000`, así que lo que el CDN ya cacheó sigue sirviéndose. La clave sí
+      lleva un uuid, o sea la URL no es adivinable — el expuesto es quien ya la tenía.
 - [ ] **Reordenar las fotos del panel** (AUTH F3, 2026-07-21). `place_photos.sort` existe y
       la ficha usa la primera como portada, pero el editor no deja arrastrar: hoy el orden es
       el de subida y para cambiar la portada hay que borrar y volver a subir. Drag & drop o
@@ -997,6 +1043,26 @@ son trabajo acotado con criterio de "listo" objetivo.
 
 ## Hecho
 
+- [x] **Los 5 temas abiertos que dejó el QA integral #2, decididos e implementados** (2026-08-03,
+      sesión Opus de decisión). No eran bugs: eran decisiones de producto que nadie había tomado.
+      Ninguno bloqueaba `DEPLOY` F0. **625/625 tests, typecheck limpio.** Uno por uno arriba
+      (`INT2-32`, `INT2-28`, `INT2-29`, `INT2-01` y el de las fotos al revocar por abuso).
+      **Dos se decidieron distinto a lo que proponía la cola, y en los dos casos el motivo salió de
+      leer el código en vez del ítem:** el checkbox de "quitar las fotos" en `/admin` se cambió por
+      un script (`limpiarFotosDeUsuario` no servía "tal cual" —es por usuario, no por lugar— y el
+      *por qué* de la revocación **ya** se persiste en `admin_notes`, que era el único argumento
+      para ponerlo a un click); y el chip de Precio resultaron ser **dos** chips, no uno.
+      **El método que funcionó** (vale repetirlo en la próxima sesión de decisión): verificar cada
+      hallazgo contra el código **antes** de repetir su recomendación. De los 5, **3 cambiaron de
+      forma** al hacerlo. Un hallazgo de QA envejece: describe el código del día que se escribió.
+      **Lo que se decidió NO hacer, para que no vuelva en tres semanas:** no se agrega columna
+      `source` a `place_tag_impressions_daily` (los dos consumidores quieren demanda, no origen);
+      no se dejan de contar las impresiones de la búsqueda dentro de una votación (una vista privada
+      es una vista); no se hardcodean en el código los umbrales de la decisión 18; y no va checkbox
+      de borrado en `/admin`.
+      **Fan-out:** 4 subagentes `implementador` en paralelo sobre archivos disjuntos + el chip
+      (único con escritura en la base) en la sesión principal, después de `npm run backup:db`
+      (`backups/adondesalimos_2026-08-02_224123.sql.gz`).
 - [x] **Los 3 fixes de código del QA integral #2, aplicados en lote** (2026-08-03, sesión Opus).
       `INT2-33` (tags **y** fotos al revocar) + `INT2-28` (el contador topeado). **622/622 tests**
       (619 + 3 nuevos), typecheck limpio, verificado en vivo sobre Kansas y con la base restaurada

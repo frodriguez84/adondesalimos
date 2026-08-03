@@ -12,6 +12,10 @@ import type { TipoSuscripcion } from '@/lib/billing/types'
  * `past_due`, cancelación en curso) y ofrece suscribirse (abre el Brick) o cancelar
  * (diferida, decisión 15). El estado ya viene reconciliado del server (lazy check).
  *
+ * **Premium de cortesía** (`activo` sin fila viva: `estado.status === null`, típico del
+ * alta a mano con un UPDATE): no hay nada que cancelar ni fecha que mostrar, así que no
+ * se pinta el botón —el endpoint devolvería 404— y el copy manda a escribirnos.
+ *
  * **Con el cobro apagado** (DEPLOY, decisión 6) el estado free cambia: en vez del
  * pitch + "Suscribirme por $X/mes" —que llevaría al Brick a degradar con
  * "Configuración de pago incompleta", copy de desarrollador— muestra el mensaje de
@@ -49,6 +53,12 @@ const TITULO: Record<TipoSuscripcion, string> = {
 const PITCH_BETA: Record<TipoSuscripcion, string> = {
   b2c: 'El premium está por salir: votaciones ilimitadas, historial y que la IA te arme la shortlist.',
   b2b: 'El plan del lugar está por salir: descripción, carta, novedades, hasta 15 fotos y el destaque en las búsquedas.',
+}
+
+/** Copy del premium de cortesía: activo por un UPDATE a mano, sin fila que cancelar. */
+const CORTESIA: Record<TipoSuscripcion, string> = {
+  b2c: 'Te activamos el Premium nosotros: no vence ni se cobra.',
+  b2b: 'Te activamos el plan del lugar nosotros: no vence ni se cobra.',
 }
 
 export function SuscripcionPanel({
@@ -139,7 +149,11 @@ export function SuscripcionPanel({
 
       {estado.activo ? (
         <div className="flex flex-col gap-3">
-          {estado.cancelAtPeriodEnd ? (
+          {estado.status === null ? (
+            <p className="text-sm text-muted-foreground">
+              {CORTESIA[tipo]} Si lo querés dar de baja, escribinos y lo sacamos.
+            </p>
+          ) : estado.cancelAtPeriodEnd ? (
             <p className="text-sm text-muted-foreground">
               Cancelada. Mantenés el acceso hasta el{' '}
               {finPeriodo ? <strong className="text-foreground">{fecha.format(finPeriodo)}</strong> : 'fin del período'}

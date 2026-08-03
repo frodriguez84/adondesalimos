@@ -80,10 +80,14 @@ function limpiarLimite(valor: unknown): number {
  * Ejecuta la tool: arma `SearchParams`, corre el motor y devuelve los lugares
  * (cards) + sus IDs para acumular en el set de grounding. Sin GPS (el chat no
  * tiene coordenadas del dispositivo): zona y tags alcanzan.
+ *
+ * También devuelve los `tags` **ya normalizados** (los mismos que fueron al motor):
+ * el chat los necesita para "qué filtros te encontraron" (INT2-29) y el canon se
+ * limpia en un solo lugar — nadie re-parsea el input crudo de la tool.
  */
 export async function ejecutarBuscarLugares(
   input: unknown,
-): Promise<{ resultados: LugarCard[]; ids: string[] }> {
+): Promise<{ resultados: LugarCard[]; ids: string[]; tags: string[] }> {
   const obj = (input ?? {}) as Record<string, unknown>
   const texto = typeof obj.texto === 'string' ? obj.texto.trim() : ''
 
@@ -110,7 +114,7 @@ export async function ejecutarBuscarLugares(
     }),
   )
 
-  return { resultados: cards, ids: cards.map((c) => c.id) }
+  return { resultados: cards, ids: cards.map((c) => c.id), tags: params.tags }
 }
 
 /**

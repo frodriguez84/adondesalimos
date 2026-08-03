@@ -7,7 +7,7 @@ import { getChatModel } from './settings'
 import { buildSystemPrompt } from './prompts'
 import { BUSCAR_LUGARES_TOOL, ejecutarBuscarLugares } from './tools'
 import { enriquecerCitas } from './grounding'
-import { registrarImpresiones } from '@/lib/search/impressions'
+import { registrarImpresiones, registrarTagsDeBusqueda } from '@/lib/search/impressions'
 import { resumenCupo, revertirReserva } from './cupo'
 import { logChatCall } from './logging'
 
@@ -76,6 +76,10 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
       let cacheReadTokens = 0
       let cacheCreationTokens = 0
       const idsNuevos = new Set<string>()
+      // Una entrada por llamada a `buscar_lugares` de ESTE turno (todas las rondas):
+      // qué ids devolvió y con qué tags se pidió. Sirve para atribuir los tags a los
+      // lugares que efectivamente salieron de esa llamada (ver más abajo).
+      const llamadas: { ids: string[]; tags: string[] }[] = []
 
       try {
         const [conv] = await db
@@ -136,7 +140,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
           for (const bloque of msg.content) {
             if (bloque.type !== 'tool_use') continue
             if (bloque.name === 'buscar_lugares') {
-              const { resultados, ids } = await ejecutarBuscarLugares(bloque.input)
+              const { resultados, ids, tags } = await ejecutarBuscarLugares(bloque.input)
               // Evidencia para debug de calidad (sobre-filtrado): qué tags/zonas pidió el
               // modelo y cuántos resultados dio. Sin PII (solo slugs del canon).
               console.info(
@@ -148,6 +152,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
                 }),
               )
               for (const id of ids) idsNuevos.add(id)
+              llamadas.push({ ids, tags })
               toolResults.push({
                 type: 'tool_result',
                 tool_use_id: bloque.id,
@@ -188,6 +193,25 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
           // solo los efectivamente citados/mostrados (no todo lo que devolvió
           // una tool y el modelo descartó).
           void registrarImpresiones(lugares.map((l) => l.id))
+
+          // INT2-29: "qué filtros te encontraron" también cuenta desde el chat —
+          // misma tabla y misma semántica que la búsqueda, sin distinguir origen.
+          //
+          // La atribución es **por llamada a la tool**, no por turno: el set de
+          // grounding es `seenPrevios ∪ idsNuevos`, así que un lugar citado puede
+          // venir de una búsqueda de dos turnos atrás (con otros tags) y en un mismo
+          // turno puede haber varias llamadas con tags distintos. Aparear "los tags
+          // del turno" con "los lugares citados" escribiría datos mal. Por eso, por
+          // cada llamada se registran solo sus ids que además fueron citados; un
+          // lugar citado que no salió de ninguna llamada de este turno no se
+          // atribuye a ningún tag.
+          const citados = new Set(lugares.map((l) => l.id))
+          for (const llamada of llamadas) {
+            void registrarTagsDeBusqueda(
+              llamada.ids.filter((id) => citados.has(id)),
+              llamada.tags,
+            )
+          }
         }
 
         // Persistir el mensaje del assistant (texto ya validado) y actualizar la
