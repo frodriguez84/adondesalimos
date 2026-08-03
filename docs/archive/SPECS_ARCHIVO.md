@@ -724,3 +724,69 @@ chip que ni nombra). Por eso `primero` pasó a ser opcional —una regla puede s
 `chipsPrimero` saltea las reglas sin `primero`. El corte va en `chips.ts` **antes** de repartir
 home/resto, así un chip fuera de ventana tampoco entra por el `primero` de otra regla. Función nueva:
 `chipsFueraDeVentana(reglas, now)`.
+
+---
+
+## Pulido de UX/UI para la beta + app instalable {#pulido_beta}
+
+**Spec:** [`docs/specs/done/PULIDO_BETA.md`](../specs/done/PULIDO_BETA.md) · ✅ Implementado (2026-08-03)
+**QA:** [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) §§ *PULIDO_BETA F1* · *F2 (triaje) + F3 (fix)* ·
+*F4 (app instalable) + el alta nueva end-to-end* · *QA /qa-spec — PULIDO_BETA* — **PARCIAL**, 10 de
+11 criterios PASS; el único pendiente es **PBETA-07** (el ícono en la pantalla de inicio de iOS, sin
+iPhone a mano). Fer decidió cerrar igual, con el pendiente anotado.
+
+**Qué hace:** es la única pasada del proyecto que preguntó *"¿esto se entiende desde un celular si es
+la primera vez que lo ves?"*. Se auditaron **los 6 recorridos reales** de punta a punta a 390×844 —no
+pantallas sueltas: lo que rompe es la transición y el estado en el que llegás— y de ahí salieron
+**43 hallazgos con evidencia**. Además dejó la app **instalable**, que para una app de salir de noche
+vale más que cualquier pulido de pantalla.
+
+**Alcance implementado:**
+
+- **F1 — Auditoría** (sin una línea de código): los 6 recorridos en vivo con Playwright contra ngrok,
+  390×844 y control a 360 px (cero desbordes). 43 hallazgos con los 6 campos de la decisión 7, **10
+  propuestos BLOQUEANTE**.
+- **F2 — Triaje**: lo hizo **Fer**, hallazgo por hallazgo (decisión 6 — un hallazgo de UX es
+  subjetivo por definición). Confirmó los 10, **ninguno bajó**; los 33 restantes al `BACKLOG` con su
+  ID, uno por línea.
+- **F3 — Fix**: los 10, cada uno re-verificado **en su recorrido completo**. Dos dejaron regla nueva
+  con **dueño único**: `compartirLink` + `BotonCompartir` (`components/shared/boton-compartir.tsx`,
+  reusado por ficha, votación nueva y `/mis-votaciones`) y el gate del chat pasando por
+  `cobroApagado()`, la misma función de `/cuenta`. Nuevos: `app/not-found.tsx` (404 con la marca) y
+  el **guardado pendiente** (`lib/favoritos/pendiente.ts` + `ReanudarGuardado` montado en el layout
+  raíz, no en el botón — con scroll infinito la card muchas veces no está montada al volver).
+- **F4 — App instalable**: `app/manifest.ts` (`display: standalone`, `theme_color` y
+  `background_color` = `#0D0D1F`, el `--background` de la paleta) · `public/icons/` 192, 512 y
+  **maskable** · `app/apple-icon.png` 180 · `themeColor` en el `viewport`. Los 4 PNG salen de
+  `logo_2.png` recortado al pin con `sharp`; **el original de 1,4 MB no se sirve nunca**. Instalada
+  de verdad en el Android de Fer: abre con el splash que dibuja el SO.
+- **El alta nueva de usuario end-to-end**, que F1 y F3 no habían podido cubrir (`requireEmailVerification`
+  hace imposible el login sin un inbox real). Fer puso su mail y verificó a mano.
+
+**Decisiones que conviene no re-litigar:**
+
+- **NO va splash screen propia** (decisión 8). En la web el splash **crea** el hueco que en una app
+  nativa tapa, y la home es la búsqueda. Con manifest, Android lo dibuja gratis y solo para quien la
+  instaló. **iOS recibe ícono y standalone pero no splash** (decisión 10): su startup image es una
+  por tamaño de pantalla, cola de mantenimiento permanente por un cuarto de segundo.
+- **Ver y arreglar son fases separadas** (decisión 2) y **solo BLOQUEANTE se arregla** (decisión 5).
+  Es lo que evita que una pasada de UX se vuelva infinita.
+- **El service worker no hace falta para instalar**: se verificó contra la doc de Chrome antes de dar
+  el DoD por cumplido. Sigue siendo v2, igual que el uso offline y las push.
+
+**Dos cosas que este spec dejó y valen para el que siga:**
+
+1. **El arreglo del guardado pendiente sobrevive a una cuenta nueva** — se midió: la fila de
+   `place_list_items` entra **en el mismo segundo** que la verificación del mail. Pero **no
+   sobrevive si el link del mail abre otra pestaña** (`sessionStorage` es por pestaña) ⇒ hallazgo
+   **PBETA-R3-07**, al `BACKLOG`. El arreglo obvio (`localStorage`) no sirve: no cubre el webview del
+   cliente de mail y rompe la razón de elegir `sessionStorage`.
+2. **Better Auth no persiste el token de verificación** (lo firma con el secret): la tabla
+   `verification` queda en 0 y **el link no se puede reconstruir desde la base**. Para un QA de alta
+   nueva hay que pedirle el link a quien recibe el mail.
+
+**Archivos clave:** `app/manifest.ts` · `app/apple-icon.png` · `public/icons/` · `app/not-found.tsx` ·
+`lib/favoritos/pendiente.ts` · `components/favoritos/reanudar-guardado.tsx` ·
+`components/shared/boton-compartir.tsx` · `app/layout.tsx` · `components/search/zone-sheet.tsx` ·
+`app/chat/chat-client.tsx` · `app/votacion/[token]/` · `app/(auth)/login/page.tsx` ·
+`app/(auth)/registro/page.tsx`

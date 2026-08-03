@@ -77,8 +77,9 @@ son trabajo acotado con criterio de "listo" objetivo.
 > **no arregla ninguno de los dos problemas que la justificaban**, y el que sí arregla ya está
 > cubierto. Detalle abajo.
 
-- [ ] **1.5 · Pulido de UX/UI para la beta** → spec:
-      `docs/specs/active/PULIDO_BETA.md` — **escrito ✅ 2026-08-03** (sesión Opus, sin código) ·
+- [x] **1.5 · Pulido de UX/UI para la beta** ✅ **CERRADO 2026-08-03** → spec:
+      `docs/specs/done/PULIDO_BETA.md` · [Resumen](../archive/SPECS_ARCHIVO.md#pulido_beta) —
+      **escrito ✅ 2026-08-03** (sesión Opus, sin código) ·
       **F1 (auditoría) ✅ 2026-08-03**: los 6 recorridos en vivo a 390×844 + control a 360 px (cero
       desbordes), **43 hallazgos** con evidencia en `docs/qa/AnalisisQA.md` § *PULIDO_BETA F1*.
       Incluye el premium "en camino" con el cobro realmente apagado. La base quedó como estaba, así
@@ -87,8 +88,21 @@ son trabajo acotado con criterio de "listo" objetivo.
       los 10 están **arreglados y re-verificados en vivo**, cada uno en su recorrido completo —
       `docs/qa/AnalisisQA.md` § *PULIDO_BETA F2 (triaje) + F3 (fix)*. Los **33 no bloqueantes** están
       acá abajo en § Mejoras futuras, uno por línea con su ID. La base volvió a los conteos del
-      arranque. **Queda solo F4** (la app instalable: `app/manifest.ts` + íconos + `theme_color`),
-      que es código chico e independiente y puede ir en su propia sesión.
+      arranque.
+      **F4 (app instalable) — código hecho 2026-08-03**: `app/manifest.ts` + `public/icons/` (192,
+      512 y maskable) + `app/apple-icon.png` (180) + `themeColor` en el `viewport`. Los **8 criterios
+      de instalabilidad de Chrome** medidos en vivo por ngrok; **el service worker NO es requisito**
+      (se chequeó en la doc antes de dar el DoD por cumplido — sigue siendo v2). `theme_color` y
+      `background_color` = `#0D0D1F`, el `--background` de `globals.css`. **Fer la instaló de verdad
+      en su Android** y abre con el splash del manifest, que es la decisión 9 funcionando. **iOS
+      (PBETA-07) queda sin probar** por falta de un iPhone. Gate completo: typecheck + 645 tests +
+      `build` verde con el server parado.
+      **En el mismo tramo se cubrió el alta nueva end-to-end**, que era el hueco de F1 y F3 (nunca
+      se pudo por `requireEmailVerification`): la pantalla "Revisá tu mail", el mail de Resend, el
+      aterrizaje **con sesión ya iniciada** en `/`, y sobre todo que **el arreglo de PBETA-R3-03
+      sobrevive a una cuenta nueva** —la base confirma el guardado en el mismo segundo de la
+      verificación— y **no sobrevive** si el link del mail abre otra pestaña ⇒ hallazgo nuevo
+      **PBETA-R3-07**, acá abajo. QA: `docs/qa/AnalisisQA.md` § *PULIDO_BETA F4*.
       **Se intercala antes del deploy por pedido de Fer**: *"ya que la vamos a lanzar en modo beta,
       debería estar óptima para los usuarios"*. Va **antes de `DEPLOY` F0** y el motivo es concreto
       (decisión 12 del spec): F0 restaura un dump en Neon y **el valor del dump es que esté
@@ -308,6 +322,18 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 - [ ] **PBETA-R3-04** (MOLESTO) — guardar no dice dónde quedó ni cómo volver a encontrarlo (no hay toast ni link a `/mis-lugares`).
 - [ ] **PBETA-R3-05** (COSMÉTICO) — en `/mis-lugares` el título aparece dos veces (la lista default se llama igual que la página).
 - [ ] **PBETA-R3-06** (COSMÉTICO) — la card de un lugar guardado pierde los tags que sí muestra en el listado.
+- [ ] **PBETA-R3-07** (MOLESTO propuesto — **hallazgo nuevo del alta end-to-end, F4, sin triar por
+      Fer todavía**) — en un **alta nueva** el guardado pendiente se pierde si el link del mail abre
+      otra pestaña. El pendiente vive en `sessionStorage`, que es **por pestaña**: en la misma
+      funciona (medido: la fila de `place_list_items` entra en el mismo segundo de la verificación),
+      pero el cliente de correo casi siempre abre otra pestaña/app/navegador y ahí arranca vacío —
+      aterrizás logueado en la home, sin el lugar y sin explicación.
+      **El arreglo obvio no sirve:** `localStorage` cruzaría pestañas del mismo navegador pero no el
+      webview del mail, y rompe la razón de elegir `sessionStorage` (que el pendiente muera con la
+      pestaña en vez de quedar colgado). Es una decisión de diseño, no un typo.
+      **De paso, contribuye:** «Registrate» en `/login` va a `/registro` pelado, sin arrastrar
+      `callbackUrl` ni `motivo`. Evidencia y las dos ramas medidas: `docs/qa/AnalisisQA.md` §
+      *PULIDO_BETA F4*.
 
 **R4 · Armar una votación**
 - [ ] **PBETA-R4-02** (MOLESTO) — nada empuja a ponerle título, y sin título el invitado ve el H1 feo de R2-04. La falla se origina acá y se paga allá.
@@ -1234,6 +1260,39 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 
 ## Hecho
 
+- [x] **La app se puede instalar, y el alta nueva se vio por primera vez** (2026-08-03, sesión Opus,
+      `PULIDO_BETA` F4 → **spec CERRADO**). [Resumen](../archive/SPECS_ARCHIVO.md#pulido_beta) ·
+      QA `docs/qa/AnalisisQA.md` § *PULIDO_BETA F4* y § *QA /qa-spec — PULIDO_BETA*.
+      **F4**: `app/manifest.ts` + `public/icons/` (192, 512, maskable) + `app/apple-icon.png` (180) +
+      `themeColor` en el `viewport`. Fer la **instaló de verdad en su Android** y abre con el splash
+      que dibuja el SO — la decisión 9 funcionando (*el splash sale gratis del manifest*, sin costar
+      un ms de render y solo para quien la instaló).
+      **Tres cosas que no eran obvias y por eso se registran:**
+      **(a)** El **service worker NO es requisito** para instalar. Se chequeó contra la doc de Chrome
+      **antes** de dar el DoD por cumplido, porque si lo fuera el criterio era imposible sin meter un
+      SW, que el spec puso en v2. La lista real es manifest + HTTPS + íconos 192/512 + `start_url` +
+      `display`, y nada más.
+      **(b)** Los íconos del manifest **no pueden vivir en `app/`**: esa carpeta solo sirve los
+      *nombres de convención* de Next (`icon`, `favicon`, `apple-icon`), que se inyectan solos con URL
+      hasheada. Un ícono referenciado por URL fija desde el manifest necesita `public/`. El
+      `apple-icon` sí es convención y por eso se quedó en `app/`, al lado de `icon.png`.
+      **(c)** **Better Auth no persiste el token de verificación de email** (lo firma con el secret):
+      la tabla `verification` queda en **0** y el link del mail **no se puede reconstruir desde la
+      base**. Para un QA de alta nueva hay que pedirle el link a quien recibe el mail — el atajo no
+      existe.
+      **El alta nueva end-to-end**, que F1 y F3 nunca pudieron ver (`requireEmailVerification` hace
+      imposible el login sin un inbox real): Fer puso su mail. Lo bueno — **el arreglo de PBETA-R3-03
+      sobrevive a una cuenta nueva**: la fila de `place_list_items` entra en el **mismo segundo** que
+      la verificación, y aterrizás en la home **ya logueado**, no a pie. Lo malo → **PBETA-R3-07**
+      (arriba, sin triar): si el link del mail abre otra pestaña, `sessionStorage` arranca vacío y el
+      guardado que motivó el registro se pierde.
+      **Cerrado con un pendiente anotado**: **PBETA-07 (iOS)** quedó sin verificar por falta de un
+      iPhone. Decisión de Fer, con el precedente de `AUTH` (que cerró con el botón de OAuth
+      diferido): el riesgo es casi nulo —el `apple-touch-icon` es convención de Next, servido y
+      linkeado, sin lógica propia— y dejarlo abierto frenaba `DEPLOY` F0 sin bajar el riesgo.
+      La base volvió a los conteos del arranque: el alta creó **5 filas reales** (`users`, `account`,
+      `session`, `place_lists`, `place_list_items`), anotadas con su `id` y borradas a mano porque
+      **`account` y `session` no cascadean** desde `users`.
 - [x] **Los 10 bloqueantes de la beta, triados y arreglados** (2026-08-03, sesión Opus,
       `PULIDO_BETA` F2+F3). Fer confirmó los 10 —**ninguno bajó de severidad**— y acotó dos:
       R2-03 (nombre del creador **y** qué es la app) y **R5-01, donde eligió tapar el síntoma sin

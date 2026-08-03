@@ -5,6 +5,40 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Lo que el QA no puede ver por sí solo (2026-08-03 · PULIDO_BETA F4)
+
+**Qué pasó.** Para verificar el alta de un usuario nuevo hacía falta el link de verificación del
+mail. El reflejo fue buscarlo en la base para no depender de nadie: `select * from verification` →
+**0 filas**, con el usuario recién creado y `email_verified = f`. La tabla existe, la migración está,
+y aun así está vacía. **Better Auth firma el token de verificación con el secret y no persiste
+nada**: no hay fila que leer, ni antes ni después. El link solo existe dentro del mail.
+
+**Por qué importa.** Es un atajo que *parece* que tiene que estar —hay una tabla llamada
+`verification`, después de todo— y buscarlo cuesta tiempo antes de concluir que no existe. En un QA
+de alta nueva **el humano es parte del instrumento**: alguien tiene que abrir el inbox y pasar el
+link. Conviene pedírselo **antes** de arrancar el recorrido y aclarar que **no lo clickee** — si lo
+usa, el token se consume y se pierde la chance de medir dónde aterriza y qué sobrevive.
+
+**El mismo día, dos veces más, la misma forma:** (a) **el service worker no es requisito para
+instalar una PWA** — se verificó en la doc de Chrome *antes* de dar el DoD por cumplido, porque si lo
+fuera el criterio era imposible sin salir de scope; (b) **`app/` no sirve archivos arbitrarios**,
+solo los nombres de convención de Next (`icon`, `favicon`, `apple-icon`), así que los íconos que el
+manifest referencia por URL fija van a `public/` — el spec decía *"no estrenes convención"* y la
+respuesta correcta era usar las dos carpetas, cada una para lo suyo.
+
+**Qué hacer distinto.**
+1. **Antes de dar por imposible (o por cumplido) un criterio que depende de una plataforma, chequear
+   la doc de esa plataforma.** Los tres casos de arriba se resolvieron con una lectura corta, y los
+   tres tenían una respuesta intuitiva que era la equivocada.
+2. **Cuando el QA necesita una acción humana, pedirla al principio y con la instrucción exacta**
+   (qué mirar, qué NO tocar). Un token de un solo uso se quema una sola vez.
+3. **Lo físico se verifica o se anota, nunca se infiere.** Android se instaló de verdad; iOS no se
+   pudo y quedó como `PBETA-07` pendiente, en vez de PASS "por lectura de código". Un spec puede
+   cerrar con un pendiente escrito; lo que no puede es cerrar con un pendiente disfrazado de
+   verificado.
+
+---
+
 ## En QA con Playwright, tipear no es enfocar (2026-08-01 · alias de zonas)
 
 **Qué pasó.** Verificando en vivo que los alias nuevos resolvieran, el desplegable de sugerencias

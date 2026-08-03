@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
 import './globals.css'
@@ -11,6 +11,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: '¿A dónde salimos?',
   description: 'Decidí a dónde salir esta noche sin dar mil vueltas.',
+}
+
+// Pinta la barra del navegador (y la de estado en standalone) con el fondo de la
+// app en vez del blanco del sistema. Mismo color que `app/manifest.ts`.
+// Los defaults de Next (width=device-width, initial-scale=1) se mantienen.
+export const viewport: Viewport = {
+  themeColor: '#0D0D1F',
 }
 
 export default function RootLayout({

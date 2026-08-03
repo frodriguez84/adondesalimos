@@ -13,6 +13,29 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-03 · PULIDO_BETA F4 — app instalable + alta nueva end-to-end + cierre — Opus
+
+- **Qué salió bien:** **chequear la doc de Chrome antes de dar F4 por hecho.** El DoD pedía "que se
+  ofrezca para instalar" y el service worker está en la lista de *v2* del spec: si hubiera sido
+  requisito, el criterio era imposible sin salir de scope. Dos minutos de lectura evitaron cerrar
+  sobre una suposición. Segundo acierto: **medir el punto (d) en las dos ramas** —misma pestaña y
+  pestaña nueva— en vez de una sola; el resultado fue mitad buena noticia (el arreglo de R3-03
+  sobrevive a una cuenta nueva, confirmado por la fila en la base en el mismo segundo) y mitad
+  hallazgo nuevo. Con una sola rama se habría reportado cualquiera de las dos mitades como si fuera
+  toda la verdad.
+- **Qué frenó:** el link de verificación **no se podía sacar de la base** — Better Auth firma el
+  token y no persiste fila, así que `verification` está vacía. Se perdió un rato buscando un atajo
+  que no existe, y hubo que pedirle el link a Fer a mitad del recorrido, cuando debería haberse
+  pedido al arrancar y con la aclaración de no clickearlo (el token se quema una sola vez). Anotado
+  en `LECCIONES_APRENDIDAS.md` § *Lo que el QA no puede ver por sí solo*.
+- **Qué cambiar:** **una sola cosa, y es de método, no de reglas: cuando un QA depende de una acción
+  humana, pedirla en el primer turno del tramo, con qué mirar y qué NO tocar.** No hace falta una
+  regla nueva en `CLAUDE.md` — la lección ya lo deja escrito y este proyecto tiene pocos flujos que
+  dependan de un inbox. **Lo que NO cambio, a propósito:** el `/close-spec` funcionó tal cual está,
+  incluidos el HALT por QA PARCIAL y los 3 checkers independientes (el de regresión sobre los 10
+  fixes de F3 no lo pide el DoD y es el que evita cerrar sobre código pisado). Sin fricción con el
+  método: 1 hallazgo, que es lo normal.
+
 ## 2026-08-03 · PULIDO_BETA F2+F3 — triaje de los 10 y fix — Opus
 
 - **Qué salió bien:** **leer el código de los 10 antes de presentar el triaje**. Convirtió el costo

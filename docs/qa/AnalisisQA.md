@@ -3271,3 +3271,183 @@ al final, con el dev server parado (comparten `.next`, lección de BUSQUEDA).
    límite que F1). El tramo nuevo de R3-03 se verificó con una cuenta existente, que recorre el
    mismo código: `ReanudarGuardado` no distingue si la sesión es nueva o vieja.
 3. **F4 (la app instalable)**: no se tocó. Es lo único que le queda al spec.
+
+---
+
+## PULIDO_BETA F4 (app instalable) + el alta nueva end-to-end (2026-08-03)
+
+**Spec:** `docs/specs/active/PULIDO_BETA.md`. **Qué es esto:** la última fase del spec (la app
+instalable) y el **único recorrido que nunca se había visto**: el alta de un usuario nuevo de punta
+a punta, que F1 y F3 no pudieron cubrir porque `requireEmailVerification` hace imposible el login
+sin un inbox real. Fer puso su mail y verificó a mano.
+
+### F4 — la app instalable
+
+**Qué se agregó.** `app/manifest.ts` (`MetadataRoute.Manifest`) · `public/icons/icon-192.png`,
+`icon-512.png`, `icon-maskable-512.png` · `app/apple-icon.png` (180) · `themeColor` en el `viewport`
+de `app/layout.tsx`. Los cuatro PNG salen de `docs/product/assets/logo_2.png` (1024×1024 RGBA)
+recortado al pin y redimensionado con `sharp` — el original de 1,4 MB no se sirve.
+
+**Dos decisiones de implementación que no eran obvias:**
+
+1. **Los íconos del manifest van a `public/icons/`, el `apple-icon` a `app/`.** No es incoherencia:
+   `app/` solo sirve los **nombres de convención** de Next (`icon`, `favicon`, `apple-icon`), que
+   Next inyecta solo en el `<head>` con una URL hasheada. Un ícono referenciado **por URL fija desde
+   el manifest** no puede vivir ahí. `apple-icon.png` sí es convención (Next emite el
+   `<link rel="apple-touch-icon">` sin que nadie lo escriba), así que se queda en `app/` junto a
+   `icon.png`, que es lo que el proyecto ya usaba.
+2. **El `maskable` lleva fondo sólido y el pin al 58 % del lado.** El SO recorta el ícono hasta un
+   círculo de 80 % del lado; un pin de aspecto 0,76 inscrito en ese círculo mide 63,7 % de alto, así
+   que 58 % deja margen. El `apple-icon` también va con fondo sólido: **iOS no respeta la
+   transparencia** y un PNG RGBA queda con el fondo negro.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| PBETA-08 | `manifest.ts` vs la paleta de `HOME_IDENTIDAD` | ✅ PASS | `theme_color` y `background_color` = **`#0D0D1F`**, que es `--background` de `app/globals.css`. Cero colores nuevos. El `<meta name="theme-color">` en vivo también da `#0D0D1F` |
+| PBETA-10 | El original de 1,4 MB no se sirve | ✅ PASS | `/logo_2.png` → **404** y `/docs/product/assets/logo_2.png` → **404**. Lo servido pesa 34 / 210 / 84 / 20 kB |
+| — | El manifest se sirve y se parsea | ✅ PASS | `/manifest.webmanifest` → **200 `application/manifest+json`**, 513 bytes. El browser lo resuelve desde `<link rel="manifest">` y `fetch` + `JSON.parse` limpio |
+| — | Los 3 íconos cargan con el tamaño declarado | ✅ PASS | 192→`192x192`, 512→`512x512`, maskable→`512x512`, medidos con `naturalWidth/Height` en la página, no leyendo el archivo |
+| — | `apple-touch-icon` inyectado | ✅ PASS | `<link rel="apple-touch-icon" href="/apple-icon.png?…" sizes="180x180" type="image/png">` en el `<head>` de `/` |
+| PBETA-06 | Android por ngrok — instalar de verdad | ✅ PASS | **Fer la instaló en su Android**: *"se instaló perfecto"*. Al abrirla aparece el **splash con el logo** — el que Android dibuja solo con `background_color` + ícono + `name`, que es exactamente la decisión 9 (*el splash sale gratis del manifest*) funcionando |
+| PBETA-07 | iOS por ngrok — "Agregar a pantalla de inicio" | ⏳ **sin probar** | El `apple-touch-icon` 180 está servido y linkeado en el `<head>`; falta un iPhone a mano |
+
+**Los criterios de instalabilidad, medidos uno por uno en el browser** (no leídos del código), contra
+la lista oficial de Chrome: HTTPS ✅ · `name`/`short_name` ✅ · ícono 192 ✅ · ícono 512 ✅ ·
+`start_url` `/` ✅ · `display` `standalone` ✅ · `prefer_related_applications` ausente ✅ · maskable ✅.
+
+> **El service worker NO es requisito** — se verificó en la doc de Chrome antes de dar F4 por hecho,
+> porque si lo fuera el DoD sería imposible sin salir de scope (el SW está en la lista de v2 del
+> spec). No lo es: la lista de installability pide manifest + HTTPS + íconos, y nada más. El SW
+> sigue siendo v2.
+
+### El alta nueva de usuario, end-to-end — R3 completo, 390×844
+
+Recorrido real y sin atajos: home sin sesión → sheet de zona → **Palermo Soho** (`Ver 1.095
+lugares`) → tocar **Guardar** en la card de *Burger King* → muro → `/registro` por el link del
+login → alta con `fernando.rodriguez84@yahoo.com.ar` → mail → verificación → vuelta. Como en F1 y
+F3, cada toque fue `element.click()` vía `evaluate` y **cada efecto se confirmó por su consecuencia**
+(URL, `sessionStorage`, fila en la base), nunca por el resultado de la herramienta.
+
+| # | Qué se miró | Resultado |
+|---|-------------|-----------|
+| a | La pantalla después del submit | ✅ «📬 **Revisá tu mail** — Te mandamos un link para verificar tu email. Confirmalo y ya vas a poder iniciar sesión. Revisá también la carpeta de spam.» + «← Ir a iniciar sesión». Se entiende y dice qué hacer |
+| b | El mail | ✅ **Llegó** (Fer lo confirmó en su inbox de Yahoo). Asunto `Verificá tu email — ¿A dónde salimos?`, cuerpo en voseo, CTA naranja `#FF8A00` «Verificar mi email →», nota de "si no creaste una cuenta, ignoralo". **El link funciona** |
+| c | Dónde aterrizás después de verificar | ✅ **No te deja a pie.** El link trae `callbackURL=%2F`: aterriza en la home **y con la sesión ya iniciada** (`/api/auth/get-session` → `fernando.rodriguez84@…`, `emailVerified: true`), con la inicial del usuario en el header. No hay que volver a loguearse |
+| d | Si el guardado pendiente sobrevive a un **alta nueva** | ✅ **en la misma pestaña** · ❌ **en otra** → **PBETA-R3-07** |
+
+**El punto (d), medido en las dos ramas.** El pendiente que deja `BotonGuardar` vive en
+`sessionStorage`, que es **por pestaña**:
+
+- **Misma pestaña** (la del alta): `ads:guardar-pendiente = d3695142-…` sobrevivió al submit, al
+  mail y a la navegación a `/api/auth/verify-email`. Al aterrizar, `ReanudarGuardado` lo consumió y
+  **la base lo confirma**: `place_list_items d7a7be45-…` → *Burger King*, en la lista default
+  `9b5037a7-…` que creó el propio guardado, con `created_at 18:55:23.968` — **el mismo segundo que
+  la verificación**. El lugar aparece en `/mis-lugares` con «Sacar de guardados» ✅.
+  **El arreglo de PBETA-R3-03 no dependía de que la cuenta fuera vieja**, que era la duda que dejó
+  abierta F3.
+- **Otra pestaña**: se abrió una pestaña nueva al mismo origen y su `sessionStorage` arranca en
+  `{}`. El pendiente no viaja.
+
+### Hallazgo nuevo — PBETA-R3-07
+
+| Campo | |
+|---|---|
+| **Ruta** | card/ficha → `/login` → `/registro` → link del mail → `/` |
+| **Viewport** | 390×844 |
+| **Esperado** | Que el lugar que motivó todo el registro quede guardado al volver, **abra el link del mail donde lo abra** |
+| **Observado** | El pendiente vive en `sessionStorage`, que es por pestaña. En el alta nueva el link llega **por mail**, y el cliente de correo lo abre casi siempre en otra pestaña, otra app o directamente otro navegador. Ahí `sessionStorage` está vacío: `ReanudarGuardado` no encuentra nada, no llama a `/api/favoritos` y el usuario aterriza en la home logueado y **sin el lugar guardado**, sin ningún cartel que lo explique. Pagó el peaje del registro y no recibió lo que fue a buscar |
+| **Severidad propuesta** | **MOLESTO** — no rompe el recorrido (quedás logueado, en la home, y podés volver a guardar), pero se pierde justo lo que motivó el alta. No es BLOQUEANTE porque la app no miente ni te deja sin salida |
+| **Evidencia** | Pestaña del alta: `{"ads:guardar-pendiente":"d3695142-…"}` · pestaña nueva al mismo origen: `{}`. Mecanismo en `lib/favoritos/pendiente.ts` (`sessionStorage`) y `components/favoritos/reanudar-guardado.tsx` (si `leerPendiente()` es `null`, no hace nada) |
+
+> **Por qué no se arregla en esta sesión.** F1 y F2 están cerradas y el triaje lo hace Fer
+> (decisión 6), no la sesión que encuentra el hallazgo. Va al `BACKLOG` con su ID, como los otros 33.
+> **Y el arreglo obvio no es obvio**: mover el pendiente a `localStorage` lo haría cruzar pestañas
+> del mismo navegador, pero no cubre "otro navegador" (el webview del cliente de mail), y rompe la
+> razón por la que se eligió `sessionStorage` — que el pendiente muera con la pestaña en vez de
+> quedar colgado para la próxima visita. Es una decisión, no un typo.
+
+**Observación de paso, que contribuye al mismo problema y no es un hallazgo aparte:** el link
+«Registrate» de `/login` apunta a `/registro` pelado, sin arrastrar el `callbackUrl` ni el
+`motivo=guardar` que el propio login acaba de recibir. Aunque los arrastrara, el `callbackURL` del
+mail lo pone Better Auth (`/`), así que el contexto de la búsqueda (`?z=palermo-soho`) se pierde
+igual. Anotado dentro de PBETA-R3-07 porque es la misma cadena, no un ítem propio.
+
+### La base quedó como estaba (decisión 13)
+
+El alta creó **5 filas reales**, anotadas antes de borrarlas —`account` y `session` **no cascadean**
+desde `users`, así que se borran a mano y en orden:
+
+| Tabla | `id` |
+|---|---|
+| `users` | `acd7b1f6-dfec-46c1-a343-0888b214676c` (`fernando.rodriguez84@yahoo.com.ar`) |
+| `account` | `5764eeae-fba3-479f-a8bc-d3435e1295d1` (`credential`) |
+| `session` | `8c5d3286-d9b4-4fd1-a6c3-b2e95906e756` |
+| `place_lists` | `9b5037a7-fa2c-4e99-859c-3d1dc622e1ce` (la default, la creó el guardado) |
+| `place_list_items` | `d7a7be45-141e-4c56-af72-60a56d9f462e` (*Burger King*) |
+
+| Tabla | Antes | Después | |
+|---|---|---|---|
+| users · account | 4 · 4 | **4 · 4** | ✅ |
+| place_lists · place_list_items | 1 · 0 | **1 · 0** | ✅ |
+| `place_tags source='admin'` (canario de curaduría) | 3.967 | **3.967** | ✅ |
+| session | 16 | **15** | ⚠️ ver abajo |
+
+`session` bajó una: para hacer el recorrido *sin cuenta* hubo que cerrar la sesión de
+`hugo@gmail.com` que F3 había dejado abierta a propósito. Es estado de auth y **el paso 5 de
+`DEPLOY` F0 limpia `session` igual** — no hay nada que restaurar. `verification` quedó en 0 en todo
+momento: Better Auth firma el token de verificación con el secret y **no persiste fila**, por eso el
+link no se pudo reconstruir desde la base y lo tuvo que pasar Fer.
+
+### Gate técnico
+
+`npx tsc --noEmit` limpio · **645 tests en 58 archivos, todos verdes** · **`npm run build` ✅** con el
+dev server parado (comparten `.next`, lección de BUSQUEDA): *Compiled successfully in 6,6 s*, 14
+páginas estáticas. En el árbol de rutas aparecen **`/manifest.webmanifest` y `/apple-icon.png` como
+estáticas (`○`)** — el manifest no cuesta un render por visita.
+
+### Lo que este tramo **no** cubrió
+
+1. **PBETA-07 (iOS)**: no se probó "Agregar a pantalla de inicio" en un iPhone real. Todo lo
+   verificable por software está hecho (el `apple-touch-icon` 180 servido y linkeado), pero el
+   ícono en la pantalla de inicio de iOS **no se puede simular desde Playwright** ni desde Android.
+   Android sí quedó confirmado (PBETA-06).
+2. **El remitente del mail**: Fer confirmó que llegó, pero no se dejó registrada la dirección exacta
+   que muestra el cliente. Si fuera el sandbox `onboarding@resend.dev` en vez de
+   `RESEND_FROM_EMAIL`, sería un tema de `DEPLOY`, no de este spec.
+3. **La pantalla "Revisá tu mail" a 360 px**: se vio a 390 y no tiene nada de ancho fijo (emoji,
+   título, párrafo y un link), pero **no se midió a 360** — solo se llega ahí creando un usuario
+   real, y se creó uno solo.
+
+---
+
+## QA /qa-spec — PULIDO_BETA (2026-08-03)
+
+**Veredicto:** **PARCIAL — pendiente QA en vivo** (un solo criterio: **PBETA-07**, el ícono en la
+pantalla de inicio de **iOS**; no hay iPhone a mano y no se puede simular).
+**Verificación técnica:** typecheck ✅ limpio · tests ✅ **645/645** en 58 archivos · build ✅
+*Compiled successfully in 6,6 s* con el dev server parado.
+**Método:** **3 checkers independientes** (Explore/haiku, read-only — maker≠checker) contra el DoD de
+`docs/specs/active/PULIDO_BETA.md`, más el QA en vivo con Playwright/MCP sobre
+`https://adondesalimos.ngrok.app` (los checkers read-only no ven el render — lección BUSQUEDA) y la
+instalación real en el Android de Fer. El tercer checker corrió un **chequeo de regresión** sobre los
+10 arreglos de F3, que el DoD no pide pero es lo que evita cerrar un spec sobre código que se pisó.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| PBETA-QA-01 | Los 6 recorridos con sección propia e IDs `PBETA-R<n>-NN`, a 390×844 | ✅ PASS | Checker: R1 (8) · R2 (13) · R3 (6+1) · R4 (6) · R5 (5+2) · R6 (5) en `AnalisisQA.md`, todos numerados |
+| PBETA-QA-02 | Todo hallazgo con los 6 campos de la decisión 7 | ✅ PASS | Checker sobre 3 al azar de recorridos distintos (R2-01, R1-01, R5-01): ruta, viewport, esperado, observado, severidad y evidencia en los tres |
+| PBETA-QA-03 | Cada hallazgo con destino explícito, ninguno suelto | ✅ PASS | Checker: **43** hallazgos = 10 arreglados + 33 en `BACKLOG.md` con su ID, contados uno por uno. Cero descartados y cero sin destino. El nuevo **PBETA-R3-07** también está en el backlog |
+| PBETA-QA-04 | Cero BLOQUEANTE abiertos | ✅ PASS | Checker: los 10 (R1-01, R2-01, R2-03, R2-08, R3-01, R3-02, R3-03, R4-01, R5-01, R5-04) figuran arreglados |
+| PBETA-QA-05 | Cada BLOQUEANTE re-verificado **en vivo**, en su recorrido completo | ✅ PASS | § *PULIDO_BETA F2 + F3*, tabla de re-verificación: los 10 con su consecuencia medida (URL, `sessionStorage`, `navigator.share`, fila en la base) |
+| PBETA-QA-06 | Nada rompe a 360 px | ✅ PASS | Checker: constancia en F1 (los 6 recorridos) y en F3 (las pantallas tocadas), medido con `scrollWidth` vs `clientWidth` + barrido de `getBoundingClientRect()` |
+| PBETA-QA-07 | `app/manifest.ts` + la app se ofrece para instalar (Android) y el ícono correcto en iOS | ⚠️ **PARCIAL** | **Android ✅**: Fer la instaló en su celular y abre con el splash del manifest. Manifest 200 y los 8 criterios de Chrome medidos en vivo. **iOS ⏳ sin probar**: el `apple-touch-icon` 180×180 está servido y linkeado en el `<head>`, pero **nadie lo vio en una pantalla de inicio de iPhone** |
+| PBETA-QA-08 | `theme_color` / `background_color` de la paleta, sin colores nuevos | ✅ PASS | Checker: los dos `#0D0D1F`, que es `--background` en `app/globals.css:42`. Ningún hex del manifest falta en `globals.css` |
+| PBETA-QA-09 | La base quedó como estaba | ✅ PASS | Checker sobre F1/F3 (11 tablas a los mismos conteos, ids de lo borrado) + el tramo de F4: users 4→4, account 4→4, listas 1→1, items 0→0, curaduría **3.967 intacta** |
+| PBETA-QA-10 | typecheck + tests + build verdes (build con el server parado) | ✅ PASS | `tsc --noEmit` limpio · 645/645 · build OK; `/manifest.webmanifest` y `/apple-icon.png` salen **estáticos** (`○`) en el árbol de rutas |
+| PBETA-QA-11 | **Regresión**: los 10 arreglos de F3 siguen en el código | ✅ PASS | Checker independiente, **10/10** con archivo:línea — incluidos los dos que son regla con dueño único (`compartirLink` reusado por ficha + votación nueva + mis-votaciones; `cobroApagado()` compartido con `/cuenta`) y el detalle fino del 401 que **no** consume el pendiente |
+
+**Qué significa el PARCIAL, en concreto.** Es un solo criterio y no es un gap de implementación: el
+código de iOS es una **convención de Next** (`app/apple-icon.png` ⇒ `<link rel="apple-touch-icon">`),
+está servido, linkeado y con el tamaño correcto, y no hay lógica propia que pueda fallar. Lo que
+falta es el acto de mirarlo en un iPhone. Se deja anotado como **PBETA-07 pendiente** en vez de
+declararlo PASS por lectura de código, que es exactamente lo que la regla de este QA prohíbe.
