@@ -760,6 +760,13 @@ vale más que cualquier pulido de pantalla.
   **maskable** · `app/apple-icon.png` 180 · `themeColor` en el `viewport`. Los 4 PNG salen de
   `logo_2.png` recortado al pin con `sharp`; **el original de 1,4 MB no se sirve nunca**. Instalada
   de verdad en el Android de Fer: abre con el splash que dibuja el SO.
+- **Post-cierre, mismo día — el wordmark en el splash.** El splash salía solo con el pin, y **el
+  manifest no tiene campo de texto** (Chrome lo compone con `background_color` + un ícono; el `name`
+  no se pinta). Único camino: meterlo en el PNG. **Cuál ícono agarra el splash es el dato que
+  importa**: el *más cercano a la resolución del dispositivo*, **no el más grande** — se probó con un
+  ícono de 1024 y el celular lo ignoró. El wordmark vive en **`icon-512.png`**, que es el que un
+  teléfono real elige; `icon-splash-1024.png` queda para densidades muy altas. **`icon-192.png` y el
+  `maskable` quedan limpios**: el maskable es el ícono del launcher, que se ve siempre.
 - **El alta nueva de usuario end-to-end**, que F1 y F3 no habían podido cubrir (`requireEmailVerification`
   hace imposible el login sin un inbox real). Fer puso su mail y verificó a mano.
 

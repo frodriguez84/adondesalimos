@@ -1267,6 +1267,20 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `themeColor` en el `viewport`. Fer la **instaló de verdad en su Android** y abre con el splash
       que dibuja el SO — la decisión 9 funcionando (*el splash sale gratis del manifest*, sin costar
       un ms de render y solo para quien la instaló).
+      **Post-cierre, el mismo día — el wordmark en el splash.** Al instalarla, Fer vio que el splash
+      sale **solo con el pin**, sin el nombre. Se había dicho que Android lo pinta desde `name`; su
+      captura demuestra que **no**. **El manifest no tiene ningún campo de texto para el splash** —
+      Chrome lo compone con `background_color` + un ícono— así que la única forma de que se lea es
+      que esté **dentro del PNG**. Se compuso el **mismo pin de siempre** con el wordmark
+      tipografiado abajo.
+      **El primer intento falló y eso es lo que hay que recordar:** se agregó como un quinto ícono de
+      **1024**, suponiendo que "Chrome elige el más grande para el splash". **No es así** — la doc
+      dice *«the icon that most closely matches the device resolution»*, o sea **el más cercano a la
+      resolución del dispositivo**. Fer reinstaló y el splash seguía sin texto. **El wordmark pasó
+      entonces a `icon-512.png`**, que es el que un teléfono real elige; el de 1024 queda para
+      densidades muy altas. **`icon-192.png` y el `maskable` siguen limpios a propósito**: el maskable
+      es el ícono del launcher (lo que se ve siempre) y el de 192 va a superficies chicas donde el
+      texto no se lee. Falta la confirmación en el celular.
       **Tres cosas que no eran obvias y por eso se registran:**
       **(a)** El **service worker NO es requisito** para instalar. Se chequeó contra la doc de Chrome
       **antes** de dar el DoD por cumplido, porque si lo fuera el criterio era imposible sin meter un

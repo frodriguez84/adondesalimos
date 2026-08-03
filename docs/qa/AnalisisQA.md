@@ -3315,6 +3315,28 @@ recortado al pin y redimensionado con `sharp` — el original de 1,4 MB no se si
 la lista oficial de Chrome: HTTPS ✅ · `name`/`short_name` ✅ · ícono 192 ✅ · ícono 512 ✅ ·
 `start_url` `/` ✅ · `display` `standalone` ✅ · `prefer_related_applications` ausente ✅ · maskable ✅.
 
+> **Post-cierre (mismo día): el wordmark en el splash.** Al instalarla, Fer vio que el splash sale
+> **solo con el pin, sin el nombre**. Se había dicho que Android lo pinta desde `name` — **su captura
+> demuestra que no**, y su versión no lo hace. **El manifest no tiene ningún campo de texto para el
+> splash**: Chrome lo compone con `background_color` + un ícono y nada más, así que la única forma de
+> que se lea "¿A dónde salimos?" al abrir es que **esté dentro del PNG**.
+> Se compuso el **mismo pin de siempre** (`logo_2.png` recortado, **no** se usó `logo-identidad.png`)
+> con el wordmark tipografiado abajo — «¿A DÓNDE» en blanco, «SALIMOS?» en el degradado
+> `#FF2D75 → #FF8A00 → #FFD400` y «DESCUBRÍ TU PRÓXIMO PLAN».
+>
+> **El primer intento falló, y el error vale más que el arreglo.** Se agregó como un **quinto ícono
+> de 1024**, con el razonamiento de que "Chrome tiende a elegir el más grande para el splash".
+> **Falso.** Fer desinstaló, reinstaló y **el splash seguía sin texto**. La doc de Chrome lo dice
+> explícito: *«Chrome chooses the icon that most closely matches the device resolution»* — **el más
+> cercano a la resolución del dispositivo, no el más grande**. En un teléfono real ese es el de
+> **512**, así que el de 1024 nunca iba a entrar en juego.
+> **El arreglo:** el wordmark pasó a `icon-512.png`, que es el que el dispositivo efectivamente
+> elige. El de 1024 se deja para densidades muy altas. **`icon-192.png` y el `maskable` quedan
+> limpios a propósito**: el maskable es el ícono del launcher —lo que se ve siempre, no un segundo—
+> y el de 192 va a superficies chicas donde el texto no se leería.
+> **Falta la confirmación en el celular** (desinstalar + reinstalar). Si tampoco lo agarra, el
+> fallback es el splash actual, que funciona.
+
 > **El service worker NO es requisito** — se verificó en la doc de Chrome antes de dar F4 por hecho,
 > porque si lo fuera el DoD sería imposible sin salir de scope (el SW está en la lista de v2 del
 > spec). No lo es: la lista de installability pide manifest + HTTPS + íconos, y nada más. El SW
