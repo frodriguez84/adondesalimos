@@ -346,15 +346,25 @@ son trabajo acotado con criterio de "listo" objetivo.
       **Decisión de producto:** (a) no ofrecer cancelar sin fila viva, o (b) un copy que explique
       que es un premium de cortesía y no hay nada que cancelar. Recomendación: **(a)** — el botón
       que no puede cumplir es peor que su ausencia. 🟢 Solo código.
-- [ ] **Las 3 `subscriptions` del baseline son de QA de julio, y una está `active`** (anotado
-      2026-08-02, bloque F del QA integral #2). El criterio de limpieza fue *diff = 0 contra el
-      ANTES de la sesión 1*, y estas tres **ya estaban ahí**, así que el dump las conserva:
-      `mp_payer_email = test_user_…@testuser.com` (sandbox de MP) y una con
-      `current_period_end = 2026-08-24`. Es **el mismo riesgo** que el plan advertía para la sub
-      comprada en INT2-31 —*"una sub viva en el dump la reactiva cualquier reconciliación lazy"*—
-      solo que preexistente. **Decisión de Fer ANTES de F0**, porque viaja en el dump: borrarlas y
-      arrancar Neon con `subscriptions` en cero, o dejarlas. Recomendación: **borrarlas** — ninguna
-      corresponde a un pago real y la de julio con período abierto es la única que puede hacer algo.
+- [x] **RESUELTO — el dump lleva las 4 cuentas de prueba a producción, y ahora hay un paso que las
+      borra** (planteado y decidido el 2026-08-02, tras el bloque F del QA integral #2).
+      **Lo destapó una pregunta de Fer:** *"antes del restore a Neon no va a pasar ningún usuario…
+      o sea la tabla `users` se crea vacía, ¿a eso te referías?"*. **No**: `pg_dump` copia schema
+      **y** datos. El dump trae **4 `users`**, sus **4 `account`** (hashes de contraseña) y **11
+      `session`**, más el rastro que cuelga de ellos por cascada — incluidas las 3 `subscriptions`
+      de sandbox de MP, una `active` hasta el 2026-08-24, que eran lo único que este ítem anotaba
+      al principio. Lo que lo vuelve serio es otra cosa: **`frodriguez.este@gmail.com` es
+      `ADMIN_EMAIL`**, así que la cuenta admin de producción arrancaría con la contraseña de dev
+      (y `pepe`/`juan`/`hugo` con `12345678`, escrita en `docs/qa/DATOS_QA.local.md`).
+      **Por qué no lo agarró el QA:** el bloque F tenía como criterio *dejar la base como estaba
+      antes del QA*, que **no es lo mismo** que *dejarla lista para producción*. El segundo criterio
+      no tenía dueño; ahora lo tiene el **paso 5 de F0** (`docs/specs/active/DEPLOY.md`, decisión
+      20), con el SQL y la verificación por conteo escritos.
+      **Decidido:** se limpia **en Neon, después del restore** —no antes del dump— así el Postgres
+      de dev queda usable con sus cuentas de prueba y el paso sigue siendo reversible. `/admin` no
+      se pierde: el gate es por email. ⚠️ **Ojo al implementarlo:** `session` y `account` **no
+      tienen FK a `users`** (better-auth las creó sin foreign key) ⇒ **no cascadean** y necesitan su
+      propio `DELETE`; lo mismo `place_owner_content` y `place_photos`, que cuelgan de `place_id`.
 - [ ] **Un chip de la home con un tag de Precio nunca se ve** (hallazgo 2026-08-02, `INT2-01` del QA
       integral #2). `Salida con amigos` es el chip de `sort` 0 y **no llega a la home**: exige
       `precio-2` y la faceta Precio tiene **1 fila en 14.458 lugares**, así que el chip da 0 y la

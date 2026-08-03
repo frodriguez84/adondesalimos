@@ -81,6 +81,7 @@ Tamaño de la base, medido el 2026-07-31: 48 MB totales — `places` 21 MB · `p
 | 17 | **El DNS de Vercel en Cloudflare va DNS-only (nube gris), no proxeado.** Proxear Cloudflare por delante de Vercel es doble CDN y es la causa clásica de loops de redirección y de headers de IP inconsistentes — que además romperían la decisión 13. |
 | 18 | **El cobro se prende (y con él Vercel Pro) cuando el interés medido lo justifique**, no por calendario. Disparador propuesto: **≥10 clicks de usuarios distintos** en el botón de la decisión 6, **o** el primer dueño que pida el plan B2B (ARS 15.000 ⇒ 3 pagan el hosting, contra 7 del B2C). Es puerta de ida y vuelta: el número se ajusta cuando haya datos. Prenderlo es setear 3 env vars + upgrade de plan, **sin tocar una línea de código** — pero **sí requiere redeploy**: `NEXT_PUBLIC_MP_PUBLIC_KEY` se inlinea en el build, así que setearla en el panel de Vercel no alcanza hasta que se reconstruya. |
 | 19 | **El mail transaccional ya está resuelto — no es un bloqueante de lanzamiento.** El dominio está verificado en Resend y probado: DKIM en `resend._domainkey.adondesalimos.com.ar`, SPF y MX en `send.adondesalimos.com.ar` (→ `feedback-smtp.sa-east-1.amazonses.com`), y `RESEND_FROM_EMAIL = no-reply@adondesalimos.com.ar` ya en el `.env` de dev. En F1 la var se copia a Vercel y listo: no hay trámite pendiente. Bonus: Resend quedó en **sa-east-1**, la misma región que Neon y Vercel (decisión 4). |
+| 20 | **Las cuentas de prueba se borran EN NEON, después del restore y antes del punto de no retorno** (decidido con Fer el 2026-08-02, a partir de su pregunta *"¿la tabla `users` no se crea vacía?"* — **no**: `pg_dump` copia schema **y** datos). El dump trae 4 usuarios, sus 4 `account` con los hashes de contraseña y 11 `session`, más todo su rastro por cascada. Lo grave no son las filas sueltas sino que **`frodriguez.este@gmail.com` es `ADMIN_EMAIL`**: si viaja, la cuenta admin de producción arranca con la contraseña de dev (y `pepe`/`juan`/`hugo` traen `12345678`, que está escrito en un archivo del repo). **Se limpia en Neon y no antes del dump** para que el Postgres de dev quede intacto con sus cuentas de prueba, y para que el paso siga siendo reversible: si sale mal, se borra el proyecto de Neon y se empieza de nuevo. **No se pierde `/admin`**: el gate es por email, así que Fer se registra de nuevo en prod con el mismo mail y queda admin con una contraseña nueva. ⚠️ **`session` y `account` NO tienen FK a `users`** —better-auth las creó sin foreign key— así que **no caen por cascada** y necesitan su propio `DELETE`. El SQL completo y la verificación por conteo están en el paso 5 de F0. **Origen:** el bloque F del QA integral #2 dejó la base *como estaba antes del QA*, que no es lo mismo que *lista para producción*; ese segundo criterio no tenía dueño y ahora lo tiene este paso. |
 
 ---
 
@@ -97,7 +98,57 @@ borrar el proyecto de Neon y empezar de nuevo sin perder nada.
 2. Crear el proyecto en Neon, región **`aws-sa-east-1`**. Guardar las **dos** connection strings (pooled y direct).
 3. Restaurar el dump completo a Neon por el endpoint **direct** (`--no-owner --no-acl`). El dump incluye `drizzle.__drizzle_migrations`, así que el estado de migraciones queda coherente y un `db:migrate` futuro sabe dónde está parado.
 4. **Verificar por conteo, no mirando la pantalla**: `places` · `place_tags where source='admin'` (≈3.967, el canario de `/consistency-check`) · `place_zones` · `zones` (46) · `app_settings` (14) · `occasion_chips`.
-5. `UPDATE` de `ai.chat_monthly_cap` a 500 **en Neon** (decisión 8).
+5. **Borrar el rastro de las cuentas de prueba, EN NEON** (decisión 20). Ver abajo — es el paso que faltaba.
+6. `UPDATE` de `ai.chat_monthly_cap` a 500 **en Neon** (decisión 8).
+
+### El paso 5, en detalle — por qué existe y qué borra
+
+**`pg_dump` copia schema *y* datos: `users` NO llega vacía.** El dump del 2026-08-02 trae **4
+usuarios** de prueba, sus **4 `account`** (hashes de contraseña) y **11 `session`**, más todo su
+rastro: 3 `subscriptions` de sandbox de MP —una `active` hasta el 2026-08-24—, el claim aprobado de
+Kansas, 6 `polls`, 15 conversaciones de chat. Dos razones por las que no puede viajar así:
+
+- **`frodriguez.este@gmail.com` es `ADMIN_EMAIL`**: esa fila haría que la cuenta admin de producción
+  arranque con la contraseña de dev. Y `pepe`/`juan`/`hugo` viajan con `12345678`, que además está
+  escrito en `docs/qa/DATOS_QA.local.md`.
+- Una **suscripción viva** en el dump la puede reactivar cualquier reconciliación lazy.
+
+**No se pierde el acceso a `/admin`:** el gate es por **email**, no por fila. Fer se registra en
+producción con el mismo `frodriguez.este@gmail.com` y queda admin, con una contraseña nueva.
+
+**Se hace en Neon y no antes del dump** (decidido con Fer, 2026-08-02): así el Postgres de dev
+queda intacto con sus cuentas de prueba para seguir laburando, y el paso sigue siendo reversible —
+si algo sale mal, se borra el proyecto de Neon y se empieza de nuevo.
+
+```sql
+-- ⚠️ Correr SOLO en Neon recién restaurado, ANTES del punto de no retorno.
+-- Por email explícito y no `delete from users` a secas: si esto se corriera por error
+-- más tarde, borra estas 4 cuentas y ninguna real.
+delete from users where email in
+  ('frodriguez.este@gmail.com','pepe@gmail.com','juan@gmail.com','hugo@gmail.com');
+
+-- ⚠️ `session` y `account` NO tienen FK a `users` — better-auth las creó sin foreign key,
+-- así que NO caen por cascada. Sin estos dos DELETE quedan 11 sesiones y 4 hashes de
+-- contraseña huérfanos en producción.
+delete from session where user_id not in (select id from users);
+delete from account where user_id not in (select id from users);
+
+-- No cascadean tampoco: cuelgan de `place_id`, no de `user_id`. Son el contenido y las
+-- fotos del dueño de prueba de Kansas (las fotos apuntan al R2 de dev).
+delete from place_owner_content;
+delete from place_photos;
+```
+
+**Lo que sí cae por cascada** con el primer `DELETE` (las 8 tablas con FK a `users`, todas
+`ON DELETE CASCADE`): `place_claims` · `place_lists` · `polls` (y con ellas `poll_options` y
+`poll_votes`) · `subscriptions` · `chat_conversations` · `chat_quota_grants` ·
+`chat_usage_monthly` · `premium_interest`. **El catálogo no depende de `users`** y queda intacto.
+
+**Verificar por conteo, igual que el paso 4 — todas en 0:** `users` · `session` · `account` ·
+`subscriptions` · `place_claims` · `place_lists` · `place_list_items` · `polls` · `poll_options` ·
+`poll_votes` · `chat_conversations` · `chat_messages` · `premium_interest` ·
+`place_owner_content` · `place_photos`. **Y re-verificar que el catálogo no se movió**: `places`
+y `place_tags where source='admin'` tienen que seguir en los números del paso 4.
 
 **El punto de no retorno es la primera escritura de un usuario real en Neon** — una cuenta, un
 favorito, un voto. Desde ese instante el dev deja de poder pisar prod, todo cambio de schema va
