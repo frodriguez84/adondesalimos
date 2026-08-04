@@ -3324,18 +3324,25 @@ la lista oficial de Chrome: HTTPS ✅ · `name`/`short_name` ✅ · ícono 192 �
 > con el wordmark tipografiado abajo — «¿A DÓNDE» en blanco, «SALIMOS?» en el degradado
 > `#FF2D75 → #FF8A00 → #FFD400` y «DESCUBRÍ TU PRÓXIMO PLAN».
 >
-> **El primer intento falló, y el error vale más que el arreglo.** Se agregó como un **quinto ícono
-> de 1024**, con el razonamiento de que "Chrome tiende a elegir el más grande para el splash".
-> **Falso.** Fer desinstaló, reinstaló y **el splash seguía sin texto**. La doc de Chrome lo dice
-> explícito: *«Chrome chooses the icon that most closely matches the device resolution»* — **el más
-> cercano a la resolución del dispositivo, no el más grande**. En un teléfono real ese es el de
-> **512**, así que el de 1024 nunca iba a entrar en juego.
-> **El arreglo:** el wordmark pasó a `icon-512.png`, que es el que el dispositivo efectivamente
-> elige. El de 1024 se deja para densidades muy altas. **`icon-192.png` y el `maskable` quedan
-> limpios a propósito**: el maskable es el ícono del launcher —lo que se ve siempre, no un segundo—
-> y el de 192 va a superficies chicas donde el texto no se leería.
-> **Falta la confirmación en el celular** (desinstalar + reinstalar). Si tampoco lo agarra, el
-> fallback es el splash actual, que funciona.
+> **Se intentó dos veces y NO se puede. El resultado es la decisión de no hacerlo.**
+>
+> | Intento | Hipótesis | Resultado en el celular de Fer |
+> |---|---|---|
+> | 1 | Un **ícono extra de 1024** con el wordmark: "Chrome elige el más grande para el splash" | ❌ **Sin texto.** La hipótesis era falsa: la doc dice *«the icon that most closely matches the device resolution»* — el más cercano a la **resolución del dispositivo**, no el más grande. El de 1024 nunca entró en juego |
+> | 2 | El wordmark en **`icon-512.png`** (`any`), que es el tamaño que un teléfono real pediría | ❌ **Sin texto**, tras desinstalar y reinstalar |
+>
+> **Por descarte, el splash usa el `maskable`** — que es **el mismo archivo que Android usa para el
+> ícono del launcher**. No hay forma de darle texto a uno sin dárselo al otro: es una sola imagen
+> para las dos cosas. Se preparó el maskable con wordmark y se verificó que **entra en la zona
+> segura** del 80 % (`.playwright-mcp/prueba-maskable-safezone.png`), así que era técnicamente
+> viable — el bloqueo no fue técnico.
+>
+> **Decisión de Fer: el splash queda sin texto.** El ícono de la pantalla de inicio se ve todos los
+> días; el splash dura menos de un segundo, y a tamaño de launcher (~150 px reales) «DESCUBRÍ TU
+> PRÓXIMO PLAN» no se lee, se ve como una mancha. **Se revirtió todo**: `icon-512.png` volvió a la
+> versión limpia (con el splash descartado, el wordmark ahí solo ensuciaba el diálogo de instalación
+> y la lista de apps) y `icon-splash-1024.png` se borró. **El manifest quedó con los 3 íconos
+> originales**, y con el porqué escrito arriba de `icons` para que no se vuelva a intentar.
 
 > **El service worker NO es requisito** — se verificó en la doc de Chrome antes de dar F4 por hecho,
 > porque si lo fuera el DoD sería imposible sin salir de scope (el SW está en la lista de v2 del

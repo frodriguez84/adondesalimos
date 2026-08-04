@@ -26,10 +26,22 @@ solo los nombres de convención de Next (`icon`, `favicon`, `apple-icon`), así 
 manifest referencia por URL fija van a `public/` — el spec decía *"no estrenes convención"* y la
 respuesta correcta era usar las dos carpetas, cada una para lo suyo.
 
+**El mismo día, el caso que costó dos intentos: el nombre en el splash.** Fer quería leer "¿A dónde
+salimos?" al abrir la app. Se afirmó que *"Android lo pinta desde `name`"* — **su captura demostró
+que no**. Después se afirmó que *"Chrome elige el ícono más grande para el splash"* y se agregó uno
+de 1024: **tampoco** (la doc dice *«the icon that most closely matches the device resolution»*).
+Recién en el tercer razonamiento apareció la respuesta real: **el splash usa el `maskable`, que es el
+mismo archivo del ícono del launcher**, así que darle texto al splash es dárselo al ícono que se ve
+todos los días. **Dos afirmaciones seguidas dichas con seguridad y las dos falsas**, cada una
+costando un ciclo de "desinstalá y reinstalá". Lo que las delató no fue razonar mejor: fue que había
+alguien probándolo en un celular de verdad.
+
 **Qué hacer distinto.**
 1. **Antes de dar por imposible (o por cumplido) un criterio que depende de una plataforma, chequear
-   la doc de esa plataforma.** Los tres casos de arriba se resolvieron con una lectura corta, y los
-   tres tenían una respuesta intuitiva que era la equivocada.
+   la doc de esa plataforma.** Los casos de arriba se resolvieron con una lectura corta, y todos
+   tenían una respuesta intuitiva que era la equivocada. **Y cuando la afirmación se va a traducir en
+   trabajo de Fer** (instalar, desinstalar, reinstalar), chequearla **antes** de pedirle la prueba,
+   no después de que falle.
 2. **Cuando el QA necesita una acción humana, pedirla al principio y con la instrucción exacta**
    (qué mirar, qué NO tocar). Un token de un solo uso se quema una sola vez.
 3. **Lo físico se verifica o se anota, nunca se infiere.** Android se instaló de verdad; iOS no se

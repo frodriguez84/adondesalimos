@@ -1271,16 +1271,15 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       sale **solo con el pin**, sin el nombre. Se había dicho que Android lo pinta desde `name`; su
       captura demuestra que **no**. **El manifest no tiene ningún campo de texto para el splash** —
       Chrome lo compone con `background_color` + un ícono— así que la única forma de que se lea es
-      que esté **dentro del PNG**. Se compuso el **mismo pin de siempre** con el wordmark
-      tipografiado abajo.
-      **El primer intento falló y eso es lo que hay que recordar:** se agregó como un quinto ícono de
-      **1024**, suponiendo que "Chrome elige el más grande para el splash". **No es así** — la doc
-      dice *«the icon that most closely matches the device resolution»*, o sea **el más cercano a la
-      resolución del dispositivo**. Fer reinstaló y el splash seguía sin texto. **El wordmark pasó
-      entonces a `icon-512.png`**, que es el que un teléfono real elige; el de 1024 queda para
-      densidades muy altas. **`icon-192.png` y el `maskable` siguen limpios a propósito**: el maskable
-      es el ícono del launcher (lo que se ve siempre) y el de 192 va a superficies chicas donde el
-      texto no se lee. Falta la confirmación en el celular.
+      que esté **dentro del PNG**. **Se intentó dos veces y no se puede — cerrado, no volver a
+      abrirlo.** (1) Un ícono extra de **1024**, suponiendo que "Chrome elige el más grande": falso,
+      la doc dice *el más cercano a la resolución del dispositivo*; sin texto. (2) El wordmark en
+      **`icon-512.png`**: reinstaló y **tampoco**. Por descarte el splash usa el **`maskable`**, que
+      es **el mismo archivo del ícono del launcher** — no hay forma de darle texto a uno sin
+      dárselo al otro. Era viable (el maskable con wordmark entra en la zona segura, se verificó),
+      pero **Fer decidió que no**: el ícono de la pantalla de inicio se ve todos los días y el splash
+      dura menos de un segundo. **Todo revertido**: `icon-512.png` volvió a la versión limpia y el de
+      1024 se borró; el manifest quedó con sus 3 íconos y con el porqué escrito arriba de `icons`.
       **Tres cosas que no eran obvias y por eso se registran:**
       **(a)** El **service worker NO es requisito** para instalar. Se chequeó contra la doc de Chrome
       **antes** de dar el DoD por cumplido, porque si lo fuera el criterio era imposible sin meter un

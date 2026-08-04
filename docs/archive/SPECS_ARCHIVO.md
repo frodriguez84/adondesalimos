@@ -760,13 +760,15 @@ vale más que cualquier pulido de pantalla.
   **maskable** · `app/apple-icon.png` 180 · `themeColor` en el `viewport`. Los 4 PNG salen de
   `logo_2.png` recortado al pin con `sharp`; **el original de 1,4 MB no se sirve nunca**. Instalada
   de verdad en el Android de Fer: abre con el splash que dibuja el SO.
-- **Post-cierre, mismo día — el wordmark en el splash.** El splash salía solo con el pin, y **el
-  manifest no tiene campo de texto** (Chrome lo compone con `background_color` + un ícono; el `name`
-  no se pinta). Único camino: meterlo en el PNG. **Cuál ícono agarra el splash es el dato que
-  importa**: el *más cercano a la resolución del dispositivo*, **no el más grande** — se probó con un
-  ícono de 1024 y el celular lo ignoró. El wordmark vive en **`icon-512.png`**, que es el que un
-  teléfono real elige; `icon-splash-1024.png` queda para densidades muy altas. **`icon-192.png` y el
-  `maskable` quedan limpios**: el maskable es el ícono del launcher, que se ve siempre.
+- **Post-cierre, mismo día — el nombre de la app en el splash: NO SE PUEDE, y está cerrado.** El
+  splash sale solo con el pin. **El manifest no tiene campo de texto** (Chrome lo compone con
+  `background_color` + un ícono; el `name` no se pinta), así que la única vía era meterlo en el PNG.
+  Se probó en un ícono de **1024** (Chrome lo ignora: elige *el más cercano a la resolución del
+  dispositivo*, no el más grande) y en el de **512 `any`** (tampoco). Por descarte el splash usa el
+  **`maskable`**, que es **el mismo archivo del ícono del launcher** — no se le puede dar texto a uno
+  sin dárselo al otro. **Fer decidió dejarlo sin texto** (el launcher se ve siempre; el splash, un
+  segundo) y **se revirtió todo**: el manifest quedó con sus 3 íconos originales, con el porqué
+  escrito arriba de `icons` para que no se reintente.
 - **El alta nueva de usuario end-to-end**, que F1 y F3 no habían podido cubrir (`requireEmailVerification`
   hace imposible el login sin un inbox real). Fer puso su mail y verificó a mano.
 
