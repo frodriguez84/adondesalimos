@@ -15,6 +15,12 @@ export const metadata: Metadata = {
  * Fuente: https://docs.overturemaps.org/attribution/
  */
 
+/**
+ * Canal de contacto (DEPLOY, decisión 22): reenvío por Cloudflare Email Routing
+ * a la casilla de Fer. Es el único mail que recibe — `no-reply@` solo envía.
+ */
+const CONTACTO = 'hola@adondesalimos.com.ar'
+
 const CDLA_PERMISSIVE = [
   'Meta',
   'Microsoft',
@@ -63,6 +69,50 @@ export default function LegalesPage() {
           enriquece en vivo con datos de Google. Acá están las fuentes y sus licencias.
         </p>
       </header>
+
+      {/* Aviso de beta (DEPLOY, decisión 21). Va al tope: es lo que viene a leer
+          quien llegó desde el rótulo del footer o desde un resultado flaco. Es
+          expectativa, no escudo legal — nada de "no nos hacemos responsables". */}
+      <Seccion titulo="Estamos en beta">
+        <p>La app recién arranca y se nota. Te contamos qué esperar, así no te comés un chasco.</p>
+        <p>
+          <strong className="text-foreground">El catálogo sale de datos públicos.</strong> Los
+          lugares vienen de Overture Maps, un mapa abierto que arman entre Meta, Microsoft, Amazon
+          y otros. Es muchísima información y está buena, pero no es perfecta: puede haber lugares
+          que ya cerraron, direcciones viejas o cosas que no figuran.
+        </p>
+        <p>
+          <strong className="text-foreground">Las zonas las armamos nosotros.</strong> No son los
+          barrios oficiales: son 46 zonas pensadas para salir, así que a veces juntamos barrios que
+          se caminan juntos — Almagro y Boedo, Flores y Floresta, Once y Abasto. Y te mostramos
+          lugares hasta 400 metros del borde, para que no se te escape el bar de la otra cuadra por
+          culpa de una avenida.
+        </p>
+        <p>
+          <strong className="text-foreground">
+            Los filtros finos todavía no cubren todo el catálogo.
+          </strong>{' '}
+          Que un lugar sea de sushi, tenga mesas afuera o sirva desayuno no viene en ningún dato
+          público: eso lo etiquetamos a mano, y por ahora llegamos a una parte. Si buscás algo
+          específico y ves poco, no es que no exista — es que todavía no lo etiquetamos. Estamos en
+          eso, y cuanto más se use la app, mejor sabemos por dónde seguir.
+        </p>
+        <p>
+          <strong className="text-foreground">¿Viste algo mal? Escribinos.</strong> Un lugar que ya
+          cerró, una zona que no cierra, algo que buscaste y no apareció: contanos a{' '}
+          <a
+            href={`mailto:${CONTACTO}`}
+            className="font-medium text-primary underline underline-offset-4"
+          >
+            {CONTACTO}
+          </a>
+          . En esta etapa cada mensaje nos sirve muchísimo.
+        </p>
+        <p>
+          <strong className="text-foreground">¿Sos el dueño de un lugar?</strong> Reclamalo y
+          corregí vos lo que esté mal: horarios, fotos, descripción. Es gratis.
+        </p>
+      </Seccion>
 
       <Seccion titulo="Overture Maps — datos del catálogo">
         <p>
@@ -198,7 +248,14 @@ export default function LegalesPage() {
       <Seccion titulo="Correcciones">
         <p>
           Los datos abiertos pueden estar desactualizados o tener errores. Si encontrás algo mal
-          en un lugar, escribinos y lo corregimos.
+          en un lugar, escribinos a{' '}
+          <a
+            href={`mailto:${CONTACTO}`}
+            className="text-primary underline underline-offset-4"
+          >
+            {CONTACTO}
+          </a>{' '}
+          y lo corregimos.
         </p>
       </Seccion>
     </main>

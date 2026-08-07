@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { after } from 'next/server'
-import { BookOpen, Clock, Globe, MapPin, Navigation, Phone, Store } from 'lucide-react'
+import { BookOpen, Clock, Globe, Info, MapPin, Navigation, Phone, Store } from 'lucide-react'
 
 import { auth } from '@/lib/auth'
 import { estadoDeFavoritos } from '@/lib/favoritos/query'
@@ -290,6 +290,12 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
             ¿Sos el dueño? Reclamá esta ficha
           </Link>
         )}
+        {/* Aviso de beta (DEPLOY, decisión 21): la ficha es la otra superficie con
+            footer, y muchas visitas van a entrar por un link compartido, no por la home. */}
+        <Link href="/legales" className="inline-flex items-center gap-1 underline underline-offset-4">
+          <Info className="size-3" />
+          Estamos en beta
+        </Link>
         <Link href="/legales" className="inline-flex items-center gap-1 underline underline-offset-4">
           <Clock className="size-3" />
           Fuentes y atribución

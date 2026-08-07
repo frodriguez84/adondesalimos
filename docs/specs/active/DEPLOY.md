@@ -360,9 +360,13 @@ etiquetado — estamos en beta."* (link a `/legales`).
 
 1. ~~No hay canal de contacto.~~ **Resuelto: decisión 22** — `hola@adondesalimos.com.ar` por
    Cloudflare Email Routing, en la misma visita al panel de DNS. El copy ya lo invita.
-2. **Umbral de "flaco"**: propuesta menos de 5 resultados. Sin medir.
-3. **En qué páginas va el renglón**: propuesta, solo cuando no hay página siguiente — si todavía
-   queda scroll infinito por delante, no hay frustración que atender.
+2. ~~**Umbral de "flaco"**.~~ **Cerrado al implementar (2026-08-07): menos de 5 resultados**, la
+   propuesta tal cual. Vive en `RESULTADOS_FLACOS` (`components/search/results-list.tsx`). Sigue
+   sin medir y es puerta de ida y vuelta: se mueve cuando haya uso real.
+3. ~~**En qué páginas va el renglón**.~~ **Cerrado al implementar (2026-08-07): solo con la lista
+   agotada**, la propuesta tal cual. Con `< 5` resultados no hay página siguiente igual, así que
+   las dos condiciones coinciden en la práctica; se escriben las dos porque `agotado` también se
+   prende si se cae la red, y ahí el renglón tampoco corresponde.
 
 ---
 
@@ -380,7 +384,7 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 
 1. `app/robots.ts` — `noindex` temporal (decisión 9).
 2. `SuscripcionPanel` + tabla `premium_interest` + endpoint + el conteo en `/admin` — todo el detalle en § El premium apagado (decisión 6). ⚠️ Es migración: `npm run backup:db` antes.
-3. `app/api/chat/route.ts` — declarar `export const maxDuration`: el chat es SSE con rondas de tool y puede tardar decenas de segundos; el default de la plataforma lo cortaría a mitad de respuesta. Verificar el default y el máximo vigentes de Hobby al deployar.
+3. `app/api/chat/route.ts` — declarar `export const maxDuration`: el chat es SSE con rondas de tool y puede tardar decenas de segundos. ✅ **Verificado el 2026-08-07 y la premisa cambió**: con **fluid compute** (prendido por defecto en proyectos nuevos) Hobby da **300 s de default y de máximo**, así que el default de hoy **no cortaría nada** — el riesgo que motivaba el cambio era el default viejo de 10 s. Se declara igual, **en 60**: es válido en los dos regímenes (sin fluid, el máximo de Hobby es 60), queda muy por encima de cualquier turno real y no deja una función colgada corriendo cinco minutos. La lección es no depender de un default que ya cambió una vez.
 4. `.env.example` — sumar `TRUSTED_IP_HEADER` y `NEXT_PUBLIC_APP_URL`, que hoy se usan en código y no están documentados.
 5. **«Estamos en beta»** — el aviso de cobertura del catálogo (decisión 21). Ver abajo.
 

@@ -16,6 +16,21 @@ import { streamChatTurn } from '@/lib/ai/chat'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Techo de duración de la función (DEPLOY F1). El turno es SSE con rondas de
+ * tool: streamear la respuesta más una búsqueda contra Neon —con cold start del
+ * plan Free— no entra en un default chico.
+ *
+ * Verificado en la doc de Vercel el 2026-08-07: con **fluid compute** (prendido
+ * por defecto en proyectos nuevos) Hobby da 300 s de default **y** de máximo, así
+ * que el default de hoy no cortaría nada. Se declara igual, y en 60: es un valor
+ * válido en los dos regímenes —también si el proyecto quedara sin fluid, donde el
+ * máximo de Hobby es 60— y queda muy por encima de cualquier turno real, sin
+ * dejar que una función colgada corra cinco minutos. No depender del default es
+ * justamente la lección: ese default ya cambió una vez.
+ */
+export const maxDuration = 60
+
 const bodySchema = z.object({
   message: z.string().min(1).max(1000),
   /** Si no viene, se crea una conversación nueva. */

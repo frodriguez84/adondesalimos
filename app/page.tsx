@@ -121,11 +121,19 @@ export default async function Home({
         autenticado={Boolean(session?.user)}
       />
 
-      <footer className="mt-auto pt-4 text-xs text-muted-foreground">
-        Datos de{' '}
-        <Link href="/legales" className="underline underline-offset-4">
-          Overture Maps y Google
+      {/* El rótulo del aviso de beta (DEPLOY, decisión 21) va acá, y la atribución
+          se queda: linkear las fuentes es condición de la licencia, no decoración. */}
+      <footer className="mt-auto flex flex-wrap items-center gap-x-2 pt-4 text-xs text-muted-foreground">
+        <Link href="/legales" className="font-medium underline underline-offset-4">
+          Estamos en beta
         </Link>
+        <span aria-hidden>·</span>
+        <span>
+          Datos de{' '}
+          <Link href="/legales" className="underline underline-offset-4">
+            Overture Maps y Google
+          </Link>
+        </span>
       </footer>
     </main>
   )

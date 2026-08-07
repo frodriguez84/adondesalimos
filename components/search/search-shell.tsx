@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, List, Map as MapIcon, MapPin, SlidersHorizontal, X } from 'lucide-react'
 
@@ -293,6 +294,18 @@ export function SearchShell({
                   ? 'Sacá alguno de los chips de arriba o ampliá la zona.'
                   : 'Probá ampliando la zona.'
               }
+              // Aviso de beta (DEPLOY, decisión 21): el momento en que alguien
+              // piensa "esto no busca bien" es mirando una pantalla vacía, no un
+              // banner en la home.
+              nota={
+                <>
+                  Puede que exista y todavía no lo tengamos etiquetado —{' '}
+                  <Link href="/legales" className="underline underline-offset-4">
+                    estamos en beta
+                  </Link>
+                  .
+                </>
+              }
             />
           }
         />
@@ -439,11 +452,21 @@ function ChipsActivos({
   )
 }
 
-function Vacio({ titulo, detalle }: { titulo: string; detalle: string }) {
+function Vacio({
+  titulo,
+  detalle,
+  nota,
+}: {
+  titulo: string
+  detalle: string
+  /** Renglón extra, más chico: hoy solo el aviso de beta (DEPLOY, decisión 21). */
+  nota?: React.ReactNode
+}) {
   return (
     <div className="rounded-xl border border-dashed border-border p-6 text-center">
       <p className="text-sm font-medium text-foreground">{titulo}</p>
       <p className="mt-1 text-sm text-muted-foreground">{detalle}</p>
+      {nota && <p className="mt-3 text-xs text-muted-foreground">{nota}</p>}
     </div>
   )
 }

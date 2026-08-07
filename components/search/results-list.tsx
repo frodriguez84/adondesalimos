@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 
 import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { PlaceCard } from '@/components/shared/place-card'
@@ -21,6 +22,13 @@ import type { SearchedPlace } from '@/lib/search/query'
  *    no del que compartió el link), así que el server **no puede** buscar. Acá
  *    la primera página también se pide por API, ya con lat/lng.
  */
+
+/**
+ * Debajo de esto la búsqueda se siente flaca y aparece el renglón de cobertura
+ * (DEPLOY, decisión 21). El número no está medido —es la propuesta del spec— y
+ * es puerta de ida y vuelta: se mueve cuando haya uso real.
+ */
+const RESULTADOS_FLACOS = 5
 
 type Props = {
   initialPlaces: SearchedPlace[]
@@ -158,6 +166,7 @@ export function ResultsList({
   // duplicado que el spec tolera como "raro e inocuo".
   const idsDestacados = new Set(destacados.map((d) => d.id))
   const organicos = places.filter((p) => !idsDestacados.has(p.id))
+  const flaco = organicos.length + destacados.length < RESULTADOS_FLACOS
 
   if (organicos.length === 0 && destacados.length === 0) {
     return cargando ? <Esqueleto /> : <>{vacio}</>
@@ -208,9 +217,21 @@ export function ResultsList({
 
       {cargando && <p className="py-3 text-center text-sm text-muted-foreground">Buscando…</p>}
       {agotado && (
-        <p className="py-3 text-center text-sm text-muted-foreground">
-          Eso es todo lo que tenemos por acá.
-        </p>
+        <div className="py-3 text-center text-sm text-muted-foreground">
+          <p>Eso es todo lo que tenemos por acá.</p>
+          {/* Aviso de beta (DEPLOY, decisión 21). Solo con la lista agotada: si
+              todavía queda scroll por delante no hay frustración que atender, y
+              el renglón sería ruido. */}
+          {flaco && (
+            <p className="mt-1 text-xs">
+              Puede haber más: los filtros finos todavía no cubren todo el catálogo.{' '}
+              <Link href="/legales" className="underline underline-offset-4">
+                Estamos en beta
+              </Link>
+              .
+            </p>
+          )}
+        </div>
       )}
     </section>
   )
