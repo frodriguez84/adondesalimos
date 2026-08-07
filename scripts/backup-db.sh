@@ -38,7 +38,12 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
 fi
 
 echo "Dumping ${DB} desde ${CONTAINER} → ${OUT}"
-docker exec "$CONTAINER" pg_dump -U "$DB_USER" -d "$DB" | gzip > "$OUT"
+# --no-owner --no-acl: sin esto el dump lleva 62 `OWNER TO adondesalimos`, un rol que solo
+# existe en este contenedor. Restaurarlo en cualquier otro Postgres (Neon, otra máquina)
+# tira un error por cada uno y esos 62 enmascaran los errores de verdad — pasó al ejecutar
+# DEPLOY F0 el 2026-08-03. El restore local no cambia: los objetos quedan del rol que
+# conecta, que acá es `adondesalimos` igual.
+docker exec "$CONTAINER" pg_dump -U "$DB_USER" -d "$DB" --no-owner --no-acl | gzip > "$OUT"
 echo "OK: $(du -h "$OUT" | cut -f1) → ${OUT}"
 
 # Retención: conservar solo los últimos $RETENER dumps.
