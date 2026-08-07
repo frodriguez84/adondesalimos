@@ -160,7 +160,22 @@ son trabajo acotado con criterio de "listo" objetivo.
         prueba borradas (**24 tablas en 0**) y `ai.chat_monthly_cap = 500`. **El Postgres de dev
         quedó intacto**, así que F0 sigue siendo deshacible borrando el proyecto de Neon.
         QA: `docs/qa/AnalisisQA.md` § *DEPLOY F0* (`DEPLOY-F0-01..12`). **Lo que sigue es F1**:
-        `noindex` + `maxDuration` + `.env.example` + proyecto en Vercel + DNS.
+        `noindex` + `maxDuration` + `.env.example` + **el aviso de beta** + proyecto en Vercel + DNS.
+      - [ ] **Aviso «Estamos en beta» — 5º cambio de F1** (pedido de Fer, 2026-08-03; decisión 21
+        del spec, con copy y números). Nace de *"por si los usuarios dicen che, esto no busca bien"*.
+        **⚠️ Encuadre corregido en la conversación: no nos cubre legalmente de nada** (no se vende
+        ni se cobra, y los datos ya están atribuidos), así que escrito como letra chica defensiva es
+        **peor** que no ponerlo. Lo que sí hace es evitar que el usuario concluya que la app está
+        rota cuando el motor anda bien y lo que falta es **cobertura**. Los números que lo sustentan,
+        medidos: sobre 18.993 publicados, `tipo` **100%** y `cocina` **38%** (los deduce Overture de
+        la categoría — 11.837 son "restaurante" a secas), pero `momento` **6%** y `ambiente` **5%**,
+        porque **no existen en ningún dato público** y salen enteros de la curaduría, que llegó a
+        1.202 lugares. En concreto: `aire-libre` = **157** lugares en todo AMBA, `japonesa-sushi` =
+        451, `desayuno` = 272. **El que filtra y ve poco tiene razón.** Tres superficies: `/legales`,
+        footer y —la que importa— **el renglón en resultados vacíos/flacos**, porque nadie lee un
+        banner de home y la frustración aparece mirando 3 resultados. QA `DEPLOY-18/19/20`.
+        **Y se conecta con el #3 de esta cola** (curaduría de cobertura): el aviso describe un estado
+        que este mismo lanzamiento viene a destrabar, así que puede decirlo sin sonar a excusa.
       - [x] **Prerrequisito de F0 — QA integral #2 — ✅ EJECUTADO ENTERO 2026-08-02.**
         **APROBADO CON HALLAZGOS: 42 casos, 39 ✅ + 3 documentados, cero bloqueantes.** El bloque F
         cerró **en verde con diff = 0** en las 13 tablas, el canario de curaduría volvió exacto a

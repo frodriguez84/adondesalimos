@@ -82,6 +82,7 @@ Tamaño de la base, medido el 2026-07-31: 48 MB totales — `places` 21 MB · `p
 | 17 | **El DNS de Vercel en Cloudflare va DNS-only (nube gris), no proxeado.** Proxear Cloudflare por delante de Vercel es doble CDN y es la causa clásica de loops de redirección y de headers de IP inconsistentes — que además romperían la decisión 13. |
 | 18 | **El cobro se prende (y con él Vercel Pro) cuando el interés medido lo justifique**, no por calendario. Disparador propuesto: **≥10 clicks de usuarios distintos** en el botón de la decisión 6, **o** el primer dueño que pida el plan B2B (ARS 15.000 ⇒ 3 pagan el hosting, contra 7 del B2C). Es puerta de ida y vuelta: el número se ajusta cuando haya datos. Prenderlo es setear 3 env vars + upgrade de plan, **sin tocar una línea de código** — pero **sí requiere redeploy**: `NEXT_PUBLIC_MP_PUBLIC_KEY` se inlinea en el build, así que setearla en el panel de Vercel no alcanza hasta que se reconstruya. |
 | 19 | **El mail transaccional ya está resuelto — no es un bloqueante de lanzamiento.** El dominio está verificado en Resend y probado: DKIM en `resend._domainkey.adondesalimos.com.ar`, SPF y MX en `send.adondesalimos.com.ar` (→ `feedback-smtp.sa-east-1.amazonses.com`), y `RESEND_FROM_EMAIL = no-reply@adondesalimos.com.ar` ya en el `.env` de dev. En F1 la var se copia a Vercel y listo: no hay trámite pendiente. Bonus: Resend quedó en **sa-east-1**, la misma región que Neon y Vercel (decisión 4). |
+| 21 | **Sale con un aviso «Estamos en beta», y es expectativa, no escudo legal.** Pedido de Fer el 2026-08-03 ("por si los usuarios dicen *che, esto no busca bien*"). ⚠️ **No nos cubre de nada** —no se vende nada, no se cobra, y los datos son públicos y ya están atribuidos en `/legales`— así que escribirlo como letra chica defensiva ("no nos hacemos responsables") es peor que no ponerlo: promete condiciones que no existen y sugiere que algo va a fallar. Lo que sí hace, y vale, es **evitar que el usuario concluya que la app está rota** cuando en realidad la búsqueda anda bien y lo que falta es cobertura. **Rótulo elegido: «Estamos en beta»** (dice lo importante primero y en voz de producto). **Tres superficies**: (a) sección al tope de `/legales`, que ya existe y ya está linkeada desde la home y la ficha — sin ruta nueva ni superficie SEO nueva; (b) el link del footer con ese rótulo; (c) **un renglón en el estado de resultados flacos o vacíos, que es la superficie que importa**: nadie lee un banner de home, y el momento en que alguien piensa "esto no busca bien" es mirando 3 resultados. El copy completo y las 3 decisiones abiertas (canal de contacto, umbral de "flaco", en qué páginas) están abajo en § *El aviso de beta*. |
 | 20 | **Las cuentas de prueba se borran EN NEON, después del restore y antes del punto de no retorno** (decidido con Fer el 2026-08-02, a partir de su pregunta *"¿la tabla `users` no se crea vacía?"* — **no**: `pg_dump` copia schema **y** datos). El dump trae 4 usuarios, sus 4 `account` con los hashes de contraseña y 11 `session`, más todo su rastro por cascada. Lo grave no son las filas sueltas sino que **`frodriguez.este@gmail.com` es `ADMIN_EMAIL`**: si viaja, la cuenta admin de producción arranca con la contraseña de dev (y `pepe`/`juan`/`hugo` traen `12345678`, que está escrito en un archivo del repo). **Se limpia en Neon y no antes del dump** para que el Postgres de dev quede intacto con sus cuentas de prueba, y para que el paso siga siendo reversible: si sale mal, se borra el proyecto de Neon y se empieza de nuevo. **No se pierde `/admin`**: el gate es por email, así que Fer se registra de nuevo en prod con el mismo mail y queda admin con una contraseña nueva. ⚠️ **`session` y `account` NO tienen FK a `users`** —y no por descuido de better-auth: **`users.id` es `uuid` y sus `user_id` son `text`**, así que la FK era imposible— con lo cual **no caen por cascada** y necesitan su propio `DELETE`, **con `::text`** o falla (verificado al ejecutar F0). El SQL completo y la verificación por conteo están en el paso 5 de F0. **Origen:** el bloque F del QA integral #2 dejó la base *como estaba antes del QA*, que no es lo mismo que *lista para producción*; ese segundo criterio no tenía dueño y ahora lo tiene este paso. |
 
 ---
@@ -274,6 +275,93 @@ En **`/admin` → tab Suscripciones**, que hoy está vacía justamente porque no
 donde ya vas a mirar "quién paga". Muestra **el conteo y la lista de mails**. La lista no es
 decoración — es a quién le escribís el día que abrís; sin ella el contador es un número sin acción.
 
+## El aviso de beta — por qué, con qué números y dónde
+
+Decidido con Fer el 2026-08-03 (decisión 21). **El encuadre es expectativa, no escudo**: ver la
+decisión. Lo que sigue es el sustento y el copy.
+
+### Los números que el aviso tiene que decir bien
+
+Medidos el 2026-08-03 sobre los **18.993 publicados** (de 26.057; 7.064 ocultos por `confidence`
+bajo el umbral). La clave es que **las facetas no vienen todas del mismo lado**:
+
+| Faceta | De Overture (automático) | De la curaduría | Cobertura |
+|---|---|---|---|
+| `tipo` (bar, resto, café) | 19.085 | 0 | **100%** |
+| `cocina` (pizza, sushi) | 7.155 | 0 | **37,7%** |
+| `actividad` (música en vivo) | 2.390 | 373 | 13,9% |
+| `momento` (cena, desayuno) | 111 | **2.296** | 6,1% |
+| `ambiente` (aire libre, wifi) | 164 | **1.297** | 5,0% |
+| `precio` | 0 | 1 | — *(no se ofrece en la UI, y por eso no hay problema)* |
+
+**`tipo` y `cocina` los deduce Overture de su categoría**, gratis. Pero **11.837 publicados son
+"restaurante" a secas** porque Overture nunca dijo de qué: por eso `cocina` da 38%. **`momento` y
+`ambiente` no existen en ningún dato público** —que un lugar sirva desayuno o tenga mesas afuera
+solo lo sabe alguien que lo mire— y son casi enteramente producto de la corrida de curaduría de
+~US$17, que llegó a **1.202 lugares**. De ahí el 5-6%.
+
+En concreto: `japonesa-sushi` = **451** lugares en todo AMBA · `aire-libre` = **157** · `desayuno`
+= **272**. El usuario que filtra por "al aire libre" y ve poco **tiene razón en que falta**. No es
+un bug del motor —devuelve bien lo que está etiquetado— es **cobertura**.
+
+**Y es temporal, lo que permite decirlo sin sonar a excusa**: el #3 de la cola post-v2 es
+literalmente *curaduría de cobertura*, y está gateado esperando **datos de uso reales** para no
+etiquetar 18.993 lugares a ciegas. Este lanzamiento es lo que lo destraba. El copy puede decir
+"cuanto más se use, mejor sabemos por dónde seguir" y ser cierto.
+
+### Las otras dos cosas que el aviso explica
+
+- **Las zonas son propias, no los barrios oficiales.** 46 polígonos pensados para salir, varios
+  agrupando barrios que se caminan juntos: **Almagro y Boedo**, Flores y Floresta, Once y Abasto,
+  Villa Urquiza y Coghlan. Es una decisión de producto, no una limitación — conviene contarla con
+  orgullo.
+- **El buffer de 400 m** (ZONAS decisión 5): un lugar aparece en una zona vecina si está a menos de
+  400 m del borde. Ya generó un "bug" reportado que **no era un bug** (ver
+  `docs/qa/AnalisisQA.md`). Explicado, deja de ser un reporte.
+- **Los cerrados no se filtran**: Overture entrega `operating_status` NULL en todo AMBA (hallazgo
+  CATALOGO H-2), así que puede haber lugares que ya no existen.
+
+### Copy propuesto
+
+**Sección al tope de `/legales`, titulada «Estamos en beta»:**
+
+> La app recién arranca y se nota. Te contamos qué esperar, así no te comés un chasco.
+>
+> **El catálogo sale de datos públicos.** Los lugares vienen de Overture Maps, un mapa abierto que
+> arman entre Meta, Microsoft, Amazon y otros. Es muchísima información y está buena, pero no es
+> perfecta: puede haber lugares que ya cerraron, direcciones viejas o cosas que no figuran.
+>
+> **Las zonas las armamos nosotros.** No son los barrios oficiales: son 46 zonas pensadas para
+> salir, así que a veces juntamos barrios que se caminan juntos — Almagro y Boedo, Flores y
+> Floresta, Once y Abasto. Y te mostramos lugares hasta 400 metros del borde, para que no se te
+> escape el bar de la otra cuadra por culpa de una avenida.
+>
+> **Los filtros finos todavía no cubren todo el catálogo.** Que un lugar sea de sushi, tenga mesas
+> afuera o sirva desayuno no viene en ningún dato público: eso lo etiquetamos a mano, y por ahora
+> llegamos a una parte. Si buscás algo específico y ves poco, no es que no exista — es que todavía
+> no lo etiquetamos. Estamos en eso, y cuanto más se use la app, mejor sabemos por dónde seguir.
+>
+> **¿Sos el dueño de un lugar?** Reclamalo y corregí vos lo que esté mal: horarios, fotos,
+> descripción. Es gratis.
+
+**Footer:** el rótulo del link pasa a `Estamos en beta`.
+
+**Resultados vacíos:** *"No encontramos nada con eso. Puede que exista y todavía no lo tengamos
+etiquetado — estamos en beta."* (link a `/legales`).
+
+**Resultados flacos:** *"Puede haber más: los filtros finos todavía no cubren todo el catálogo."*
+
+### Tres decisiones abiertas al implementar
+
+1. **No hay canal de contacto.** `RESEND_FROM_EMAIL` es `no-reply@`, así que "avisanos" hoy no
+   tiene destino. El copy de arriba lo resuelve **reusando el flujo de reclamo del dueño** en vez
+   de prometer un inbox que nadie mira. Si se quiere un mail real, es una decisión aparte.
+2. **Umbral de "flaco"**: propuesta menos de 5 resultados. Sin medir.
+3. **En qué páginas va el renglón**: propuesta, solo cuando no hay página siguiente — si todavía
+   queda scroll infinito por delante, no hay frustración que atender.
+
+---
+
 ## Fases
 
 | Fase | Qué | Código |
@@ -290,6 +378,7 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 2. `SuscripcionPanel` + tabla `premium_interest` + endpoint + el conteo en `/admin` — todo el detalle en § El premium apagado (decisión 6). ⚠️ Es migración: `npm run backup:db` antes.
 3. `app/api/chat/route.ts` — declarar `export const maxDuration`: el chat es SSE con rondas de tool y puede tardar decenas de segundos; el default de la plataforma lo cortaría a mitad de respuesta. Verificar el default y el máximo vigentes de Hobby al deployar.
 4. `.env.example` — sumar `TRUSTED_IP_HEADER` y `NEXT_PUBLIC_APP_URL`, que hoy se usan en código y no están documentados.
+5. **«Estamos en beta»** — el aviso de cobertura del catálogo (decisión 21). Ver abajo.
 
 ---
 
@@ -309,6 +398,7 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 - [ ] `/admin` → Suscripciones muestra el conteo de interesados y sus mails.
 - [ ] Ninguna variable server-only aparece en el bundle del browser (grep sobre `.next/static`).
 - [ ] `robots.txt` sirve el `noindex` en el deploy inicial, y deja de servirlo después del QA.
+- [ ] El aviso **«Estamos en beta»** está en las 3 superficies (decisión 21): sección de `/legales`, rótulo del footer y renglón en resultados vacíos/flacos. Y **no dice "no nos hacemos responsables"** ni nada con forma de letra chica legal.
 - [ ] Ningún secreto quedó commiteado: `.env` sigue gitignoreado y las vars viven solo en Vercel.
 
 ## QA manual (IDs propuestos)
@@ -332,6 +422,9 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 | DEPLOY-15 | Tab Suscripción en `/mi-negocio/[placeId]` (B2B) | Mismo mensaje de beta, con el pitch del plan del lugar |
 | DEPLOY-16 | Doble click en "Avisame cuando abra" | Una sola fila; la segunda vez ya muestra el estado confirmado |
 | DEPLOY-17 | `/admin` → Suscripciones | Conteo y mails de los interesados, coincide con la base |
+| DEPLOY-18 | Aviso de beta en `/legales` y en el footer | La sección está al tope, el rótulo dice «Estamos en beta» y el link llega |
+| DEPLOY-19 | Búsqueda que no devuelve nada | Aparece el renglón de beta con link, y no un vacío mudo |
+| DEPLOY-20 | Búsqueda con pocos resultados y sin página siguiente | Aparece el renglón de cobertura; con scroll pendiente, **no** aparece |
 
 ---
 
