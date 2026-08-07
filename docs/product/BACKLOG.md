@@ -176,6 +176,15 @@ son trabajo acotado con criterio de "listo" objetivo.
         banner de home y la frustración aparece mirando 3 resultados. QA `DEPLOY-18/19/20`.
         **Y se conecta con el #3 de esta cola** (curaduría de cobertura): el aviso describe un estado
         que este mismo lanzamiento viene a destrabar, así que puede decirlo sin sonar a excusa.
+      - [ ] **Canal de contacto: `hola@adondesalimos.com.ar` por Cloudflare Email Routing** (decisión
+        22, 2026-08-03). Salió de escribir el aviso: el copy invitaba a "avisanos" y **no había
+        dónde** — Resend solo envía, y quien conteste `no-reply@` escribe al vacío. Gratis, cero
+        código, y **se hace en la misma visita al panel de DNS que Vercel**: ese es el argumento, no
+        la feature. El apex no tiene MX (los de Resend cuelgan de `send.`) ⇒ sin conflicto, pero
+        ⚠️ **no tocar `send.*` ni `resend._domainkey.*`** al agregarlos. Es solo reenvío: llega al
+        Gmail de Fer pero se responde desde su dirección. **Se descartó el formulario in-app**: sin
+        usuarios es infraestructura para cero mensajes, y cuando el volumen moleste se va a saber
+        además qué tipo de mensajes llegan, que es lo que define cómo se diseña. QA `DEPLOY-21`.
       - [x] **Prerrequisito de F0 — QA integral #2 — ✅ EJECUTADO ENTERO 2026-08-02.**
         **APROBADO CON HALLAZGOS: 42 casos, 39 ✅ + 3 documentados, cero bloqueantes.** El bloque F
         cerró **en verde con diff = 0** en las 13 tablas, el canario de curaduría volvió exacto a
