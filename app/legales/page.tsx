@@ -19,7 +19,7 @@ export const metadata: Metadata = {
  * Canal de contacto (DEPLOY, decisión 22): reenvío por Cloudflare Email Routing
  * a la casilla de Fer. Es el único mail que recibe — `no-reply@` solo envía.
  */
-const CONTACTO = 'hola@adondesalimos.com.ar'
+const CONTACTO = 'contacto@adondesalimos.com.ar'
 
 const CDLA_PERMISSIVE = [
   'Meta',

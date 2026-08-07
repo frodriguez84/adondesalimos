@@ -176,7 +176,7 @@ son trabajo acotado con criterio de "listo" objetivo.
         banner de home y la frustración aparece mirando 3 resultados. QA `DEPLOY-18/19/20`.
         **Y se conecta con el #3 de esta cola** (curaduría de cobertura): el aviso describe un estado
         que este mismo lanzamiento viene a destrabar, así que puede decirlo sin sonar a excusa.
-      - [ ] **Canal de contacto: `hola@adondesalimos.com.ar` por Cloudflare Email Routing** (decisión
+      - [ ] **Canal de contacto: `contacto@adondesalimos.com.ar` por Cloudflare Email Routing** (decisión
         22, 2026-08-03). Salió de escribir el aviso: el copy invitaba a "avisanos" y **no había
         dónde** — Resend solo envía, y quien conteste `no-reply@` escribe al vacío. Gratis, cero
         código, y **se hace en la misma visita al panel de DNS que Vercel**: ese es el argumento, no

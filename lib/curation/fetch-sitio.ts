@@ -19,8 +19,15 @@ const MAX_CHARS = 4000
 /** Cuántas URLs se intentan por lugar como máximo (sitio + una red). */
 const MAX_URLS = 2
 
+/**
+ * Identificación del crawler. Las dos referencias tienen que ser **alcanzables**:
+ * apuntaban a `adondesalimos.ngrok.app` (el túnel de dev) y a un mail en
+ * `adondesalimos.app`, un dominio que **no es nuestro** (decisión 2 de DEPLOY: está
+ * libre y no se compró). Un dueño de sitio que quisiera quejarse del bot escribía al
+ * vacío — el mismo agujero que cerró la decisión 22. Corregido al ejecutar F1.
+ */
 const UA =
-  'AdondeSalimosBot/1.0 (+https://adondesalimos.ngrok.app; curaduría de catálogo, contacto: hola@adondesalimos.app)'
+  'AdondeSalimosBot/1.0 (+https://adondesalimos.com.ar; curaduría de catálogo, contacto: contacto@adondesalimos.com.ar)'
 
 /** Saca tags, scripts y estilos; colapsa espacios. HTML → texto plano acotado. */
 export function htmlATexto(html: string): string {
