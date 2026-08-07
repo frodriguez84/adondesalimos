@@ -1,6 +1,6 @@
 # Spec: Deploy a producción (Neon + Vercel)
 
-**Estado:** Parcial — § *El premium apagado* ✅ Implementado (2026-08-01, el primer tramo de código de F1: tabla `premium_interest` + endpoint + `SuscripcionPanel` + conteo en `/admin`); F0, el resto de F1 (`noindex`, `maxDuration`, `.env.example`, Vercel + DNS), F2 y F3 pendientes
+**Estado:** Parcial — § *El premium apagado* ✅ Implementado (2026-08-01, el primer tramo de código de F1: tabla `premium_interest` + endpoint + `SuscripcionPanel` + conteo en `/admin`) · **F0 ✅ Implementado (2026-08-03)**: Neon creado en `aws-sa-east-1` con PostgreSQL 16.14, dump restaurado y verificado por conteo **y por checksum**, cuentas de prueba borradas, `ai.chat_monthly_cap = 500` — QA `DEPLOY-F0-01..12` en `docs/qa/AnalisisQA.md`. El resto de F1 (`noindex`, `maxDuration`, `.env.example`, Vercel + DNS), F2 y F3 pendientes
 **Prioridad:** Alta — es el #2 de la cola post-v2 y lo único que separa "todo implementado" de "usable". Desbloquea el backlog que hoy no se puede trabajar por falta de usuarios reales (afinar `chips.schedule` con `place_tag_impressions_daily`, el gatillo de Google OAuth, la curaduría guiada por uso del #3).
 **Gate:** Ninguno para F0/F1/F2. **F3 (encender el cobro) está gateada** — ver decisión 18.
 **Bloquea:** la curaduría de cobertura (#3 de la cola post-v2), que depende de datos de uso reales; ABIERTO_AHORA F2; el afinado de CHIPS_ROTACION.
@@ -82,7 +82,7 @@ Tamaño de la base, medido el 2026-07-31: 48 MB totales — `places` 21 MB · `p
 | 17 | **El DNS de Vercel en Cloudflare va DNS-only (nube gris), no proxeado.** Proxear Cloudflare por delante de Vercel es doble CDN y es la causa clásica de loops de redirección y de headers de IP inconsistentes — que además romperían la decisión 13. |
 | 18 | **El cobro se prende (y con él Vercel Pro) cuando el interés medido lo justifique**, no por calendario. Disparador propuesto: **≥10 clicks de usuarios distintos** en el botón de la decisión 6, **o** el primer dueño que pida el plan B2B (ARS 15.000 ⇒ 3 pagan el hosting, contra 7 del B2C). Es puerta de ida y vuelta: el número se ajusta cuando haya datos. Prenderlo es setear 3 env vars + upgrade de plan, **sin tocar una línea de código** — pero **sí requiere redeploy**: `NEXT_PUBLIC_MP_PUBLIC_KEY` se inlinea en el build, así que setearla en el panel de Vercel no alcanza hasta que se reconstruya. |
 | 19 | **El mail transaccional ya está resuelto — no es un bloqueante de lanzamiento.** El dominio está verificado en Resend y probado: DKIM en `resend._domainkey.adondesalimos.com.ar`, SPF y MX en `send.adondesalimos.com.ar` (→ `feedback-smtp.sa-east-1.amazonses.com`), y `RESEND_FROM_EMAIL = no-reply@adondesalimos.com.ar` ya en el `.env` de dev. En F1 la var se copia a Vercel y listo: no hay trámite pendiente. Bonus: Resend quedó en **sa-east-1**, la misma región que Neon y Vercel (decisión 4). |
-| 20 | **Las cuentas de prueba se borran EN NEON, después del restore y antes del punto de no retorno** (decidido con Fer el 2026-08-02, a partir de su pregunta *"¿la tabla `users` no se crea vacía?"* — **no**: `pg_dump` copia schema **y** datos). El dump trae 4 usuarios, sus 4 `account` con los hashes de contraseña y 11 `session`, más todo su rastro por cascada. Lo grave no son las filas sueltas sino que **`frodriguez.este@gmail.com` es `ADMIN_EMAIL`**: si viaja, la cuenta admin de producción arranca con la contraseña de dev (y `pepe`/`juan`/`hugo` traen `12345678`, que está escrito en un archivo del repo). **Se limpia en Neon y no antes del dump** para que el Postgres de dev quede intacto con sus cuentas de prueba, y para que el paso siga siendo reversible: si sale mal, se borra el proyecto de Neon y se empieza de nuevo. **No se pierde `/admin`**: el gate es por email, así que Fer se registra de nuevo en prod con el mismo mail y queda admin con una contraseña nueva. ⚠️ **`session` y `account` NO tienen FK a `users`** —better-auth las creó sin foreign key— así que **no caen por cascada** y necesitan su propio `DELETE`. El SQL completo y la verificación por conteo están en el paso 5 de F0. **Origen:** el bloque F del QA integral #2 dejó la base *como estaba antes del QA*, que no es lo mismo que *lista para producción*; ese segundo criterio no tenía dueño y ahora lo tiene este paso. |
+| 20 | **Las cuentas de prueba se borran EN NEON, después del restore y antes del punto de no retorno** (decidido con Fer el 2026-08-02, a partir de su pregunta *"¿la tabla `users` no se crea vacía?"* — **no**: `pg_dump` copia schema **y** datos). El dump trae 4 usuarios, sus 4 `account` con los hashes de contraseña y 11 `session`, más todo su rastro por cascada. Lo grave no son las filas sueltas sino que **`frodriguez.este@gmail.com` es `ADMIN_EMAIL`**: si viaja, la cuenta admin de producción arranca con la contraseña de dev (y `pepe`/`juan`/`hugo` traen `12345678`, que está escrito en un archivo del repo). **Se limpia en Neon y no antes del dump** para que el Postgres de dev quede intacto con sus cuentas de prueba, y para que el paso siga siendo reversible: si sale mal, se borra el proyecto de Neon y se empieza de nuevo. **No se pierde `/admin`**: el gate es por email, así que Fer se registra de nuevo en prod con el mismo mail y queda admin con una contraseña nueva. ⚠️ **`session` y `account` NO tienen FK a `users`** —y no por descuido de better-auth: **`users.id` es `uuid` y sus `user_id` son `text`**, así que la FK era imposible— con lo cual **no caen por cascada** y necesitan su propio `DELETE`, **con `::text`** o falla (verificado al ejecutar F0). El SQL completo y la verificación por conteo están en el paso 5 de F0. **Origen:** el bloque F del QA integral #2 dejó la base *como estaba antes del QA*, que no es lo mismo que *lista para producción*; ese segundo criterio no tenía dueño y ahora lo tiene este paso. |
 
 ---
 
@@ -96,11 +96,19 @@ bloque existe para que no se pierdan.
 borrar el proyecto de Neon y empezar de nuevo sin perder nada.
 
 1. `npm run backup:db` — es la red de seguridad **y** el archivo que se restaura. No se avanza sin esto.
-2. Crear el proyecto en Neon, región **`aws-sa-east-1`**. Guardar las **dos** connection strings (pooled y direct).
-3. Restaurar el dump completo a Neon por el endpoint **direct** (`--no-owner --no-acl`). El dump incluye `drizzle.__drizzle_migrations`, así que el estado de migraciones queda coherente y un `db:migrate` futuro sabe dónde está parado.
-4. **Verificar por conteo, no mirando la pantalla**: `places` · `place_tags where source='admin'` (≈3.967, el canario de `/consistency-check`) · `place_zones` · `zones` (46) · `app_settings` (14) · `occasion_chips`.
+2. Crear el proyecto en Neon, región **`aws-sa-east-1`**, **PostgreSQL 16** (paridad exacta con el Docker de dev, que corre 16.14 — la consola ofrece hasta la 18 y no hay razón para divergir). **Neon Auth apagado**: el proyecto ya tiene Better Auth. Guardar las **dos** connection strings (pooled y direct; la pooled es la que tiene `-pooler` en el hostname).
+3. Restaurar el dump completo a Neon por el endpoint **direct**. El dump incluye `drizzle.__drizzle_migrations`, así que el estado de migraciones queda coherente y un `db:migrate` futuro sabe dónde está parado. Correrlo con `-v ON_ERROR_STOP=1 --single-transaction`: si algo falla, no queda media base restaurada.
+4. **Verificar por conteo, no mirando la pantalla**: `places` · `place_tags where source='admin'` (≈3.967, el canario de `/consistency-check`) · `place_zones` · `zones` (46) · `app_settings` (14) · `occasion_chips`. **Y por checksum**, que es lo que el conteo no ve: `md5(string_agg(...))` sobre los ids y los nombres de `places`, los pares de la curaduría y los de `place_zones`.
 5. **Borrar el rastro de las cuentas de prueba, EN NEON** (decisión 20). Ver abajo — es el paso que faltaba.
 6. `UPDATE` de `ai.chat_monthly_cap` a 500 **en Neon** (decisión 8).
+
+> ⚠️ **Un dump de `backups/` anterior al 2026-08-03 NO es restaurable en Neon.** Hasta esa fecha
+> `scripts/backup-db.sh` hacía `pg_dump` **sin** `--no-owner --no-acl`, así que el archivo trae
+> **62 sentencias `OWNER TO adondesalimos`** — un rol que en Neon no existe — y restaurarlo da 62
+> errores que enmascaran los de verdad. Se descubrió ejecutando F0 y **el script ya está corregido**:
+> los dumps nuevos salen con 0 `OWNER TO` y se restauran tal cual. Si alguna vez hace falta restaurar
+> uno viejo, regenerarlo con los flags:
+> `docker exec adondesalimos_db pg_dump -U adondesalimos -d adondesalimos --no-owner --no-acl | gzip > restore.sql.gz`
 
 ### El paso 5, en detalle — por qué existe y qué borra
 
@@ -128,16 +136,28 @@ si algo sale mal, se borra el proyecto de Neon y se empieza de nuevo.
 delete from users where email in
   ('frodriguez.este@gmail.com','pepe@gmail.com','juan@gmail.com','hugo@gmail.com');
 
--- ⚠️ `session` y `account` NO tienen FK a `users` — better-auth las creó sin foreign key,
--- así que NO caen por cascada. Sin estos dos DELETE quedan 11 sesiones y 4 hashes de
--- contraseña huérfanos en producción.
-delete from session where user_id not in (select id from users);
-delete from account where user_id not in (select id from users);
+-- ⚠️ `session` y `account` NO tienen FK a `users`, y el `::text` NO es opcional:
+-- `users.id` es `uuid` pero `session.user_id` / `account.user_id` son `text`. Por eso
+-- better-auth no creó la FK (era imposible, no un descuido) y por eso NO cascadean.
+-- Sin el cast, el DELETE falla con `operator does not exist: text = uuid`.
+delete from session where user_id not in (select id::text from users);
+delete from account where user_id not in (select id::text from users);
 
 -- No cascadean tampoco: cuelgan de `place_id`, no de `user_id`. Son el contenido y las
 -- fotos del dueño de prueba de Kansas (las fotos apuntan al R2 de dev).
 delete from place_owner_content;
 delete from place_photos;
+
+-- ⚠️ Y la telemetría de dev, que tampoco puede viajar (decidido con Fer el 2026-08-03,
+-- al ejecutar F0). Las dos primeras SON los contadores de los kill switches: producción
+-- arrancaría con parte del cap del chat y de los topes de Google ya gastados en dev. Las
+-- dos últimas son ~4.200 filas de navegación de QA, y son justo la señal que este spec
+-- viene a destrabar limpia (afinar `chips.schedule`, la curaduría guiada por uso, y el
+-- histórico que vende el B2B).
+delete from ai_api_usage;
+delete from google_api_usage;
+delete from place_impressions_daily;
+delete from place_tag_impressions_daily;
 ```
 
 **Lo que sí cae por cascada** con el primer `DELETE` (las 8 tablas con FK a `users`, todas
@@ -146,10 +166,13 @@ delete from place_photos;
 `chat_usage_monthly` · `premium_interest`. **El catálogo no depende de `users`** y queda intacto.
 
 **Verificar por conteo, igual que el paso 4 — todas en 0:** `users` · `session` · `account` ·
-`subscriptions` · `place_claims` · `place_lists` · `place_list_items` · `polls` · `poll_options` ·
-`poll_votes` · `chat_conversations` · `chat_messages` · `premium_interest` ·
-`place_owner_content` · `place_photos`. **Y re-verificar que el catálogo no se movió**: `places`
-y `place_tags where source='admin'` tienen que seguir en los números del paso 4.
+`verification` · `subscriptions` · `subscription_payments` · `place_claims` · `place_lists` ·
+`place_list_items` · `polls` · `poll_options` · `poll_votes` · `chat_conversations` ·
+`chat_messages` · `chat_quota_grants` · `chat_usage_monthly` · `premium_interest` ·
+`place_owner_content` · `place_photos` · `ai_api_usage` · `google_api_usage` ·
+`place_impressions_daily` · `place_tag_impressions_daily` · `place_taps_daily`. **Y re-verificar
+que el catálogo no se movió**: `places` y `place_tags where source='admin'` tienen que seguir en
+los números del paso 4.
 
 **El punto de no retorno es la primera escritura de un usuario real en Neon** — una cuenta, un
 favorito, un voto. Desde ese instante el dev deja de poder pisar prod, todo cambio de schema va
@@ -255,7 +278,7 @@ decoración — es a quién le escribís el día que abrís; sin ella el contado
 
 | Fase | Qué | Código |
 |---|---|---|
-| **F0** | Neon: crear, restaurar, verificar por conteo, bajar el cap del chat | ninguno |
+| **F0** ✅ | Neon: crear, restaurar, verificar por conteo, bajar el cap del chat — **hecha 2026-08-03** (QA `DEPLOY-F0-01..12`) | ninguno |
 | **F1** | Los 4 cambios chicos de abajo + proyecto en Vercel + DNS + QA en prod + sacar el `noindex` | sí, acotado |
 | **F2** | Rate-limit a Upstash Free (decisión 12) · botón de Google OAuth (gatillo cumplido por el lanzamiento) | sí |
 | **F3** | Vercel Pro + encender el cobro. **Gateada** por la decisión 18 | no (env vars) |
@@ -273,14 +296,14 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 ## Criterios de done (DoD)
 
 - [ ] `https://adondesalimos.com.ar` sirve la home, con TLS válido y sin warning de dominio.
-- [ ] El backup del dev existe y es previo a todo (`npm run backup:check` en verde).
-- [ ] Conteos en Neon == conteos en dev para `places`, `place_tags source='admin'`, `place_zones`, `zones`, `app_settings`, `occasion_chips`.
+- [x] El backup del dev existe y es previo a todo (`npm run backup:check` en verde). ✅ `backups/adondesalimos_2026-08-03_220640.sql.gz`
+- [x] Conteos en Neon == conteos en dev para `places`, `place_tags source='admin'`, `place_zones`, `zones`, `app_settings`, `occasion_chips`. ✅ 13 tablas, más checksum de contenido idéntico en 6 conjuntos (DEPLOY-F0-04/05)
 - [ ] Una búsqueda con zona + tag devuelve los mismos resultados en prod que en dev.
 - [ ] La ficha de un lugar carga, y el bloque de Google se pide desde el cliente (no en el render).
 - [ ] Un usuario nuevo se registra y **recibe el mail de verificación** desde `no-reply@adondesalimos.com.ar` (el dominio ya está verificado, decisión 19: acá se confirma que también sale bien desde Vercel).
 - [ ] `/admin` responde solo al `ADMIN_EMAIL` y es 404 para el resto.
 - [ ] El chat contesta, descuenta cupo, y el tablero de `/admin` muestra el costo con los tokens de caché.
-- [ ] `ai.chat_monthly_cap = 500` en Neon.
+- [x] `ai.chat_monthly_cap = 500` en Neon. ✅ 2026-08-03 (DEPLOY-F0-11)
 - [ ] En `/cuenta` y en `/mi-negocio/[placeId]`, el tab de Suscripción muestra el mensaje de beta —no *"Configuración de pago incompleta"*— y el click queda registrado.
 - [ ] Clickear dos veces "Avisame cuando abra" deja **una** fila, no dos (índices únicos parciales).
 - [ ] `/admin` → Suscripciones muestra el conteo de interesados y sus mails.

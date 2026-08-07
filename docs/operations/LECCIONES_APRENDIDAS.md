@@ -5,6 +5,45 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## SQL escrito en un spec es una hipótesis, no un procedimiento (2026-08-03 · DEPLOY F0)
+
+**Qué pasó.** El paso 5 de `DEPLOY` traía el SQL de limpieza **ya escrito**, con comentarios
+cuidadosos y una advertencia en negrita sobre que `session` y `account` no cascadean. Se veía
+revisado. Al ejecutarlo contra Neon falló en la segunda sentencia:
+`ERROR: operator does not exist: text = uuid`. Faltaba un `::text`. **Nadie lo había corrido nunca.**
+
+Y al mirar por qué fallaba apareció que **el spec también explicaba mal la causa**: decía que
+better-auth *"las creó sin foreign key"*, que se lee como un descuido de la librería. Lo real es que
+`users.id` es `uuid` y `session.user_id` / `account.user_id` son `text` — **la FK era imposible**.
+La conclusión operativa (borrarlas a mano) era correcta; el porqué, no. Y un porqué equivocado
+invita al arreglo equivocado: alguien "arregla" el schema agregando la FK y no entiende por qué falla.
+
+**El mismo día, la misma forma, un tercer caso:** el paso 3 decía *"restaurar el dump completo
+(`--no-owner --no-acl`)"* dando por sentado que el archivo que produce `npm run backup:db` ya traía
+esos flags. **No los traía** — el script hacía `pg_dump` pelado, y el dump llevaba 62 `OWNER TO
+adondesalimos`, un rol que en Neon no existe (ya está corregido en el script). Tres afirmaciones
+escritas con seguridad en un spec revisado, y las tres se cayeron en los primeros diez minutos de
+ejecutarlo.
+
+**Por qué importa.** Un spec bien escrito genera la ilusión de que el paso ya está probado. No lo
+está: está **diseñado**. La diferencia se paga entera en el momento más caro —ejecutando contra la
+base nueva, con datos reales en juego— salvo que la ejecución tenga red.
+
+**Qué hacer distinto.**
+1. **Todo bloque destructivo se corre con `--single-transaction` + `-v ON_ERROR_STOP=1`.** Es lo que
+   convirtió el error en un no-evento: la transacción abortó entera, `users` seguía en 4, y el
+   segundo intento arrancó de una base idéntica a la del primero. Sin eso, el `delete from users`
+   habría commiteado y el fallo de la línea siguiente dejaba sesiones y hashes huérfanos.
+2. **Verificar por conteo no alcanza.** El spec pedía comparar conteos; se agregó `md5(string_agg(
+   columna, ',' order by id))` sobre 6 conjuntos. **Un conteo igual con contenido distinto pasa la
+   verificación del spec** — y en una migración de catálogo eso es justo lo que querés cazar. Cuesta
+   una query.
+3. **Cuando el spec afirma una causa técnica (por qué no hay FK, por qué falta un flag), verificarla
+   en el momento de usarla**, no confiar en que se verificó al escribirla. Las tres de acá se
+   resolvieron con `information_schema.columns`, `grep` sobre el dump y leer el script: minutos.
+
+---
+
 ## Lo que el QA no puede ver por sí solo (2026-08-03 · PULIDO_BETA F4)
 
 **Qué pasó.** Para verificar el alta de un usuario nuevo hacía falta el link de verificación del

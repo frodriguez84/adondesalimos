@@ -129,8 +129,8 @@ son trabajo acotado con criterio de "listo" objetivo.
       permanente por un cuarto de segundo (decisión 10).
 - [ ] **2 · Hosting/prod (Neon + Vercel)** → spec: `docs/specs/active/DEPLOY.md` — **decisiones
       cerradas ✅ 2026-07-31** (sesión Fable de definiciones, sin código) · **primer tramo de código
-      ✅ 2026-08-01** (el premium apagado; el spec pasó a `active/`). Lo que se resolvió, con
-      los porqués completos en el spec:
+      ✅ 2026-08-01** (el premium apagado; el spec pasó a `active/`) · **F0 ✅ 2026-08-03** (la base
+      ya vive en Neon — ver abajo). Lo que se resolvió, con los porqués completos en el spec:
       - **El dominio no había que decidirlo: `adondesalimos.com.ar` ya está registrado** (zona
         vacía en Cloudflare, mismo patrón que turnia). La puerta de ida ya estaba cruzada. Libres
         al 2026-07-31: `adondesalimos.com` y `.app`; tomados `quesale.com.ar`, `quepinta.com.ar`,
@@ -150,8 +150,17 @@ son trabajo acotado con criterio de "listo" objetivo.
         vez de tener que correr un `db:migrate` suelto contra prod. El copy, el schema (con el
         gotcha de los índices únicos **parciales** — `NULL ≠ NULL` en Postgres) y el conteo en
         `/admin` están cerrados en el spec § *El premium apagado*. **Ese tramo ya está
-        implementado ✅ 2026-08-01** (migración `0014`, QA DEPLOY-10/15/16/17 ✅) — lo que sigue es
+        implementado ✅ 2026-08-01** (migración `0014`, QA DEPLOY-10/15/16/17 ✅) — lo que seguía era
         **F0: crear Neon y restaurar el dump**, que ya trae la tabla.
+      - [x] **F0 ✅ EJECUTADA ENTERA 2026-08-03** (sesión Opus, cero código). La base de producción
+        existe: Neon Free en **`aws-sa-east-1`**, **PostgreSQL 16.14** (la misma versión que el
+        Docker de dev, elegida por paridad cuando la consola ofrecía hasta la 18), catálogo completo
+        restaurado y **verificado por conteo Y por checksum** — 13 tablas con los mismos números y
+        6 conjuntos con `md5` idéntico, incluido el canario de curaduría en **3.967**. Cuentas de
+        prueba borradas (**24 tablas en 0**) y `ai.chat_monthly_cap = 500`. **El Postgres de dev
+        quedó intacto**, así que F0 sigue siendo deshacible borrando el proyecto de Neon.
+        QA: `docs/qa/AnalisisQA.md` § *DEPLOY F0* (`DEPLOY-F0-01..12`). **Lo que sigue es F1**:
+        `noindex` + `maxDuration` + `.env.example` + proyecto en Vercel + DNS.
       - [x] **Prerrequisito de F0 — QA integral #2 — ✅ EJECUTADO ENTERO 2026-08-02.**
         **APROBADO CON HALLAZGOS: 42 casos, 39 ✅ + 3 documentados, cero bloqueantes.** El bloque F
         cerró **en verde con diff = 0** en las 13 tablas, el canario de curaduría volvió exacto a
@@ -1259,6 +1268,40 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **La base de producción existe: el catálogo entero vive en Neon** (2026-08-03, sesión Opus,
+      `DEPLOY` **F0**, cero código). QA `docs/qa/AnalisisQA.md` § *DEPLOY F0* (`DEPLOY-F0-01..12`).
+      Neon Free en **`aws-sa-east-1`** con **PostgreSQL 16.14** — la misma versión exacta del Docker
+      de dev, elegida a propósito cuando la consola ofrecía hasta la 18: no hay nada que ganar
+      divergiendo de collation y planner entre dev y prod. Neon Auth apagado (ya hay Better Auth).
+      Restore por el endpoint **direct** con `--single-transaction` + `ON_ERROR_STOP=1`, y
+      **verificación por conteo Y por checksum**: 13 tablas con los mismos números (canario de
+      curaduría **3.967**) y `md5(string_agg(...))` idéntico en 6 conjuntos. Ese segundo chequeo
+      no lo pedía el spec y es el que cierra el agujero: **un conteo igual con contenido distinto
+      pasa el paso 4**. Cuentas de prueba borradas (**24 tablas en 0**) y `ai.chat_monthly_cap` a
+      **500**. **Dev quedó intacto** ⇒ F0 sigue siendo deshacible borrando el proyecto de Neon.
+      **Tres cosas que el spec no tenía bien y que ahora sí:**
+      **(a)** El SQL del paso 5 **no corría**: `delete from session where user_id not in (select id
+      from users)` tira `operator does not exist: text = uuid`. Falta `::text`. Se descubrió
+      ejecutándolo, y la transacción abortó entera — nada quedó a medias.
+      **(b)** Y la causa de que `session`/`account` no cascadeen **no era** que "better-auth las creó
+      sin foreign key" por descuido: **`users.id` es `uuid` y sus `user_id` son `text`**, así que la
+      FK era **imposible**. Importa porque la versión vieja invita a "arreglar" el schema agregando
+      una FK que no puede existir.
+      **(c)** **`scripts/backup-db.sh` no producía un dump restaurable en Neon**: hacía `pg_dump` sin
+      `--no-owner --no-acl`, así que traía **62 `OWNER TO adondesalimos`**, un rol que en Neon no
+      existe. El paso 3 del spec asumía que el archivo del paso 1 ya los traía. Para F0 se restauró
+      un segundo dump del mismo instante con los flags, y **el script se arregló** (única línea de
+      código de la sesión, decidida aparte porque F0 era cero código: el problema no era de F0 sino
+      de cualquier restore fuera del contenedor de dev). Los dumps nuevos salen con **0 `OWNER TO`**;
+      ⚠️ los anteriores al 2026-08-03 no, y hay que regenerarlos para usarlos afuera.
+      **Y una decisión de Fer que el spec no contemplaba: la telemetría de dev no viaja.**
+      `place_impressions_daily` (2.193 filas, **16.220 impresiones** de QA nuestro) y
+      `place_tag_impressions_daily` (2.001) son exactamente la señal que este deploy viene a
+      empezar a acumular limpia — afinar `chips.schedule`, la curaduría guiada por uso, y el
+      histórico que vende el B2B. Y `ai_api_usage` / `google_api_usage` **son los contadores de los
+      kill switches**: producción habría arrancado con 5/500 del cap del chat y 24 `details` + 14
+      `photos` de Google ya gastados en dev. Las cuatro en 0.
 
 - [x] **La app se puede instalar, y el alta nueva se vio por primera vez** (2026-08-03, sesión Opus,
       `PULIDO_BETA` F4 → **spec CERRADO**). [Resumen](../archive/SPECS_ARCHIVO.md#pulido_beta) ·

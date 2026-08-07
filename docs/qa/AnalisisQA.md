@@ -3480,3 +3480,85 @@ código de iOS es una **convención de Next** (`app/apple-icon.png` ⇒ `<link r
 está servido, linkeado y con el tamaño correcto, y no hay lógica propia que pueda fallar. Lo que
 falta es el acto de mirarlo en un iPhone. Se deja anotado como **PBETA-07 pendiente** en vez de
 declararlo PASS por lectura de código, que es exactamente lo que la regla de este QA prohíbe.
+
+---
+
+## DEPLOY F0 — Neon: crear, restaurar, verificar por conteo, bajar el cap (2026-08-03)
+
+**Spec:** `docs/specs/active/DEPLOY.md` § *Migración de datos*, pasos 1-6.
+**Veredicto:** **APROBADO — los 6 pasos ejecutados, cero pérdida de datos.**
+**Qué es esto:** la fase sin código de `DEPLOY`. Crear el proyecto en Neon, restaurar el dump
+completo del Postgres de dev, verificar por conteo (y por checksum), borrar el rastro de las
+cuentas de prueba y bajar el tope del chat. **Enteramente reversible**: mientras el Postgres de
+dev siga intacto, se borra el proyecto de Neon y se empieza de nuevo.
+
+**Entorno.** Neon Free, proyecto en **`aws-sa-east-1`** (São Paulo, decisión 4), **PostgreSQL
+16.14** — la misma versión exacta que el Docker de dev, elegida a propósito por paridad de
+collation y planner cuando la consola ofrecía hasta la 18. Base `neondb` (el nombre por defecto;
+no se rehizo el proyecto porque `DATABASE_URL` apunta a donde sea). Neon Auth **apagado**: el
+proyecto ya tiene Better Auth y prenderlo sería una segunda fuente de verdad sobre usuarios.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| DEPLOY-F0-01 | Backup del dev previo a todo (paso 1) | ✅ PASS | `npm run backup:db` → `backups/adondesalimos_2026-08-03_220640.sql.gz` (5,0 MB), posterior a los 3 commits de `PULIDO_BETA` ⇒ el dump está fresco como pide la decisión 12 |
+| DEPLOY-F0-02 | Proyecto en Neon con la config de la decisión 4 (paso 2) | ✅ PASS | `select version()` → **PostgreSQL 16.14** en la región `sa-east-1`; base vacía antes del restore (**0** tablas en `public`) |
+| DEPLOY-F0-03 | Restore limpio por el endpoint **direct** (paso 3) | ✅ PASS | `psql -v ON_ERROR_STOP=1 --single-transaction` → **EXIT=0**, cero errores. Se usó el endpoint sin `-pooler`: un pooler transaccional no banca un dump de 5 MB |
+| DEPLOY-F0-04 | Conteos del catálogo dev == Neon (paso 4) | ✅ PASS | 13 tablas comparadas: `places` **26.057** · `place_tags source='admin'` **3.967** (el canario de `/consistency-check`) · `place_tags` total 43.637 · `place_zones` 35.589 · `zones` **46** · `app_settings` **14** · `occasion_chips` **17** · `chip_tags` 49 · `tags` 105 · `zone_aliases` 135 · `place_tag_suggestions` 3.969 · `drizzle.__drizzle_migrations` **15** |
+| DEPLOY-F0-05 | **Contenido idéntico, no solo conteos** (más fuerte que el paso 4) | ✅ PASS | `md5(string_agg(...))` sobre 6 conjuntos, dev vs Neon: ids de `places` · nombres de `places` · pares `(place_id, tag_id)` de la curaduría · pares de `place_zones` · slugs de `zones` · `(slug, sort)` de `occasion_chips`. **Los 6 idénticos.** Un conteo igual con contenido distinto habría pasado el paso 4 del spec |
+| DEPLOY-F0-06 | Estado de migraciones coherente | ✅ PASS | `drizzle.__drizzle_migrations` = **15**, igual que dev: un `db:migrate` futuro contra Neon sabe dónde está parado (era la razón de restaurar el dump completo y no solo los datos) |
+| DEPLOY-F0-07 | Extensiones presentes en Neon | ✅ PASS | `pg_trgm 1.6` · `unaccent 1.1` · `plpgsql 1.0`, las mismas 3 de dev. Las dos primeras las usa el motor de búsqueda |
+| DEPLOY-F0-08 | Paso 5 — el rastro de las cuentas de prueba, borrado | ✅ PASS | Las 4 cuentas del spec y ninguna más (verificado por email antes de borrar). **24 tablas en 0**: `users` · `session` · `account` · `verification` · `subscriptions` · `subscription_payments` · `place_claims` · `place_lists` · `place_list_items` · `polls` · `poll_options` · `poll_votes` · `chat_conversations` · `chat_messages` · `chat_quota_grants` · `chat_usage_monthly` · `premium_interest` · `place_owner_content` · `place_photos` · `place_taps_daily` (+ las 4 de DEPLOY-F0-09) |
+| DEPLOY-F0-09 | **Extra, fuera del spec**: la telemetría de dev no viaja | ✅ PASS | Acordado con Fer en la sesión. `ai_api_usage` (traía `2026-08 · chat_messages · 5`, que consumía el cap nuevo) · `google_api_usage` (`2026-08 · details 24 · photos 14`) · `place_impressions_daily` (**2.193** filas, **16.220** impresiones, 203 vistas, del 20/07 al 03/08) · `place_tag_impressions_daily` (2.001 filas). **Todas en 0.** Motivo abajo |
+| DEPLOY-F0-10 | El catálogo no se movió con los DELETE | ✅ PASS | Re-verificado después del paso 5: `places` 26.057 · `place_tags source='admin'` **3.967** · `place_zones` 35.589 · `zones` 46 · `app_settings` 14 · `occasion_chips` 17 — los mismos números del paso 4 |
+| DEPLOY-F0-11 | Paso 6 — `ai.chat_monthly_cap = 500` en Neon (decisión 8) | ✅ PASS | `update app_settings set value='500'::jsonb` → `UPDATE 1`; el `select` confirma `500`. Techo duro de ~US$20/mes con el kill switch de `CHAT_IA` decisión 15 |
+| DEPLOY-F0-12 | **Reversibilidad: el Postgres de dev quedó intacto** | ✅ PASS | Post-F0: `users` 4 · `account` 4 · curaduría **3.967** · `ai_api_usage` 2 · `place_impressions_daily` 2.251 · `place_photos` 2 · `ai.chat_monthly_cap` sigue en **5000**. Sobre dev solo se hicieron `SELECT` y el `pg_dump`. F0 sigue siendo deshacible borrando el proyecto de Neon |
+
+### Los tres hallazgos — el spec estaba mal en dos puntos y le faltaba un tercero
+
+**(1) El SQL del paso 5, tal como estaba escrito en el spec, NO corre.** `delete from session where
+user_id not in (select id from users)` falla con `ERROR: operator does not exist: text = uuid`.
+Hace falta `select id::text from users`. Se descubrió al ejecutarlo: la transacción abortó entera
+(`--single-transaction` + `ON_ERROR_STOP=1`), así que **no quedó nada a medias** — `users` seguía en
+4 después del fallo. Corregido en el spec.
+
+**(2) Y la razón por la que `session`/`account` no cascadean no es la que decía el spec.** Decía que
+*"better-auth las creó sin foreign key"*, que suena a descuido. Lo real: **`users.id` es `uuid` y
+`session.user_id` / `account.user_id` son `text`** — la FK era **imposible**, no omitida. El efecto
+práctico es el mismo (hay que borrarlas a mano), pero la causa correcta importa porque evita que
+alguien "arregle" el schema agregando la FK y no entienda por qué falla. Corregido en el spec.
+
+**(3) `scripts/backup-db.sh` no producía un dump restaurable en Neon — corregido.** Hacía `pg_dump`
+**sin** `--no-owner --no-acl`, así que el archivo de `backups/` traía **62 sentencias `OWNER TO
+adondesalimos`** — un rol que en Neon no existe. El paso 3 del spec decía "restaurar el dump completo
+(`--no-owner --no-acl`)" dando por sentado que el archivo del paso 1 ya los traía. No los traía.
+Para F0 **se restauró un segundo dump del mismo instante**, generado con los flags. **Y el script se
+arregló en la misma sesión** (decisión de Fer: *"esto es necesario y ayuda mucho"*), porque el
+problema no era de F0 sino de cualquier restore fuera de ese contenedor: los dumps nuevos salen con
+**0 `OWNER TO`** (verificado regenerando el backup) y se restauran tal cual. ⚠️ **Los dumps de
+`backups/` anteriores al 2026-08-03 siguen teniendo los 62** y hay que regenerarlos con los flags
+para usarlos afuera.
+
+### Por qué se limpió la telemetría de dev (DEPLOY-F0-09), que el spec no pedía
+
+`place_impressions_daily` y `place_tag_impressions_daily` traían **4.194 filas de navegación de QA**
+—16.220 impresiones nuestras entre el 20/07 y el 03/08—, y son exactamente el dato que este spec
+existe para empezar a acumular **limpio**: `DEPLOY` dice que el lanzamiento desbloquea *"afinar
+`chips.schedule` con `place_tag_impressions_daily`"* y la curaduría guiada por uso, y `CLAUDE.md`
+dice que `place_impressions_daily` *"es el histórico que vende el B2B y no se puede reconstruir
+después"*. Arrancar producción con ese ruido contamina la única señal que el deploy venía a destrabar.
+
+Los otros dos son más chicos pero más filosos: `ai_api_usage` y `google_api_usage` **son los
+contadores de los kill switches**. Producción habría arrancado con 5/500 del cap del chat y con
+24 `details` + 14 `photos` de Google ya gastados en dev.
+
+No es irreversible (las filas tienen fecha y se podrían filtrar), pero nadie se acuerda de filtrar
+tres meses después, y borrarlas ahora no cuesta nada: no es catálogo, no es curaduría, y se
+regenera solo con uso real. Fer eligió limpiar las cuatro.
+
+### Lo que F0 **no** cubre
+
+El DoD de `DEPLOY` es de todo el spec, no de F0. Siguen abiertos y son de **F1**: el dominio
+sirviendo con TLS, la búsqueda equivalente en prod, la ficha con el bloque de Google, el mail de
+verificación desde Vercel, `/admin` gateado, el chat descontando cupo, `robots.txt` con `noindex`
+y el grep sobre `.next/static`. Los únicos ítems del DoD que F0 cierra son **`ai.chat_monthly_cap
+= 500` en Neon** (DEPLOY-F0-11) y los **conteos** de la migración (DEPLOY-F0-04/05).
