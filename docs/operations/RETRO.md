@@ -11,6 +11,30 @@ cambiar" se implementó, se dice dónde (commit, archivo). No es un diario largo
 sesiones*. **Una sesión sin hallazgos se escribe igual, diciendo que no hubo** — es lo normal, y
 llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
+## Las 3 preguntas de cierre (y por qué son así)
+
+Fer pregunta al final de cada sesión si hay algo que mejorar del método. **"¿Qué mejorarías?" a
+secas no sirve: presupone que hay algo, y un casillero vacío pide ser llenado** — el riesgo real es
+que la sesión invente una mejora plausible para cumplir el ritual, y una mejora inventada es peor
+que ninguna (ensucia el RETRO y agrega reglas que nadie necesitaba). Así que se cierra con estas
+tres, y **"nada" es una respuesta válida y esperable en las tres**:
+
+1. **¿Hubo fricción real?** Algo que costó tiempo, que salió mal, o donde la sesión **adivinó en vez
+   de saber** — con el **momento concreto**: qué archivo, qué comando, qué decisión.
+2. **¿Algo del método estorbó o no se pagó?** Una regla, un doc o un paso del checklist que costó
+   más de lo que aportó. **Restar cuenta igual que sumar.**
+3. **Si de eso sale UNA sola cosa para cambiar: cuál, y qué cuesta.** Si ninguna vale el cambio,
+   decirlo y no cambiar nada.
+
+**Cómo detectar una respuesta inflada:** si un hallazgo no señala un archivo, un comando o una
+decisión puntual de **esta** sesión, probablemente se generó para llenar el hueco. La pregunta 2
+existe para corregir el sesgo aditivo (agregar redes suena a mejora, sacar suena a aflojar) y la 3
+para forzar triaje. **Calibración: lo normal es cero o un hallazgo por sesión**; tres es raro y solo
+se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera sesión de código de v2).
+
+> Vivía en `CLAUDE.md` § *Continuidad entre sesiones* hasta el 2026-08-08; se mudó acá —donde se
+> usa— para bajarle peso al archivo que se carga en toda sesión. Allá quedaron las 3 preguntas.
+
 ---
 
 ## 2026-08-08 · Implementación de la Tanda B (CURADURIA_POR_NOMBRE) — Opus

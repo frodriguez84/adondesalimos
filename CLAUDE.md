@@ -224,7 +224,6 @@ Cicatrices reales — gotchas que sorprenden:
   `string[] | null` — coercionar a `[]`.
 - **`lucide-react` (v1.16) NO tiene íconos de marca** (Instagram/Facebook/Twitter): se
   removieron. Las redes de la ficha se rotulan con texto vía `clasificarRed`. Ver BACKLOG.
-- **`operating_status` viene `'open'` para todos**: no filtra lugares cerrados todavía (H-2).
 - **Una votación tiene DOS techos de opciones y son dos constantes distintas**
   (`lib/votaciones/constantes.ts`): `MAX_OPCIONES = 5` es lo que el **creador** puede poner al
   armar (lo importan `/votacion/nueva` y el chat IA) y `MAX_OPCIONES_TOTAL = 8` es hasta dónde
@@ -242,8 +241,6 @@ Cicatrices reales — gotchas que sorprenden:
   AMBA ⇒ no entra a los 4 de la home, ni siquiera forzado por la regla, pero **sí** sigue en "Ver
   más" (hoy: `salida-con-chongo`, 1 lugar). El `> 0` de la decisión 25 es el piso de "Ver más", no
   el de la home. Dueños: `lib/search/rotacion.ts` (ventana) y `lib/search/chips.ts` (piso).
-- **Commits que solo tocan `docs/` usan `spec(...)`/`docs:`, nunca `feat`** (ver arriba
-  § Prefijos de commit). Un `feat` implica que hay código.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o
@@ -260,21 +257,18 @@ Cicatrices reales — gotchas que sorprenden:
 
 ## Ciclo de vida de specs (regla de trabajo)
 
-Manifiesto completo: `docs/specs/README.md`. Formato: `docs/AGENTES.md`. **Cada spec vive en
-una sola carpeta según su estado.**
+Manifiesto (qué spec está en qué estado) + **el checklist de cierre de 9 pasos**:
+[`docs/specs/README.md`](docs/specs/README.md). Formato de un spec: `docs/AGENTES.md`.
 
-| Carpeta | Cuándo usar |
-|---------|-------------|
-| `docs/specs/planned/` | Decisiones cerradas — en cola, aún sin código (o con gate de negocio) |
-| `docs/specs/active/` | **Normativo hoy** — leer antes de tocar el feature. Incluye specs parciales |
-| `docs/specs/done/` | **Cerrado** — resumen operativo en `docs/archive/SPECS_ARCHIVO.md` |
+**Cada spec vive en una sola carpeta según su estado:** `planned/` = decidido, sin código ·
+`active/` = **normativo hoy**, leer antes de tocar el feature (incluye specs parciales) ·
+`done/` = cerrado, con resumen en `docs/archive/SPECS_ARCHIVO.md`.
 
 ### Prefijos de commit — escribir el spec ≠ implementarlo
 
-Los commits `5ddf904` ("Spec 3 BUSQUEDA: home/search en 3 fases…") y `6628757` ("Spec 4
-FICHA…") **solo tocan `docs/`**: son de autoría del spec. Leídos en `git log` parecen
-implementaciones, y una sesión que arranca mirando el log arranca creyendo que el feature ya
-existe. Pasó de verdad al empezar BÚSQUEDA. Desde 2026-07-20:
+Un commit de autoría de spec **solo toca `docs/`**, pero leído en `git log` parece una
+implementación — y una sesión que arranca mirando el log arranca creyendo que el feature ya existe.
+Pasó de verdad al empezar BÚSQUEDA (`5ddf904`, `6628757`). Desde 2026-07-20:
 
 | Prefijo | Qué es | Toca |
 |---------|--------|------|
@@ -292,19 +286,11 @@ existe. Pasó de verdad al empezar BÚSQUEDA. Desde 2026-07-20:
 2. Implementar contra el DoD — no improvisar fuera de scope sin anotar en `BACKLOG.md`.
 3. Si el spec tiene fases, cerrar **fase por fase**; no mover a `done/` hasta que esté completo.
 
-### Al cerrar (checklist obligatorio — lo orquesta `/close-spec`)
-
-| # | Qué | Dónde |
-|---|-----|-------|
-| 1 | Código + verificación técnica | typecheck · tests · build |
-| 2 | QA con IDs trazables | `docs/qa/AnalisisQA.md` — sección nueva, IDs `FEATURE-NN`, ✅/❌. No condensar histórico |
-| 3 | Resumen condensado | `docs/archive/SPECS_ARCHIVO.md` — anchor `{#slug}`, rutas, archivos clave, link al spec y al QA |
-| 4 | Estado en el spec | Primera línea: `**Estado:** ✅ Implementado (YYYY-MM-DD)` o `Parcial — §X ✅; §Y pendiente` |
-| 5 | Mover el spec | 100% cerrado → `git mv active/FOO.md done/`. Parcial → queda en `active/` |
-| 6 | Manifiesto | `docs/specs/README.md` — mover fila a la tabla correcta |
-| 7 | Cola de trabajo | `docs/product/BACKLOG.md` — **los dos**: tildar el ítem de la lista `[x]` con fecha **y** agregar la entrada al log `## Hecho` (al tope) |
-| 8 | Stub de redirect | Si moviste el archivo: stub de 5 líneas en la ruta vieja |
-| 9 | Lecciones (si aplica) | `docs/operations/LECCIONES_APRENDIDAS.md` |
+### Al cerrar
+**Correr `/close-spec`**, que orquesta el checklist obligatorio de 9 pasos (QA con IDs · resumen en
+`SPECS_ARCHIVO` · estado · `git mv` · manifiesto · BACKLOG en sus **dos** lugares · stub · lecciones).
+El detalle de cada paso está en [`docs/specs/README.md`](docs/specs/README.md) § *Al cerrar un spec*
+— hay que conocerlo, porque cerrar a mano sin correr la skill se saltea pasos en silencio.
 
 **El spec es el árbitro. QA bloqueado = no PR.**
 
@@ -338,26 +324,18 @@ El volcado de ideas de producto lleva varias tandas de conversación. Estas regl
    solo le gana al método fijo: cada sesión deja al sistema un poco mejor que la anterior. Es el
    loop que cierra las encuestas de fin de sesión (antes se perdían con el chat).
 
-### Las 3 preguntas de cierre (y por qué son así)
+### Las 3 preguntas de cierre
 
-Fer pregunta al final de cada sesión si hay algo que mejorar del método. **"¿Qué mejorarías?" a
-secas no sirve: presupone que hay algo, y un casillero vacío pide ser llenado** — el riesgo real es
-que la sesión invente una mejora plausible para cumplir el ritual, y una mejora inventada es peor
-que ninguna (ensucia el RETRO y agrega reglas que nadie necesitaba). Así que se cierra con estas
-tres, y **"nada" es una respuesta válida y esperable en las tres**:
+**"¿Qué mejorarías?" a secas no sirve: presupone que hay algo, y un casillero vacío pide ser
+llenado.** Por eso se cierra con estas tres, y **"nada" es una respuesta válida y esperable en las
+tres** (lo normal es cero o un hallazgo por sesión):
 
-1. **¿Hubo fricción real?** Algo que costó tiempo, que salió mal, o donde la sesión **adivinó en vez
-   de saber** — con el **momento concreto**: qué archivo, qué comando, qué decisión.
-2. **¿Algo del método estorbó o no se pagó?** Una regla, un doc o un paso del checklist que costó
-   más de lo que aportó. **Restar cuenta igual que sumar.**
-3. **Si de eso sale UNA sola cosa para cambiar: cuál, y qué cuesta.** Si ninguna vale el cambio,
-   decirlo y no cambiar nada.
+1. **¿Hubo fricción real?** — con el **momento concreto**: qué archivo, qué comando, qué decisión.
+2. **¿Algo del método estorbó o no se pagó?** **Restar cuenta igual que sumar.**
+3. **Si de eso sale UNA sola cosa para cambiar: cuál, y qué cuesta.** Si ninguna vale, no se cambia nada.
 
-**Cómo detectar una respuesta inflada:** si un hallazgo no señala un archivo, un comando o una
-decisión puntual de **esta** sesión, probablemente se generó para llenar el hueco. La pregunta 2
-existe para corregir el sesgo aditivo (agregar redes suena a mejora, sacar suena a aflojar) y la 3
-para forzar triaje. **Calibración: lo normal es cero o un hallazgo por sesión**; tres es raro y solo
-se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera sesión de código de v2).
+El porqué de cada una, cómo detectar una respuesta inflada y la calibración están arriba de
+[`docs/operations/RETRO.md`](docs/operations/RETRO.md) — leerlo antes de responderlas.
 
 ---
 
@@ -395,43 +373,19 @@ un fix puntual. Ante la duda, si el trabajo es "lo mismo × N ítems independien
 
 ---
 
-## Redes de seguridad — mantenimiento (correr, no olvidar)
+## Redes de seguridad — correr, no olvidar
 
-Activos de seguridad del proyecto. Toda sesión debe saber que existen y cuándo usarlos:
+**Detalle completo (qué hace cada una, por qué existe, cuándo correrla):
+[`docs/operations/REDES-DE-SEGURIDAD.md`](docs/operations/REDES-DE-SEGURIDAD.md).** Acá solo el
+índice — toda sesión tiene que saber que existen:
 
-- **Backup de la base** — `scripts/backup-db.sh` (`npm run backup:db`, requiere Git Bash). Hace
-  `pg_dump` del Postgres de dev a `backups/` (gitignoreado — es data). **Correlo ANTES de
-  cualquier operación destructiva sobre la base** (`db:migrate` sobre base limpia, borrar el
-  volumen de Docker, cambiar de máquina) — la curaduría (~3.967 tags) NO está en git ni en el
-  seed (ver § Notas importantes). Restore: `gunzip -c backups/<archivo>.sql.gz | docker exec -i
-  adondesalimos_db psql -U adondesalimos -d adondesalimos`.
-- **Deuda de backup, visible** — `scripts/backup-check.sh` (`npm run backup:check`, `[días]`
-  opcional, default 7). **No** hace el dump y no toca la base: mira `backups/` y avisa si el
-  último es viejo o no existe (exit 1 + el comando para arreglarlo). Existe porque el backup es
-  manual y "me olvidé de correrlo" y "perdí la curaduría" son el mismo evento con dos meses de
-  distancia. Lo llaman solos: el **hook pre-commit** cuando el commit toca `drizzle/` (una
-  migración nueva es la señal más temprana de que alguien va a correr `db:migrate`) — **avisa, no
-  bloquea** — y **`/consistency-check`** (check g).
-- **Auditoría de coherencia docs ↔ código ↔ DATOS** — `/consistency-check` (skill local).
-  Además de los cruces contra el código, su **check (f)** cruza los docs contra el **runtime**
-  (`app_settings`, tags, chips, curaduría) con `SELECT` únicamente. Cubre el drift que no se ve en
-  ningún archivo: el modelo que realmente corre, precios y topes, tags retirados con filas, el
-  **canario de la curaduría** (si `place_tags source='admin'` **bajó** de ~3.967 es posible pérdida
-  de datos → backup ya) y los **gates numéricos de specs que ya se cumplieron** sin que nadie se
-  entere. Correlo después de una corrida de curaduría, un cambio en `app_settings` o al retomar el
-  proyecto tras un parate.
-- **Borrado real de las fotos de un lugar** — `scripts/borrar-fotos.ts` (`npm run fotos:borrar --
-  <placeId>`). ⚠️ **Puerta de ida: el objeto de R2 no vuelve.** Es para el caso de **abuso** (se
-  hizo pasar por dueño, subió fotos ofensivas); revocar un reclamo por corrección **oculta y no
-  borra**, y ese sigue siendo el default. Existe como script y **no** como botón de `/admin` a
-  propósito: la única acción irreversible del producto no va en el camino de un click. Pide escribir
-  el nombre del lugar para confirmar. La regla vive en `borrarFotosDeLugar` (`lib/negocio/acciones.ts`),
-  de la que también depende el borrado de cuenta — no escribir una segunda.
-- **Termómetro de calidad de búsqueda del chat** — `scripts/eval-chat.ts` (`npm run eval:chat`).
-  Corre casos reales contra prompt+tool+motor+Sonnet, imprime los tool-inputs y **chequea que no
-  vuelva la trampa de `precio` ni el sobre-filtrado de escape-room**. **Cuesta tokens reales
-  (Sonnet).** Correlo después de tocar `lib/ai/prompts.ts` o cuando cambie la densidad del
-  catálogo (curaduría nueva).
+| Red | Cuándo |
+|-----|--------|
+| `npm run backup:db` | **ANTES de cualquier operación destructiva sobre la base.** La curaduría (~3.967 tags) no está en git ni en el seed |
+| `npm run backup:check` | Lo llaman solos el hook pre-commit (si el commit toca `drizzle/`) y `/consistency-check`. Avisa, no bloquea |
+| `/consistency-check` | Tras una corrida de curaduría, un cambio en `app_settings`, o al retomar tras un parate. Cruza docs ↔ código ↔ **datos del runtime** |
+| `npm run fotos:borrar` | Solo por **abuso**. ⚠️ Puerta de ida: el objeto de R2 no vuelve. Revocar un reclamo **oculta, no borra** |
+| `npm run eval:chat` | Tras tocar `lib/ai/prompts.ts` o cuando cambie la densidad del catálogo. **Cuesta tokens reales** |
 
 ---
 
@@ -485,4 +439,6 @@ que el script de import no arrastre `lib/claims`).
 | Specs implementados (resumen) | `docs/archive/SPECS_ARCHIVO.md` (cuando exista) |
 | QA + IDs trazables | `docs/qa/AnalisisQA.md` (cuando exista) |
 | Pendientes | `docs/product/BACKLOG.md` |
-| Retro por sesión (qué mejorar del método) | `docs/operations/RETRO.md` |
+| Retro por sesión + las 3 preguntas de cierre | `docs/operations/RETRO.md` |
+| Redes de seguridad (backup, consistency, borrados) | `docs/operations/REDES-DE-SEGURIDAD.md` |
+| Checklist de cierre de un spec (9 pasos) | `docs/specs/README.md` § *Al cerrar un spec* |

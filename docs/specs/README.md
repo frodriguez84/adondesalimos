@@ -58,3 +58,26 @@ FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 est�
 | [PULIDO_BETA](done/PULIDO_BETA.md) | Pulido de UX/UI para la beta: los **6 recorridos reales** auditados en mobile (390×844) con ver y arreglar en fases separadas —43 hallazgos, los 10 BLOQUEANTE arreglados y re-verificados en vivo, 33 al backlog— + la app **instalable** (`manifest.ts`, de donde sale el splash gratis; splash propia descartada con motivo). Incluye el **alta nueva end-to-end**, el recorrido que nunca se había podido ver. [Resumen](../archive/SPECS_ARCHIVO.md#pulido_beta) · ✅ 2026-08-03 (único DoD sin verificar: PBETA-07, iOS) |
 | [CURADURIA](done/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola en `/admin`. Corrida completa autónoma con Sonnet (auto-apply de lo evidenciado): ~1.840 lugares, 1.149 tags, 5/9 chips prendidos. [Resumen](../archive/SPECS_ARCHIVO.md#curaduria) · ✅ 2026-07-27 |
 | [CURADURIA_POR_NOMBRE](done/CURADURIA_POR_NOMBRE.md) | **Tanda B del feedback real** (`FB-10` + `FB-10b`): buscar un lugar **por nombre** en `/admin` → Curaduría y curarlo con el editor de siempre, sin cola ni `psql` (el buscador **no** filtra por publicado: consulta `isPlacePublished` para etiquetar, no para filtrar); + el 🔴 bug de que **guardar borraba el precio**. Sin migración ni código de guardado nuevo. **Destraba la curaduría de cobertura.** [Resumen](../archive/SPECS_ARCHIVO.md#curaduria_por_nombre) · ✅ 2026-08-08 |
+
+---
+
+## Al cerrar un spec — checklist obligatorio (lo orquesta `/close-spec`)
+
+| # | Qué | Dónde |
+|---|-----|-------|
+| 1 | Código + verificación técnica | typecheck · tests · build |
+| 2 | QA con IDs trazables | `docs/qa/AnalisisQA.md` — sección nueva, IDs `FEATURE-NN`, ✅/❌. No condensar histórico |
+| 3 | Resumen condensado | `docs/archive/SPECS_ARCHIVO.md` — anchor `{#slug}`, rutas, archivos clave, link al spec y al QA |
+| 4 | Estado en el spec | Primera línea: `**Estado:** ✅ Implementado (YYYY-MM-DD)` o `Parcial — §X ✅; §Y pendiente` |
+| 5 | Mover el spec | 100% cerrado → `git mv active/FOO.md done/`. Parcial → queda en `active/` |
+| 6 | Manifiesto | `docs/specs/README.md` — mover fila a la tabla correcta |
+| 7 | Cola de trabajo | `docs/product/BACKLOG.md` — **los dos**: tildar el ítem de la lista `[x]` con fecha **y** agregar la entrada al log `## Hecho` (al tope) |
+| 8 | Stub de redirect | Si moviste el archivo: stub de 5 líneas en la ruta vieja |
+| 9 | Lecciones (si aplica) | `docs/operations/LECCIONES_APRENDIDAS.md` |
+
+**El spec es el árbitro. QA bloqueado = no PR.**
+
+> Vivía en `CLAUDE.md` hasta el 2026-08-08; se mudó acá —el doc de la regla de trabajo de specs—
+> para bajarle peso al archivo que se carga en toda sesión. **Sigue siendo obligatorio**: allá quedó
+> la orden de correr `/close-spec`, que es lo que orquesta estos 9 pasos.
+
