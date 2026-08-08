@@ -1,7 +1,8 @@
 import { and, eq, ne } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { places, subscriptions } from '@/lib/db/schema'
+import { subscriptions } from '@/lib/db/schema'
 import { cancelPreapproval } from '@/lib/billing/mercadopago'
+import { bajarFlagDeLugar } from '@/lib/billing/subscriptions'
 
 /**
  * Bajas de suscripción por causas externas al usuario pagador (MONETIZACION,
@@ -44,10 +45,8 @@ export async function cancelarSuscripcionDeLugar(placeId: string): Promise<void>
       .where(eq(subscriptions.id, sub.id))
   }
 
-  await db
-    .update(places)
-    .set({ ownerPlan: 'free', updatedAt: now })
-    .where(eq(places.id, placeId))
+  // El flag lo escribe su dueño único, no este módulo (`ADMU-QA-01`).
+  await bajarFlagDeLugar(db, placeId, now)
 }
 
 /**
@@ -67,10 +66,7 @@ export async function cancelarSuscripcionesDeUsuario(userId: string): Promise<vo
   for (const sub of vivas) {
     await cancelarEnMpBestEffort(sub.mpPreapprovalId)
     if (sub.placeId) {
-      await db
-        .update(places)
-        .set({ ownerPlan: 'free', updatedAt: now })
-        .where(eq(places.id, sub.placeId))
+      await bajarFlagDeLugar(db, sub.placeId, now)
     }
   }
 }

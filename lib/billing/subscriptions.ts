@@ -41,11 +41,26 @@ export async function bajarFlagDelPlan(
   if (sub.placeId === null) {
     await tx.update(users).set({ plan: 'free', updatedAt: now }).where(eq(users.id, sub.userId))
   } else {
-    await tx
-      .update(places)
-      .set({ ownerPlan: 'free', updatedAt: now })
-      .where(eq(places.id, sub.placeId))
+    await bajarFlagDeLugar(tx, sub.placeId, now)
   }
+}
+
+/**
+ * La bajada del eje B2B **sin** eje completo, para los llamadores que bajan el plan
+ * de un lugar sin tener una suscripción a mano: `cancelarSuscripcionDeLugar` baja el
+ * flag incluso cuando no hay fila viva (`lib/billing/baja.ts`), así que no puede
+ * armar el `{ userId, placeId }` que pide `bajarFlagDelPlan`.
+ *
+ * Existe para que ese caso no tenga que escribir el `UPDATE` por su cuenta: era la
+ * **segunda implementación** de la regla (ADMIN_USUARIOS, `ADMU-QA-01`) y dos copias
+ * driftean. Sigue habiendo un solo lugar donde `places.owner_plan` se escribe.
+ */
+export async function bajarFlagDeLugar(
+  tx: DbOrTx,
+  placeId: string,
+  now: Date,
+): Promise<void> {
+  await tx.update(places).set({ ownerPlan: 'free', updatedAt: now }).where(eq(places.id, placeId))
 }
 
 /**
