@@ -37,6 +37,28 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-08 · Implementación de la Tanda C (ADMIN_USUARIOS) — Opus
+
+- **Qué salió bien:** el criterio central del DoD estaba escrito **como grep** (*"`grep -rn
+  "ownerPlan:" lib/ app/` no devuelve escrituras fuera de los dos helpers"*) y por eso encontró algo
+  que la feature no había causado: `lib/billing/baja.ts` escribía `owner_plan` en paralelo al dueño
+  único **desde MONETIZACION F2**. Sobrevivió dos specs porque las dos copias hacían exactamente lo
+  mismo: ningún test, typecheck ni QA en vivo puede distinguirlas, el drift no existe hasta que una
+  cambia. Un criterio en prosa se lo aplica el que implementa a lo que está escribiendo; **un grep se
+  lo aplica al repo entero**. Segundo acierto: el QA en vivo mató una promesa que nadie había
+  verificado —*«al bajar de plan se ocultan las fotos 4-15»*, que la ficha no hace porque publica una
+  sola foto— y que ya estaba **en el copy que ve el admin**, no solo en dos specs.
+- **Qué frenó:** nada. El veredicto del QA se escribió dos veces (BLOQUEADO → APROBADO, porque el
+  fix heredado llegó en el medio) y eso **no fue un roce, fue el método funcionando**: el registro de
+  que arrancó rojo es justamente lo que hace visible la deuda heredada. La regla de *texto largo ⇒
+  archivo, nunca heredoc* —el "qué cambiar" de las dos retros anteriores— se aplicó de entrada y
+  cortó las tres sesiones seguidas de `unexpected EOF`: **cero peleas con el shell** en una sesión que
+  escribió un spec de QA, dos lecciones, un resumen de archivo y dos mensajes de commit largos.
+- **Qué cambiar:** nada. Las 3 preguntas de cierre dieron "nada" en las tres, y el único candidato
+  que tenía —el veredicto escrito dos veces— no señala un problema del método, así que no se cambia
+  nada. Sí quedaron **dos ítems de producto** en el BACKLOG (§ *Salidos de ADMIN_USUARIOS*), que son
+  hallazgos del feature y no del método.
+
 ## 2026-08-08 · Spec de la Tanda C (ADMIN_USUARIOS) — Fable
 
 - **Qué salió bien:** la decisión más pesada del spec —*¿la cortesía se puede revocar?*— no se
