@@ -3694,8 +3694,8 @@ darlo por bueno:
 ## QA — Feedback de los primeros usuarios reales, Tanda A (2026-08-08)
 
 **Veredicto:** APROBADO
-**Verificación técnica:** typecheck ✅ · tests ✅ 645/645 · build ⏳ (el dev server estaba
-levantado; se corre con el server parado, ver § Notas de `CLAUDE.md`)
+**Verificación técnica:** typecheck ✅ · tests ✅ 645/645 · build ✅ (corrido con el dev server
+parado, después del commit `05ef0e6`)
 **Alcance:** los 6 ítems que Fer aprobó el 2026-08-08 (`FB-02`, `FB-05`, `FB-06`, `FB-07`,
 `FB-08`, `FB-09`) del triaje de `docs/product/BACKLOG.md` § *Feedback de los primeros usuarios
 reales*. Sin spec: son bugs y roces chicos, ya clasificados contra el código.
@@ -3751,5 +3751,6 @@ sesión). `FB-02` y `FB-09` **no se podían dar por buenos sin pantalla** y se v
   votás sin crear cuenta. Esto es ¿A dónde salimos?, la app para decidir la salida con el grupo"*)
   también le explica el producto al creador. El triaje acotó `FB-08` al eyebrow y al footer, así
   que se dejó como está y se anotó en el BACKLOG para que Fer decida.
-- **El `build` queda pendiente** a propósito: el dev server de Fer estaba levantado y comparten
-  `.next` (lección de BÚSQUEDA). typecheck y tests corrieron verdes con el server arriba.
+- **El `build` se corrió aparte**, con el dev server parado (comparten `.next`, lección de
+  BÚSQUEDA): compiló limpio y generó las 14 páginas estáticas. typecheck y tests ya habían corrido
+  verdes con el server arriba.
