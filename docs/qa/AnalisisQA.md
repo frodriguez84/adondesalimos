@@ -3754,3 +3754,75 @@ sesión). `FB-02` y `FB-09` **no se podían dar por buenos sin pantalla** y se v
 - **El `build` se corrió aparte**, con el dev server parado (comparten `.next`, lección de
   BÚSQUEDA): compiló limpio y generó las 14 páginas estáticas. typecheck y tests ya habían corrido
   verdes con el server arriba.
+
+---
+
+## QA — CURADURIA_POR_NOMBRE (Tanda B del feedback: FB-10 + FB-10b) (2026-08-08)
+
+**Veredicto:** ✅ **APROBADO** — 16/16 casos en vivo PASS + 14/14 criterios de código PASS.
+**Verificación técnica:** typecheck ✅ · tests ✅ 651/651 (59 archivos) · build ✅ (con el dev
+server parado, lección de BÚSQUEDA).
+**Método:** QA en vivo por Playwright sobre `https://adondesalimos.ngrok.app` con sesión de admin,
+**más** 3 checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD de
+`docs/specs/done/CURADURIA_POR_NOMBRE.md`.
+**Backup previo (decisión 9):** `backups/adondesalimos_2026-08-08_151629.sql.gz` (5,0 MB), corrido
+**antes** de tocar código — este spec escribe en `place_tags`, donde viven los ~3.967 tags
+`source='admin'` que no están en git.
+
+### Los 16 casos del spec, en vivo
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| CURNOM-01 | Buscar por nombre exacto | ✅ PASS | «Cafe Crespin» ⇒ 1 resultado con dirección y zona: *Vera 699 · Villa Crespo* |
+| CURNOM-02 | Typo y sin acentos | ✅ PASS | «crespn» ⇒ encuentra *Cafe Crespin* (+4 más); «pocho cafe» ⇒ encuentra **Pocho Café**. Misma tolerancia que la búsqueda pública, sin un solo `LIKE` |
+| CURNOM-03 | Una sola letra | ✅ PASS | «c» + Enter ⇒ no se muestra nada, sin error en consola y **sin request** (el corte es del cliente y también del server) |
+| CURNOM-04 | Nombre inexistente | ✅ PASS | «zzzqwertylugarinexistente» ⇒ «No encontramos ningún lugar con ese nombre.» |
+| CURNOM-05 | Buscar un lugar **despublicado** | ✅ PASS | *Pocho Café* (confidence 0,20 · umbral 0,50) aparece con el chip «despublicado» y su `title`; se abrió y se curó. Idem *Crespo Bar* y *Café Porteño* |
+| CURNOM-06 | El mismo lugar en la búsqueda **pública** | ✅ PASS | `/?q=Pocho Cafe` devuelve 5 cafés y **ninguno** es *Pocho Café* ni *Café Porteño*: la divergencia de la decisión 1 es solo del buscador de admin |
+| CURNOM-07 | Abrir un resultado | ✅ PASS | `RevisorLugar` con Ambiente (17) + Momento (8) + Actividad (19), «Sin sugerencias pendientes con evidencia para este lugar» y lo ya asignado pre-tildado |
+| CURNOM-08 | Tildar un tag y guardar | ✅ PASS | «Juegos de mesa» ⇒ «Guardado ✓» junto al nombre, se queda en el lugar, y `place_tags` gana `juegos-de-mesa` / `source='admin'` |
+| CURNOM-09 | Enter dentro del buscador | ✅ PASS | Con un tag tildado **sin guardar**: Enter buscó (resultados nuevos), el editor **no** se remontó (el tag seguía tildado) y `place_tags` quedó **sin** filas admin. El handler global ignora `INPUT` |
+| CURNOM-10 | **FB-10b** — abrir por nombre un lugar con precio | ✅ PASS | *Cafe Crespin* abre con **«$$» pressed**, no en «No sé» |
+| CURNOM-11 | **FB-10b** — el mismo lugar desde la cola **por zona** | ✅ PASS | Villa Crespo ⇒ *Cafe Crespin* también abre con «$$» pressed: el fix vale para los dos caminos |
+| CURNOM-12 | **FB-10b** — `SELECT` → guardar sin tocar el precio → `SELECT` | ✅ PASS | Las 6 filas de `place_tags` idénticas antes y después, `precio-2` incluido. **Antes de este spec desaparecía** |
+| CURNOM-13 | Cambiar el precio y guardar | ✅ PASS | «$$$» ⇒ una sola fila, `precio-3`, `source='admin'`; el editor remontado muestra `$$$` (lo persistido) |
+| CURNOM-14 | Poner «No sé» y guardar | ✅ PASS | La fila de precio se borra (0 filas): borrar sigue siendo posible como **acción explícita**, que es la diferencia con el efecto colateral que era FB-10b |
+| CURNOM-15 | Flujo por zona completo | ✅ PASS | Con la cola cargada a mano: zona ⇒ próximo lugar (con evidencia y ✨) ⇒ guardar ⇒ «No quedan lugares pendientes en esta zona. 🎉». Sugerencia resuelta `rejected`. Sin regresión |
+| CURNOM-16 | `?q=bar` sin sesión de admin | ✅ PASS | 403 con `{"code":"FORBIDDEN"}`, mismo shape que las ramas existentes. La rama `?placeId=` también |
+
+### Checkers independientes (código vs DoD) — 14/14 PASS
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| CURNOM-QA-01 | `lib/search/nombre.ts` es el **único** dueño del match por nombre | ✅ PASS | Define `normalizado`/`simKey`/`coincideNombre`; `lib/search/query.ts` los importa. No quedan definiciones duplicadas |
+| CURNOM-QA-02 | Cero `LIKE`/`ilike` en `lib/curation/` | ✅ PASS | Grep sin resultados en los módulos (los tests usan `like` solo para limpiar por prefijo) |
+| CURNOM-QA-03 | `buscarLugaresPorNombre` **omite** el predicado y usa `isPlacePublished` para el flag | ✅ PASS | Sin `publishedWhere`/`publishedSql` importados ni condición espejo; `publicado: isPlacePublished(f, umbral)`. La divergencia está comentada citando la decisión 1 |
+| CURNOM-QA-04 | Mínimo 2 caracteres, tope 10, orden similitud desc + nombre asc | ✅ PASS | `MIN_CARACTERES_BUSQUEDA = 2` (devuelve `[]`, no error) · `TOPE_RESULTADOS = 10` · `orderBy(desc(simKey), asc(places.name))` |
+| CURNOM-QA-05 | `LugarEnCola.precioSlug` sin filtrar por `source`, desempate por `tags.sort` | ✅ PASS | La query de tags asignados no filtra `source` y viene `orderBy(asc(tags.sort))`; el `.find()` toma el primero |
+| CURNOM-QA-06 | El precio llega por los **dos** caminos | ✅ PASS | `proximoLugarDeZona` y `lugarParaCurar` comparten `armarLugarEnCola`, que es quien calcula `precioSlug` |
+| CURNOM-QA-07 | El editor arranca con `lugar.precioSlug`, no en `null` | ✅ PASS | `useState(lugar.precioSlug)` en `app/admin/curaduria-client.tsx` |
+| CURNOM-QA-08 | Ramas `?q=`/`?placeId=` bajo el mismo gate, sin ruta nueva ni rate limit | ✅ PASS | Un solo `sesionAdmin` inline; las 4 ramas en el mismo archivo |
+| CURNOM-QA-09 | No se tocó `acciones.ts`, `validacion.ts`, `facetas.ts`, `[placeId]/route.ts`, `visibility.ts` ni `drizzle/` | ✅ PASS | `git diff --stat`: ninguno aparece. Sin migraciones nuevas |
+| CURNOM-QA-10 | El buscador vive arriba del selector de zonas y **no** dentro del flujo por zona | ✅ PASS | Se renderiza solo en la rama `!zonaActiva` |
+| CURNOM-QA-11 | Modo por-nombre ⇒ `sugerencias: []` y el texto de "sin evidencia" | ✅ PASS | `armarLugarEnCola(..., false)` saltea la query de sugerencias; `Evidencia` ya cubría el caso |
+| CURNOM-QA-12 | El remount es real: la `key` lleva contador, no solo el id | ✅ PASS | La key combina el id con `revision`, que se incrementa en cada recarga |
+| CURNOM-QA-13 | Copy rioplatense exacto (5 textos) | ✅ PASS | Placeholder, ayuda, sin resultados, chip «despublicado» + `title`, y «Guardado ✓» |
+| CURNOM-QA-14 | Tests del precio y de que el buscador no filtra por publicado | ✅ PASS | `lib/curation/__tests__/por-nombre.integration.test.ts`, 6 casos |
+
+### Notas
+
+- **Los casos de precio se verificaron con `SELECT` antes/después, no por pantalla.** Es el punto
+  entero de `FB-10b`: el bug era invisible **porque** la pantalla mostraba «No sé» con toda
+  naturalidad y la fila desaparecía sin ruido. Un QA que solo mira la UI lo habría dado por bueno.
+- **La base quedó como estaba.** El QA se hizo sobre lugares reales (*Cafe Crespin*, *Pocho Café*) y
+  se revirtió todo: el precio de Crespin volvió a `precio-2`, el tag de prueba de Pocho Café se
+  borró y la sugerencia inyectada para CURNOM-15 (`model_used='qa-curnom'`) también.
+  **Canario de la curaduría: 3.967 tags `source='admin'` antes y después** — el mismo número que
+  documenta CLAUDE.md.
+- **CURNOM-15 necesitó cargar la cola a mano**: tras la corrida autónoma de CURADURIA F3 no queda
+  ninguna sugerencia `pending`, que es justamente el problema que este spec resuelve. Se insertó una
+  (`wifi-trabajar` sobre Cafe Crespin), se recorrió el flujo entero y se borró.
+- **Duplicación señalada, no tocada (fuera de scope):** `lib/claims/query.ts:69` tiene su **propia**
+  copia del match por nombre (`immutable_unaccent(lower(...))` + `word_similarity` inline) que ahora
+  podría consumir `lib/search/nombre.ts`. El spec acotó la extracción a `lib/search/query.ts`;
+  unificar el tercer llamador va como paso aparte al BACKLOG.

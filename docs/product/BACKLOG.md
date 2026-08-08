@@ -336,8 +336,8 @@ son trabajo acotado con criterio de "listo" objetivo.
       lugar); **Tanda C** — los dos de `/admin`; **Tanda D** — `FB-04`.
       **Fer aprobó arrancar por la Tanda A (2026-08-08)**; B y C esperan a que las pida.
       ✅ **Tanda A cerrada el 2026-08-08** (los 6 ítems tildados abajo + `PBETA-R2-09`). Quedan B, C y `FB-04`.
-      📄 **La Tanda B ya tiene spec** (2026-08-08): [`CURADURIA_POR_NOMBRE`](../specs/planned/CURADURIA_POR_NOMBRE.md),
-      escrito y **sin implementar**.
+      ✅ **Tanda B cerrada el 2026-08-08**: [`CURADURIA_POR_NOMBRE`](../specs/done/CURADURIA_POR_NOMBRE.md)
+      escrito e implementado el mismo día (`FB-10` + `FB-10b`). Quedan **C** y `FB-04`.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -419,8 +419,8 @@ sin cola, y limpiar de golpe repetiría el silencio que escondió a FB-10b); (3)
 vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (la puerta).
 ⚠️ `npm run backup:db` antes de implementar y antes del QA — se escribe en `place_tags`.
 
-- [ ] **FB-10 · 🟢 FEATURE (puerta de entrada, no mecanismo) — etiquetar un lugar buscándolo por
-      nombre.** Confirmado que **el mecanismo está entero y no hay que tocarlo**:
+- [x] **FB-10 · ✅ HECHO 2026-08-08 · 🟢 FEATURE (puerta de entrada, no mecanismo) — etiquetar un
+      lugar buscándolo por nombre.** Confirmado que **el mecanismo está entero y no hay que tocarlo**:
       `guardarCuraduria(placeId, tags, precio)` (`lib/curation/acciones.ts:37`) **es agnóstico de la
       cola** —recibe un `placeId`, no depende de que haya sugerencias pendientes—, el endpoint
       `POST /api/admin/curaduria/[placeId]` ya existe con su gate de admin, y `RevisorLugar` ya
@@ -439,8 +439,14 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       3. `RevisorLugar.onResuelto()` hoy llama a `traerProximo(zonaActiva)` — en modo por-nombre no
          hay zona y hay que decidir qué pasa después de guardar.
       **Destraba la curaduría de cobertura (#3 de la cola post-v2), que está gateada esperando esto.**
-- [ ] **FB-10b · 🔴 BUG encontrado durante el triaje (nadie lo reportó) — guardar en la curaduría
-      BORRA el precio del lugar.** `guardarCuraduria` borra todas las `place_tags` con
+      ✅ **Implementado** en [`CURADURIA_POR_NOMBRE`](../specs/done/CURADURIA_POR_NOMBRE.md)
+      ([resumen](../archive/SPECS_ARCHIVO.md#curaduria_por_nombre)): los 3 puntos salieron tal cual
+      —`lugarParaCurar` reusa el armador, el buscador consume `lib/search/nombre.ts` (nada de `LIKE`)
+      y **omite** el predicado de publicado usando `isPlacePublished` solo para etiquetar, y tras
+      guardar se queda en el lugar releyéndolo del server. **La curaduría de cobertura ya no está
+      gateada.**
+- [x] **FB-10b · ✅ HECHO 2026-08-08 · 🔴 BUG encontrado durante el triaje (nadie lo reportó) —
+      guardar en la curaduría BORRA el precio del lugar.** `guardarCuraduria` borra todas las `place_tags` con
       `source='admin'` de `FACETAS_EDITABLES`, que **incluye `precio`**
       (`lib/curation/acciones.ts:24`), y las re-inserta desde lo que manda el cliente. Pero
       `RevisorLugar` inicializa `const [precio, setPrecio] = useState<string|null>(null)`
@@ -451,6 +457,10 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       corrijo un tag, guardo" pasa a ser el gesto más común y se lleva el precio puesto. **Va en la
       misma tanda que FB-10, no después**: `LugarEnCola` tiene que traer el precio asignado y el
       editor inicializar el estado con él.
+      ✅ **Arreglado** así: `LugarEnCola.precioSlug` se lee de `place_tags` ∩ faceta `precio` **sin
+      filtrar por `source`** (un precio de dueño o de import también tiene que verse) y el editor
+      arranca con él, por los **dos** caminos. Verificado con `SELECT` antes/después, no por
+      pantalla — el bug era invisible justamente por eso (`CURNOM-10`..`CURNOM-14`).
 
 #### Tanda C — operar la beta sin `psql` (los dos son `/admin`)
 
@@ -527,6 +537,16 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 ---
 
 ## Mejoras futuras (fuera de v1)
+
+### Deuda técnica señalada, no tocada
+
+- [ ] **Unificar el tercer llamador del match por nombre** (visto el 2026-08-08 implementando
+      `CURADURIA_POR_NOMBRE`). Ahora que `lib/search/nombre.ts` es el dueño único de
+      `normalizado`/`simKey`/`coincideNombre`, queda **una copia inline** en `lib/claims/query.ts:69`
+      (`immutable_unaccent(lower(...))` + `word_similarity` escritos a mano) que puede consumirlo.
+      Es exactamente el caso de *"una regla, un dueño"*: dos copias driftean y la desactualizada
+      miente. **No es urgente** —hoy las dos hacen lo mismo— pero es un cambio de 5 líneas y va como
+      paso aparte, no colado en otra tarea.
 
 ### Los 33 hallazgos no bloqueantes de `PULIDO_BETA` F1 (triados por Fer el 2026-08-03)
 
@@ -1498,6 +1518,24 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Tanda B del feedback — `CURADURIA_POR_NOMBRE`, escrito ayer e implementado hoy** (2026-08-08,
+      sesión Opus). Cierra `FB-10` (la puerta: buscar un lugar por nombre en `/admin` → Curaduría y
+      curarlo con el editor de siempre) y `FB-10b` (el 🔴 bug de que guardar borraba el precio), en
+      ese orden invertido: **primero el piso**, porque el bug ya existía en la cola por zona y valía
+      arreglarlo aunque la puerta se frenara. QA `docs/qa/AnalisisQA.md` § *CURADURIA_POR_NOMBRE*:
+      **16/16 casos en vivo** (`CURNOM-01`..`CURNOM-16`) + **14/14 criterios de código** por 3
+      checkers independientes; typecheck, 651 tests y build en verde.
+      [Resumen](../archive/SPECS_ARCHIVO.md#curaduria_por_nombre).
+      Tres cosas que solo se vieron implementando: (1) **la `key` de React era parte de la lógica** —
+      recargar el mismo `placeId` no remonta `RevisorLugar`, así que sin un contador de recarga el
+      editor mostraría lo tipeado en vez de lo persistido (el spec lo anticipó y se implementó de
+      entrada); (2) `LugarEnCola.zonaSlug` tuvo que pasar a **nullable**, porque por nombre se llega
+      a lugares sin zona primaria y la cola por zona nunca podía tenerlo así; (3) **el QA del precio
+      tenía que ser por `SELECT`**, no por captura: la pantalla mostraba «No sé» con total
+      naturalidad mientras la fila desaparecía. La base quedó como estaba (canario: 3.967 tags
+      `source='admin'` antes y después) y el backup previo es
+      `backups/adondesalimos_2026-08-08_151629.sql.gz`. **Destraba la curaduría de cobertura.**
 
 - [x] **Spec de la Tanda B escrito** (2026-08-08, sesión Fable, autoría de spec — **no hay código**):
       [`docs/specs/planned/CURADURIA_POR_NOMBRE.md`](../specs/planned/CURADURIA_POR_NOMBRE.md), que cubre

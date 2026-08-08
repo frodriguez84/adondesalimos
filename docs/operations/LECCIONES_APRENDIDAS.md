@@ -5,6 +5,57 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un estado inicial que miente borra datos sin romper nada (2026-08-08 · CURADURIA_POR_NOMBRE)
+
+**Qué pasó.** El editor de curaduría inicializaba el precio en `useState<string | null>(null)` —
+"No sé"— porque `LugarEnCola` ni siquiera traía ese dato. Y `guardarCuraduria` hace
+borrar-y-reinsertar sobre las facetas editables, `precio` incluida. O sea: **abrir un lugar ya
+curado y guardarlo le borraba el precio**, en silencio, sin un error, sin un log y con la pantalla
+mostrando exactamente lo que su estado decía. No lo reportó nadie: lo encontró el triaje leyendo el
+código, y solo porque estaba mirando otra cosa (`FB-10`).
+
+Lo que lo vuelve interesante no es el `null`. Es que **el bug era invisible por construcción**: la
+UI era coherente consigo misma en todo momento. Un QA por pantalla —abrir, tocar un tag, guardar,
+ver que dice "Guardado"— lo aprueba las diez veces. El único lugar donde el bug existe es la
+diferencia entre dos `SELECT`.
+
+**Por qué no se ve.** Un componente cuyo estado nace de `useState(valor)` tiene **dos** fuentes
+posibles de verdad —lo que hay en la base y lo que el estado asume— y **solo una se renderiza**. Si
+la que se muestra es la que asume, la pantalla no puede delatarla: se ve idéntica al caso legítimo
+("este lugar no tiene precio"). El daño aparece recién cuando ese estado viaja de vuelta a un
+`DELETE`/`INSERT` que trata la ausencia como una decisión del usuario. Es el mismo patrón de
+cualquier form que hace PUT del objeto entero con los campos que no cargó en blanco.
+
+Y hay un agravante de contexto: los datos que se borraban eran de los que **no están en git ni en
+el seed** (los ~3.967 tags `source='admin'` de la curaduría cuestan ~US$17 de Sonnet reponerlos).
+Un bug silencioso sobre datos irreproducibles no se descubre cuando pasa; se descubre meses después,
+cuando alguien los busca.
+
+**Qué hacer distinto:**
+
+1. **Si un formulario borra-y-reinserta, su estado inicial tiene que venir de la base, sin
+   excepción.** No es un detalle de UX: cada campo que el editor no sabe leer es un campo que el
+   guardado va a borrar. La pregunta al escribir el `useState` es "¿qué pasa si el usuario guarda
+   sin tocar esto?".
+2. **Un bug de datos se verifica con `SELECT` antes/después, nunca por captura de pantalla.** Los
+   casos `CURNOM-10`..`CURNOM-14` se escribieron así a propósito. Si el criterio de aceptación se
+   puede cumplir con la pantalla mintiendo, el criterio está mal escrito.
+3. **Al leer un campo "para mostrar", no filtres por quién lo escribió.** El precio se lee de
+   `place_tags` **sin** filtrar por `source`: uno puesto por el dueño o traído del import también
+   tiene que verse, porque el `DELETE` posterior lo alcanza igual. Filtrar de más en la lectura
+   recrea el mismo bug con otra cara.
+4. **Cuando una feature nueva convierte un camino raro en el camino principal, sus bugs latentes
+   dejan de ser latentes.** `FB-10b` "casi no mordía" (un lugar con precio en 18.993, cola vacía) —
+   hasta que `FB-10` volvía a *"busco un lugar, corrijo un tag, guardo"* el gesto más común del
+   admin. Por eso los dos fueron en la misma tanda y **el piso primero**: abrir la puerta sin
+   arreglarlo era agrandar un bug de pérdida de datos, no heredarlo.
+
+**Dónde quedó:** `lib/curation/query.ts` (`LugarEnCola.precioSlug`, con el porqué del "sin filtrar
+por `source`") · `app/admin/curaduria-client.tsx` (el `useState` con su comentario) ·
+`docs/qa/AnalisisQA.md` § *CURADURIA_POR_NOMBRE* (`CURNOM-10`..`CURNOM-14`, con los `SELECT`).
+
+---
+
 ## SQL escrito en un spec es una hipótesis, no un procedimiento (2026-08-03 · DEPLOY F0)
 
 **Qué pasó.** El paso 5 de `DEPLOY` traía el SQL de limpieza **ya escrito**, con comentarios

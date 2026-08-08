@@ -1,12 +1,25 @@
 import { sesionAdmin } from '@/lib/auth/sesion'
-import { proximoLugarDeZona, zonasConCola } from '@/lib/curation/query'
+import {
+  buscarLugaresPorNombre,
+  lugarParaCurar,
+  proximoLugarDeZona,
+  zonasConCola,
+} from '@/lib/curation/query'
 
 /**
- * `GET /api/admin/curaduria?zona=<slug>` — el próximo lugar a revisar de una zona
- * (CURADURIA, F2), para que la cola avance sin recargar toda la página. Sin `zona`,
- * devuelve las zonas con cola (para refrescar los conteos tras revisar un lugar).
+ * `GET /api/admin/curaduria` — las lecturas de la tab Curaduría. Cuatro ramas,
+ * un solo gate:
  *
- * Gate de admin inline, mismo patrón que el resto de `/api/admin/*`.
+ *  - `?zona=<slug>` — el próximo lugar a revisar de esa zona (CURADURIA, F2),
+ *    para que la cola avance sin recargar toda la página.
+ *  - `?q=<texto>` — buscar un lugar por nombre para curarlo sin pasar por la cola
+ *    (CURADURIA_POR_NOMBRE, decisión 5: rama del endpoint que ya existe, no una
+ *    ruta nueva). Con menos de 2 caracteres devuelve lista vacía, no error.
+ *  - `?placeId=<uuid>` — abrir ese lugar en el mismo editor.
+ *  - sin nada — las zonas con cola (para refrescar los conteos).
+ *
+ * Sin rate limit a propósito (decisión 5): es admin gateado, no superficie
+ * pública. Gate de admin inline, mismo patrón que el resto de `/api/admin/*`.
  */
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +33,20 @@ export async function GET(request: Request) {
     )
   }
 
-  const zona = new URL(request.url).searchParams.get('zona')
+  const params = new URL(request.url).searchParams
+  const q = params.get('q')
+  const placeId = params.get('placeId')
+  const zona = params.get('zona')
+
+  if (q !== null) {
+    const lugares = await buscarLugaresPorNombre(q)
+    return Response.json({ data: { lugares }, error: null })
+  }
+
+  if (placeId) {
+    const lugar = await lugarParaCurar(placeId)
+    return Response.json({ data: { lugar }, error: null })
+  }
 
   if (!zona) {
     const zonas = await zonasConCola()

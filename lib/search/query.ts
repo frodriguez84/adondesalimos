@@ -1,8 +1,9 @@
-import { and, eq, inArray, sql, type AnyColumn, type SQL } from 'drizzle-orm'
+import { and, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placeImpressionsDaily, placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { publishedWhere } from '@/lib/db/visibility'
+import { coincideNombre, simKey } from './nombre'
 import { GPS_RADIUS_KM, MAP_PIN_LIMIT, PAGE_SIZE, type SearchParams } from './params'
 
 /**
@@ -62,20 +63,6 @@ const ownerRank = sql<number>`(CASE WHEN ${places.source} = 'owner' OR ${places.
 
 /** Los lugares de dueño tienen confidence null; -1 los ordena de forma estable. */
 const confKey = sql<number>`COALESCE(${places.confidence}, -1)`
-
-function normalizado(expr: SQL | AnyColumn) {
-  return sql`immutable_unaccent(lower(${expr}))`
-}
-
-/**
- * `word_similarity` y no `similarity`: compara el término contra la mejor
- * subcadena del nombre, así "parrila" encuentra "Parrila El Juanca" aunque el
- * nombre entero sea mucho más largo que el término. Medido: 877 matches contra
- * 611 de `similarity`, y usa el mismo índice GIN.
- */
-function simKey(q: string) {
-  return sql<number>`word_similarity(${normalizado(sql`${q}`)}, ${normalizado(places.name)})`
-}
 
 /**
  * Haversine en SQL, sin PostGIS — consistente con ZONAS, que resuelve la
@@ -229,7 +216,7 @@ async function construirWhere(
   where.push(...(await filtrosDeTags(params.tags)))
 
   if (params.q) {
-    where.push(sql`${normalizado(sql`${params.q}`)} <% ${normalizado(places.name)}`)
+    where.push(coincideNombre(params.q))
   }
 
   return { where, usaGps }

@@ -13,6 +13,24 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-08 · Implementación de la Tanda B (CURADURIA_POR_NOMBRE) — Opus
+
+- **Qué salió bien:** el spec de la sesión anterior funcionó como manual, no como referencia. Sus
+  "tres trampas" (la visibilidad que se **omite** en vez de invertirse, el remount con contador, y
+  el Enter del buscador) se implementaron de una y las tres se verificaron en vivo sin debuggear
+  nada. La extracción a `lib/search/nombre.ts` fue refactor puro: los 24 tests del motor en verde
+  antes de tocar la curaduría.
+- **Qué frenó:** el mismo heredoc de Bash que frenó la sesión de autoría, otra vez y en el mismo
+  lugar — texto largo en español con backticks y comillas (`unexpected EOF`, escribiendo la sección
+  de `AnalisisQA.md`). Se resolvió igual: escribir a un archivo del scratchpad y anexar con Python.
+  Lo demás no frenó: la cola de curaduría vacía obligó a inyectar una sugerencia a mano para
+  `CURNOM-15`, pero eso es el problema que el spec resuelve, no fricción del método.
+- **Qué cambiar:** una sola cosa, y es **restar**, no sumar. La regla de commits multilínea de
+  `~/.claude/CLAUDE.md` ya dice "para texto largo, archivo + `-F`", pero está escrita **solo** para
+  mensajes de commit, así que dos sesiones seguidas la volvieron a aprender con documentación. Vale
+  generalizarla a *cualquier* texto largo que pase por el shell (docs, specs, secciones de QA) —
+  una línea en la regla que ya existe, sin regla nueva.
+
 ## 2026-08-08 · Spec de la Tanda B (CURADURIA_POR_NOMBRE) — Fable
 
 - **Qué salió bien:** el triaje dejó el spec casi escrito. Los cinco archivos que el prompt mandó

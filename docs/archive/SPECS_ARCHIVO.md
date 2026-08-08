@@ -799,3 +799,64 @@ vale más que cualquier pulido de pantalla.
 `components/shared/boton-compartir.tsx` · `app/layout.tsx` · `components/search/zone-sheet.tsx` ·
 `app/chat/chat-client.tsx` · `app/votacion/[token]/` · `app/(auth)/login/page.tsx` ·
 `app/(auth)/registro/page.tsx`
+
+---
+
+## CURADURIA_POR_NOMBRE — curar un lugar buscándolo por nombre (Tanda B del feedback) {#curaduria_por_nombre}
+
+**Spec:** [`docs/specs/done/CURADURIA_POR_NOMBRE.md`](../specs/done/CURADURIA_POR_NOMBRE.md) ·
+**QA:** [AnalisisQA § CURADURIA_POR_NOMBRE](../qa/AnalisisQA.md) · ✅ 2026-08-08
+
+**Qué hace:** agrega el **segundo camino de entrada al editor de curaduría**. Hasta acá la única
+puerta era la cola por zona, que sale de `place_tag_suggestions status='pending'` — y tras la
+corrida autónoma de CURADURIA F3 esa cola quedó vacía, así que corregirle un tag a un lugar
+concreto exigía `psql`. Ahora en `/admin` → Curaduría hay un buscador por nombre: elegís un
+resultado y se abre el **mismo** `RevisorLugar`, con el vocabulario completo de las 3 facetas y el
+Precio. El mecanismo de guardado no cambió una línea: `guardarCuraduria` siempre fue agnóstico de
+la cola. Cierra los dos ítems de la Tanda B del feedback de los primeros usuarios reales.
+
+**Alcance:**
+
+- **`FB-10b` (el piso, primero):** `LugarEnCola` gana `precioSlug`, leído de `place_tags` ∩ faceta
+  `precio` **sin filtrar por `source`** (desempate por menor `tags.sort`), y el editor arranca con
+  él en vez de `useState(null)`. Vale para los **dos** caminos, porque el bug era del que ya
+  existía.
+- **`FB-10` (la puerta):** `lib/search/nombre.ts` nuevo (extracción de `normalizado`/`simKey` +
+  `coincideNombre`), `buscarLugaresPorNombre` y `lugarParaCurar` en `lib/curation/query.ts`, ramas
+  `?q=` y `?placeId=` en el endpoint que ya existía, y el tercer modo del cliente.
+- **Sin migración, sin schema nuevo, sin ruta nueva y sin código de guardado nuevo.**
+
+**Decisiones que conviene no re-litigar:**
+
+- **El buscador de admin NO filtra por `publishedWhere` — y eso no rompe la fuente única**
+  (decisión 1). Un lugar despublicado es justo uno de los que hay que curar. La divergencia se
+  implementa **omitiendo** el predicado, nunca escribiendo su espejo invertido; y para que el admin
+  sepa qué toca, cada resultado trae un flag `publicado` calculado con `isPlacePublished`. O sea:
+  `lib/db/visibility.ts` se **consulta para etiquetar**, no se reimplementa para filtrar.
+- **Tras guardar se queda en el lugar y lo relee del server** (decisión 2), con «Guardado ✓».
+  Limpiar el buscador dejaría al admin sin confirmación — que es exactamente el silencio que hizo
+  invisible a `FB-10b`. Y releer tiene un beneficio real: lo que se ve es **lo persistido**, así que
+  el propio flujo verifica el fix del precio en cada uso.
+- **El buscador vive arriba del selector de zonas, no dentro del flujo por zona** (decisión 7): la
+  cola es teclado-first y meterle un input en el medio es ruido.
+
+**Dos cosas que este spec dejó y valen para el que siga:**
+
+1. **La `key` de un componente cuyo estado nace de un prop es parte de la lógica, no decoración.**
+   `RevisorLugar` se monta con `key={lugar.id}` y su estado es `useState(prop)`. Recargar el
+   **mismo** id no remonta ⇒ el editor seguiría mostrando lo tipeado en vez de lo que quedó en la
+   base, incluidos los slugs que el server descartó por inválidos. La key en modo por-nombre lleva
+   un contador de recarga (`id:revision`). El spec lo anticipó y se implementó así de entrada.
+2. **`FB-10b` es el ejemplo de manual de un bug que la pantalla no puede mostrar.** El editor decía
+   «No sé» con total naturalidad y el `DELETE` de `guardarCuraduria` se llevaba la fila sin ruido.
+   Por eso sus casos de QA se verifican con `SELECT` antes/después, no por captura: un QA visual lo
+   habría aprobado. Y por eso el spec exige `npm run backup:db` antes de tocar nada — los ~3.967
+   tags `source='admin'` no están en git.
+
+**Deuda señalada, no tocada:** `lib/claims/query.ts:69` tiene una **tercera** copia del match por
+nombre, inline. Ahora que existe `lib/search/nombre.ts` puede consumirlo; va al BACKLOG como paso
+aparte.
+
+**Archivos clave:** `lib/search/nombre.ts` (nuevo) · `lib/search/query.ts` ·
+`lib/curation/query.ts` · `app/api/admin/curaduria/route.ts` · `app/admin/curaduria-client.tsx` ·
+`lib/curation/__tests__/por-nombre.integration.test.ts` (nuevo)

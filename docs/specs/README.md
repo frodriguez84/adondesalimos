@@ -26,12 +26,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Qué es | Estado |
-|------|--------|--------|
-| [CURADURIA_POR_NOMBRE](planned/CURADURIA_POR_NOMBRE.md) | **Tanda B del feedback real** (`FB-10` + `FB-10b`): buscar un lugar **por nombre** en `/admin` → Curaduría y editarle los tags con el editor de siempre, sin pasar por la cola de sugerencias ni por `psql`; + el 🔴 bug de que **guardar borra el precio** (`LugarEnCola` no traía el dato y el editor nacía en "No sé"). Sin migración: reusa `guardarCuraduria` y el match por nombre del motor. **Destraba la curaduría de cobertura.** | 🔵 Planned — spec escrito 2026-08-08, **sin implementar** |
+_Vacía: no hay specs escritos esperando implementación._
 
-_(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa y
-PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1.)_
+_(La carpeta son todos stubs de redirect de specs ya movidos: la cola de v2 está completa,
+PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
+implementó el 2026-08-08, sin escala en `active/`.)_
 
 Los cuatro specs de **v2** —escritos en la sesión de autoría del 2026-07-29, en el orden de
 implementación decidido por Fer (momentum → impacto, IDEAS § Estado de la conversación
@@ -58,3 +57,4 @@ FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 est�
 | [FAVORITOS](done/FAVORITOS.md) | Guardar lugares y listas (`place_lists` + `place_list_items`): free 1 lista · premium N, gate server-side día 1; botón en card, ficha y chat, página `/mis-lugares` con crear/renombrar/borrar, sheet de destino y métrica `saves` agregada. 2 fases. [Resumen](../archive/SPECS_ARCHIVO.md#favoritos) · ✅ 2026-07-31 |
 | [PULIDO_BETA](done/PULIDO_BETA.md) | Pulido de UX/UI para la beta: los **6 recorridos reales** auditados en mobile (390×844) con ver y arreglar en fases separadas —43 hallazgos, los 10 BLOQUEANTE arreglados y re-verificados en vivo, 33 al backlog— + la app **instalable** (`manifest.ts`, de donde sale el splash gratis; splash propia descartada con motivo). Incluye el **alta nueva end-to-end**, el recorrido que nunca se había podido ver. [Resumen](../archive/SPECS_ARCHIVO.md#pulido_beta) · ✅ 2026-08-03 (único DoD sin verificar: PBETA-07, iOS) |
 | [CURADURIA](done/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola en `/admin`. Corrida completa autónoma con Sonnet (auto-apply de lo evidenciado): ~1.840 lugares, 1.149 tags, 5/9 chips prendidos. [Resumen](../archive/SPECS_ARCHIVO.md#curaduria) · ✅ 2026-07-27 |
+| [CURADURIA_POR_NOMBRE](done/CURADURIA_POR_NOMBRE.md) | **Tanda B del feedback real** (`FB-10` + `FB-10b`): buscar un lugar **por nombre** en `/admin` → Curaduría y curarlo con el editor de siempre, sin cola ni `psql` (el buscador **no** filtra por publicado: consulta `isPlacePublished` para etiquetar, no para filtrar); + el 🔴 bug de que **guardar borraba el precio**. Sin migración ni código de guardado nuevo. **Destraba la curaduría de cobertura.** [Resumen](../archive/SPECS_ARCHIVO.md#curaduria_por_nombre) · ✅ 2026-08-08 |
