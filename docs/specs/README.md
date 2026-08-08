@@ -28,7 +28,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| _(vacía)_ | Nada decidido y sin arrancar: ADMIN_USUARIOS se escribió, implementó y cerró el 2026-08-08. | — |
+| [MAPA](planned/MAPA.md) | **Tanda D del feedback real** (`FB-04` + `PBETA-R1-06`): el `GeolocateControl` nativo de MapLibre para verte en el mapa (permiso solo al tocarlo, decisión 17 intacta) **sin que el `fitBounds` de los pins te robe la cámara** —el gesto del usuario gana hasta que cambie la búsqueda, no las coordenadas—; + el mapa entra entero en mobile (67% → 100%) colapsando el buscador, pasando los chips a una fila scrolleable y cambiando `h-[70vh]` por `flex-1`. Sin migración, sin cambios en `lib/`. | 🔵 Escrito 2026-08-08, sin implementar |
 
 _(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e

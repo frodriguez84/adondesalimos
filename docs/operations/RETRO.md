@@ -37,6 +37,28 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-08 · Spec de la Tanda D (MAPA) — Fable
+
+- **Qué salió bien:** las dos decisiones difíciles se resolvieron **midiendo, no opinando**. La 3
+  (qué colapsar) dejó de ser una discusión de gusto cuando Playwright devolvió los altos reales
+  —bloque 332 px, chips **124** en tres filas, mapa 589 con 395 visibles— y con eso se pudo poner un
+  número al lado de cada opción antes de elegir; de paso mató la de pantalla completa por
+  costo/beneficio, no por corazonada. La 1 (la cámara) se acotó leyendo el módulo dueño de la regla
+  —`serializeApiParams` mete `lat/lng` **solo** con `gps` prendido (`params.ts:131`)— así que el
+  "el re-fetch te pisa el centrado" era dos casos, no todos: el mismo método del triaje de feedback.
+  Y `flex-1` salió de mirar que el contenedor del mapa **ya** es flex item de `<main>`: cero números
+  mágicos donde el camino fácil era un `calc()` con un offset a mano.
+- **Qué frenó:** el heredoc de Bash, **cuarta sesión seguida y en el mismo lugar** (`unexpected
+  EOF`, escribiendo `planned/MAPA.md`). Esta vez se resolvió al toque con la herramienta `Write` en
+  vez de pelear con el shell, así que costó un intento y no media hora — pero el patrón ya no admite
+  duda: **todo texto largo en español que pasa por el shell falla**, y la regla que lo arreglaría
+  sigue sin aplicarse.
+- **Qué cambiar:** nada nuevo. Es literalmente el mismo "qué cambiar" de las tres retros anteriores
+  —generalizar la regla de `~/.claude/CLAUDE.md` § *Mensajes de commit multilínea* de "mensajes de
+  commit" a "cualquier texto largo que pase por el shell"— que sigue **anotado y no aplicado**.
+  Cuatro sesiones pagando el mismo peaje ya no es un hallazgo, es una deuda: toca el CLAUDE.md
+  global (radio grande) y necesita el OK de Fer, que es lo único que falta.
+
 ## 2026-08-08 · Implementación de la Tanda C (ADMIN_USUARIOS) — Opus
 
 - **Qué salió bien:** el criterio central del DoD estaba escrito **como grep** (*"`grep -rn

@@ -340,7 +340,11 @@ son trabajo acotado con criterio de "listo" objetivo.
       escrito e implementado el mismo día (`FB-10` + `FB-10b`). Quedan **C** y `FB-04`.
       ✅ **Tanda C cerrada el 2026-08-08**: [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md)
       escrito e implementado el mismo día (`FB-01` + `FB-03` en un solo spec: misma pantalla, misma
-      tanda, mismo criterio de privacidad). **Solo queda `FB-04`** (Tanda D, sin decidir).
+      tanda, mismo criterio de privacidad). **Solo queda `FB-04`** (Tanda D).
+      📝 **Tanda D — spec escrito el 2026-08-08, sin implementar**:
+      [`MAPA`](../specs/planned/MAPA.md) cierra las tres decisiones (`FB-04` + `PBETA-R1-06`, misma
+      pantalla y mismo archivo). **Escribir el spec no es implementarlo** — el ítem sigue abierto
+      hasta que haya código.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -563,6 +567,11 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       por el próximo re-fetch** si no se coordina; (b) la decisión 17 de BUSQUEDA exige que el
       permiso de ubicación se pida **solo con un toque explícito** — el `GeolocateControl` nativo de
       MapLibre lo cumple (pide al tocarlo), así que la decisión no se viola si se usa ese.
+      📝 **Spec escrito el 2026-08-08 → [`MAPA`](../specs/planned/MAPA.md)** (junto con
+      `PBETA-R1-06`). Las tres decisiones quedaron cerradas ahí: (1) el gesto de cámara del usuario
+      gana hasta que cambie la **búsqueda** —no las coordenadas—, (2) `GeolocateControl` nativo
+      desacoplado del toggle «Cerca de mí», (3) en modo mapa se colapsa el buscador y los chips
+      pasan a una fila scrolleable. **Sin implementar.**
 
 **Prioridad — aprobada por Fer el 2026-08-08:** arranca la **Tanda A completa** (FB-05, FB-06,
 FB-07, FB-08, FB-09), sin spec. **FB-02 se suma a esa tanda** porque su decisión ya está tomada y
@@ -597,7 +606,7 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 - [ ] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
 - [ ] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
 - [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
-- [ ] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa.
+- [ ] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. 📝 **Spec escrito el 2026-08-08 → [`MAPA`](../specs/planned/MAPA.md)**, junto con `FB-04` (mismo archivo, misma pantalla). Re-medido en vivo el mismo día: 67% confirmado al píxel. **Sin implementar.**
 - [ ] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
 - [ ] **PBETA-R1-08** (COSMÉTICO) — toques de la ficha en 36–40 px (Guardar 36×36), abajo de los 44.
 
