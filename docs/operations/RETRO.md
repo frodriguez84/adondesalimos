@@ -13,6 +13,30 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-07 · DEPLOY F1 — la app sale a producción (Vercel + DNS + QA de 21 casos) — Opus
+
+- **Qué salió bien:** **verificar el efecto y no la configuración.** Tres de los cuatro hallazgos
+  aparecieron sólo porque se midió lo que la app *hace*, no lo que los paneles *dicen*: el header
+  `x-vercel-id` mostró que las funciones corrían en `iad1` con el panel diciendo `gru1` (el
+  *Redeploy* no alcanza para un cambio de región); el `Server: Vercel` confirmó que la nube gris
+  quedó bien; y el bundle real del deploy —no `.next/static` local— cerró DEPLOY-14. Segundo
+  acierto: **leer la doc de Vercel antes de escribir el `maxDuration`**, que reveló que la premisa
+  del spec había caducado (Hobby ya da 300 s de default, no 10). Tercero: **usar una cuenta de
+  prueba en vez de la de Fer** — desbloqueó DEPLOY-11 y DEPLOY-08, que con la cuenta admin son
+  imposibles, y se verificó antes que el gate compara con `===` exacto: si normalizara el `+`,
+  DEPLOY-11 habría dado un falso PASS.
+- **Qué frenó:** un `grep -oE "^[A-Z_]+="` sobre el `.env` **se comió las cinco `R2_*` porque la
+  clase de caracteres no incluía dígitos** y `R2_ACCOUNT_ID` tiene un `2`. Se reportó a Fer que R2
+  "no estaba configurado", se escribió el hallazgo falso en el spec y hubo que revertirlo. Lo peor
+  no es el regex: **la evidencia para desmentirlo ya estaba en pantalla** —el chequeo de bundle
+  había contado "15 vars server-only" cuando la lista mala tenía 10— y no se ató. Un conteo que no
+  cierra es una señal, no ruido.
+- **Qué cambiar:** nada nuevo al método. El error de arriba no pide una regla —pide leer el propio
+  output—, y agregar "revisá tus regex" al `CLAUDE.md` sería exactamente el sesgo aditivo que la
+  pregunta 2 existe para frenar. Lo que sí quedó **escrito en el repo** son dos cicatrices concretas:
+  la región vive en `vercel.json` y no en el panel (`d700bba`), y la decisión 4 del spec ahora
+  explica por qué.
+
 ## 2026-08-03 · PULIDO_BETA F4 — app instalable + alta nueva end-to-end + cierre — Opus
 
 - **Qué salió bien:** **chequear la doc de Chrome antes de dar F4 por hecho.** El DoD pedía "que se
