@@ -28,7 +28,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| [ADMIN_USUARIOS](planned/ADMIN_USUARIOS.md) | **Tanda C del feedback real** (`FB-01` + `FB-03`): tab **Usuarios** en `/admin` con el **premium de cortesía** —otorgar y revocar, B2C y B2B— extendiendo a `lib/billing/subscriptions.ts` (el dueño único de los flags), con motivo obligatorio y bitácora `plan_grants` append-only que **no** es fuente de verdad del estado; + el botón de copiar los mails de Interés. Saca de `psql` las dos operaciones de la beta. Única migración: una tabla nueva. | 🔵 Escrito 2026-08-08, sin implementar |
+| _(vacía)_ | Nada decidido y sin arrancar: ADMIN_USUARIOS se escribió, implementó y cerró el 2026-08-08. | — |
 
 _(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
@@ -60,6 +60,7 @@ FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 est�
 | [PULIDO_BETA](done/PULIDO_BETA.md) | Pulido de UX/UI para la beta: los **6 recorridos reales** auditados en mobile (390×844) con ver y arreglar en fases separadas —43 hallazgos, los 10 BLOQUEANTE arreglados y re-verificados en vivo, 33 al backlog— + la app **instalable** (`manifest.ts`, de donde sale el splash gratis; splash propia descartada con motivo). Incluye el **alta nueva end-to-end**, el recorrido que nunca se había podido ver. [Resumen](../archive/SPECS_ARCHIVO.md#pulido_beta) · ✅ 2026-08-03 (único DoD sin verificar: PBETA-07, iOS) |
 | [CURADURIA](done/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola en `/admin`. Corrida completa autónoma con Sonnet (auto-apply de lo evidenciado): ~1.840 lugares, 1.149 tags, 5/9 chips prendidos. [Resumen](../archive/SPECS_ARCHIVO.md#curaduria) · ✅ 2026-07-27 |
 | [CURADURIA_POR_NOMBRE](done/CURADURIA_POR_NOMBRE.md) | **Tanda B del feedback real** (`FB-10` + `FB-10b`): buscar un lugar **por nombre** en `/admin` → Curaduría y curarlo con el editor de siempre, sin cola ni `psql` (el buscador **no** filtra por publicado: consulta `isPlacePublished` para etiquetar, no para filtrar); + el 🔴 bug de que **guardar borraba el precio**. Sin migración ni código de guardado nuevo. **Destraba la curaduría de cobertura.** [Resumen](../archive/SPECS_ARCHIVO.md#curaduria_por_nombre) · ✅ 2026-08-08 |
+| [ADMIN_USUARIOS](done/ADMIN_USUARIOS.md) | **Tanda C del feedback real** (`FB-01` + `FB-03`): tab **Usuarios** en `/admin` con el **premium de cortesía** —dar y sacar, B2C y B2B— extendiendo a `lib/billing/subscriptions.ts` (su dueño único), con motivo obligatorio y bitácora `plan_grants` append-only que **no** es fuente de verdad del estado; + el botón de copiar los mails de Interés. Saca de `psql` las dos operaciones de la beta. De paso unificó la 2ª copia de la escritura del flag que quedaba en `baja.ts`. [Resumen](../archive/SPECS_ARCHIVO.md#admin_usuarios) · ✅ 2026-08-08 |
 
 ---
 

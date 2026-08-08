@@ -860,3 +860,85 @@ aparte.
 **Archivos clave:** `lib/search/nombre.ts` (nuevo) · `lib/search/query.ts` ·
 `lib/curation/query.ts` · `app/api/admin/curaduria/route.ts` · `app/admin/curaduria-client.tsx` ·
 `lib/curation/__tests__/por-nombre.integration.test.ts` (nuevo)
+
+---
+
+## ADMIN_USUARIOS — usuarios y premium de cortesía en `/admin` (Tanda C del feedback) {#admin_usuarios}
+
+**Spec:** [`docs/specs/done/ADMIN_USUARIOS.md`](../specs/done/ADMIN_USUARIOS.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — ADMIN_USUARIOS](../qa/AnalisisQA.md) · ✅ 2026-08-08
+
+**Qué hace:** saca de `psql` las dos operaciones cotidianas de la beta. **(a)** Una sexta tab
+**Usuarios** en `/admin` donde se da y se saca el **premium de cortesía** —el del usuario (B2C) y el
+de sus lugares reclamados (B2B)— con motivo obligatorio y bitácora. El producto ya tenía el caso
+previsto y su copy escrito (`suscripcion-panel.tsx`: *«Te activamos el Premium nosotros: no vence ni
+se cobra»*); lo que no existía era la forma de otorgarlo, y el `UPDATE` a mano había quedado
+**prohibido** cuando `lib/billing/subscriptions.ts` se declaró dueño único de los flags. Esta feature
+es la mitad que faltaba, no una feature nueva. **(b)** Un botón **«Copiar los N mails»** en
+Suscripciones → Interés en el premium, que vuelve accionable la lista que DEPLOY puso ahí para
+escribirle a esa gente.
+
+**Alcance:**
+
+- **`FB-03` (primero, soltable solo):** `app/admin/copiar-mails.tsx` (cliente mínimo) + 5 líneas en
+  `app/admin/suscripciones.tsx`, que sigue siendo server component. Separador `, ` (lo que un
+  cliente de correo acepta en *Para*/*CCO*).
+- **Bitácora:** tabla **`plan_grants`** append-only (`lib/db/schema.ts`, migración
+  `drizzle/0015_plan_grants.sql` — `CREATE TABLE` + `CREATE INDEX`, ningún `ALTER` sobre tabla con
+  datos) + enum `plan_grant_action`.
+- **La regla:** `otorgarCortesia` / `revocarCortesia` en `lib/billing/subscriptions.ts`, que
+  **delegan la escritura del flag en `activarFlagDelPlan`/`bajarFlagDelPlan`** (que no cambiaron su
+  lógica). Flag + bitácora en **una** transacción, con el flag leído `for('update')`.
+- **Lecturas:** `getUsuariosAdmin(q?, limite)`, `contarUsuarios()` y `getBitacoraCortesia(userId)`
+  en `lib/billing/admin.ts` (se extendió el módulo que ya existía). El badge «paga» vs «cortesía»
+  sale de **una** query de suscripciones vivas para todo el lote.
+- **UI:** `GET /api/admin/usuarios` (ramas `?q=` y `?userId=`) · `POST
+  /api/admin/usuarios/[userId]/plan` (zod, adaptador HTTP puro) · `app/admin/usuarios-client.tsx` ·
+  sexta entrada en `app/admin/tabs.tsx` · dos lecturas más en el `Promise.all` de `app/admin/page.tsx`.
+- **12 tests de integración** (`lib/billing/__tests__/cortesia.integration.test.ts`).
+- **Sin cambios en** `components/billing/suscripcion-panel.tsx`, `lib/billing/estado.ts`,
+  `vencimiento.ts`, `webhook.ts`, `lib/favoritos/planes.ts`, `lib/claims/ownership.ts` ni
+  `lib/billing/interes.ts`.
+
+**Decisiones que conviene no re-litigar:**
+
+- **`plan_grants` es bitácora, NO fuente de verdad del estado** (decisión 7). El plan vigente se lee
+  siempre de `users.plan` / `places.owner_plan`; ningún gate consulta la tabla. Si algún día la
+  consultara, habría **dos** discriminantes de "esto es cortesía" y el que quedara viejo mentiría.
+- **La cortesía es solo para ejes SIN suscripción viva** (decisión 3), y las dos funciones lo
+  rechazan con `TIENE_SUSCRIPCION`. No es cosmético: es lo que mantiene cierto el discriminante que
+  **ya está en producción** — `estado.status === null` en `lib/billing/estado.ts`, o sea *premium sin
+  fila viva*. Efecto lateral bienvenido: es imposible sacarle desde acá el premium a quien lo paga.
+- **Sí se puede revocar, y es puerta de ida y vuelta** (decisión 4), porque el copy vigente ya lo
+  prometía (*«Si lo querés dar de baja, escribinos y lo sacamos»*) y porque **a los datos no les pasa
+  nada**: revocar B2C **oculta** las listas por encima del cupo free y revocar B2B **oculta** el
+  contenido pago. Verificado con `SELECT` antes/después, no por pantalla.
+- **La lista de usuarios no se copia ni se exporta** (decisión 9) — esa es la diferencia con `FB-03`:
+  los de `premium_interest` **pidieron** que les escriban; los usuarios se registraron para usar la
+  app. Un "copiar todos los mails" sobre la tabla de usuarios es un exportador de PII de un click.
+- **La tab va sexta, sin reordenar las cinco que ya estaban** (decisión 13): otorgar una cortesía es
+  la acción más rara de todo `/admin`, y mover una tab le rompe la memoria muscular a la única
+  persona que usa esa pantalla.
+- **El botón de `FB-03` rotula lo que copia, no el total** (decisión 12): `getInteresadosAdmin()`
+  está topeada en 200, así que «copiar todos» mentiría.
+
+**Tres cosas que este spec dejó y valen para el que siga:**
+
+1. **Un grep en el DoD encuentra deuda que el spec nuevo no causó.** El criterio central —*ninguna
+   escritura de plan fuera de los dos helpers*— arrancó en **FAIL** por `lib/billing/baja.ts`, que
+   escribía `owner_plan` directo desde MONETIZACION F2. La feature cumplía y el criterio igual salía
+   rojo, porque la regla tenía **dos copias**. Se unificó en el momento (commit aparte, por ser
+   camino de cobro): `bajarFlagDeLugar(tx, placeId, now)` en `subscriptions.ts` —la bajada del eje
+   B2B **sin eje completo**, que es justo lo que `cancelarSuscripcionDeLugar` necesita porque baja el
+   flag incluso sin fila viva— y la rama B2B de `bajarFlagDelPlan` delegando ahí.
+2. **«Las fotos 4-15 se ocultan al bajar de plan» era folclore.** La ficha publica **una sola** foto
+   de dueño (`app/lugar/[id]/page.tsx` ⇒ `ownerPhotos[0]`): el plan de fotos gatea la **subida**
+   (`CAP_FOTOS` 3/15), no la exhibición. Lo dan por hecho tanto el DoD de este spec como la decisión
+   19 de MONETIZACION. El "oculta, no borra" del eje B2B **sí** es real y se verificó sobre los
+   **campos pagos** (descripción visible con `paid` → invisible con `free` → vuelve al re-otorgar, con
+   la fila intacta).
+3. **`ADMU-19` no se puede reproducir, y eso es un hallazgo.** El caso "un interesado sin mail por el
+   `leftJoin`" es imposible: `premium_interest.user_id` es `NOT NULL` con FK `ON DELETE CASCADE` y
+   `users.email` es `NOT NULL` ⇒ borrada la cuenta, la fila de interés se va con ella. El filtro de
+   `null` queda como defensa. Un caso de QA que la base vuelve inalcanzable vale escribirlo igual:
+   la próxima sesión no lo persigue.

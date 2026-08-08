@@ -338,9 +338,9 @@ son trabajo acotado con criterio de "listo" objetivo.
       ✅ **Tanda A cerrada el 2026-08-08** (los 6 ítems tildados abajo + `PBETA-R2-09`). Quedan B, C y `FB-04`.
       ✅ **Tanda B cerrada el 2026-08-08**: [`CURADURIA_POR_NOMBRE`](../specs/done/CURADURIA_POR_NOMBRE.md)
       escrito e implementado el mismo día (`FB-10` + `FB-10b`). Quedan **C** y `FB-04`.
-      📝 **La Tanda C ya tiene spec (2026-08-08)**: [`ADMIN_USUARIOS`](../specs/planned/ADMIN_USUARIOS.md)
-      cubre `FB-01` + `FB-03` en un solo spec (misma pantalla, misma tanda, mismo criterio de
-      privacidad). **Los dos ítems siguen abiertos**: escribir el spec no es implementarlo.
+      ✅ **Tanda C cerrada el 2026-08-08**: [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md)
+      escrito e implementado el mismo día (`FB-01` + `FB-03` en un solo spec: misma pantalla, misma
+      tanda, mismo criterio de privacidad). **Solo queda `FB-04`** (Tanda D, sin decidir).
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -467,11 +467,16 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
 
 #### Tanda C — operar la beta sin `psql` (los dos son `/admin`)
 
-> 📝 **Los dos tienen spec desde el 2026-08-08:** [`ADMIN_USUARIOS`](../specs/planned/ADMIN_USUARIOS.md).
-> Van juntos ahí (uno solo, no dos) porque comparten pantalla, tanda y el criterio de privacidad de
-> su decisión 9. Sin implementar.
+> ✅ **Los dos cerrados el 2026-08-08** en [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md)
+> (uno solo y no dos, porque comparten pantalla, tanda y el criterio de privacidad de su decisión 9).
+> Resumen: [`SPECS_ARCHIVO § admin_usuarios`](../archive/SPECS_ARCHIVO.md#admin_usuarios).
 
-- [ ] **FB-01 · 🟢 FEATURE — sección de usuarios en `/admin` con premium a mano.** Verificado que
+- [x] **FB-01 · 🟢 FEATURE — sección de usuarios en `/admin` con premium a mano.** ✅ **2026-08-08**
+      en [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md)
+      ([resumen](../archive/SPECS_ARCHIVO.md#admin_usuarios)): sexta tab **Usuarios**, cortesía B2C y
+      B2B con motivo obligatorio y bitácora `plan_grants`. **Lo que se decidió sobre la duda de abajo:**
+      el dueño de "otorgar cortesía" son `otorgarCortesia`/`revocarCortesia` **dentro** de
+      `subscriptions.ts`, delegando el flag en `activarFlagDelPlan`/`bajarFlagDelPlan`. Verificado que
       **no existe**: `app/admin/tabs.tsx` tiene 5 tabs (Cola · Precios · Suscripciones · Costos ·
       Curaduría) y ninguna es de usuarios. **Lo que sí existe y hay que respetar**:
       `lib/billing/subscriptions.ts` se declara **dueño único** de `users.plan` y
@@ -486,13 +491,37 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       premium **sin** suscripción no lo toca nadie y no lo van a bajar a free por sorpresa. **Lo que
       falta decidir en el spec: quién es el dueño de "otorgar cortesía"** — se extiende
       `subscriptions.ts` con una función explícita, no se escribe el flag desde la ruta de admin.
-- [ ] **FB-03 · 🟢 FEATURE chica — copiar todos los mails de Suscripciones juntos.**
+- [x] **FB-03 · 🟢 FEATURE chica — copiar todos los mails de Suscripciones juntos.** ✅ **2026-08-08**
+      en [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md), decisión 12. **El gotcha se resolvió no
+      mintiendo**: el botón rotula **«Copiar los N mails»** con la N de lo que copia de verdad, y el
+      texto de arriba sigue explicando el total cuando difiere. Se descartó el endpoint que trajera la
+      lista completa: hoy el total es de un dígito y, cuando no lo sea, el arreglo es **subir el tope**,
+      no agregar una superficie de admin que devuelva PII ilimitada. Diagnóstico original:
       `app/admin/suscripciones.tsx` es server component y lista los mails en `<li>` de a uno; hace
       falta un botón cliente. ⚠️ **El gotcha**: `getInteresadosAdmin()` viene **topeado en 200** y
       el conteo real sale de `contarInteresados()` (por eso existen los dos, INT2-28) ⇒ "copiar
       todos" copiaría *los 200 más nuevos*, no todos. Hay que elegir: copiar los visibles **diciendo
       cuántos son**, o un endpoint que traiga la lista completa. Con el volumen de hoy da igual;
       escrito para que no sorprenda después.
+
+#### Salidos de ADMIN_USUARIOS (2026-08-08) — dos frases que quedaron mintiendo
+
+- [ ] **🔵 DOCS/COPY — «al bajar de plan se ocultan las fotos 4-15» no es cierto, y está en tres
+      lugares.** La ficha publica **una sola** foto de dueño (`app/lugar/[id]/page.tsx` ⇒
+      `ownerPhotos[0]`), así que `CAP_FOTOS` (3 free / 15 pago) gatea la **subida**, no la exhibición:
+      revocar el plan de un lugar con 6 fotos no oculta ninguna (sí baja el cupo del panel a «6 de 3»
+      y bloquea agregar). Hay que corregir: **(a)** la decisión 19 de
+      [`MONETIZACION`](../specs/done/MONETIZACION.md), **(b)** el DoD y el copy de
+      [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md). El copy **que ve el admin** ya quedó
+      corregido con OK de Fer (`app/admin/usuarios-client.tsx`, `textoConfirmacion`: ahora dice que
+      el cupo baja a 3 y que **las que ya subió quedan**) — era lo único que le prometía al usuario
+      algo que no ocurre. **Sigue abierta la decisión de fondo**: ¿se corrige la frase también en los
+      specs, o se implementa el ocultamiento que prometía (que la ficha respete `CAP_FOTOS` al
+      mostrar)? Lo verificado sí es real para los **3 campos pagos** y para las listas de favoritos.
+- [ ] **🟢 CHICO — el comentario de `userPlanEnum` en `lib/db/schema.ts` quedó viejo.** Dice *"hasta
+      el spec 7 solo cambia con un UPDATE a mano"*; desde MONETIZACION el `UPDATE` está prohibido y
+      desde ADMIN_USUARIOS se cambia desde `/admin`. Señalado y no tocado por ser fuera de scope.
+      `CLAUDE.md` § *Contenido del dueño y planes* ya quedó corregido.
 
 #### Tanda D — decidir antes de tocar
 
@@ -1525,6 +1554,34 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Tanda C del feedback — `ADMIN_USUARIOS`, escrito ayer e implementado hoy** (2026-08-08,
+      sesión Opus): `FB-01` + `FB-03`, los dos de `/admin`. Resumen en
+      [`SPECS_ARCHIVO § admin_usuarios`](../archive/SPECS_ARCHIVO.md#admin_usuarios) · QA en
+      `docs/qa/AnalisisQA.md` § *QA /qa-spec — ADMIN_USUARIOS*: **APROBADO** (17 criterios de DoD por
+      5 checkers independientes + los 20 casos ADMU en vivo), typecheck · 663/663 tests · build en
+      verde. **Qué quedó construido:** tabla `plan_grants` append-only (migración `0015`, aditiva) ·
+      `otorgarCortesia`/`revocarCortesia` en `lib/billing/subscriptions.ts` —flag y bitácora en una
+      sola transacción, con el flag leído `for('update')`, que es lo que hace que dos POST
+      **concurrentes** dejen una sola fila— · 3 lecturas en `lib/billing/admin.ts` · 2 endpoints · la
+      sexta tab, sin mover las otras cinco · el botón de copiar mails · 12 tests nuevos.
+      **Tres cosas que valen más que el feature:**
+      **(1)** el criterio central del DoD estaba escrito como **grep**, y por eso encontró deuda que
+      esta feature no causó: `lib/billing/baja.ts` escribía `owner_plan` por fuera del dueño único
+      desde MONETIZACION F2 — dos copias idénticas de una regla, que ningún test podía distinguir
+      porque el drift no existe hasta que una cambia. Fer decidió unificarlo en el momento, en
+      **commit aparte** por ser camino de cobro: `bajarFlagDeLugar(tx, placeId, now)` (la bajada del
+      eje B2B **sin eje completo**, que es lo que `cancelarSuscripcionDeLugar` necesita porque baja el
+      flag incluso sin fila viva). Ahora el grep devuelve **solo** `subscriptions.ts`.
+      **(2)** *«revocar oculta las fotos 4-15»* era **folclore**: la ficha publica una sola foto de
+      dueño, así que `CAP_FOTOS` gatea la **subida**, no la exhibición. Lo daban por hecho este spec
+      **y** la decisión 19 de MONETIZACION, y está en el copy que ve el admin. El "oculta, no borra"
+      real se verificó sobre los **campos pagos** y sobre las listas de favoritos, con `SELECT`
+      antes/después. **Corregir esa frase donde aparezca queda pendiente** (ver abajo).
+      **(3)** `ADMU-19` (un interesado sin mail) es **irreproducible por diseño**: `user_id` es
+      `NOT NULL` con FK `ON DELETE CASCADE` y `users.email` es `NOT NULL`. El filtro queda como
+      defensa y el caso queda escrito para que nadie lo persiga de nuevo.
+      Las dos lecciones quedaron en `docs/operations/LECCIONES_APRENDIDAS.md`.
 
 - [x] **Spec de la Tanda C escrito** (2026-08-08, sesión Fable, autoría de spec — **no hay código**):
       [`docs/specs/planned/ADMIN_USUARIOS.md`](../specs/planned/ADMIN_USUARIOS.md), que cubre `FB-01`

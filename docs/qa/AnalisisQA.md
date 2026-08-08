@@ -3826,3 +3826,87 @@ server parado, lección de BÚSQUEDA).
   copia del match por nombre (`immutable_unaccent(lower(...))` + `word_similarity` inline) que ahora
   podría consumir `lib/search/nombre.ts`. El spec acotó la extracción a `lib/search/query.ts`;
   unificar el tercer llamador va como paso aparte al BACKLOG.
+
+## QA /qa-spec — ADMIN_USUARIOS (2026-08-08)
+
+**Veredicto:** APROBADO. Arrancó **BLOQUEADO** por un incumplimiento **heredado** —`ADMU-QA-01`,
+el criterio central, fallaba por `lib/billing/baja.ts:49` y `:72`, que escribían `ownerPlan: 'free'`
+directo desde MONETIZACION F2 (código anterior, no tocado por este spec)—. **Fer decidió unificarlo
+en el momento, en commit aparte**: `subscriptions.ts` ahora expone `bajarFlagDeLugar(tx, placeId,
+now)` —la bajada del eje B2B sin eje completo, que es lo que `cancelarSuscripcionDeLugar` necesita
+porque baja el flag incluso sin fila viva—, su propia rama B2B delega ahí y `baja.ts` la llama.
+Con eso el grep del DoD devuelve **solo** `lib/billing/subscriptions.ts` (líneas 32, 36, 51 y 72) y
+`ADMU-QA-01` pasa a **PASS**.
+**Verificación técnica:** typecheck ✅ · tests ✅ 663/663 (60 archivos, +12 nuevos de cortesía) ·
+build ✅ (`Compiled successfully in 6.3s`, 14/14 páginas — corrido con el dev server parado).
+**Método:** 5 checkers independientes (Explore read-only, haiku, maker≠checker) sobre el DoD de
+`docs/specs/active/ADMIN_USUARIOS.md`, + QA en vivo por Playwright contra
+`https://adondesalimos.ngrok.app` con `SELECT` antes/después en los casos de "oculta, no borra"
+(lección CURNOM-12: la pantalla muestra el estado nuevo con total naturalidad esté o no la fila).
+**Backup previo (decisión 14):** `backups/adondesalimos_2026-08-08_183913.sql.gz`.
+
+### DoD (checkers independientes)
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| ADMU-QA-01 | Ninguna escritura de `users.plan` / `places.owner_plan` fuera de `activarFlagDelPlan` / `bajarFlagDelPlan` | **PASS** (tras el fix heredado) | Las dos funciones de cortesía delegan (`lib/billing/subscriptions.ts:263-265`) y los helpers de la suscripción no cambiaron su lógica. El grep de escrituras de plan (`set({ plan:` / `set({ ownerPlan`) devuelve **solo `lib/billing/subscriptions.ts`**: `:32` y `:36` (`activarFlagDelPlan`), `:51` (`bajarFlagDelPlan`) y `:72` (`bajarFlagDeLugar`, al que delega la rama B2B). `lib/billing/baja.ts` ya no escribe el flag: llama a `bajarFlagDeLugar` |
+| ADMU-QA-02 | `otorgarCortesia` / `revocarCortesia` devuelven `Resultado<{ yaEstaba }>` y hacen flag + bitácora en **una** transacción | PASS | `lib/billing/subscriptions.ts:153`, `:166`, `:201` (`db.transaction`), `:250-261`. `Resultado` es el de `lib/claims/acciones.ts:21`, no un tipo nuevo |
+| ADMU-QA-03 | Eje con suscripción viva ⇒ `TIENE_SUSCRIPCION` y no escribe nada (con test) | PASS | `subscriptions.ts:232-242`; tests B2C y B2B en `cortesia.integration.test.ts` |
+| ADMU-QA-04 | `otorgarCortesia` con `placeId` sin reclamo aprobado ⇒ `NO_ES_DUENO`, no escribe (con test) | PASS | `subscriptions.ts:217-219` (`esDuenoDe`); 2 tests (lugar sin dueño y lugar de otro) |
+| ADMU-QA-05 | Motivo vacío o < 3 rechazado **en la función** (con test) | PASS | `subscriptions.ts:189-199` (`MOTIVO_MIN=3`, `MOTIVO_MAX=280`), antes de abrir la transacción |
+| ADMU-QA-06 | Otorgar dos veces ⇒ **una** fila y `yaEstaba: true` en la segunda (con test) | PASS | `subscriptions.ts:206`/`:224` (`for('update')`) + `:246`. Verificado además en vivo con dos POST **concurrentes** (ADMU-07) |
+| ADMU-QA-07 | Migración aditiva (`CREATE TABLE` + `CREATE INDEX`, ningún `ALTER` sobre tabla con datos) y `db:migrate` limpio | PASS | `drizzle/0015_plan_grants.sql`: `CREATE TYPE` · `CREATE TABLE` · 2 `ALTER` **sobre la tabla nueva** (sus FK) · `CREATE INDEX`. Aplicada OK |
+| ADMU-QA-08 | Ningún gate lee `plan_grants` | PASS | Solo `schema.ts` (definición), `subscriptions.ts:255` (escritura), `admin.ts:181-191` (lectura para mostrar) y tests |
+| ADMU-QA-09 | Tab **Usuarios** existe, es la sexta, las cinco anteriores no se movieron | PASS | `app/admin/tabs.tsx:24-27`; el diff no reordena ninguna |
+| ADMU-QA-10 | El listado muestra exactamente los campos de la decisión 8, con el badge de origen correcto | PASS | `lib/billing/admin.ts:95-101` y `:114-119` — el `select` no trae `image` ni `chat_trial_used`. Badge: `usuarios-client.tsx:404-407`, discriminado por suscripción viva |
+| ADMU-QA-11 | Los dos endpoints ⇒ 403 sin sesión de admin, mismo shape de error | PASS | Idéntico a `curaduria/route.ts` y `settings/route.ts`; verificado en vivo (ADMU-17) |
+| ADMU-QA-12 | Ningún log de la feature imprime un mail | PASS | Único log: `plan/route.ts:85`, con `userId`. Los otros 5 archivos nuevos no loguean |
+| ADMU-QA-13 | Cortesía B2C ⇒ `/cuenta` muestra el copy de cortesía **ya existente**, sin tocar `suscripcion-panel.tsx` | PASS | El archivo no está en el diff; el discriminante sigue siendo `estado.status === null` (`suscripcion-panel.tsx:152-155`). Verificado en vivo (ADMU-06) |
+| ADMU-QA-14 | Revocar B2C deja las listas por encima del cupo **ocultas, no borradas**; re-otorgar las devuelve | PASS | `lib/favoritos/planes.ts:93` (`slice`, cero `DELETE`). Verificado con `SELECT`: 3 filas antes y después (ADMU-10/11) |
+| ADMU-QA-15 | Revocar B2B oculta fotos 4-15 y los 3 campos pagos; re-otorgar los devuelve | **PASS con desvío** | Los campos pagos: `lib/negocio/contenido.ts:88-90` ⇒ verificado end-to-end (ver ADMU-16). **Las fotos 4-15 no se ocultan hoy en la ficha** y no es algo que este spec haya roto: la ficha publica **una sola** foto de dueño (`app/lugar/[id]/page.tsx:139` ⇒ `ownerPhotos[0]`). El plan de fotos gatea la **subida** (`CAP_FOTOS` 3/15) — el cupo del panel pasó de «2 de 15» a «6 de 3» al revocar |
+| ADMU-QA-16 | `FB-03`: el botón rotula el número **real** que copia y el portapapeles queda con esa cantidad, separados por `, `, sin `null` | PASS | `copiar-mails.tsx:24` (`join(', ')`) y `:43`; el filtro de `null` en `suscripciones.tsx:73`. Verificado leyendo el portapapeles (ADMU-18/20) |
+| ADMU-QA-17 | Backup previo + typecheck/tests/build en verde | PASS | Backup `adondesalimos_2026-08-08_183913.sql.gz` · typecheck ✅ · tests ✅ 663/663 · build ✅ con el dev server parado |
+
+### QA en vivo (los 20 IDs propuestos por el spec)
+
+Sobre `https://adondesalimos.ngrok.app` con Playwright, sesión de admin real
+(`frodriguez.este@gmail.com`) y `psql` para los antes/después. **La base quedó restaurada al
+estado previo** (planes, fotos, listas e interesados); lo único que persiste es la bitácora de
+`plan_grants` (12 filas), que es append-only por diseño.
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| ADMU-01 | Tab **Usuarios** sexta, las otras cinco quietas | PASS | `Cola · Precios · Suscripciones · Costos · Curaduría · Usuarios` |
+| ADMU-02 | Listado sin buscar | PASS | 4 cuentas, más nuevas primero, con mail · nombre · alta · badge; el conteo real aparte del listado |
+| ADMU-03 | Buscar por mail parcial / inexistente | PASS | `hugo` ⇒ 1 resultado; `nadie@ninguna.com` ⇒ «No hay ninguna cuenta con ese mail.» |
+| ADMU-04 | Usuario free | PASS | Sin badge, ofrece «Darle Premium» |
+| ADMU-05 | Darle Premium sin motivo | PASS | «Sí, dale Premium» deshabilitado; forzado por endpoint ⇒ 400 `MOTIVO_CORTO` (con `""` y con `"ok"`) |
+| ADMU-06 | Darle Premium con motivo | PASS | Badge «cortesía»; en `/cuenta` del usuario: «Te activamos el Premium nosotros: no vence ni se cobra.» — copy que ya existía |
+| ADMU-07 | Doble click | PASS | Dos POST **concurrentes**: `yaEstaba:false` + `yaEstaba:true`, y **una** fila (`SELECT`) |
+| ADMU-08 | Bitácora del usuario | PASS | «Le dieron Premium · 08/08/26 · frodriguez.este@gmail.com · "…"», lo más nuevo primero; revocar **agrega**, no borra |
+| ADMU-09 | Sacarle el Premium | PASS | «Vuelve a free. Las listas que tenga de más se ocultan, no se borran: si se lo devolvés, vuelve todo.» + «Sí, sacáselo» |
+| ADMU-10 | Tenía 3 listas | PASS | Tras revocar ve solo la del cupo free; **`SELECT`: las 3 filas siguen** |
+| ADMU-11 | Re-otorgarle el Premium | PASS | Vuelven a verse las 3, sin restaurar nada |
+| ADMU-12 | Usuario con suscripción **paga viva** | PASS | Badge «paga», sin botones, y el `POST` forzado ⇒ 409 `TIENE_SUSCRIPCION` (su plan quedó intacto) |
+| ADMU-13 | Usuario con lugar de reclamo aprobado | PASS | Kansas Grill & Bar bajo el usuario, con su `owner_plan` y «Darle el plan del lugar» |
+| ADMU-14 | Otorgar B2B | PASS | `owner_plan='paid'` (`SELECT`); en `/mi-negocio`: badge «Plan del lugar», copy de cortesía B2B y **«2 de 15»** fotos |
+| ADMU-15 | `POST` forzado con `placeId` **ajeno** | PASS | 404 `NO_ES_DUENO`; `SELECT` confirma `owner_plan` sin cambios |
+| ADMU-16 | Revocar el B2B con contenido pago cargado | PASS (adaptado) | Con 6 fotos cargadas: el cupo del panel pasó de «2 de 15» a «6 de 3» y **las 6 filas siguen**. Para el "oculta, no borra" se usó un **campo pago**: descripción visible con `paid` ⇒ invisible con `free` ⇒ vuelve al re-otorgar, con la fila intacta en `place_owner_content`. *(Las fotos 4-15 no se ocultan en la ficha porque la ficha publica una sola — ver `ADMU-QA-15`.)* |
+| ADMU-17 | Los dos endpoints sin sesión de admin | PASS | 403 los dos, `{data:null,error:{message:'No autorizado.',code:'FORBIDDEN'}}` |
+| ADMU-18 | «Copiar los N mails» | PASS | Rótulo «Copiar los 2 mails»; portapapeles `frodriguez.este@gmail.com, juan@gmail.com` |
+| ADMU-19 | Un interesado sin mail (`leftJoin` en `null`) | **No reproducible** | `premium_interest.user_id` es `NOT NULL` con FK `ON DELETE CASCADE` y `users.email` es `NOT NULL` ⇒ el mail **nunca** puede ser `null`: borrada la cuenta, la fila de interés se va con ella. El filtro queda como defensa; verificado por lectura (`suscripciones.tsx:73`) |
+| ADMU-20 | Total > el tope de la lista | PASS | Con el tope bajado a 1 a propósito: copió **1** mail y el texto de arriba siguió diciendo «2 pidieron que les avisemos. Abajo, los 1 más nuevos.» Tope revertido a 200 |
+
+### Hallazgos que no son de este spec
+
+- **`lib/billing/baja.ts` escribía `owner_plan` por fuera del dueño único** (`ADMU-QA-01`) —
+  segunda implementación de una regla que ya tenía dueño, de MONETIZACION F2. **Arreglado en el
+  momento**, en commit aparte por ser un camino de cobro: `bajarFlagDeLugar` en
+  `lib/billing/subscriptions.ts`, con la rama B2B de `bajarFlagDelPlan` delegando ahí. Cero cambios
+  de firma, 663/663 tests verdes. Es el ejemplo de por qué el grep está en el DoD: el spec nuevo
+  cumplía y el criterio igual salía rojo, porque la regla tenía dos copias.
+- **Las fotos 4-15 no se "ocultan" en ningún lado** porque la ficha publica una sola foto de
+  dueño. El plan de fotos gatea la **subida**, no la exhibición. El DoD de MONETIZACION
+  (decisión 19) y este spec lo dan por hecho; conviene corregir esa frase donde aparezca.
+- El comentario de `lib/db/schema.ts` sobre `userPlanEnum` («hasta el spec 7 se cambia con un
+  UPDATE a mano») quedó viejo: ahora se cambia desde `/admin`. Señalado, no tocado.

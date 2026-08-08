@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation'
 import { sesionAdmin } from '@/lib/auth/sesion'
 import { claimsPorEstado } from '@/lib/claims/query'
 import { getHistorialPrecios, getPreciosActuales } from '@/lib/billing/settings'
-import { getSuscripcionesAdmin } from '@/lib/billing/admin'
+import { contarUsuarios, getSuscripcionesAdmin, getUsuariosAdmin } from '@/lib/billing/admin'
 import { contarInteresados, getInteresadosAdmin } from '@/lib/billing/interes'
 import { getCostosChat, getCupoChat, getSugerenciaPrecio, getUsoGoogle } from '@/lib/admin/costos'
 import { zonasConCola } from '@/lib/curation/query'
@@ -16,6 +16,7 @@ import { CuraduriaClient } from './curaduria-client'
 import { PreciosClient } from './precios-client'
 import { SuscripcionesAdmin } from './suscripciones'
 import { AdminTabs } from './tabs'
+import { UsuariosClient } from './usuarios-client'
 
 /**
  * `/admin` — cola de aprobación (AUTH, decisión 22) + Precios y Suscripciones
@@ -51,6 +52,8 @@ export default async function AdminPage() {
     cupoChat,
     sugerencia,
     zonasCuraduria,
+    usuarios,
+    totalUsuarios,
   ] = await Promise.all([
     claimsPorEstado('pending'),
     claimsPorEstado('approved'),
@@ -66,6 +69,10 @@ export default async function AdminPage() {
     getCupoChat(),
     getSugerenciaPrecio(),
     zonasConCola(),
+    getUsuariosAdmin(),
+    // El total va aparte del listado, que está topeado (mismo criterio que la
+    // lista de interesados).
+    contarUsuarios(),
   ])
 
   return (
@@ -102,6 +109,7 @@ export default async function AdminPage() {
           </div>
         }
         curaduria={<CuraduriaClient zonasIniciales={zonasCuraduria} />}
+        usuarios={<UsuariosClient usuariosIniciales={usuarios} total={totalUsuarios} />}
       />
     </main>
   )

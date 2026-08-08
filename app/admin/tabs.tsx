@@ -12,7 +12,10 @@ import { cn } from '@/lib/utils'
  *
  * Orden fijado por decisión 3: Cola primero (la tarea operativa más frecuente),
  * después Precios, Suscripciones y Costos (con el Sugeridor agrupado adentro).
- * Curaduría (CURADURIA, decisión 9) va última: la quinta tab del patrón.
+ * Curaduría (CURADURIA, decisión 9) es la quinta, y Usuarios (ADMIN_USUARIOS,
+ * decisión 13) la sexta: dar una cortesía es la acción más rara de todo `/admin`, y
+ * mover de lugar una tab existente le rompería la memoria muscular a la única
+ * persona que usa esta pantalla a cambio de nada.
  */
 
 const TABS = [
@@ -21,6 +24,7 @@ const TABS = [
   { key: 'suscripciones', label: 'Suscripciones' },
   { key: 'costos', label: 'Costos' },
   { key: 'curaduria', label: 'Curaduría' },
+  { key: 'usuarios', label: 'Usuarios' },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']
@@ -31,6 +35,7 @@ export function AdminTabs({
   suscripciones,
   costos,
   curaduria,
+  usuarios,
 }: Record<TabKey, React.ReactNode>) {
   const [activa, setActiva] = useState<TabKey>('cola')
   const contenido: Record<TabKey, React.ReactNode> = {
@@ -39,6 +44,7 @@ export function AdminTabs({
     suscripciones,
     costos,
     curaduria,
+    usuarios,
   }
 
   return (

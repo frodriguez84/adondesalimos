@@ -136,8 +136,11 @@ regla. `operating_status` hoy no filtra nada (Overture lo entrega NULL en todo A
   también el contenido pago se oculta al volver a `owner_plan='free'`.
 - **`places.owner_plan`** (`'free'`|`'paid'`, por lugar) gatea 3 fotos vs 15 y los 3 campos
   pagos (`description`, `menu_url`, `news`). **Se aplica server-side desde el día 1**: "subir un
-  cupo es un regalo; bajarlo es una traición". Hasta el spec 7 se cambia con un `UPDATE`
-  documentado — no hay automatización y no debe agregarse acá.
+  cupo es un regalo; bajarlo es una traición". **A mano se cambia desde `/admin` → Usuarios**
+  (ADMIN_USUARIOS), no con un `UPDATE`: el `UPDATE` a mano quedó **prohibido** cuando
+  `lib/billing/subscriptions.ts` se declaró dueño único de los dos flags. Lo mismo vale para
+  `users.plan`. Toda cortesía queda registrada en `plan_grants` con quién, cuándo y por qué — que
+  es **bitácora, no fuente de verdad**: ningún gate la lee.
 - **Un solo módulo habla con R2**: `lib/storage/r2.ts` (server-only, mismo criterio que
   `lib/google/places.ts`). El browser sube a `/api/mi-negocio/[placeId]/photos`, nunca a R2.
   **La fila de `place_photos` se inserta DESPUÉS del PUT exitoso** — nunca una URL huérfana en

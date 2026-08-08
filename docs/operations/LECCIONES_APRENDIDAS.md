@@ -5,6 +5,70 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un criterio de DoD escrito como grep audita el repo, no el diff (2026-08-08 · ADMIN_USUARIOS)
+
+**Qué pasó.** El DoD de ADMIN_USUARIOS abría con su criterio central escrito como comando:
+*«`grep -rn "update(users)" lib/ app/` y `grep -rn "ownerPlan:" lib/ app/` no devuelven ninguna
+escritura de plan fuera de `activarFlagDelPlan`/`bajarFlagDelPlan`»*. La feature nueva lo cumplía
+sin discusión: `otorgarCortesia`/`revocarCortesia` delegan en los dos helpers y no escriben el flag
+por su cuenta. Pero el grep salió **rojo**, y no por el código nuevo: `lib/billing/baja.ts:49` y
+`:72` escribían `owner_plan: 'free'` directo, desde MONETIZACION F2. El criterio no medía el diff
+del spec, medía **el repo entero** — y ahí había una segunda copia de la regla desde hacía dos specs.
+
+**Por qué no lo había cazado nadie.** Porque no había forma de que fallara nada. Las dos copias
+hacían exactamente lo mismo (`ownerPlan: 'free'`), así que ningún test, typecheck ni QA en vivo podía
+distinguirlas: el drift de dos copias idénticas no existe **hasta el día que una cambia**. El único
+instrumento que las ve juntas es un grep sobre el árbol, y el único momento en que alguien lo corre
+es cuando un DoD lo pide.
+
+**Por qué la unificación no era mecánica** (y por qué MONETIZACION escribió el `UPDATE` a mano):
+`cancelarSuscripcionDeLugar` baja el flag del lugar **incluso cuando no hay fila de suscripción
+viva**, así que no tiene un `userId` con el que armar el `{ userId, placeId }` que pide
+`bajarFlagDelPlan`. La salida no fue tocarle la firma al dueño único ni pasarle un `userId` de
+mentira, sino **exponer la operación que faltaba**: `bajarFlagDeLugar(tx, placeId, now)`, con la rama
+B2B de `bajarFlagDelPlan` delegando ahí. El dueño único gana una puerta legítima en vez de una
+excepción. 8 líneas, cero cambios de firma, 663/663 verdes.
+
+**Qué hacer distinto.**
+
+1. **Escribir criterios de DoD como comandos verificables cuando la regla es "esto no debe existir
+   en ningún lado".** Un criterio en prosa (*"nadie más escribe el flag"*) lo lee el que implementa y
+   se lo aplica a lo que está escribiendo; un grep se lo aplica al repo. Son cosas distintas y la
+   segunda es la que encuentra deuda.
+2. **Un FAIL heredado no se auto-absuelve ni se auto-arregla.** No es honesto declarar PASS porque
+   *"lo mío cumple"* —el criterio dice lo que dice— ni correcto arreglarlo en silencio dentro del
+   commit del feature: acá el arreglo tocaba el camino de cancelación de MercadoPago. Se reporta con
+   la distinción explícita (*lo nuevo cumple · el repo no*) y **decide el humano**. Fer eligió
+   arreglarlo en el momento, en **commit aparte**, que es lo que deja el fix revertible solo.
+3. **Cuando aparece una segunda implementación, preguntar por qué existía antes de borrarla.**
+   Casi siempre hay un motivo (acá: un llamador sin eje completo). Ese motivo es el que dice si falta
+   una función en el dueño único — que era el caso — o si simplemente alguien no buscó primero.
+
+---
+
+## Un premio de la UI puede ser folclore que nadie verificó (2026-08-08 · ADMIN_USUARIOS)
+
+**Qué pasó.** El spec pedía verificar que *«revocar B2B oculta las fotos de la 4 a la 15»*, y su
+copy de confirmación se lo promete al admin con esas palabras. La decisión 19 de MONETIZACION dice lo
+mismo. Al ir a probarlo en vivo —6 fotos cargadas, plan revocado— la ficha pública **mostraba lo
+mismo antes y después**: no porque el ocultamiento fallara, sino porque **no existe**. La ficha
+publica **una sola** foto de dueño (`app/lugar/[id]/page.tsx` ⇒ `ownerPhotos[0]`), y `CAP_FOTOS`
+(3 free / 15 pago) gatea la **subida**, no la exhibición. Nunca hubo fotos 4-15 visibles que ocultar.
+
+**Por qué sobrevivió tanto.** Porque la frase es *plausible* y se fue copiando: nació en un spec,
+pasó al DoD del siguiente, y de ahí al copy que ve el usuario. Ninguno de esos tres pasos requería
+mirar el render. El "oculta, no borra" del eje B2B **sí** es real —los 3 campos pagos vuelven a
+`null` con plan free y la fila queda intacta, verificado end-to-end— así que la mitad verdadera de la
+afirmación blindaba la mitad falsa.
+
+**Qué hacer distinto.** Cuando un spec **hereda** una promesa de comportamiento de otro spec
+(*"esto ya funciona así"*), tratarla como **cita que hay que chequear**, no como premisa. Cuesta una
+lectura: buscar el punto donde el dato se muestra y ver si el plan lo toca. Y si la promesa está en
+un **copy de cara al usuario**, el costo de que sea falsa no es un test rojo — es que le decimos al
+admin que pasa algo que no pasa.
+
+---
+
 ## Un estado inicial que miente borra datos sin romper nada (2026-08-08 · CURADURIA_POR_NOMBRE)
 
 **Qué pasó.** El editor de curaduría inicializaba el precio en `useState<string | null>(null)` —

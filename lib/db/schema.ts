@@ -119,6 +119,13 @@ export const subscriptionStatusEnum = pgEnum('subscription_status', [
 ])
 
 /**
+ * Qué se registró en la bitácora del premium de cortesía (ADMIN_USUARIOS,
+ * decisión 7): se dio o se sacó. **No es el estado del plan** — el estado vigente
+ * se lee siempre de `users.plan` / `places.owner_plan`; esto es append-only.
+ */
+export const planGrantActionEnum = pgEnum('plan_grant_action', ['grant', 'revoke'])
+
+/**
  * Las 5 acciones tappables de la ficha que se instrumentan (MONETIZACION,
  * decisión 22a). El conjunto es `TAP_KINDS`, compartido con el `<TapLink>` del
  * cliente — una sola fuente para que el enum de la base no driftee del literal
@@ -936,6 +943,46 @@ export const subscriptionPayments = pgTable('subscription_payments', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 
+/**
+ * Bitácora del **premium de cortesía** (ADMIN_USUARIOS, decisión 7): quién movió
+ * el flag de plan a mano desde `/admin`, sobre qué eje, cuándo y **por qué**.
+ *
+ * ⚠️ **NO es fuente de verdad del estado.** El plan vigente se lee siempre de
+ * `users.plan` / `places.owner_plan`; esta tabla se escribe y se lee **solo para
+ * mostrar**, nunca para decidir un gate. Si algún día un gate la consultara,
+ * habría dos discriminantes de "esto es cortesía" y el que quedara viejo mentiría
+ * — el que ya existe y está en producción es `estado.status === null`
+ * (`lib/billing/estado.ts`, decisión 3).
+ *
+ * Append-only: revocar **agrega** una fila `revoke`, no borra la de `grant`. Así
+ * la historia sobrevive a la revocación, que es justo cuando hace falta leerla.
+ *
+ * `place_id` con el mismo criterio que `subscriptions` y `premium_interest`:
+ * `null` = B2C del usuario; con valor = el plan de ESE lugar.
+ *
+ * `granted_by` guarda el **email** del admin en `text`, siguiendo a
+ * `place_claims.decided_by` y `app_settings_history.changed_by`: no hay tabla de
+ * roles que referenciar (AUTH, decisión 8).
+ */
+export const planGrants = pgTable(
+  'plan_grants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** `null` = cortesía B2C; con valor = el plan de ese lugar. */
+    placeId: uuid('place_id').references(() => places.id, { onDelete: 'cascade' }),
+    accion: planGrantActionEnum('accion').notNull(),
+    /** Obligatorio y validado en la función (decisión 6): es lo que hace útil la bitácora. */
+    motivo: text('motivo').notNull(),
+    grantedBy: text('granted_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // La bitácora se lee siempre por usuario, lo más nuevo primero.
+  (t) => [index('plan_grants_user_idx').on(t.userId, t.createdAt.desc())],
+)
+
 // ---------------------------------------------------------------------------
 // Chat IA — spec CHAT_IA
 // ---------------------------------------------------------------------------
@@ -1229,6 +1276,9 @@ export type NewSubscriptionPayment = typeof subscriptionPayments.$inferInsert
 export type SubscriptionStatus = (typeof subscriptionStatusEnum.enumValues)[number]
 export type PremiumInterest = typeof premiumInterest.$inferSelect
 export type NewPremiumInterest = typeof premiumInterest.$inferInsert
+export type PlanGrant = typeof planGrants.$inferSelect
+export type NewPlanGrant = typeof planGrants.$inferInsert
+export type PlanGrantAction = (typeof planGrantActionEnum.enumValues)[number]
 export type AiApiUsage = typeof aiApiUsage.$inferSelect
 export type ChatConversation = typeof chatConversations.$inferSelect
 export type NewChatConversation = typeof chatConversations.$inferInsert

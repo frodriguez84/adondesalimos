@@ -1,3 +1,4 @@
+import { CopiarMails } from './copiar-mails'
 import type { SuscripcionAdmin } from '@/lib/billing/admin'
 import type { ConteoInteresados, InteresadoAdmin } from '@/lib/billing/interes'
 import type { SubscriptionStatus } from '@/lib/db/schema'
@@ -67,6 +68,9 @@ function InteresPremium({
   conteo: ConteoInteresados
 }) {
   const { b2c, b2b, total } = conteo
+  // Los `null` del leftJoin (usuario borrado) no se copian ni cuentan para la N
+  // del botón (FB-03, decisión 12).
+  const mails = interesados.map((i) => i.email).filter((m): m is string => Boolean(m))
   return (
     <div className="flex flex-col gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -96,6 +100,7 @@ function InteresPremium({
               </li>
             ))}
           </ul>
+          <CopiarMails mails={mails} />
         </>
       )}
     </div>
