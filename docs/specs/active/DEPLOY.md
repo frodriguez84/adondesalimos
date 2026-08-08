@@ -1,6 +1,6 @@
 # Spec: Deploy a producción (Neon + Vercel)
 
-**Estado:** Parcial — § *El premium apagado* ✅ Implementado (2026-08-01, el primer tramo de código de F1: tabla `premium_interest` + endpoint + `SuscripcionPanel` + conteo en `/admin`) · **F0 ✅ Implementado (2026-08-03)**: Neon creado en `aws-sa-east-1` con PostgreSQL 16.14, dump restaurado y verificado por conteo **y por checksum**, cuentas de prueba borradas, `ai.chat_monthly_cap = 500` — QA `DEPLOY-F0-01..12` en `docs/qa/AnalisisQA.md`. El resto de F1 (`noindex`, `maxDuration`, `.env.example`, Vercel + DNS), F2 y F3 pendientes
+**Estado:** Parcial — **F0 ✅ (2026-08-03)** y **F1 ✅ (2026-08-07)**; F2 y F3 pendientes. F0: Neon en `aws-sa-east-1` con PostgreSQL 16.14, dump restaurado y verificado por conteo **y por checksum**, cuentas de prueba borradas, `ai.chat_monthly_cap = 500` (QA `DEPLOY-F0-01..12`). F1: **la app vive en `https://adondesalimos.com.ar`** — los 4 cambios de código (`noindex`, `maxDuration`, `.env.example`, el aviso «Estamos en beta»), Vercel Hobby con las funciones en `gru1` **declarado en `vercel.json`**, DNS en Cloudflare DNS-only, Email Routing con `contacto@adondesalimos.com.ar`, y un **bucket de R2 aparte para producción** (`adondesalimos-fotos-prod` + `fotos.adondesalimos.com.ar`, decidido al ejecutar). QA `DEPLOY-01..21` en `docs/qa/AnalisisQA.md`: **20 PASS + 1 con salvedad** (el mail a `contacto@` cae en spam por el reenvío). El `noindex` se sacó al cerrar el QA.
 **Prioridad:** Alta — es el #2 de la cola post-v2 y lo único que separa "todo implementado" de "usable". Desbloquea el backlog que hoy no se puede trabajar por falta de usuarios reales (afinar `chips.schedule` con `place_tag_impressions_daily`, el gatillo de Google OAuth, la curaduría guiada por uso del #3).
 **Gate:** Ninguno para F0/F1/F2. **F3 (encender el cobro) está gateada** — ver decisión 18.
 **Bloquea:** la curaduría de cobertura (#3 de la cola post-v2), que depende de datos de uso reales; ABIERTO_AHORA F2; el afinado de CHIPS_ROTACION.
@@ -392,23 +392,23 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 
 ## Criterios de done (DoD)
 
-- [ ] `https://adondesalimos.com.ar` sirve la home, con TLS válido y sin warning de dominio.
+- [x] `https://adondesalimos.com.ar` sirve la home, con TLS válido y sin warning de dominio. ✅ DEPLOY-01 — y `Server: Vercel`, no `cloudflare`: sin doble CDN
 - [x] El backup del dev existe y es previo a todo (`npm run backup:check` en verde). ✅ `backups/adondesalimos_2026-08-03_220640.sql.gz`
 - [x] Conteos en Neon == conteos en dev para `places`, `place_tags source='admin'`, `place_zones`, `zones`, `app_settings`, `occasion_chips`. ✅ 13 tablas, más checksum de contenido idéntico en 6 conjuntos (DEPLOY-F0-04/05)
-- [ ] Una búsqueda con zona + tag devuelve los mismos resultados en prod que en dev.
-- [ ] La ficha de un lugar carga, y el bloque de Google se pide desde el cliente (no en el render).
-- [ ] Un usuario nuevo se registra y **recibe el mail de verificación** desde `no-reply@adondesalimos.com.ar` (el dominio ya está verificado, decisión 19: acá se confirma que también sale bien desde Vercel).
-- [ ] `/admin` responde solo al `ADMIN_EMAIL` y es 404 para el resto.
-- [ ] El chat contesta, descuenta cupo, y el tablero de `/admin` muestra el costo con los tokens de caché.
+- [x] Una búsqueda con zona + tag devuelve los mismos resultados en prod que en dev. ✅ DEPLOY-02 — mismos 4 lugares, mismo orden
+- [x] La ficha de un lugar carga, y el bloque de Google se pide desde el cliente (no en el render). ✅ DEPLOY-04 — 0 rastros de Google en el HTML del server
+- [x] Un usuario nuevo se registra y **recibe el mail de verificación** desde `no-reply@adondesalimos.com.ar` (el dominio ya está verificado, decisión 19: acá se confirma que también sale bien desde Vercel).
+- [x] `/admin` responde solo al `ADMIN_EMAIL` y es 404 para el resto. ✅ DEPLOY-11 — 404 sin sesión **y** con una cuenta logueada que no es admin
+- [ ] El chat contesta, descuenta cupo, y el tablero de `/admin` muestra el costo con los tokens de caché. ⚠️ **Mitad verificada**: el chat contesta y descuenta (DEPLOY-09, 3→2→1→0 con el gate). **El tablero de costos NO se miró** — es lo único del DoD de F1 que quedó sin verificar.
 - [x] `ai.chat_monthly_cap = 500` en Neon. ✅ 2026-08-03 (DEPLOY-F0-11)
-- [ ] En `/cuenta` y en `/mi-negocio/[placeId]`, el tab de Suscripción muestra el mensaje de beta —no *"Configuración de pago incompleta"*— y el click queda registrado.
-- [ ] Clickear dos veces "Avisame cuando abra" deja **una** fila, no dos (índices únicos parciales).
-- [ ] `/admin` → Suscripciones muestra el conteo de interesados y sus mails.
-- [ ] Ninguna variable server-only aparece en el bundle del browser (grep sobre `.next/static`).
-- [ ] `robots.txt` sirve el `noindex` en el deploy inicial, y deja de servirlo después del QA.
-- [ ] El aviso **«Estamos en beta»** está en las 3 superficies (decisión 21): sección de `/legales`, rótulo del footer y renglón en resultados vacíos/flacos. Y **no dice "no nos hacemos responsables"** ni nada con forma de letra chica legal.
-- [ ] **Un mail a `contacto@adondesalimos.com.ar` llega a la casilla de Fer** (decisión 22), y los registros de Resend (`send.*`, `resend._domainkey.*`) siguen intactos: el mail de verificación sigue saliendo.
-- [ ] Ningún secreto quedó commiteado: `.env` sigue gitignoreado y las vars viven solo en Vercel.
+- [x] En `/cuenta` y en `/mi-negocio/[placeId]`, el tab de Suscripción muestra el mensaje de beta —no *"Configuración de pago incompleta"*— y el click queda registrado.
+- [x] Clickear dos veces "Avisame cuando abra" deja **una** fila, no dos (índices únicos parciales). ✅ DEPLOY-16
+- [x] `/admin` → Suscripciones muestra el conteo de interesados y sus mails. ✅ DEPLOY-17
+- [x] Ninguna variable server-only aparece en el bundle del browser. ✅ DEPLOY-14 — hecho sobre los **12 chunks del deploy real**, no sobre `.next/static` local; 0 de 12 vars, y `NEXT_PUBLIC_MP_PUBLIC_KEY` tampoco está
+- [x] `robots.txt` sirve el `noindex` en el deploy inicial, y deja de servirlo después del QA. ✅ DEPLOY-12 — las dos mitades
+- [x] El aviso **«Estamos en beta»** está en las 3 superficies (decisión 21): sección de `/legales`, rótulo del footer y renglón en resultados vacíos/flacos. Y **no dice "no nos hacemos responsables"** ni nada con forma de letra chica legal.
+- [x] **Un mail a `contacto@adondesalimos.com.ar` llega a la casilla de Fer** (decisión 22), y los registros de Resend (`send.*`, `resend._domainkey.*`) siguen intactos: el mail de verificación sigue saliendo. ✅ DEPLOY-21 — **con salvedad**: llegó, pero a spam (el reenvío rompe el SPF del remitente original). Mitigación pendiente: filtro en la casilla destino.
+- [x] Ningún secreto quedó commiteado: `.env` sigue gitignoreado y las vars viven solo en Vercel. ✅ verificado con `git check-ignore`
 
 ## QA manual (IDs propuestos)
 

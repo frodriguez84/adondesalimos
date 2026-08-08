@@ -3562,3 +3562,129 @@ sirviendo con TLS, la búsqueda equivalente en prod, la ficha con el bloque de G
 verificación desde Vercel, `/admin` gateado, el chat descontando cupo, `robots.txt` con `noindex`
 y el grep sobre `.next/static`. Los únicos ítems del DoD que F0 cierra son **`ai.chat_monthly_cap
 = 500` en Neon** (DEPLOY-F0-11) y los **conteos** de la migración (DEPLOY-F0-04/05).
+
+## DEPLOY F1 — el sitio en producción: Vercel, DNS, Email Routing y los 21 casos (2026-08-07)
+
+**Alcance:** los 4 cambios de código de F1 (`noindex`, `maxDuration`, `.env.example`, el aviso
+«Estamos en beta»), el proyecto en Vercel, el DNS en Cloudflare, el Email Routing de la decisión
+22, un bucket de R2 aparte para producción, y el QA `DEPLOY-01..21` del spec.
+
+**Método:** `curl` + `dig` sobre DNS-over-HTTPS + Playwright MCP contra
+`https://adondesalimos.com.ar` (el dominio real, no el `*.vercel.app`) + `SELECT` al Postgres de
+dev para armar los casos de comparación. **Los pasos de panel (Vercel, Cloudflare, aprobar el
+reclamo) los hizo Fer**; el resto lo corrió Claude, la mitad con una cuenta de prueba
+`frodriguez.este+qa@gmail.com` creada para eso.
+
+**Por qué una cuenta de prueba y no la de Fer:** `DEPLOY-11` pide literalmente *"`/admin` con una
+cuenta que no es admin"* — con la de Fer es imposible— y `DEPLOY-08` necesita un **segundo
+votante**. Además trae 3 mensajes de chat frescos. Se verificó antes que el gate de admin
+([lib/auth/admin.ts:23](../../lib/auth/admin.ts#L23)) compara con `===` **exacto** y no normaliza
+el `+`: si lo hiciera, la cuenta habría entrado a `/admin` y **DEPLOY-11 habría dado un falso
+PASS**.
+
+### Marcas de arranque
+
+- **Commits:** `05293a5` (los 4 cambios) · `d700bba` (`vercel.json` con la región) · `a8310a1`
+  (`contacto@` + el UA del crawler). Los tres pusheados por Fer.
+- **Antes de deployar:** typecheck limpio, **645 tests en 58 archivos**, `next build` verde con el
+  dev server parado, y las 3 superficies del aviso vistas en el navegador a 414×896.
+- **Infra:** Vercel Hobby, funciones en `gru1` · Neon `aws-sa-east-1` (pooled) · Cloudflare DNS-only
+  en el apex · R2 `adondesalimos-fotos-prod` con dominio propio `fotos.adondesalimos.com.ar`.
+- **Estado de la zona ANTES de tocar DNS** (verificado, no supuesto): apex **sin A, sin CNAME, sin
+  MX, sin TXT y sin `_dmarc`**; `send.*` y `resend._domainkey.*` de Resend publicados y en uso.
+
+### Casos
+
+| ID | Caso | Resultado | Evidencia |
+|----|------|-----------|-----------|
+| DEPLOY-01 | Home en el dominio real | ✅ PASS | HTTP 200, `Server: Vercel` (no `cloudflare` ⇒ la nube gris quedó bien y **no hay doble CDN**), TLS `ssl_verify_result=0`, HSTS `max-age=63072000`. Chips y selector de zona visibles |
+| DEPLOY-02 | Búsqueda zona+tag, prod vs dev | ✅ PASS | `?z=caballito&t=empanadas` devuelve **los mismos 4 lugares en el mismo orden** en las dos: El Noble, Rincón Norteño, Tienda de Empanadas ×2. `nextCursor` null en ambas |
+| DEPLOY-03 | Scroll infinito | ✅ PASS | `?z=palermo-soho`: **20 cards → 60** en dos scrolls, con dos `GET /api/search?…&cursor=…` en **200**. Sin errores de conexión |
+| DEPLOY-04 | Ficha con `google_place_id` | ✅ PASS | DOC Bar de Vinos. **El HTML del server no trae nada de Google**: 0 ocurrencias de `googleusercontent`, `maps.googleapis`, `rating`, `openNow` y `regularOpeningHours` en 31 KB. En el browser aparece **un solo** `GET /api/lugar/[id]/google` → 200, y recién ahí se dibujan foto (atribuida a su autor + Google), **4,6 (2465)**, `$$`, "Abierto ahora" y los horarios plegables. Es la disciplina de costos funcionando: **un crawler no gasta** |
+| DEPLOY-05 | Registro de un usuario nuevo | ✅ PASS | Fer se registró con `frodriguez.este@gmail.com` (el `ADMIN_EMAIL`, que F0 había borrado). **El mail de verificación llegó a Recibidos** desde `no-reply@adondesalimos.com.ar` y el link funcionó. Es además la prueba de que **los MX que Cloudflare puso en el apex no rompieron a Resend** — la otra mitad de DEPLOY-21 |
+| DEPLOY-06 | Login y sesión | ✅ PASS | La cookie sobrevive a recargar y a navegar entre rutas, en las dos cuentas |
+| DEPLOY-07 | Guardar un favorito | ✅ PASS | Persiste tras recargar y aparece en `/mis-lugares` |
+| DEPLOY-08 | Votación y voto desde otra sesión | ✅ PASS | Fer creó la votación (4 opciones); Claude votó desde la cuenta `+qa`. **Cuenta una vez:** al cambiar el voto de The Harrison a 70 30 Bar, el destino pasó 0→1, el origen 1→0 y **el total se quedó en 1** — reemplaza, no suma. Con los dos votantes: **2 votos en total, 50/50** en opciones distintas. **En vivo en las dos direcciones:** Fer vio el voto de Claude sin recargar y Claude vio el de Fer sin recargar |
+| DEPLOY-09 | Chat: 3 mensajes de trial | ✅ PASS | Cuenta `+qa` arranca en "Te quedan 3 de 3". Descuenta bien y el copy conjuga: 3 → 2 → **"Te queda 1 mensaje"** (singular) → 0. Devuelve lugares reales del catálogo. **El gate es preemptivo, mejor que el criterio:** apenas se consume el tercero bloquea el input (`disabled`, placeholder *"Sin mensajes disponibles"*) en vez de esperar a que el 4º intento falle ⇒ **no se gasta una llamada a Anthropic para que rebote**. Ver hallazgo 5 |
+| DEPLOY-10 | Tab Suscripción B2C con el cobro apagado | ✅ PASS | `/cuenta` dice **«Todavía no abrimos los pagos»** con el botón *Avisame cuando abra*. **No** dice "Configuración de pago incompleta" |
+| DEPLOY-11 | `/admin` con cuenta que no es admin | ✅ PASS | **404 sin sesión** y **404 con la cuenta `+qa` logueada**. Las dos mitades |
+| DEPLOY-12 | `robots.txt` con `noindex` | ✅ PASS (mitad) | `User-Agent: *` / `Disallow: /` servido desde el dominio real, y verificado también contra el artefacto del build (`.next/server/app/robots.txt.body`), no solo contra el código. **La segunda mitad —que deje de servirlo— queda pendiente** |
+| DEPLOY-13 | Primera visita tras >5 min de inactividad | ✅ PASS | Medido con el sitio quieto **6:40**. Home en frío: **3,31 s** (HTTP 200). Búsqueda inmediatamente después: 1,25 s. Búsqueda ya en caliente: **0,25 s** ⇒ **~3,1 s de cold start**. **Carga igual, sin error**, que es el criterio. La decisión 11 estimó *"~0,5–3 s extra en la primera query"* y **se aceptó a sabiendas**: la medición la confirma casi al decimal, así que el trade-off que se eligió (contra ~182 CU-h/mes para mantenerlo despierto, o ~US$19/mes de plan Launch) sigue siendo el correcto |
+| DEPLOY-14 | Bundle del browser | ✅ PASS | Se bajaron los **12 chunks** de `/_next/static` del deploy real (713 KB) y se buscó el **valor** de las 12 variables server-only: **cero coincidencias**. Y el control que no pide el spec: **`NEXT_PUBLIC_MP_PUBLIC_KEY` tampoco está**, que es la señal de que el cobro quedó apagado (decisión 5) |
+| DEPLOY-15 | Tab Suscripción B2B | ✅ PASS | Claude reclamó Loreto Garden Bar desde la cuenta `+qa`, Fer lo aprobó en `/admin`. `/mi-negocio/[placeId]` muestra el badge **Free** y el copy del spec con el pitch del plan del lugar (*"descripción, carta, novedades, hasta 15 fotos y el destaque en las búsquedas"*). **Y el gate del plan se ve aplicado:** Descripción, Link a la carta y Novedad **`disabled`**, y Fotos dice *"0 de 3 · … El plan pago llega a 15"*. **La foto cierra el R2 de producción de punta a punta** — ver abajo |
+| DEPLOY-16 | Doble click en «Avisame cuando abra» | ✅ PASS | La segunda vez muestra el estado confirmado con el mail de la cuenta; una sola fila |
+| DEPLOY-17 | `/admin` → Suscripciones | ✅ PASS | Conteo y mail del interesado, coincidente |
+| DEPLOY-18 | Aviso de beta en `/legales` y el footer | ✅ PASS | **«Estamos en beta» es el primer `h2` de la página**, arriba del pliegue, antes de las secciones de atribución. Único mail en la página: **`contacto@adondesalimos.com.ar`**. **Cero letra chica legal** (regex contra *"no nos hacemos responsables"* / *"sin garantía"* → 0). Menciona las **46 zonas** y los **400 metros** de buffer, que es lo que el aviso vino a explicar. Rótulo «Estamos en beta» en el footer de la home **y** de la ficha, sin sacar el link de atribución (es condición de la licencia) |
+| DEPLOY-19 | Búsqueda que no devuelve nada | ✅ PASS | `?z=puerto-madero&t=ramen` → 0 lugares y 0 destacados en la API, y en pantalla *"No encontramos nada con eso"* + el renglón *"Puede que exista y todavía no lo tengamos etiquetado — **estamos en beta**"* con link a `/legales` |
+| DEPLOY-20 | Búsqueda flaca sin página siguiente | ✅ PASS | **Las dos caras del criterio.** Con 4 resultados y la lista agotada: aparece *"Puede haber más: los filtros finos todavía no cubren todo el catálogo."* Con 20 resultados y página siguiente pendiente: **no aparece**. También verificado con 1 resultado (`puerto-madero` + `arcade`) |
+| DEPLOY-21 | Mail a `contacto@` + Resend sigue vivo | ⚠️ PASS con salvedad | **Las dos mitades funcionan.** El mail a `contacto@adondesalimos.com.ar` llegó a `adondesalimos.app@gmail.com`, y el mail de verificación de DEPLOY-05 salió desde `no-reply@` a Recibidos ⇒ los MX del apex **no rompieron a Resend**. **La salvedad: el primero cayó en spam.** Ver hallazgo 4 |
+
+### El R2 de producción, verificado de punta a punta (parte de DEPLOY-15)
+
+Es el único componente del deploy que nunca se había ejercitado, así que se probó entero en vez de
+darlo por bueno:
+
+- El **token nuevo abre `adondesalimos-fotos-prod`** y **no** alcanza el bucket de dev (scope
+  correcto, comprobado con `ListObjectsV2` sobre los dos).
+- Subida real desde `/mi-negocio`: el objeto quedó en **`adondesalimos-fotos-prod`** (1 objeto), no
+  en el de dev.
+- La URL guardada arranca con **`https://fotos.adondesalimos.com.ar/lugares/…`** —el dominio propio,
+  no un `pub-….r2.dev`— y responde **HTTP 200 `image/png`**.
+- No se redimensionó, y está bien: [fotos-editor.tsx:24](../../app/mi-negocio/[placeId]/fotos-editor.tsx#L24)
+  tiene `LADO_MAYOR_MAX = 1600` y la imagen de prueba es de 800 px.
+
+### Hallazgos
+
+1. **🔴 La región de las funciones no era la del panel — corregido con `vercel.json`.** El panel
+   tenía `gru1` guardado y avisaba *"A new Deployment is required"*, pero **el Redeploy no alcanzó**:
+   las funciones seguían ejecutando en `iad1` (Virginia), el default de Vercel para proyectos nuevos.
+   El instrumento fue el header `x-vercel-id`, que dice por qué regiones pasó la request:
+   `/legales` (estático) → `gru1::<id>`, pero `/` y `/api/search` (funciones) → **`gru1::iad1::<id>`**.
+   Se corrigió declarando `"regions": ["gru1"]` en `vercel.json` (commit `d700bba`): así se aplica en
+   cada build y **queda escrito en el repo**, que un setting de dashboard no puede estar. Después del
+   deploy: `gru1::gru1::`. Búsqueda en caliente ~380 ms.
+2. **🟡 Vercel puso `www` como dominio principal y el apex redirigiendo.** El checkbox *"Redirect
+   apex domains to www (recommended)"* viene tildado. Chocaba con `BETTER_AUTH_URL` y con
+   `NEXT_PUBLIC_APP_URL`, que valen el apex y **ya estaba horneada en el bundle**. Se rehízo al
+   revés: apex = Production, `www` → **307 temporal** al apex (1 salto, sin loop, **el path se
+   preserva**: `/legales` → `/legales`). El 307 y no 308 es deliberado mientras haya `noindex`:
+   un permanente lo cachea el browser y no gana nada en SEO todavía.
+3. **🟡 El canal de contacto cambió de `hola@` a `contacto@`, y el crawler apuntaba a un dominio
+   ajeno.** Fer rechazó `hola@` al ir a crearlo: la misma casilla la va a leer un dueño de
+   restaurante con el B2B (spec 7). Buscando las apariciones apareció que el User-Agent del crawler
+   de curaduría decía `+https://adondesalimos.ngrok.app; contacto: hola@adondesalimos.app` — **el
+   túnel de dev y un dominio que no es nuestro** (decisión 2: está libre y no se compró). Un dueño
+   de sitio que quisiera quejarse del bot escribía al vacío: el mismo agujero de la decisión 22 en
+   otra superficie. Corregido en `a8310a1`.
+4. **🟡 El mail a `contacto@` cae en spam, y es inherente al reenvío.** Email Routing reenvía, así
+   que Gmail ve un mail que dice venir de una dirección pero **llega desde los servidores de
+   Cloudflare**, que el SPF del remitente original no autoriza; Cloudflare firma con ARC pero una
+   casilla nueva sin historial desconfía. **No es un error de configuración y no se arregla con
+   DNS.** Mitigación acordada y **todavía pendiente**: filtro en la casilla destino con
+   *"Para: contacto@adondesalimos.com.ar"* → **Nunca enviarlo a Spam** + etiqueta. Sin eso, el canal
+   que `/legales` promete (*"cada mensaje nos sirve muchísimo"*) es un canal muerto.
+5. **🟢 El gate del chat es una TERCERA superficie del premium apagado, y no estaba listada.** La
+   decisión 6 enumera dos (`/cuenta` y `/mi-negocio/[placeId]`). El gate del chat también está
+   adaptado: dice *"Usaste tus mensajes de prueba / **Todavía no abrimos los pagos.** Dejanos la
+   señal…"* con botón **Dejar la señal**, en vez del *"Hacete premium para seguir chateando"* de
+   cuando el cobro está prendido. Ya estaba implementado y correcto; se documenta para que la
+   próxima sesión no crea que son dos.
+6. **🟢 La premisa del `maxDuration` había caducado.** El spec lo pedía porque *"el default de la
+   plataforma lo cortaría a mitad de respuesta"* — pero eso era el default viejo de 10 s. Verificado
+   en la doc de Vercel el 2026-08-07: con **fluid compute** (prendido por defecto en proyectos
+   nuevos) Hobby da **300 s de default y de máximo**. Se declaró igual, en **60**: válido en los dos
+   regímenes (sin fluid el máximo de Hobby es 60), sobra para cualquier turno real y no deja una
+   función colgada cinco minutos. La lección no es el número, es que **ese default ya cambió una vez**.
+
+### Lo que queda abierto al cerrar F1
+
+- **Sacar el `noindex`** (borrar `BETA_NOINDEX` y su `if` en `app/robots.ts`) — cierra la segunda
+  mitad de DEPLOY-12 — y **pasar el redirect de `www` a 308** en la misma tanda.
+- **El filtro de Gmail** del hallazgo 4.
+- **Borrar el rastro del QA en Neon**: la cuenta `frodriguez.este+qa@gmail.com` (su reclamo de
+  Loreto Garden Bar cae por cascada) y su `premium_interest`. ⚠️ Mismo cuidado que el paso 5 de F0:
+  `session` y `account` **no cascadean** y necesitan su propio `DELETE` **con `::text`**. La fila de
+  `place_photos` y el objeto en R2 **no caen solos** — la foto queda oculta al revocar, que es el
+  default correcto del proyecto (ocultar ≠ borrar); borrarla de verdad es `fotos:borrar` **contra
+  Neon**, no contra dev.
+- **F1 completo NO cierra el spec:** quedan F2 (Upstash + Google OAuth) y F3 (el cobro, gateada).

@@ -130,7 +130,13 @@ son trabajo acotado con criterio de "listo" objetivo.
 - [ ] **2 · Hosting/prod (Neon + Vercel)** → spec: `docs/specs/active/DEPLOY.md` — **decisiones
       cerradas ✅ 2026-07-31** (sesión Fable de definiciones, sin código) · **primer tramo de código
       ✅ 2026-08-01** (el premium apagado; el spec pasó a `active/`) · **F0 ✅ 2026-08-03** (la base
-      ya vive en Neon — ver abajo). Lo que se resolvió, con los porqués completos en el spec:
+      ya vive en Neon — ver abajo) · **F1 ✅ 2026-08-07: LA APP ESTÁ EN LÍNEA** en
+      `https://adondesalimos.com.ar`. Vercel Hobby con las funciones en `gru1` declarado en
+      `vercel.json`, DNS en Cloudflare DNS-only, Email Routing con `contacto@adondesalimos.com.ar`,
+      bucket de R2 aparte para producción, y el aviso «Estamos en beta» en las 3 superficies. QA
+      `DEPLOY-01..21`: **20 PASS + 1 con salvedad**. **Faltan F2** (rate-limit a Upstash + botón de
+      Google OAuth) **y F3** (Vercel Pro + encender el cobro, gateada por la decisión 18).
+      Lo que se resolvió, con los porqués completos en el spec:
       - **El dominio no había que decidirlo: `adondesalimos.com.ar` ya está registrado** (zona
         vacía en Cloudflare, mismo patrón que turnia). La puerta de ida ya estaba cruzada. Libres
         al 2026-07-31: `adondesalimos.com` y `.app`; tomados `quesale.com.ar`, `quepinta.com.ar`,
@@ -319,6 +325,45 @@ son trabajo acotado con criterio de "listo" objetivo.
            `LIMIT` y el "Ver más" son **solo del historial**.
         5. **El free no ve teaser del historial** — queda como está hoy. Un teaser en gris de lo que
            no podés abrir molesta más de lo que convierte. Decisión de monetización, de Fer.
+
+### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — SIN TRIAR
+
+**Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).
+**Es el primer feedback de gente que no construyó esto**, y es exactamente lo que el spec DEPLOY
+venía a destrabar (*"empezar a acumular los datos de uso"*).
+
+⚠️ **Está en crudo a propósito.** No está triado, priorizado ni contrastado contra el código: eso
+es una sesión aparte. La lección de `zona-no-adyacente-no-era-bug` aplica de lleno — un reporte que
+parece bug puede ser una decisión de spec funcionando como se escribió, y distinguirlo exige leer
+el código, no leer el reporte. **No implementar nada de acá sin triar primero.**
+
+1. **`/admin`: sección de usuarios**, para verlos y **otorgar premium a mano**. (Hoy el único camino
+   a premium con el cobro apagado es un `UPDATE` — ver INT2-32 en el QA integral #2.)
+2. **Chips que se prenden de a varios.** Al tocar «Primera cita» se prenden también «Cenar afuera» y
+   «Un café». Fer espera que un chip prenda **solo ese**, y que el usuario sume otros si quiere.
+3. **`/admin` → Suscripciones: copiar todos los mails juntos**, en vez de uno por uno, para pegarlos
+   en el mail que va a mandar. *"Algo más automático, sin complicar mucho."*
+4. **Mapa de resultados: botón de "centrarme"** en la ubicación del usuario.
+5. **Home: botón de limpiar la búsqueda.** Hoy hay que recargar la app para volver al home limpio.
+6. **El "ojito" en todos los campos de contraseña**, para ver lo que se tipea.
+7. **No le gusta el término "Señal".** *"Dejar la señal"* / *"Dejanos la señal"* — buscar otra frase,
+   **en todos los lugares donde aparece** (`/cuenta`, `/mi-negocio/[placeId]` y el gate del chat: son
+   tres superficies, ver el QA de DEPLOY F1 § hallazgo 5).
+8. **La votación le habla al creador como si fuera un invitado.** Abriendo el link propio, logueado,
+   dice *"Te invitó Fernando…"* (soy yo) y al pie *"Armá tu propia votación desde ¿A dónde salimos?"*
+   (ya la armé). Está bien para los invitados, no para el creador.
+9. **El sheet de Filtros en celular no se arrastra para cerrar.** Parece que se pudiera bajar con el
+   dedo y no responde; hay que tocar afuera. Debería cerrarse **también** arrastrando hacia abajo.
+10. **Etiquetar un lugar a mano, sin pasar por la cola de sugerencias.** Los hermanos van a bares,
+    ven qué tienen y le pasan los datos. Hoy un bar con juegos figura solo como "Bar". ⚠️ **Esto NO
+    es una feature nueva: es la curaduría (spec 9) sin su puerta de entrada.** El mecanismo existe
+    entero —`place_tags source='admin'` ya tiene 3.967 filas y el editor de tildar/destildar por
+    faceta está en `app/admin/curaduria-client.tsx`— pero el flujo entra **por zona → lugares con
+    sugerencias pendientes**, así que no hay forma de llegar a un lugar arbitrario por nombre. Lo que
+    falta es esa entrada, no el editor. **Y es el input de mayor valor de toda esta lista**: la
+    curaduría de cobertura (#3 de la cola post-v2) está gateada esperando justo esto.
+
+---
 
 ## Mejoras futuras (fuera de v1)
 
