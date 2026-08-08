@@ -179,8 +179,11 @@ spec**, no un detalle que se descubre al final.
 Antes de implementar un spec nuevo:
 
 1. **Buscar primero lo que ya existe** — tipos, helpers, componentes, queries, patrones de
-   validación. Si algo parecido ya está resuelto, se reusa o se extiende; no se escribe una
-   segunda versión.
+   validación **y lo que ya resuelven las dependencias instaladas**. Si algo parecido ya está
+   resuelto, se reusa o se extiende; no se escribe una segunda versión. Lo de las dependencias
+   no es teoría: `lucide-react` v1.16 **no** tiene íconos de marca y se descubrió tarde (ver
+   § Notas importantes). Mirar qué da el paquete que ya está viene antes de escribirlo a mano
+   **y antes de sumar uno nuevo**.
 2. **Respetar el estilo y las abstracciones vigentes** aunque hoy se harían distinto. La
    coherencia del conjunto vale más que la elegancia de una pieza suelta.
 3. **Si hace falta divergir de un patrón existente, decirlo explícitamente** y por qué —
