@@ -338,6 +338,9 @@ son trabajo acotado con criterio de "listo" objetivo.
       ✅ **Tanda A cerrada el 2026-08-08** (los 6 ítems tildados abajo + `PBETA-R2-09`). Quedan B, C y `FB-04`.
       ✅ **Tanda B cerrada el 2026-08-08**: [`CURADURIA_POR_NOMBRE`](../specs/done/CURADURIA_POR_NOMBRE.md)
       escrito e implementado el mismo día (`FB-10` + `FB-10b`). Quedan **C** y `FB-04`.
+      📝 **La Tanda C ya tiene spec (2026-08-08)**: [`ADMIN_USUARIOS`](../specs/planned/ADMIN_USUARIOS.md)
+      cubre `FB-01` + `FB-03` en un solo spec (misma pantalla, misma tanda, mismo criterio de
+      privacidad). **Los dos ítems siguen abiertos**: escribir el spec no es implementarlo.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -463,6 +466,10 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       pantalla — el bug era invisible justamente por eso (`CURNOM-10`..`CURNOM-14`).
 
 #### Tanda C — operar la beta sin `psql` (los dos son `/admin`)
+
+> 📝 **Los dos tienen spec desde el 2026-08-08:** [`ADMIN_USUARIOS`](../specs/planned/ADMIN_USUARIOS.md).
+> Van juntos ahí (uno solo, no dos) porque comparten pantalla, tanda y el criterio de privacidad de
+> su decisión 9. Sin implementar.
 
 - [ ] **FB-01 · 🟢 FEATURE — sección de usuarios en `/admin` con premium a mano.** Verificado que
       **no existe**: `app/admin/tabs.tsx` tiene 5 tabs (Cola · Precios · Suscripciones · Costos ·
@@ -1518,6 +1525,25 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Spec de la Tanda C escrito** (2026-08-08, sesión Fable, autoría de spec — **no hay código**):
+      [`docs/specs/planned/ADMIN_USUARIOS.md`](../specs/planned/ADMIN_USUARIOS.md), que cubre `FB-01`
+      + `FB-03`. **Los dos ítems siguen abiertos**: lo hecho es la decisión, no la implementación.
+      **Un solo spec y no dos** (decisión 1): `FB-03` no ameritaba spec propio, pero su tope de 200
+      sí ameritaba quedar escrito. Lo que cerró: **(a)** la cortesía se otorga extendiendo a
+      `lib/billing/subscriptions.ts` —el dueño único— y **delegando la escritura del flag en
+      `activarFlagDelPlan`/`bajarFlagDelPlan`, que no se tocan**; **(b)** **sí se puede revocar**, y
+      lo que lo destrabó fue leer el copy vigente: `suscripcion-panel.tsx:154` ya dice *«Si lo querés
+      dar de baja, escribinos y lo sacamos»* — el producto ya lo había prometido, y como revocar
+      **oculta y no borra** (favoritos y contenido pago), es puerta de ida y vuelta; **(c)** van los
+      **dos ejes**, porque `owner_plan` es justo el `UPDATE` a mano que el CLAUDE.md todavía
+      documenta, y B2B se otorga desde el usuario sobre sus lugares con reclamo aprobado, sin UI
+      nueva; **(d)** auditoría en una tabla nueva `plan_grants` append-only que es **bitácora, no
+      fuente de verdad del estado** — columnas en `users`/`places` guardarían solo el último estado
+      y tocarían tablas con datos reales. Y una regla que salió escribiéndolo: **la cortesía solo
+      aplica a ejes sin suscripción viva**, porque el discriminante "esto es cortesía" ya existe en
+      producción (`estado.status === null`) y permitir la excepción obligaría a inventar un segundo
+      que driftearía. Única migración: la tabla nueva.
 
 - [x] **Tanda B del feedback — `CURADURIA_POR_NOMBRE`, escrito ayer e implementado hoy** (2026-08-08,
       sesión Opus). Cierra `FB-10` (la puerta: buscar un lugar por nombre en `/admin` → Curaduría y

@@ -37,6 +37,24 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-08 · Spec de la Tanda C (ADMIN_USUARIOS) — Fable
+
+- **Qué salió bien:** la decisión más pesada del spec —*¿la cortesía se puede revocar?*— no se
+  resolvió con criterio, se resolvió **leyendo el copy que ya está en producción**:
+  `suscripcion-panel.tsx:154` dice *«Si lo querés dar de baja, escribinos y lo sacamos»*, o sea que
+  el producto ya lo había prometido y la pregunta estaba contestada hace meses. Mismo patrón con el
+  discriminante de cortesía (`estado.status === null`, que ya existe): el spec terminó decidiendo
+  qué **no** inventar. Los 8 archivos que mandó leer el prompt alcanzaron sin abrir nada más.
+- **Qué frenó:** el heredoc de Bash, **tercera sesión seguida y en el mismo lugar** (`unexpected
+  EOF` escribiendo el spec). No es un hallazgo nuevo: es que el "qué cambiar" de la retro anterior
+  —generalizar la regla de *texto largo ⇒ archivo, no shell* más allá de los mensajes de commit—
+  **quedó escrito acá y no se aplicó** en `~/.claude/CLAUDE.md`, que sigue hablando solo de `git
+  commit`. Una mejora anotada y no aplicada cuesta lo mismo que no haberla encontrado.
+- **Qué cambiar:** nada nuevo — **aplicar la de ayer**. Es una línea en la regla que ya existe
+  (`~/.claude/CLAUDE.md` § *Mensajes de commit multilínea*): cambiar el alcance de "mensajes de
+  commit" a "cualquier texto largo que pase por el shell". Toca el CLAUDE.md **global** ⇒ radio
+  grande ⇒ va con OK de Fer, no de prepo.
+
 ## 2026-08-08 · Implementación de la Tanda B (CURADURIA_POR_NOMBRE) — Opus
 
 - **Qué salió bien:** el spec de la sesión anterior funcionó como manual, no como referencia. Sus

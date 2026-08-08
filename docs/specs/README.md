@@ -26,9 +26,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-_Vacía: no hay specs escritos esperando implementación._
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [ADMIN_USUARIOS](planned/ADMIN_USUARIOS.md) | **Tanda C del feedback real** (`FB-01` + `FB-03`): tab **Usuarios** en `/admin` con el **premium de cortesía** —otorgar y revocar, B2C y B2B— extendiendo a `lib/billing/subscriptions.ts` (el dueño único de los flags), con motivo obligatorio y bitácora `plan_grants` append-only que **no** es fuente de verdad del estado; + el botón de copiar los mails de Interés. Saca de `psql` las dos operaciones de la beta. Única migración: una tabla nueva. | 🔵 Escrito 2026-08-08, sin implementar |
 
-_(La carpeta son todos stubs de redirect de specs ya movidos: la cola de v2 está completa,
+_(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
 implementó el 2026-08-08, sin escala en `active/`.)_
 
