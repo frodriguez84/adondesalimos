@@ -31,9 +31,13 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
   no es el regex: **la evidencia para desmentirlo ya estaba en pantalla** —el chequeo de bundle
   había contado "15 vars server-only" cuando la lista mala tenía 10— y no se ató. Un conteo que no
   cierra es una señal, no ruido.
-- **Qué cambiar:** nada nuevo al método. El error de arriba no pide una regla —pide leer el propio
-  output—, y agregar "revisá tus regex" al `CLAUDE.md` sería exactamente el sesgo aditivo que la
-  pregunta 2 existe para frenar. Lo que sí quedó **escrito en el repo** son dos cicatrices concretas:
+- **Qué cambiar:** nada nuevo al método, y **Fer coincide**: reportó cero fricción de su lado y
+  calificó de "excelente" el ritmo de ir **de a poco con los pasos de panel** (un paso, verificar,
+  el siguiente). Vale anotarlo como confirmación, no como cambio: ese ritmo atajó **dos
+  configuraciones malas antes de aplicarlas** —el `www` como dominio principal y el checkbox de
+  "incluir variants"— y las dos habrían costado un rollback en producción. El error de arriba
+  tampoco pide una regla —pide leer el propio output—, y agregar "revisá tus regex" al `CLAUDE.md`
+  sería exactamente el sesgo aditivo que la pregunta 2 existe para frenar. Lo que sí quedó **escrito en el repo** son dos cicatrices concretas:
   la región vive en `vercel.json` y no en el panel (`d700bba`), y la decisión 4 del spec ahora
   explica por qué.
 
