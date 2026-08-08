@@ -13,6 +13,63 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-08 · Tanda A del feedback (6 ítems, sin spec) — Opus
+
+- **Qué salió bien:** el triaje del turno anterior funcionó como spec sin serlo — cada ítem venía
+  con el archivo, la línea y el gotcha, así que la implementación fue casi mecánica y el orden
+  "de más barato a más delicado" mantuvo el gate verde todo el tiempo. Y la advertencia del triaje
+  sobre `FB-02` (*separar pintar de togglear o queda un botón muerto*) era **exactamente** el
+  problema: se implementó separado desde el primer intento y se verificó en pantalla que un chip
+  tapado sigue vivo.
+- **Qué frenó:** nada del método. Sí dos cosas del entorno, chicas: los clicks de Playwright sobre
+  listas que se re-renderizan (`/votacion/nueva`) no registraban y hubo que disparar el `click()`
+  desde `browser_evaluate`; y `FB-07` **no se puede ver en dev**, porque su branch existe solo con
+  el cobro apagado (`cobroApagado()` ⇔ falta `NEXT_PUBLIC_MP_PUBLIC_KEY`, que en dev está). Quedó
+  declarado en el QA como verificado por código, no en pantalla.
+- **Qué cambiar:** una sola cosa, y sale de que **Fer encontró en 30 segundos un bug que mi QA de
+  20 criterios dio por PASS**: verifiqué `FB-02-03` mirando la URL y `aria-pressed`, y el resultado
+  *era* el que yo había decidido — pero decidí mal. Tocar un chip que se ve apagado y que se apague
+  otro es un bug de affordance aunque el estado sea "correcto". **Regla para el próximo QA de UI:
+  un criterio no se escribe como "el estado queda en X" sino como "el toque hace lo que el control
+  muestra"**; si no se puede enunciar así, el que verifica está copiando la decisión del que
+  implementó. (El otro hallazgo, técnico, quedó comentado donde importa: el `touchend` de un
+  arrastre corto dispara un `click` igual, así que un gesto nuevo sobre algo clickeable necesita su
+  guard — `bottom-sheet.tsx`.)
+
+---
+
+## 2026-08-08 · Triaje del feedback de los primeros usuarios reales (10 ítems) — Opus
+
+- **Qué salió bien:** **triar contra el módulo dueño de la regla, no contra el reporte** — la
+  consigna de `zona-no-adyacente-no-era-bug` aplicada de entrada, y pagó cuatro veces. `FB-02` no
+  era un bug sino la decisión 18 marcando por subconjunto, y el mecanismo quedó *probado*, no
+  supuesto: «Tomar algo» **no** se prende porque le falta `cerveceria`, que es lo que descarta
+  cualquier otra explicación. `FB-05` ("falta limpiar") resultó **implementado**, pero adentro del
+  sheet y solo para tags. `FB-08` tenía el dato del fix (`esCreador`) **14 líneas arriba del bug**.
+  Y `FB-01`, que parecía chocar con el dueño único de `users.plan`, resultó ya previsto por el
+  producto (el copy del premium de cortesía existe) y **verificado estable**: `bajarFlagDelPlan`
+  siempre parte de una fila de `subscriptions`, así que un cortesía sin suscripción no lo baja
+  nadie. Lo mejor: leer `guardarCuraduria` para dimensionar `FB-10` destapó un bug que **nadie
+  reportó** — `FACETAS_EDITABLES` incluye `precio`, el editor lo inicializa siempre en "No sé", y
+  guardar un lugar ya curado le borra el precio. Hoy no muerde; con `FB-10` pasa a ser el camino
+  principal.
+- **Qué frenó:** dos veces el mismo tipo de error, las dos escribiendo archivos. (1) Un heredoc de
+  Bash falló con `unexpected EOF` por los CRLF de Windows — es exactamente la trampa que `CLAUDE.md`
+  §*Mensajes de commit multilínea* ya describe, y la regla estaba escrita solo para `git commit`.
+  (2) Peor: al reintentar con Python, `io.open(p,'w')` **truncó `BACKLOG.md` a 0 bytes** y recién
+  después murió con `UnicodeEncodeError` (un `🔎` a medias en el reemplazo). Se recuperó
+  entero desde `git show HEAD:` + el bloque que estaba en el scratchpad, sin pérdida — pero solo
+  porque el trabajo estaba fuera del archivo. **Abrir en `'w'` el archivo de destino antes de tener
+  el contenido listo es el error**, no el emoji.
+- **Qué cambiar:** una sola cosa, y es de las que **restan**: escribir el contenido a un temporal y
+  recién ahí `cp` sobre el destino — nunca `open(destino,'w')` con el texto a mitad de camino. No
+  necesita regla nueva en `CLAUDE.md`: es la §*Reversibilidad* aplicada a un archivo (pisar un doc
+  de 2.000 líneas es puerta de ida si no está commiteado). Lo que sí vale generalizar de la regla de
+  commits multilínea que ya existe: **el problema no es `git commit`, es el heredoc en Windows** —
+  para cualquier bloque de texto largo conviene Write al scratchpad y ensamblar, que además deja el
+  fragmento reusable si algo falla. Del resto del método, cero fricción: las 4 tandas y las 2
+  preguntas a Fer salieron directo del triaje, sin ceremonia de más.
+
 ## 2026-08-07 · DEPLOY F1 — la app sale a producción (Vercel + DNS + QA de 21 casos) — Opus
 
 - **Qué salió bien:** **verificar el efecto y no la configuración.** Tres de los cuatro hallazgos

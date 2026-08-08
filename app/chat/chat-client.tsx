@@ -179,10 +179,13 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
         ? cobroApagado()
           ? {
               // PBETA-R5-04: con los pagos cerrados no se ofrece un pago. El botón que
-              // anota la señal vive en /cuenta (dueño único de esa acción).
+              // anota el interés vive en /cuenta (dueño único de esa acción).
+              // FB-07: el copy de cara al usuario es el mismo del panel de /cuenta
+              // («Avisame cuando abra»); dos copias de un copy driftean igual que
+              // dos copias de una regla.
               titulo: 'Usaste tus mensajes de prueba',
-              detalle: 'Todavía no abrimos los pagos. Dejanos la señal y te escribimos apenas se pueda.',
-              cta: { href: '/cuenta', label: 'Dejar la señal' },
+              detalle: 'Todavía no abrimos los pagos. Te avisamos apenas se pueda.',
+              cta: { href: '/cuenta', label: 'Avisame cuando abra' },
             }
           : {
               titulo: 'Usaste tus mensajes de prueba',

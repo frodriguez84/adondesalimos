@@ -103,11 +103,15 @@ export default async function VotacionPage({
       <header className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           {/* PBETA-R2-03: el que abre el link es un desconocido que no sabe quién
-              lo invitó ni qué es esto. El eyebrow decía "Votación" y nada más. */}
+              lo invitó ni qué es esto. El eyebrow decía "Votación" y nada más.
+              FB-08: pero el creador NO es un desconocido — a él no se le anuncia
+              quién lo invitó ni se le ofrece armar la votación que ya armó. */}
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {votacion.creatorName
-              ? `Te invitó ${primerNombre(votacion.creatorName)}`
-              : 'Te invitaron a votar'}
+            {esCreador
+              ? 'Tu votación'
+              : votacion.creatorName
+                ? `Te invitó ${primerNombre(votacion.creatorName)}`
+                : 'Te invitaron a votar'}
           </p>
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
             {tituloDe(votacion)}
@@ -142,10 +146,22 @@ export default async function VotacionPage({
       />
 
       <footer className="mt-auto pt-4 text-xs text-muted-foreground">
-        Armá tu propia votación desde{' '}
-        <Link href="/" className="underline underline-offset-4">
-          ¿A dónde salimos?
-        </Link>
+        {esCreador ? (
+          <>
+            Esta votación la armaste vos. Pasale el link al grupo y seguila desde{' '}
+            <Link href="/mis-votaciones" className="underline underline-offset-4">
+              Mis votaciones
+            </Link>
+            .
+          </>
+        ) : (
+          <>
+            Armá tu propia votación desde{' '}
+            <Link href="/" className="underline underline-offset-4">
+              ¿A dónde salimos?
+            </Link>
+          </>
+        )}
       </footer>
     </main>
   )

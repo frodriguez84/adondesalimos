@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { authClient } from '@/lib/auth/client'
+import { PasswordInput } from '@/components/ui/password-input'
 
 const schema = z
   .object({
@@ -73,8 +74,7 @@ function RestablecerForm() {
       <form method="post" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-muted-foreground">Nueva contraseña</label>
-          <input
-            type="password"
+          <PasswordInput
             {...register('password')}
             placeholder="••••••••"
             className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground/60 transition-colors focus:border-primary/50 focus:outline-none"
@@ -84,8 +84,7 @@ function RestablecerForm() {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-muted-foreground">Confirmá la contraseña</label>
-          <input
-            type="password"
+          <PasswordInput
             {...register('confirm')}
             placeholder="••••••••"
             className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground/60 transition-colors focus:border-primary/50 focus:outline-none"

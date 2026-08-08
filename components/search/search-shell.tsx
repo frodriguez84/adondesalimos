@@ -111,6 +111,21 @@ export function SearchShell({
   )
 
   /**
+   * FB-05: volver al home limpio de una (zona + tags + q + gps). El "Limpiar
+   * todo" que ya existía vive dentro del sheet de filtros y limpia **solo** los
+   * tags — por eso este se llama distinto y se muestra en la pantalla.
+   * `push` (no `replace`) porque tirar la búsqueda entera es deliberado: el back
+   * la devuelve.
+   */
+  const limpiarBusqueda = React.useCallback(() => {
+    setTexto('')
+    setEnfocado(false)
+    setCoords(null)
+    setGpsError(null)
+    navegar({ zones: [], tags: [], q: null, gps: false }, 'push')
+  }, [navegar])
+
+  /**
    * Decisión 17: el permiso se pide acá, al tocar el toggle. Nunca al entrar —
    * ni siquiera si el link trae `gps=1`, porque la intención es de quien
    * compartió, no de quien abre.
@@ -257,7 +272,13 @@ export function SearchShell({
           )}
         </div>
 
-        <ChipsActivos params={params} facetas={facetas} zonas={zonas} onNavegar={navegar} />
+        <ChipsActivos
+          params={params}
+          facetas={facetas}
+          zonas={zonas}
+          onNavegar={navegar}
+          onLimpiar={limpiarBusqueda}
+        />
 
         {gpsError && <p className="text-sm text-muted-foreground">{gpsError}</p>}
       </div>
@@ -385,11 +406,14 @@ function ChipsActivos({
   facetas,
   zonas,
   onNavegar,
+  onLimpiar,
 }: {
   params: SearchParams
   facetas: CatalogFacet[]
   zonas: CatalogZone[]
   onNavegar: (cambio: Partial<SearchParams>, modo: 'push' | 'replace') => void
+  /** FB-05: tirar la búsqueda entera sin sacar chip por chip. */
+  onLimpiar: () => void
 }) {
   const chips: { key: string; label: string; quitar: () => void }[] = []
 
@@ -432,10 +456,15 @@ function ChipsActivos({
     })
   }
 
-  if (chips.length === 0) return null
+  // `tieneBusqueda` es el dueño de "¿hay búsqueda?"; el `|| params.gps` cubre el
+  // único caso que él deja afuera a propósito: "Cerca de mí" prendido y todavía
+  // sin coordenadas (no filtra nada, pero sí hay algo para limpiar).
+  const hayQueLimpiar = tieneBusqueda(params) || params.gps
+
+  if (chips.length === 0 && !hayQueLimpiar) return null
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {chips.map((chip) => (
         <button
           key={chip.key}
@@ -448,6 +477,15 @@ function ChipsActivos({
           <X className="size-3.5 text-muted-foreground" />
         </button>
       ))}
+      {hayQueLimpiar && (
+        <button
+          type="button"
+          onClick={onLimpiar}
+          className="inline-flex h-8 items-center rounded-full px-2 text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+        >
+          Limpiar búsqueda
+        </button>
+      )}
     </div>
   )
 }

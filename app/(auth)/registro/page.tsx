@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signUp } from '@/lib/auth/client'
 import { authErrorMessage } from '@/lib/auth/errorMessages'
+import { PasswordInput } from '@/components/ui/password-input'
 
 const schema = z
   .object({
@@ -105,8 +106,7 @@ export default function RegisterPage() {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-muted-foreground">Contraseña</label>
-          <input
-            type="password"
+          <PasswordInput
             {...register('password')}
             placeholder="Mínimo 8 caracteres"
             className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground/60 transition-colors focus:border-primary/50 focus:outline-none"
@@ -116,8 +116,7 @@ export default function RegisterPage() {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-muted-foreground">Confirmá la contraseña</label>
-          <input
-            type="password"
+          <PasswordInput
             {...register('confirmPassword')}
             placeholder="Repetí la contraseña"
             className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground/60 transition-colors focus:border-primary/50 focus:outline-none"

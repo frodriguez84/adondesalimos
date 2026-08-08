@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signIn } from '@/lib/auth/client'
 import { authErrorMessage } from '@/lib/auth/errorMessages'
+import { PasswordInput } from '@/components/ui/password-input'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -95,8 +96,7 @@ function LoginForm() {
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
-          <input
-            type="password"
+          <PasswordInput
             {...register('password')}
             placeholder="••••••••"
             className="rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder-muted-foreground/60 transition-colors focus:border-primary/50 focus:outline-none"

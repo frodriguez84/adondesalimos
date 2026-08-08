@@ -326,42 +326,191 @@ son trabajo acotado con criterio de "listo" objetivo.
         5. **El free no ve teaser del historial** — queda como está hoy. Un teaser en gris de lo que
            no podés abrir molesta más de lo que convierte. Decisión de monetización, de Fer.
 
-### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — SIN TRIAR
+- [ ] **5 · Feedback de los primeros usuarios reales — triado ✅ 2026-08-08.** Los 10 ítems que
+      trajeron los hermanos de Fer el día del lanzamiento, clasificados **contra el código** y
+      agrupados en 4 tandas (detalle completo abajo, IDs `FB-01..FB-10b`): **Tanda A** — 2 bugs
+      (`FB-08` la votación trata al creador como invitado · `FB-09` el sheet no se arrastra) + 3
+      roces chicos + `FB-02`, todo sin spec; **Tanda B** — `FB-10`, la puerta de entrada de la
+      curaduría por nombre, **que es lo que destraba el ítem 3 de esta misma cola**, junto con
+      `FB-10b` (un bug que encontró el triaje: guardar en la curaduría **borra el precio** del
+      lugar); **Tanda C** — los dos de `/admin`; **Tanda D** — `FB-04`.
+      **Fer aprobó arrancar por la Tanda A (2026-08-08)**; B y C esperan a que las pida.
+      ✅ **Tanda A cerrada el 2026-08-08** (los 6 ítems tildados abajo + `PBETA-R2-09`). Quedan B, C y `FB-04`.
+
+### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
 **Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).
 **Es el primer feedback de gente que no construyó esto**, y es exactamente lo que el spec DEPLOY
 venía a destrabar (*"empezar a acumular los datos de uso"*).
 
-⚠️ **Está en crudo a propósito.** No está triado, priorizado ni contrastado contra el código: eso
-es una sesión aparte. La lección de `zona-no-adyacente-no-era-bug` aplica de lleno — un reporte que
-parece bug puede ser una decisión de spec funcionando como se escribió, y distinguirlo exige leer
-el código, no leer el reporte. **No implementar nada de acá sin triar primero.**
+**Método del triaje:** cada ítem se clasificó **leyendo el módulo dueño de esa regla**, no el
+reporte — la lección de `zona-no-adyacente-no-era-bug`. Rindió: **2 de los 10 no son lo que
+parecían** (el 2 es la decisión 18 funcionando; el 5 ya está implementado, pero en otro lado), y
+**el triaje encontró un bug que nadie reportó** (el precio que se borra, ver FB-10b).
 
-1. **`/admin`: sección de usuarios**, para verlos y **otorgar premium a mano**. (Hoy el único camino
-   a premium con el cobro apagado es un `UPDATE` — ver INT2-32 en el QA integral #2.)
-2. **Chips que se prenden de a varios.** Al tocar «Primera cita» se prenden también «Cenar afuera» y
-   «Un café». Fer espera que un chip prenda **solo ese**, y que el usuario sume otros si quiere.
-3. **`/admin` → Suscripciones: copiar todos los mails juntos**, en vez de uno por uno, para pegarlos
-   en el mail que va a mandar. *"Algo más automático, sin complicar mucho."*
-4. **Mapa de resultados: botón de "centrarme"** en la ubicación del usuario.
-5. **Home: botón de limpiar la búsqueda.** Hoy hay que recargar la app para volver al home limpio.
-6. **El "ojito" en todos los campos de contraseña**, para ver lo que se tipea.
-7. **No le gusta el término "Señal".** *"Dejar la señal"* / *"Dejanos la señal"* — buscar otra frase,
-   **en todos los lugares donde aparece** (`/cuenta`, `/mi-negocio/[placeId]` y el gate del chat: son
-   tres superficies, ver el QA de DEPLOY F1 § hallazgo 5).
-8. **La votación le habla al creador como si fuera un invitado.** Abriendo el link propio, logueado,
-   dice *"Te invitó Fernando…"* (soy yo) y al pie *"Armá tu propia votación desde ¿A dónde salimos?"*
-   (ya la armé). Está bien para los invitados, no para el creador.
-9. **El sheet de Filtros en celular no se arrastra para cerrar.** Parece que se pudiera bajar con el
-   dedo y no responde; hay que tocar afuera. Debería cerrarse **también** arrastrando hacia abajo.
-10. **Etiquetar un lugar a mano, sin pasar por la cola de sugerencias.** Los hermanos van a bares,
-    ven qué tienen y le pasan los datos. Hoy un bar con juegos figura solo como "Bar". ⚠️ **Esto NO
-    es una feature nueva: es la curaduría (spec 9) sin su puerta de entrada.** El mecanismo existe
-    entero —`place_tags source='admin'` ya tiene 3.967 filas y el editor de tildar/destildar por
-    faceta está en `app/admin/curaduria-client.tsx`— pero el flujo entra **por zona → lugares con
-    sugerencias pendientes**, así que no hay forma de llegar a un lugar arbitrario por nombre. Lo que
-    falta es esa entrada, no el editor. **Y es el input de mayor valor de toda esta lista**: la
-    curaduría de cobertura (#3 de la cola post-v2) está gateada esperando justo esto.
+⚠️ **Son 10 ítems, no 11.** El handoff de la sesión de triaje decía 11; el archivo siempre tuvo 10
+y no falta ninguno. Corregido acá para que la próxima sesión no busque un ítem fantasma.
+
+**Categorías:** 🔴 BUG · 🟠 COBERTURA de datos · 🔵 DECISIÓN ya tomada (falta explicarla o
+revisarla) · 🟢 FEATURE nueva. **Ninguno de los 10 resultó 🟠 cobertura de datos** — el que más se
+le parecía (FB-10, "un bar con juegos figura solo como Bar") es cobertura *sin puerta de entrada*,
+que es una feature de admin, no un problema del catálogo.
+
+#### Tanda A — bugs y roces de una tarde (sin spec, costo bajo; solo FB-07 espera a Fer)
+
+- [x] **FB-08 · 🔴 BUG — la votación le habla al creador como si fuera un invitado.** ✅ **Hecho 2026-08-08** (QA `FB-08-01..03`). *El más claro
+      de la lista y el más barato.* **`esCreador` ya está calculado 14 líneas más arriba del bug**:
+      `app/votacion/[token]/page.tsx:95` lo resuelve con `esCreadorDeVotacion` y se lo pasa al
+      cliente para la moderación (decisión 8 de VOTACION) — pero el eyebrow (`:109`, *"Te invitó
+      Fernando"*) y el footer (`:145`, *"Armá tu propia votación"*) no lo consultan. **Fix: dos
+      condicionales en un solo archivo, con el dato ya en mano.** Impacto alto: el link de la
+      votación es la superficie más compartida del producto.
+  - [ ] **Fuera de scope de FB-08, encontrado al verificarlo (2026-08-08)** — la bajada de la
+        votación (*"Elegí a dónde ir: votás sin crear cuenta. Esto es ¿A dónde salimos?, la app
+        para decidir la salida con el grupo"*, `app/votacion/[token]/page.tsx:117-120`) también le
+        explica el producto al creador, que ya lo conoce. **No se tocó**: el triaje acotó FB-08 al
+        eyebrow y al footer. Es 1 condicional más en el mismo archivo si Fer lo quiere.
+- [x] **FB-09 · 🔴 BUG de affordance — el sheet no se arrastra para cerrar, pero dibuja la barrita
+      que lo promete.** ✅ **Hecho 2026-08-08** (QA `FB-09-01..06`; cierra `PBETA-R2-09`). `components/ui/bottom-sheet.tsx:41` renderiza el handle
+      (`h-1 w-10 rounded-full`) y **no hay un solo handler de touch/pointer** en el componente: la
+      promesa visual existe sin el comportamiento, que es literalmente lo que se reportó (*"parece
+      que se pudiera bajar y no responde"*). **Un arreglo, siete pantallas**: `BottomSheet` es el
+      dueño único y lo usan filtros, zonas, el historial del chat, "Sumá un lugar" de la votación,
+      el checkout y el sheet de guardar. **Cierra de paso `PBETA-R2-09`** (el sheet "Sumá un lugar"
+      sin forma visible de cerrarse) de los 33 no bloqueantes.
+- [x] **FB-05 · 🟢 FEATURE chica — limpiar la búsqueda desde la home.** ✅ **Hecho 2026-08-08** (QA `FB-05-01..03`). ⚠️ *No es un gap del spec:*
+      BUSQUEDA sí pide *"Limpiar todo"* y **está implementado** — en
+      `components/search/filters-sheet.tsx:67`, dentro del sheet, y limpia **solo los tags**. Lo que
+      no existe es volver al home limpio (zona + tags + `q` + gps de una). Hoy: sacar chip por chip
+      en `ChipsActivos` o recargar. **Las dos piezas ya están**: `tieneBusqueda(params)`
+      (`lib/search/params`) dice cuándo mostrarlo y `navegar(…, 'push')` lo aplica ⇒ ~10 líneas en
+      `search-shell.tsx`.
+- [x] **FB-06 · 🟢 FEATURE chica — el "ojito" en los campos de contraseña.** ✅ **Hecho 2026-08-08** (QA `FB-06-01..03`). Verificado: **8 campos
+      en 5 archivos** (`login`, `registro` ×2, `restablecer` ×2, `cuenta` ×3) y **ninguno** tiene
+      toggle. No hay un `Input` compartido en `components/ui/`, así que el trabajo real es crear
+      `components/ui/password-input.tsx` (dueño único) y reemplazar los 8. **El detalle que lo puede
+      romper**: conviven dos formas de conexión —`{...register('password')}` de react-hook-form y
+      controlado con `value`/`onChange`— así que el componente necesita `forwardRef` + spread de
+      props para servir a las dos.
+- [x] **FB-07 · 🔵 DECISIÓN de copy — "Señal" no gusta, y de paso hay una inconsistencia.** ✅ **Hecho 2026-08-08** (QA `FB-07-01..03`). El
+      hallazgo 5 del QA de DEPLOY F1 tenía razón en que son **tres** superficies, pero el reparto es
+      2+1: `components/billing/suscripcion-panel.tsx:198` es **un solo dueño de copy que sirve a dos
+      pantallas** (`/cuenta` y `/mi-negocio/[placeId]`) y `app/chat/chat-client.tsx:184-185` **tiene
+      su propia copia**. Y no dicen lo mismo: el panel remata con el botón **«Avisame cuando abra»**
+      y el chat con **«Dejar la señal»**. ⚠️ **Al cambiar la frase, unificar**: dos copias de un
+      mismo copy driftean igual que dos copias de una regla.
+      ✅ **DECIDIDO POR FER (2026-08-08): se unifica todo en «Avisame cuando abra»** — la frase que
+      el panel ya usa y que ya pasó el QA de DEPLOY (`DEPLOY-10`/`DEPLOY-16`). "Señal" desaparece de
+      la UI: el chat pierde su copia propia (CTA y cuerpo) y el remate pasa a **«Te avisamos apenas
+      se pueda»**. La palabra puede seguir viva en nombres internos (`premium_interest`,
+      `lib/billing/interes.ts`, comentarios) — lo que se cambia es **lo que el usuario lee**.
+
+#### Tanda B — el de mayor valor: la curaduría necesita una puerta
+
+- [ ] **FB-10 · 🟢 FEATURE (puerta de entrada, no mecanismo) — etiquetar un lugar buscándolo por
+      nombre.** Confirmado que **el mecanismo está entero y no hay que tocarlo**:
+      `guardarCuraduria(placeId, tags, precio)` (`lib/curation/acciones.ts:37`) **es agnóstico de la
+      cola** —recibe un `placeId`, no depende de que haya sugerencias pendientes—, el endpoint
+      `POST /api/admin/curaduria/[placeId]` ya existe con su gate de admin, y `RevisorLugar` ya
+      contempla el caso sin cola (`Evidencia` renderiza *"Sin sugerencias pendientes con evidencia
+      para este lugar"*). **Lo que falta es exactamente:**
+      1. una hermana de `proximoLugarDeZona` (`lib/curation/query.ts:107`, hoy el **único** armador
+         de `LugarEnCola`, y arranca de `place_tag_suggestions`) que arme el mismo objeto para un
+         `placeId` arbitrario con `sugerencias: []` — reusa el mismo `Promise.all` sin la primera
+         query;
+      2. un buscador por nombre (endpoint + input). **Antes de escribir un `LIKE`**: el motor ya
+         resuelve búsqueda por nombre con tolerancia a typos y acentos (`params.q`, decisión 15 de
+         BUSQUEDA) — se mira `lib/search/query.ts` primero. ⚠️ Pero este buscador **no debe pasar
+         por `publishedWhere`**: un lugar despublicado es justamente uno de los que hay que curar.
+         Es una divergencia deliberada del dueño único de visibilidad y **hay que declararla en el
+         spec**, no aplicarla en silencio;
+      3. `RevisorLugar.onResuelto()` hoy llama a `traerProximo(zonaActiva)` — en modo por-nombre no
+         hay zona y hay que decidir qué pasa después de guardar.
+      **Destraba la curaduría de cobertura (#3 de la cola post-v2), que está gateada esperando esto.**
+- [ ] **FB-10b · 🔴 BUG encontrado durante el triaje (nadie lo reportó) — guardar en la curaduría
+      BORRA el precio del lugar.** `guardarCuraduria` borra todas las `place_tags` con
+      `source='admin'` de `FACETAS_EDITABLES`, que **incluye `precio`**
+      (`lib/curation/acciones.ts:24`), y las re-inserta desde lo que manda el cliente. Pero
+      `RevisorLugar` inicializa `const [precio, setPrecio] = useState<string|null>(null)`
+      (`app/admin/curaduria-client.tsx:169`) — **siempre en "No sé", aunque el lugar ya tenga precio
+      curado**, porque `LugarEnCola` ni siquiera trae ese dato. Guardar un lugar ya curado le borra
+      el precio. **Hoy casi no muerde** (la faceta Precio tiene ~1 lugar en 18.993 y la cola quedó
+      vacía tras CURADURIA F3), **pero FB-10 lo convierte en el camino principal**: "busco un bar,
+      corrijo un tag, guardo" pasa a ser el gesto más común y se lleva el precio puesto. **Va en la
+      misma tanda que FB-10, no después**: `LugarEnCola` tiene que traer el precio asignado y el
+      editor inicializar el estado con él.
+
+#### Tanda C — operar la beta sin `psql` (los dos son `/admin`)
+
+- [ ] **FB-01 · 🟢 FEATURE — sección de usuarios en `/admin` con premium a mano.** Verificado que
+      **no existe**: `app/admin/tabs.tsx` tiene 5 tabs (Cola · Precios · Suscripciones · Costos ·
+      Curaduría) y ninguna es de usuarios. **Lo que sí existe y hay que respetar**:
+      `lib/billing/subscriptions.ts` se declara **dueño único** de `users.plan` y
+      `places.owner_plan` (*"nadie más escribe los flags — se retiró el UPDATE documentado de
+      AUTH/VOTACION"*), así que un botón que haga `UPDATE users SET plan='premium'` por su cuenta
+      sería la segunda implementación de la regla. **La buena noticia es que el producto ya tiene el
+      caso previsto**: `components/billing/suscripcion-panel.tsx:58-62` define el copy del **premium
+      de cortesía** (*"Te activamos el Premium nosotros: no vence ni se cobra"*) y lo muestra cuando
+      el plan es premium y no hay fila de suscripción. **Y se verificó que es estable aun con el
+      cobro prendido**: `bajarFlagDelPlan` se llama **siempre desde una fila de `subscriptions`**
+      (`vencimiento.ts:32` sobre la fila fresca, `webhook.ts:66` sobre la suscripción) ⇒ un usuario
+      premium **sin** suscripción no lo toca nadie y no lo van a bajar a free por sorpresa. **Lo que
+      falta decidir en el spec: quién es el dueño de "otorgar cortesía"** — se extiende
+      `subscriptions.ts` con una función explícita, no se escribe el flag desde la ruta de admin.
+- [ ] **FB-03 · 🟢 FEATURE chica — copiar todos los mails de Suscripciones juntos.**
+      `app/admin/suscripciones.tsx` es server component y lista los mails en `<li>` de a uno; hace
+      falta un botón cliente. ⚠️ **El gotcha**: `getInteresadosAdmin()` viene **topeado en 200** y
+      el conteo real sale de `contarInteresados()` (por eso existen los dos, INT2-28) ⇒ "copiar
+      todos" copiaría *los 200 más nuevos*, no todos. Hay que elegir: copiar los visibles **diciendo
+      cuántos son**, o un endpoint que traiga la lista completa. Con el volumen de hoy da igual;
+      escrito para que no sorprenda después.
+
+#### Tanda D — decidir antes de tocar
+
+- [x] **FB-02 · 🔵 DECISIÓN ya tomada (decisión 18 de BUSQUEDA) — los chips que "se prenden de a
+      varios" NO son un bug.** ✅ **Hecho 2026-08-08** (QA `FB-02-01..05`). ⚠️ **Salió en dos vueltas:** el primer toggle (subconjunto) hacía que tocar un chip *tapado* apagara los dos y prendiera un tercero — lo cazó Fer probándolo. La regla final: **tapado ⇒ se promueve** (ver el comentario de `occasion-chips.tsx`). Mecanismo verificado en `components/search/occasion-chips.tsx:34`: un
+      chip se marca aplicado cuando **todos** sus tags están puestos (`tags.every(...)`). «Primera
+      cita» = `[bar, cafe, restaurante, tranqui, romantico]` **contiene** a «Cenar afuera» =
+      `[restaurante]` y a «Un café» = `[cafe]` ⇒ los tres se prenden **por subconjunto**. La prueba
+      de que el mecanismo es ese y no otro: «Tomar algo» = `[bar, cerveceria]` **no** se prende,
+      porque le falta `cerveceria`. Es la decisión 18 funcionando: *tocar un chip aplica sus tags a
+      la vista, no es un modo opaco*.
+      **Pero el reporte igual señala algo real, y es peor que lo confuso**: tocar «Un café» —que se
+      ve prendido— **saca** el tag `cafe` y deja «Primera cita» mutilada sin explicar nada.
+      ⚠️ **Lo que pide Fer ("que un chip prenda solo ese") choca de frente con la decisión 18**: para
+      que un chip tenga identidad propia, el chip —y no sus tags sueltos— tiene que vivir en la URL
+      (`?chip=primera-cita`). Eso es **un cambio del modelo de estado de la búsqueda**, no un fix de
+      UI, y toca el invariante de la decisión 12 (la URL es el estado).
+      ✅ **DECIDIDO POR FER (2026-08-08): la regla es "si toco 1, se prende 1; si toco más, se van
+      prendiendo más", sin tocar la URL.** ⚠️ Eso **no** es el marcado exacto de una línea que se
+      había propuesto: con igualdad estricta, tocar «Cenar afuera» **y** «Un café» dejaría apagados
+      a los dos (`[restaurante, cafe]` no iguala a ninguno de los dos chips). La regla que sí cumple
+      lo pedido es **subconjunto maximal**: un chip se prende si sus tags ⊆ activos **y ningún otro
+      chip prendido lo contiene estrictamente**. Verificado contra los tres casos: «Primera cita»
+      sola ⇒ tapa a «Cenar afuera» y «Un café» y queda **solo ella**; «Cenar afuera» + «Un café» ⇒
+      **prenden los dos** (ninguno contiene al otro); «Primera cita» + «Tomar algo» ⇒ **prenden los
+      dos** (`cerveceria` los hace incomparables). Son ~6 líneas en `occasion-chips.tsx`, no una, y
+      sigue sin tocar `SearchParams` ni la decisión 18.
+      🔎 **Lo único a resolver al implementar**: hoy `estaAplicado` decide **dos** cosas — cómo se
+      pinta el chip y qué hace el toque. Si se usa "maximal" para las dos, tocar «Cenar afuera»
+      mientras está tapada por «Primera cita» no hace **nada** (botón muerto). Separarlas —pintar
+      por maximal, **togglear por subconjunto**— hace que ese toque **saque** `restaurante` y
+      despinte «Primera cita», que es coherente con "los tags son la verdad". **Elegir a conciencia
+      y dejarlo escrito en el código**, no que salga solo.
+- [ ] **FB-04 · 🟢 FEATURE chica — botón de "centrarme" en el mapa.** Verificado:
+      `components/search/map-view.tsx:93` agrega `NavigationControl` (zoom) y **no** hay
+      `GeolocateControl`; `coords` llega al componente pero **solo alimenta la clave del fetch**
+      (`:55`), no dibuja al usuario ni centra. Dos cosas a resolver: (a) el efecto de resultados hace
+      `fitBounds` sobre los pins en cada cambio (`:200-204`), así que un "centrarme" queda **pisado
+      por el próximo re-fetch** si no se coordina; (b) la decisión 17 de BUSQUEDA exige que el
+      permiso de ubicación se pida **solo con un toque explícito** — el `GeolocateControl` nativo de
+      MapLibre lo cumple (pide al tocarlo), así que la decisión no se viola si se usa ese.
+
+**Prioridad — aprobada por Fer el 2026-08-08:** arranca la **Tanda A completa** (FB-05, FB-06,
+FB-07, FB-08, FB-09), sin spec. **FB-02 se suma a esa tanda** porque su decisión ya está tomada y
+el costo quedó en ~6 líneas. **Tandas B, C y FB-04 quedan en cola sin fecha** — B es la que destraba
+el ítem 3 de la cola post-v2 (curaduría de cobertura) y **amerita spec**; C también (FB-01 tiene que
+decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta que Fer lo pida.**
 
 ---
 
@@ -390,7 +539,7 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 - [ ] **PBETA-R2-05** (MOLESTO) — los toques principales miden menos de 44 px («Votar» 63×34, «Inicio» 35×20).
 - [ ] **PBETA-R2-06** (MOLESTO) — no se dice hasta cuándo se puede votar, y las votaciones vencen solas a las 72 h.
 - [ ] **PBETA-R2-07** (MOLESTO) — «Podés cambiar tu voto» aparece **después** de votar, cuando ya no hace falta.
-- [ ] **PBETA-R2-09** (MOLESTO) — el sheet «Sumá un lugar» no tiene forma visible de cerrarse.
+- [x] **PBETA-R2-09** (MOLESTO) — el sheet «Sumá un lugar» no tiene forma visible de cerrarse. ✅ **Hecho 2026-08-08** con `FB-09`: el handle es un `<button aria-label="Cerrar">` y además se arrastra.
 - [ ] **PBETA-R2-11** (MOLESTO) — el bloque de voto queda visualmente fuera de la card del lugar.
 - [ ] **PBETA-R2-12** (MOLESTO) — los resultados se ven antes de votar (puede ser deliberado: «resultados en vivo» de `VOTACION`).
 - [ ] **PBETA-R2-10** (COSMÉTICO) — el subtítulo del sheet se alinea a la derecha del título, no debajo.
@@ -1337,6 +1486,18 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Tanda A del feedback de los primeros usuarios reales** (2026-08-08, sesión Opus, sin spec).
+      Los 6 ítems que Fer aprobó del triaje: `FB-02`, `FB-05`, `FB-06`, `FB-07`, `FB-08`, `FB-09`.
+      QA `docs/qa/AnalisisQA.md` § *Feedback … Tanda A* (`FB-02-01`…`FB-09-06`, 20 criterios, todos
+      PASS). Dos cosas que solo se vieron **implementando**, no triando: (1) en `FB-02`, pintar y
+      togglear **no pueden usar el mismo criterio** —maximal para pintar, subconjunto para
+      togglear— o un chip tapado queda como botón muerto; está escrito en el comentario de
+      `occasion-chips.tsx`. (2) en `FB-09`, el `touchend` de un arrastre corto sobre el handle
+      dispara igual un `click`, así que sin un guard el sheet cerraba justo cuando el gesto decía
+      "volvé". El handle pasó a ser un `<button aria-label="Cerrar">` (accesible, y cierra con tap):
+      eso es lo que cierra `PBETA-R2-09`. `FB-06` dejó `components/ui/password-input.tsx` como
+      **dueño único del ojito** — ya no queda un solo `type="password"` suelto en el repo.
 
 - [x] **La base de producción existe: el catálogo entero vive en Neon** (2026-08-03, sesión Opus,
       `DEPLOY` **F0**, cero código). QA `docs/qa/AnalisisQA.md` § *DEPLOY F0* (`DEPLOY-F0-01..12`).

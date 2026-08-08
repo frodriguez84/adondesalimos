@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { authClient } from '@/lib/auth/client'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
 import { BrandHeader } from '@/components/shared/brand-header'
+import { PasswordInput } from '@/components/ui/password-input'
 import type { EstadoSuscripcion } from '@/lib/billing/estado'
 
 type Props = {
@@ -153,8 +154,7 @@ function PasswordSection() {
       <form method="post" onSubmit={cambiar} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-muted-foreground">Contraseña actual</label>
-          <input
-            type="password"
+          <PasswordInput
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             placeholder="••••••••"
@@ -163,8 +163,7 @@ function PasswordSection() {
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs uppercase tracking-wider text-muted-foreground">Nueva contraseña</label>
-          <input
-            type="password"
+          <PasswordInput
             value={next}
             onChange={(e) => setNext(e.target.value)}
             placeholder="Mínimo 8 caracteres"
@@ -220,8 +219,7 @@ function DangerZone() {
             <label className="text-xs uppercase tracking-wider text-muted-foreground">
               Confirmá con tu contraseña
             </label>
-            <input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"

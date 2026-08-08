@@ -3688,3 +3688,68 @@ darlo por bueno:
   default correcto del proyecto (ocultar ≠ borrar); borrarla de verdad es `fotos:borrar` **contra
   Neon**, no contra dev.
 - **F1 completo NO cierra el spec:** quedan F2 (Upstash + Google OAuth) y F3 (el cobro, gateada).
+
+---
+
+## QA — Feedback de los primeros usuarios reales, Tanda A (2026-08-08)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests ✅ 645/645 · build ⏳ (el dev server estaba
+levantado; se corre con el server parado, ver § Notas de `CLAUDE.md`)
+**Alcance:** los 6 ítems que Fer aprobó el 2026-08-08 (`FB-02`, `FB-05`, `FB-06`, `FB-07`,
+`FB-08`, `FB-09`) del triaje de `docs/product/BACKLOG.md` § *Feedback de los primeros usuarios
+reales*. Sin spec: son bugs y roces chicos, ya clasificados contra el código.
+**Método:** implementación + verificación en vivo con Playwright MCP contra
+`https://adondesalimos.ngrok.app` (viewport 390×844, sesión `pepe@gmail.com` y también sin
+sesión). `FB-02` y `FB-09` **no se podían dar por buenos sin pantalla** y se verificaron ahí.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| FB-08-01 | Al creador el eyebrow le dice «Tu votación», no «Te invitó X» | ✅ PASS | Votación propia (`/votacion/nhFX8we…`) con sesión de Pepe: eyebrow = **TU VOTACIÓN**. `app/votacion/[token]/page.tsx` reusa el `esCreador` que ya se calculaba en `:95` |
+| FB-08-02 | Al creador el footer no le ofrece «Armá tu propia votación» | ✅ PASS | Footer = *"Esta votación la armaste vos. Pasale el link al grupo y seguila desde **Mis votaciones**"* (link a `/mis-votaciones`) |
+| FB-08-03 | Sin regresión del lado invitado | ✅ PASS | Mismo link tras `sign-out`: **TE INVITÓ PEPE** + *"Armá tu propia votación desde ¿A dónde salimos?"* |
+| FB-07-01 | «Señal» desaparece de la UI; el CTA del chat dice «Avisame cuando abra» | ✅ PASS | **En pantalla** (Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY` para poder ver el branch apagado). `/chat` con el trial agotado: *"Usaste tus mensajes de prueba / Todavía no abrimos los pagos. Te avisamos apenas se pueda."* + CTA **«Avisame cuando abra»** → `/cuenta`. Se usó `hugo@gmail.com`, que ya tenía `chat_trial_used=3`: **cero tokens gastados** |
+| FB-07-02 | El panel de suscripción alinea el cuerpo y conserva su CTA | ✅ PASS | **En pantalla** en `/cuenta`: *"Todavía no abrimos los pagos. / Estamos en beta. El premium está por salir: … Te avisamos apenas se pueda."* + botón **«Avisame cuando abra»** (el que ya pasó `DEPLOY-10`/`DEPLOY-16`). `components/billing/suscripcion-panel.tsx:198`. La 2ª pantalla del mismo dueño (`/mi-negocio/[placeId]`, `tipo='b2b'`) solo cambia el pitch |
+| FB-07-03 | Los nombres internos NO se tocan | ✅ PASS | `grep "señal"`: solo quedan comentarios y nombres (`premium_interest`, `lib/billing/interes.ts`, `rate-limit.ts`). Cero strings de UI |
+| FB-05-01 | Con búsqueda activa aparece «Limpiar búsqueda» en pantalla | ✅ PASS | `/?t=bar,restaurante,romantico,tranqui`: botón visible al final de los chips activos |
+| FB-05-02 | Limpia zona + tags + `q` + gps de una y vuelve a `/` | ✅ PASS | Un toque → URL `https://adondesalimos.ngrok.app/` sin query, cero chips prendidos, estado vacío *"Elegí zona para arrancar"* |
+| FB-05-03 | Sin búsqueda el botón no está (y el «Limpiar todo» del sheet queda intacto) | ✅ PASS | En `/` el botón no existe en el DOM. `filters-sheet.tsx:67` sin cambios: sigue limpiando **solo** tags y con otro rótulo |
+| FB-02-01 | Un chip tocado solo se prende **solo él** (subconjunto maximal) | ✅ PASS | Toque en «Primera cita» ⇒ `?t=bar,cafe,restaurante,romantico,tranqui` y `aria-pressed=true` **solo** en «Primera cita». Antes se prendían también «Cenar afuera» y «Un café» |
+| FB-02-02 | Dos chips incomparables prenden los dos | ✅ PASS | «Cenar afuera» + «Un café» ⇒ `?t=cafe,restaurante`, prendidos **los dos**. Y `?t=bar,cafe,restaurante,romantico,tranqui,cerveceria` ⇒ «Primera cita» + «Tomar algo» prendidos |
+| FB-02-03 | Tocar un chip **tapado** lo prende a él, y no a otro (re-verificado tras el bug de Fer) | ✅ PASS | Con «Primera cita» aplicada, tocar «Un café» ⇒ `?t=cafe` y prendido **solo «Un café»**. ⚠️ **La primera implementación fallaba acá** (ver nota abajo): sacaba `cafe` y terminaba prendiendo «Cenar afuera», que nadie tocó |
+| FB-02-04 | Apagar un chip prendido apaga ese y nada más | ✅ PASS | `?t=cafe,restaurante` (los dos prendidos) → toco «Un café» → `?t=restaurante`, queda «Cenar afuera» |
+| FB-02-05 | La promoción no rompe el caso incomparable | ✅ PASS | Sobre «Un café», tocar «Cenar afuera» ⇒ `?t=cafe,restaurante` con **los dos** prendidos (no hay tapado ⇒ suma). «Primera cita» + «Tomar algo» ⇒ los dos prendidos |
+| FB-06-01 | Existe un dueño único del ojito y los 8 campos pasan por él | ✅ PASS | `components/ui/password-input.tsx` (`forwardRef` + spread). `grep 'type="password"'` en `app/` y `components/`: **0 resultados** |
+| FB-06-02 | Los 8 campos muestran el toggle en pantalla | ✅ PASS | `login` 1 · `registro` 2 · `restablecer` 2 · `cuenta` 3 (el 3º al abrir «Eliminar mi cuenta»). Todos con `aria-label="Mostrar contraseña"` |
+| FB-06-03 | El toggle cambia `type` y no rompe ninguna de las dos formas de conexión | ✅ PASS | En `/login`: click ⇒ `type=text`, `aria-label="Ocultar contraseña"`, valor intacto; **el login con ese campo funcionó** (react-hook-form recibió el valor ⇒ el `ref` llega). En `/cuenta` los 3 controlados renderizan y togglean |
+| FB-09-01 | El sheet se arrastra con el dedo y cierra pasado el umbral | ✅ PASS | Touch sintético de 120-130 px sobre el panel: sigue al dedo (`translateY(120px)`) y al soltar cierra (`aria-hidden=true`) |
+| FB-09-02 | Un arrastre corto vuelve solo y **no** cierra | ✅ PASS | 40 px ⇒ `translateY(40px)` durante, `transform: none` después y el sheet sigue abierto. Incluye el `click` que el browser dispara tras el `touchend` sobre el handle: no cierra (guard `movio`) |
+| FB-09-03 | El scroll interno no cierra el sheet | ✅ PASS | Con `scrollTop=200`, un arrastre de 160 px hacia abajo no mueve el panel (`transform: none`) ni lo cierra: el arrastre solo arranca en el tope |
+| FB-09-04 | El tap en el overlay sigue cerrando (sin regresión) | ✅ PASS | Sheet de Filtros: click en el overlay ⇒ cerrado |
+| FB-09-05 | El handle es un control real: cierra con tap y tiene nombre accesible | ✅ PASS | `<button aria-label="Cerrar">`; tap ⇒ cierra. Es lo que cubre `PBETA-R2-09` |
+| FB-09-06 | Las superficies del sheet siguen funcionando | ✅ PASS 5/6 | Verificadas en vivo: **zonas**, **filtros**, **«Sumá un lugar»** de la votación, **checkout** (`/cuenta`) e **historial del chat**. La 6ª —sheet de destino de favorito— **no se pudo abrir**: aparece solo con más de una lista y free tiene **1** (`MAX_LISTAS_FREE`, `lib/favoritos/planes.ts`). Usa el mismo `BottomSheet` sin props propias |
+
+### Notas
+
+- **`FB-02` se re-implementó el mismo día: el primer toggle era un bug de affordance.** La versión
+  inicial pintaba por maximal y **toggleaba por subconjunto**, así que un chip que se veía *apagado*
+  (tapado por otro) al tocarlo **sacaba** sus tags: Fer tocó «Primera cita» y después «Un café» y se
+  apagaron los dos prendiendo «Cenar afuera», que no había tocado. El triaje había marcado este
+  fork y se eligió mal el lado. La regla vigente tiene **tres** casos y el criterio es *el toque hace
+  lo que el chip muestra*: prendido ⇒ se apaga · apagado de verdad ⇒ suma sus tags · **tapado ⇒ se
+  promueve** (se van los tags del que lo tapaba, quedan los suyos). Escrita en el comentario de
+  `components/search/occasion-chips.tsx`, junto con lo que deliberadamente **no** hace (no salva a un
+  tercer chip que compartía tags con el que se fue).
+- **`FB-07` se verificó en pantalla, no solo por código.** Su branch existe únicamente con el cobro
+  apagado, así que Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY` en el `.env` para esta verificación
+  (`cobroApagado()` es su dueño único). **Hay que volver a descomentarla** para seguir probando el
+  checkout en dev.
+- **`FB-09` cierra `PBETA-R2-09`** (el sheet «Sumá un lugar» sin forma visible de cerrarse): el
+  handle pasó a ser un `<button aria-label="Cerrar">` que cierra con tap y con teclado, además del
+  arrastre. Un arreglo en el dueño único, seis usos.
+- **Fuera de scope, anotado y no tocado (`FB-08`)**: la bajada de la votación (*"Elegí a dónde ir:
+  votás sin crear cuenta. Esto es ¿A dónde salimos?, la app para decidir la salida con el grupo"*)
+  también le explica el producto al creador. El triaje acotó `FB-08` al eyebrow y al footer, así
+  que se dejó como está y se anotó en el BACKLOG para que Fer decida.
+- **El `build` queda pendiente** a propósito: el dev server de Fer estaba levantado y comparten
+  `.next` (lección de BÚSQUEDA). typecheck y tests corrieron verdes con el server arriba.
