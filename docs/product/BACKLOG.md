@@ -336,6 +336,8 @@ son trabajo acotado con criterio de "listo" objetivo.
       lugar); **Tanda C** — los dos de `/admin`; **Tanda D** — `FB-04`.
       **Fer aprobó arrancar por la Tanda A (2026-08-08)**; B y C esperan a que las pida.
       ✅ **Tanda A cerrada el 2026-08-08** (los 6 ítems tildados abajo + `PBETA-R2-09`). Quedan B, C y `FB-04`.
+      📄 **La Tanda B ya tiene spec** (2026-08-08): [`CURADURIA_POR_NOMBRE`](../specs/planned/CURADURIA_POR_NOMBRE.md),
+      escrito y **sin implementar**.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -406,6 +408,16 @@ que es una feature de admin, no un problema del catálogo.
       `lib/billing/interes.ts`, comentarios) — lo que se cambia es **lo que el usuario lee**.
 
 #### Tanda B — el de mayor valor: la curaduría necesita una puerta
+
+📄 **Los dos ítems de abajo ya tienen spec escrito (2026-08-08):**
+[`docs/specs/planned/CURADURIA_POR_NOMBRE.md`](../specs/planned/CURADURIA_POR_NOMBRE.md).
+**El spec NO es la implementación** — los dos siguen sin hacer. Las 3 decisiones que faltaban están
+cerradas ahí: (1) el buscador **no** pasa por `publishedWhere` —divergencia deliberada y declarada,
+etiquetando con `isPlacePublished` en vez de reimplementar la regla—; (2) después de guardar en
+modo por-nombre **se queda en el lugar** recargado del server con "Guardado ✓" (no hay "próximo"
+sin cola, y limpiar de golpe repetiría el silencio que escondió a FB-10b); (3) el fix del precio
+vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (la puerta).
+⚠️ `npm run backup:db` antes de implementar y antes del QA — se escribe en `place_tags`.
 
 - [ ] **FB-10 · 🟢 FEATURE (puerta de entrada, no mecanismo) — etiquetar un lugar buscándolo por
       nombre.** Confirmado que **el mecanismo está entero y no hay que tocarlo**:
@@ -1486,6 +1498,15 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Spec de la Tanda B escrito** (2026-08-08, sesión Fable, autoría de spec — **no hay código**):
+      [`docs/specs/planned/CURADURIA_POR_NOMBRE.md`](../specs/planned/CURADURIA_POR_NOMBRE.md), que cubre
+      `FB-10` + `FB-10b`. **Los dos ítems siguen abiertos**: lo hecho es la decisión, no la
+      implementación. Cerró las 3 preguntas que el triaje dejó abiertas (visibilidad divergente
+      declarada, qué pasa después de guardar sin cola, y el precio en los dos caminos) y sumó una
+      que apareció escribiéndolo: el match por nombre **tiene dueño** (`word_similarity` +
+      `immutable_unaccent` en `lib/search/query.ts`) pero sus helpers son privados ⇒ se extraen a
+      `lib/search/nombre.ts` en vez de clonar un `LIKE`. Sin migración.
 
 - [x] **Tanda A del feedback de los primeros usuarios reales** (2026-08-08, sesión Opus, sin spec).
       Los 6 ítems que Fer aprobó del triaje: `FB-02`, `FB-05`, `FB-06`, `FB-07`, `FB-08`, `FB-09`.

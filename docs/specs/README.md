@@ -26,8 +26,12 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-_(Vacía: la cola de v2 está completa y PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su
-F1. El resto de la carpeta son stubs de redirect de specs ya movidos.)_
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [CURADURIA_POR_NOMBRE](planned/CURADURIA_POR_NOMBRE.md) | **Tanda B del feedback real** (`FB-10` + `FB-10b`): buscar un lugar **por nombre** en `/admin` → Curaduría y editarle los tags con el editor de siempre, sin pasar por la cola de sugerencias ni por `psql`; + el 🔴 bug de que **guardar borra el precio** (`LugarEnCola` no traía el dato y el editor nacía en "No sé"). Sin migración: reusa `guardarCuraduria` y el match por nombre del motor. **Destraba la curaduría de cobertura.** | 🔵 Planned — spec escrito 2026-08-08, **sin implementar** |
+
+_(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa y
+PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1.)_
 
 Los cuatro specs de **v2** —escritos en la sesión de autoría del 2026-07-29, en el orden de
 implementación decidido por Fer (momentum → impacto, IDEAS § Estado de la conversación

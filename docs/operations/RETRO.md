@@ -13,6 +13,23 @@ llenar el hueco con una mejora inventada agrega reglas que nadie necesitaba.
 
 ---
 
+## 2026-08-08 · Spec de la Tanda B (CURADURIA_POR_NOMBRE) — Fable
+
+- **Qué salió bien:** el triaje dejó el spec casi escrito. Los cinco archivos que el prompt mandó
+  leer alcanzaron para las 3 decisiones sin abrir nada más, y la advertencia *"antes de escribir un
+  `LIKE` mirá `lib/search/query.ts`"* pagó al toque: el match por nombre ya existe con acentos y
+  typos resueltos, solo que sus helpers son privados ⇒ se extraen, no se clonan.
+- **Qué frenó:** nada del método. Una fricción de entorno, ya conocida y con regla escrita: el
+  heredoc de Bash se rompió escribiendo el spec (`unexpected EOF`) y hubo que caer a la herramienta
+  de escritura. Es la misma familia del gotcha de los mensajes de commit multilínea — para texto
+  largo con backticks y comillas, no pasarlo por el shell.
+- **Qué cambiar:** nada. La única cosa que apareció escribiendo y que no estaba en el triaje ya
+  quedó dentro del spec, no acá: recargar el **mismo** `placeId` no remonta `RevisorLugar`
+  (`key={lugar.id}` + `useState` del prop), así que el editor mostraría lo tipeado en vez de lo
+  persistido — está anotado en la decisión 2 para que no se descubra debuggeando.
+
+---
+
 ## 2026-08-08 · Tanda A del feedback (6 ítems, sin spec) — Opus
 
 - **Qué salió bien:** el triaje del turno anterior funcionó como spec sin serlo — cada ítem venía
