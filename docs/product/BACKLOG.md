@@ -345,6 +345,9 @@ son trabajo acotado con criterio de "listo" objetivo.
       [`MAPA`](../specs/planned/MAPA.md) cierra las tres decisiones (`FB-04` + `PBETA-R1-06`, misma
       pantalla y mismo archivo). **Escribir el spec no es implementarlo** — el ítem sigue abierto
       hasta que haya código.
+      ➕ **Apareció un ítem 11 el 2026-08-08, de otro origen** (un conocido, no los hermanos):
+      `FB-11`, Play Protect bloqueando la instalación de la PWA. Está abajo en § *Feedback
+      posterior* — **no es de los 10** y no altera el conteo del lote original.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -578,6 +581,35 @@ FB-07, FB-08, FB-09), sin spec. **FB-02 se suma a esa tanda** porque su decisió
 el costo quedó en ~6 líneas. **Tandas B, C y FB-04 quedan en cola sin fecha** — B es la que destraba
 el ítem 3 de la cola post-v2 (curaduría de cobertura) y **amerita spec**; C también (FB-01 tiene que
 decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta que Fer lo pida.**
+
+### 🆕 Feedback posterior (fuera del lote de los 10)
+
+- [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
+      **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar
+      sale *«Se bloqueó la app no segura — Esta app se diseñó para una versión anterior de Android,
+      por lo que no incluye las protecciones de la privacidad más recientes»*. **No entra en las 4
+      categorías del triaje** (🔴 bug · 🟠 cobertura · 🔵 decisión · 🟢 feature): no es código
+      nuestro.
+      **Verificado el mismo día contra producción** (no contra el reporte): `manifest.webmanifest`
+      devuelve 200 con `application/manifest+json`, los 3 íconos y HTTPS con HSTS; el nombre del
+      diálogo —«A dónde salimos»— es exactamente el `short_name` de `app/manifest.ts:20` y el ícono
+      es nuestro maskable ⇒ **lo bloqueado es nuestra PWA**, en el paso de instalarse.
+      **Mecanismo:** Chrome no instala el sitio — le pide un **WebAPK** al servidor de minting de
+      Google, que lo genera y lo firma; el cartel es el que tira Android cuando un APK declara un
+      `targetSdkVersion` viejo. **Ese campo vive en un APK que nosotros no construimos**: no hay
+      nada en el manifest, los íconos ni los headers que lo determine, así que **no hay fix de
+      código** que se pueda intentar.
+      ⚠️ **El usuario confirmó que usó Chrome**, así que **se cae la hipótesis benigna** (un
+      navegador que arma su propio APK viejo en vez de pedir el WebAPK). Si es reproducible, le
+      pasa a **todo el que tenga esa versión de Android**, no a ese teléfono.
+      **Falta un dato y es el que decide todo: la versión de Android** (el usuario la va a pasar).
+      **Impacto acotado**: la app **anda igual en el navegador** — el bloqueo es del atajo
+      instalado, no del sitio. Pero pega en el embudo de instalación de la beta.
+      🚫 **Qué NO hacer sin decidirlo antes:** (a) tocar `app/manifest.ts` "por las dudas" — un
+      manifest no tiene campo de `targetSdk`, no hay nada que subir ahí; (b) publicar un APK propio
+      (TWA en Play Store) como reacción: es **puerta de ida** —cuenta de desarrollador, US$25,
+      políticas de Play y una segunda superficie que mantener— y hoy no hay evidencia de que haga
+      falta. **Sin decidir qué se hace hasta tener la versión de Android.**
 
 ---
 
