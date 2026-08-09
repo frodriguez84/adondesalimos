@@ -348,8 +348,10 @@ son trabajo acotado con criterio de "listo" objetivo.
       `FB-11`, Play Protect bloqueando la instalación de la PWA. Está abajo en § *Feedback
       posterior* — **no es de los 10** y no altera el conteo del lote original.
 
-- [ ] **6 · Corregir datos base de un lugar cuando Overture quedó viejo — hallazgo del
-      2026-08-08, amerita spec.** Fer buscó «Matienzo» y la ficha
+- [ ] **6 · Corregir datos base de un lugar cuando Overture quedó viejo** → spec:
+      [`docs/specs/planned/CORRECCION_DATOS.md`](../specs/planned/CORRECCION_DATOS.md) —
+      **escrito ✅ 2026-08-09** (sesión de autoría con Opus, sin código). Hallazgo del
+      2026-08-08. Fer buscó «Matienzo» y la ficha
       (`7dbf6b2c-4b2a-4605-a425-df3ca24ce520`) muestra **la sede vieja**: la base guarda
       `address: 'Pringles 1249'` con `lat/lng: -34.5973, -58.4263` (`source: overture`,
       `confidence: 0.77`), y el sitio oficial del club dice **Av. Juan B. Justo 2959**
@@ -380,16 +382,39 @@ son trabajo acotado con criterio de "listo" objetivo.
       tocan la ficha de quien los escribe, pero **el pin mueve al lugar en la búsqueda de todos**
       (la zona sale de la geometría, la distancia de `lat/lng`), y correr el pin a una zona de más
       tráfico es el incentivo clásico de spam en un directorio. La cola de reclamos ya existe.
-      📝 **Lo que el spec tiene que resolver** (no está decidido): dónde vive la marca y qué
-      granularidad tiene (¿por lugar o por campo? corregir la dirección no debería congelar el
-      nombre) · si mover el pin **re-asigna la zona** en el momento o espera a `zones:assign` · qué
-      pasa si Overture después se pone al día y trae el dato bueno · si el dueño puede tocar
-      `name` o solo dirección y pin · y si conviene mostrar la dirección de Google en vivo en la
-      ficha como red aparte —hoy el field mask **no** pide `formattedAddress` y **nadie verificó
-      qué le hace eso a la facturación por SKU**, que es justo la línea entre gratis y pago del
-      spec FICHA (decisiones 7-22)—.
-      **Tamaño estimado:** spec chico, del orden de `ADMIN_USUARIOS`. **Sesión de autoría con
-      Fable**, no Opus.
+      ✅ **Las 6 preguntas abiertas quedaron resueltas en el spec** (2026-08-09), y dos de ellas
+      cambiaron de forma al verificarlas contra el código:
+      - **La marca va por CAMPO** (`places.locked_fields`, `text[]`), no por lugar: un flag por
+        lugar convertiría cada corrección en un opt-out permanente del catálogo. Precedente en el
+        repo: `google_match_status = 'manual'`, que ya significa *"lo fijó un humano, el
+        automatismo no lo pisa"*.
+      - **El pin re-asigna la zona en el acto**, en la misma transacción, con
+        `asignarZonasDeLugar` — cuyo docstring **ya dice** que sirve para *"el alta o edición"*: la
+        edición nunca había llegado. Cero código nuevo de geometría.
+      - **Si Overture se pone al día no pasa nada automático**: el import lo reporta y un humano
+        suelta el campo con un click. La marca no vence por tiempo.
+      - **El dueño propone solo dirección + pin**; `name` es de admin (es la clave del buscador y
+        del matching con Google, y renombrar una ficha ajena es el vector de secuestro de listado).
+      - **Superficie:** las correcciones pendientes van a la **cola de aprobación que ya existe** y
+        el buscador + editor + bitácora a una **7ª tab «Lugares»**, reusando
+        `buscarLugaresPorNombre` tal cual (que **omite `publishedWhere`** a propósito — justo lo
+        que hace falta acá).
+      - **La dirección de Google: SÍ, y el costo marginal es US$0** — verificado contra la doc, que
+        era el punto que nadie había chequeado. `formattedAddress` es del SKU *Place Details
+        **Essentials*** y Google factura *«at the highest SKU applicable to your request»*; el mask
+        de hoy **ya mezcla tres tiers** (`photos` IDs-Only · `googleMapsUri` Pro · el resto
+        Enterprise) y se cobra una sola vez a Enterprise. Con esto la **decisión 11 de FICHA queda
+        confirmada contra la doc**, no solo asumida. Se muestra **solo en el editor de admin**,
+        como señal y **sin botón de copiar**: escribir ese string en `places.address` sería
+        persistir contenido de Google.
+      🆕 **Y el spec encontró algo que no estaba en el reporte y es peor:** ese lugar tiene
+      `google_match_status = 'matched'` con un `google_place_id` resuelto el 2026-08-09. El
+      matching usa `locationRestriction` de **±300 m del pin propio** ⇒ ese id apunta a lo que hay
+      en **Pringles 1249**, así que la ficha puede estar mostrando horarios, rating y foto **de
+      otro negocio**. Corregir el pin sin invalidar el match dejaría el problema peor. El spec lo
+      resuelve en su decisión 9 (reset a `pending`, salvo `manual`), y el re-match sale **$0**
+      porque es Text Search IDs-Only.
+      **Tamaño estimado:** una sesión, del orden de `ADMIN_USUARIOS`.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 

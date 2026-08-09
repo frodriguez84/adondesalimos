@@ -37,7 +37,26 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
-## 2026-08-08 · Implementación de la Tanda D (MAPA) + cierre de FB-11 — Opus
+## 2026-08-09 · Autoría del spec CORRECCION_DATOS (ítem 6 de la cola post-v2) — Opus
+
+- **Qué salió bien:** el ítem 6 del BACKLOG traía marcada la pregunta que **nadie había
+  verificado** (qué le hace `formattedAddress` a la facturación por SKU) en vez de dejarla
+  implícita, y eso forzó ir a la doc en vez de asumir: se cerró en dos fetches con la cita textual
+  —*«billed at the highest SKU applicable»*— y el resultado fue **US$0**, o sea que la decisión 11
+  de FICHA pasó de asumida a verificada. Y consultar la fila real con un `SELECT` read-only —en
+  vez de leer solo el reporte— destapó lo que **no** estaba reportado: Matienzo tiene
+  `google_match_status='matched'`, con un `google_place_id` resuelto a ±300 m del **pin viejo**, así
+  que la ficha puede estar mostrando datos de otro negocio. Es la lección de
+  `zona-no-adyacente-no-era-bug` otra vez: leer el módulo (y el dato) dueño de la regla, no el
+  reporte.
+- **Qué frenó:** un turno perdido con `docker exec … psql -U postgres` → `role "postgres" does not
+  exist`. El usuario real está en el `DATABASE_URL` del `.env` y el `CLAUDE.md` dice *"Postgres en
+  el puerto 5439, en Docker Desktop"* pero no cómo entrar. Nada más: el `Write` para texto largo con
+  acentos funcionó de una y el formateador ni se tocó (la regla del retro anterior, aplicada).
+- **Qué cambiar:** una sola cosa y es una línea — sumar al bullet de Postgres del `CLAUDE.md` el
+  comando que funciona (`docker exec adondesalimos_db psql -U <usuario del .env> -d adondesalimos`).
+  Paga en toda sesión de QA, que consulta la base todo el tiempo. ⏳ **Pendiente del OK de Fer** —
+  no se tocó el `CLAUDE.md` en esta sesión.
 
 - **Qué salió bien:** el DoD **escrito como medición** («el mapa 100% visible y
   `scrollHeight <= innerHeight`») obligó a medir en vez de mirar, y eso destapó que **el mapa

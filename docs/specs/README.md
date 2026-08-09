@@ -26,7 +26,9 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-_(Ningún spec en diseño hoy.)_
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [CORRECCION_DATOS](planned/CORRECCION_DATOS.md) | Corregir los datos base de un lugar cuando Overture quedó viejo (**ítem 6 de la cola post-v2**). La corrección se escribe en `places` y el re-import respeta **campo por campo** lo que un humano tocó (`locked_fields`); admin edita directo desde una 7ª tab «Lugares», el dueño **propone** por la cola de aprobación que ya existe. Mover el pin re-asigna zonas en el acto **e invalida el match con Google** (que hoy apunta a la dirección vieja). Suma `formattedAddress` al field mask — costo marginal **US$0**, verificado contra la doc. | **🔵 Planned** — escrito 2026-08-09, sin código |
 
 _(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
