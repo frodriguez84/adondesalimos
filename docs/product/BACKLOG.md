@@ -348,6 +348,49 @@ son trabajo acotado con criterio de "listo" objetivo.
       `FB-11`, Play Protect bloqueando la instalación de la PWA. Está abajo en § *Feedback
       posterior* — **no es de los 10** y no altera el conteo del lote original.
 
+- [ ] **6 · Corregir datos base de un lugar cuando Overture quedó viejo — hallazgo del
+      2026-08-08, amerita spec.** Fer buscó «Matienzo» y la ficha
+      (`7dbf6b2c-4b2a-4605-a425-df3ca24ce520`) muestra **la sede vieja**: la base guarda
+      `address: 'Pringles 1249'` con `lat/lng: -34.5973, -58.4263` (`source: overture`,
+      `confidence: 0.77`), y el sitio oficial del club dice **Av. Juan B. Justo 2959**
+      (verificado el mismo día contra `ccmatienzo.com.ar`). El lugar **se mudó** y la foto de
+      Overture (release `2026-06-17.0`) tiene la dirección anterior. Prueba de que es eso y no
+      otra cosa: la **Accademia della Pizza que hoy ocupa Pringles 1249 no está en el catálogo**
+      —hay 6 sucursales cargadas y ninguna en esa dirección—. El catálogo tiene al inquilino viejo
+      y le falta el nuevo.
+      ⚠️ **No es solo el texto: las coordenadas también son las viejas.** El pin del mapa apunta a
+      Pringles y el orden por distancia de «Cerca de mí» se calcula desde ahí. Pega en la
+      búsqueda, no solo en la ficha.
+      🚧 **Y hoy no hay forma de arreglarlo**, que es el hallazgo de verdad:
+      `place_owner_content` —la única puerta para pisar datos de Overture— tiene `phone`,
+      `website`, `socials`, `openingHours`, `description` y `menuUrl`, y **no** `address`, `lat`,
+      `lng` ni `name`. **Ni el dueño con reclamo aprobado puede corregir su propia dirección**, y
+      un `UPDATE` a mano sobre `places` lo pisa el próximo re-import.
+      ✅ **Decidido con Fer el 2026-08-08 — cómo se ataca:** la corrección se escribe **en
+      `places`** y **al re-import se le enseña a no pisar lo corregido** (una marca de "esto lo
+      editó un humano"). Se descartó guardarla en `place_owner_content`: la ficha la vería pero
+      **el mapa y la búsqueda no** —`lib/search/query.ts` no llama a `resolverContenidoDueno`,
+      lee `places` directo—, así que habría que tocar el motor y la asignación de zonas, que es
+      el módulo más sensible de la app. Con la marca, el costo se muda al script de import, que
+      corre pocas veces. También se descartó el parche a mano (`UPDATE` en dev + Neon): arregla un
+      caso, se pierde en silencio en el próximo import y no escala.
+      👤 **Las dos superficies, con reglas distintas** (decidido con Fer el mismo día): **admin
+      edita directo** —es el árbitro y hoy no tiene ninguna forma de tocar esto— y **la corrección
+      del dueño pasa por aprobación**. El porqué no es burocracia: `description` o `menu_url` solo
+      tocan la ficha de quien los escribe, pero **el pin mueve al lugar en la búsqueda de todos**
+      (la zona sale de la geometría, la distancia de `lat/lng`), y correr el pin a una zona de más
+      tráfico es el incentivo clásico de spam en un directorio. La cola de reclamos ya existe.
+      📝 **Lo que el spec tiene que resolver** (no está decidido): dónde vive la marca y qué
+      granularidad tiene (¿por lugar o por campo? corregir la dirección no debería congelar el
+      nombre) · si mover el pin **re-asigna la zona** en el momento o espera a `zones:assign` · qué
+      pasa si Overture después se pone al día y trae el dato bueno · si el dueño puede tocar
+      `name` o solo dirección y pin · y si conviene mostrar la dirección de Google en vivo en la
+      ficha como red aparte —hoy el field mask **no** pide `formattedAddress` y **nadie verificó
+      qué le hace eso a la facturación por SKU**, que es justo la línea entre gratis y pago del
+      spec FICHA (decisiones 7-22)—.
+      **Tamaño estimado:** spec chico, del orden de `ADMIN_USUARIOS`. **Sesión de autoría con
+      Fable**, no Opus.
+
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
 **Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).
