@@ -666,6 +666,41 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ### 🆕 Feedback posterior (fuera del lote de los 10)
 
+- [ ] **🔴 BUG — apagar un chip apaga otro y prende dos que nadie tocó** (reportado por Fer,
+      2026-08-09, usando la app). **Repro exacto, determinista:** tocar «Tomar algo» → tocar
+      «Primera cita» (los dos quedan prendidos, correcto) → **apagar «Tomar algo»** ⇒ se apaga
+      **«Primera cita»** y se prenden solos **«Cenar afuera»** y **«Un café»**.
+      **Causa raíz, ya trazada contra el código** (`components/search/occasion-chips.tsx`, la rama
+      "se ve prendido ⇒ apagarlo"): **apagar un chip saca TODOS sus tags, incluidos los que otro
+      chip prendido está usando.** Con los tags reales — `tomar-algo = {bar, cerveceria}` ·
+      `primera-cita = {bar, cafe, restaurante, romantico, tranqui}` · `cenar-afuera = {restaurante}`
+      · `un-cafe = {cafe}` — apagar «Tomar algo» se lleva **`bar`**, que era también de «Primera
+      cita»: sin él, «Primera cita» deja de estar completo y se apaga; y al apagarse deja de **tapar**
+      a «Cenar afuera» y «Un café», cuyos tags siguen puestos, así que se pintan. Los tres cambios
+      son consecuencia de un solo toque que pedía apagar **uno**.
+      ⚠️ **Se dispara fácil: `bar` está en 7 de los 17 chips activos.** Cualquier combinación que lo
+      toque lo reproduce.
+      **No es un caso nuevo, es el mismo hueco por el otro camino.** El docstring del componente ya
+      declara conocido que la **promoción** de un chip tapado "no trata de salvar a un tercer chip
+      prendido que compartía tags" (decidido con Fer el 2026-08-08, FB-02). Eso se aceptó para un
+      camino raro; acá está en el camino de **apagar**, que es el más común, y el efecto es peor:
+      no solo se apaga un chip que nadie tocó, además **se prenden dos**.
+      💡 **Arreglo candidato (a validar en la sesión que lo tome):** al apagar, sacar solo los tags
+      que **no** pertenezcan a otro chip que siga pintado — `sacar = chip.tags − ⋃ tags(otros
+      pintados)`. Con el repro: sacar `{bar, cerveceria} − {bar, cafe, restaurante, romantico,
+      tranqui}` = **`{cerveceria}`**, y queda exactamente «Primera cita» prendido. Es la misma
+      cortesía que la promoción ya hace en el otro sentido. **Falta decidir** qué pasa con un tag
+      suelto que quedó de un chip y ya no lo representa (hoy queda visible y removible en
+      `ChipsActivos`, que puede seguir siendo la respuesta correcta).
+      🧪 **Y el QA que corresponde NO es clickear combinaciones a mano.** El pintado y el toggle son
+      **funciones puras de `(chips, tags)`** que hoy viven dentro del componente: extrayéndolas a un
+      módulo (`lib/search/` o al lado) se verifican las **17×17 = 289** combinaciones en un test, con
+      un invariante que se escribe en una línea — **«tocar un chip cambia el estado pintado de ese
+      chip y de ningún otro»** (con la excepción declarada del chip tapado, que se promueve). El caso
+      de Fer lo viola tres veces en un solo toque. Eso convierte "hay comportamientos raros" en algo
+      que el CI caza para siempre, que es justo lo que no pasó con FB-02.
+      **Tamaño:** chico el fix, medio el QA exhaustivo. Sesión propia.
+
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar
       sale *«Se bloqueó la app no segura — Esta app se diseñó para una versión anterior de Android,
