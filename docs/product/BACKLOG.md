@@ -608,7 +608,44 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       ⚠️ **El usuario confirmó que usó Chrome**, así que **se cae la hipótesis benigna** (un
       navegador que arma su propio APK viejo en vez de pedir el WebAPK). Si es reproducible, le
       pasa a **todo el que tenga esa versión de Android**, no a ese teléfono.
-      **Falta un dato y es el que decide todo: la versión de Android** (el usuario la va a pasar).
+      📊 **Los datos llegaron el 2026-08-08 y dan vuelta la hipótesis.** El que no puede
+      instalar está en **Android 16**; Fer, que **sí la tiene instalada**, está en **Android 12 con
+      Chrome 150.0.787**. O sea: no es un teléfono que se quedó atrás, es un Android **nuevo**
+      rechazando el APK que Google genera por nosotros. Encaja con el mecanismo —cada versión de
+      Android sube el piso de `targetSdkVersion` que acepta instalar—, así que la pregunta ya no es
+      "qué le pasa a ese teléfono" sino **¿le pasa a todos los Android 16?**: si es que sí, el
+      problema **crece solo** a medida que la gente actualiza. **Sigue siendo 1 contra 1**, y el lado
+      de Fer tiene un agujero **confirmado con fecha**: su `chrome://webapks` muestra el WebAPK genuino de
+      Google (`org.chromium.webapk.a15ecbb8378979587_v2`, `Owning Browser: com.android.chrome`) con
+      **`Shell APK version: 189`** y **`Last Update Completion Time` en epoch cero**: *nunca se
+      actualizó* desde que lo instaló. El chequeo del 07/08 dio `Succeeded` sin cambiar nada porque
+      **un WebAPK solo se re-genera si cambia el manifest**, y no lo tocamos — o sea que su teléfono
+      **no está probando el APK que Google emite hoy**. La forma barata de mirarlo es el botón
+      **`Update`** de esa misma pantalla —fuerza el re-minting sin desinstalar—, no reinstalar. (Nadie
+      sabe acá a qué fecha corresponde el shell 189 ni cuál es el actual: el valor del experimento es
+      **medir** el número de hoy, no interpretar el viejo.)
+      ❌ **Vía descartada el 2026-08-08 — "actualizar el `targetSdkVersion`"** (la sugerencia que
+      circula para este cartel). **No aplica y no hay dónde aplicarla**: `grep` de `bubblewrap` /
+      `targetSdk` / `trusted web` / `assetlinks` sobre `app/`, `lib/`, `scripts/`, `public/` y
+      `package.json` devuelve **cero**, y no hay `android/`, ni `twa/`, ni gradle. Ese consejo es para
+      quien **empaqueta** su app (TWA/Bubblewrap) y tiene ese archivo; acá el APK es el **WebAPK que
+      firma Google**. Aplicarlo exigiría convertirse primero en eso —y **ni siquiera arreglaría lo
+      roto**: seguiría fallando instalar desde el navegador; sería reemplazar esa vía por la Play
+      Store, que es otra decisión y más cara. **No volver a proponerla sin datos nuevos.**
+      🔎 **Lo que falta ahora**, de más barato a más caro: (1) `chrome://webapks` en los dos
+      teléfonos —la única mirada directa al APK que Google emitió—; (2) desinstalar y reinstalar en el
+      de Fer, para forzar un WebAPK generado **hoy**; (3) **un segundo Android 15/16**, que es lo que
+      convierte la anécdota en un patrón. Un diagnóstico más, de último recurso: apagar Play Protect
+      un minuto confirma que el bloqueo es suyo — **no es algo para pedirle a un usuario común**.
+      ✅ **Decisión de Fer (2026-08-08): queda acá, no se hace nada.** Es **un** usuario y **no
+      bloquea el uso de la app** —anda en el navegador; lo bloqueado es el atajo instalado—. Se cierra
+      la investigación con lo aprendido escrito. **Lo que la reabriría:** un segundo caso en Android
+      15/16. Si eso pasa, empezar por las pruebas de abajo, no por proponer un APK propio.
+      ⚖️ **Qué decide cada resultado:** si le pasa **solo a él**, queda anotado y no se toca nada; si
+      le pasa a **todo Android 16**, la Play Store (TWA) pasa de "puerta de ida que no hace falta" a
+      opción real —y aun así habría que medir cuánta gente de la beta está en Android 16 antes de
+      pagarla. **Nadie verificó desde acá el estado del servidor de minting de Google**: si es
+      sistemático, es un problema de ellos que se arregla de su lado.
       **Impacto acotado**: la app **anda igual en el navegador** — el bloqueo es del atajo
       instalado, no del sitio. Pero pega en el embudo de instalación de la beta.
       🚫 **Qué NO hacer sin decidirlo antes:** (a) tocar `app/manifest.ts` "por las dudas" — un

@@ -37,6 +37,32 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-08 · Implementación de la Tanda D (MAPA) + cierre de FB-11 — Opus
+
+- **Qué salió bien:** el DoD **escrito como medición** («el mapa 100% visible y
+  `scrollHeight <= innerHeight`») obligó a medir en vez de mirar, y eso destapó que **el mapa
+  colapsaba a 0 px** con typecheck, 663 tests y build en verde: al pasar el contenedor a `flex-1`,
+  el `height: 100%` del div interno se quedó sin un alto declarado contra el cual resolver, el
+  canvas siguió dibujando desbordado —*se veía bien*— y **los controles dejaron de recibir el
+  toque**, o sea que el `GeolocateControl` que el spec venía a agregar no se podía tocar. Lo cazó
+  un `elementFromPoint` sobre el botón cuando el clic de Playwright falló, no la captura. Segunda
+  vez que el QA en vivo encuentra lo que los tests no; el criterio con número es lo que lo fuerza.
+- **Qué frenó:** correr `npx prettier --write` sobre los 3 componentes **sin verificar antes que el
+  repo no tiene config de Prettier** (no hay `.prettierrc` ni la dependencia). Con sus defaults
+  reformateó los archivos enteros —comillas dobles, punto y coma, otro ancho— y hubo que
+  `git checkout` y **rehacer las 17 ediciones**. Adivinar en vez de saber, y el chequeo que lo
+  evitaba era un `ls`. (El heredoc de Bash, en cambio, no molestó: los scripts largos fueron a un
+  archivo con `Write` desde el arranque. Sí falló un intento por escapes `\r\n` mal anidados, un
+  minuto.)
+- **Qué cambiar:** una sola cosa y es chica — **antes de correr un formateador o linter con
+  `--write`, verificar que el repo declare su config; sin config, no correrlo**. El estilo del
+  proyecto no está declarado en ningún lado, así que cualquier herramienta impone el suyo y el diff
+  se vuelve ilegible. Cuesta un `ls`/`grep` y va a `~/.claude/CLAUDE.md` § *Principios* como parte
+  de "cambios quirúrgicos" (radio grande: aplica a todos los proyectos) — **pendiente del OK de
+  Fer**, igual que la deuda del heredoc que ya lleva cuatro retros anotada y sin aplicar.
+
+---
+
 ## 2026-08-08 · Spec de la Tanda D (MAPA) — Fable
 
 - **Qué salió bien:** las dos decisiones difíciles se resolvieron **midiendo, no opinando**. La 3
