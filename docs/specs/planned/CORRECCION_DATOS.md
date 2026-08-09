@@ -118,7 +118,7 @@ registrado quién la hizo y con qué fuente.
 | 16 | **`/admin`: la cola existente + una 7ª tab «Lugares»** (confirmado por Fer, 2026-08-09). Las correcciones **pendientes** entran en la tab **«Cola de aprobación»**, leyendo literal la decisión de Fer: revisar una corrección es el mismo trabajo que revisar un reclamo, con el mismo criterio y la misma persona. El **buscador + editor + bitácora** van en una tab nueva **«Lugares», séptima y última**, sin mover las seis de arriba — mismo criterio que la decisión 13 de ADMIN_USUARIOS: corregir un dato base es más raro todavía que dar una cortesía, y mover una tab le rompe la memoria muscular a la única persona que usa la pantalla. **Se descartó** meterlo en la tab «Curaduría» (esa cola está optimizada para pasar rápido por muchos lugares etiquetando; esto es una edición rara, cuidadosa y auditada — una pantalla, dos trabajos sin relación) y **se descartó** un botón «Editar» de admin sobre la ficha pública (mete UI de admin en una página pública y rompe el patrón de que todo lo de admin vive en `/admin`) |
 | 17 | **Una sola propuesta pendiente por lugar.** Segunda propuesta con una en cola ⇒ `{ ok: false, code: 'YA_PENDIENTE' }`, mismo código y mismo criterio que `crearReclamo` (`lib/claims/acciones.ts`): mandarla de nuevo no la apura, y dos propuestas vivas sobre las mismas columnas es una carrera de escrituras esperando pasar. Se hace con un **índice único parcial** sobre `place_id where status='pending'` — el mismo patrón que `place_claims_aprobado_idx`, con el gotcha de los índices parciales ya conocido del proyecto |
 | 18 | **La dirección de Google en vivo: SÍ al field mask, y solo en el editor de admin** (confirmado por Fer, 2026-08-09). **El costo marginal está verificado en US$0 y esto es lo que faltaba chequear:** `formattedAddress` pertenece al SKU *Place Details **Essentials***, y la doc de Google dice textual *«You are then billed at the highest SKU applicable to your request. That means if you select fields in both the Essentials and the Pro SKUs, you are billed based on the Pro SKU»*. El mask de hoy **ya mezcla tres tiers** (`photos` = Essentials IDs-Only · `googleMapsUri` = Pro · `regularOpeningHours`/`currentOpeningHours`/`rating`/`userRatingCount`/`priceLevel` = Enterprise) y se factura **una sola vez a Enterprise**: agregar un campo Essentials no mueve el tier. O sea que la decisión 11 de FICHA (*"se factura una vez, al tier más alto pedido"*) queda **confirmada contra la doc**, no solo asumida. **Nada de Enterprise + Atmosphere sigue entrando** — la prohibición de la decisión 12 de FICHA no se toca. Mask nuevo: `id,formattedAddress,regularOpeningHours,currentOpeningHours,rating,userRatingCount,priceLevel,googleMapsUri,photos`, y el test que hoy falla ante un campo de más se actualiza a la constante nueva (sigue siendo exacto, no se afloja a un `contains`) |
-| 19 | **La dirección de Google es SEÑAL, no fuente — y no hay botón de copiarla.** Se muestra en el editor de admin como *«Google dice: …»* y **no existe** un botón que la escriba en `places.address`: ese botón **es** persistir contenido de Google, que es exactamente la línea que trazó FICHA (*"solo se persiste `google_place_id`"*). El valor corregido tiene que venir de una fuente propia y verificable —el sitio del local, como hizo Fer con `ccmatienzo.com.ar`— que además es mejor dato: Google también puede estar viejo. Y se llega **sin un segundo llamador a Google**: el editor consume `GET /api/lugar/[id]/google`, el endpoint que ya existe, ya respeta `google.details_monthly_cap` y ya cuenta el uso en `google_api_usage`. La ficha pública **no** renderiza el campo (dos direcciones contradictorias confunden al visitante y no arreglan el pin, que es lo que estaba mal) |
+| 19 | **La dirección de Google es SEÑAL, no fuente — y la señal es ASIMÉTRICA.** ⚠️ Precisión agregada el 2026-08-09, después de que Fer preguntara si esto sirve para saber si Overture tiene razón: **no sirve para eso, y la asimetría hay que tenerla escrita porque la pantalla no la muestra sola.** El match se resuelve con `locationRestriction` de ±300 m del pin **nuestro**, así que Google contesta sobre la dirección que ya tenemos ⇒ **que coincida no prueba nada** (puede ser el listado de Google también viejo, o directamente otro negocio de la misma cuadra), mientras que **que difiera sí es señal** de que algo está mal. El detalle entero, con los desenlaces posibles del caso Matienzo, está en § *v2*. Donde el campo **sí** rinde limpio es **después** de corregir: invalidado el match (decisión 9), el re-match sale del pin **nuevo**, y ahí *«Google dice: …»* funciona como **verificación de que la corrección aterrizó sobre un negocio real**. Por eso el copy dice *"es una pista, no la fuente"* y **no existe** un botón que escriba ese string en `places.address`: ese botón **es** persistir contenido de Google, que es exactamente la línea que trazó FICHA (*"solo se persiste `google_place_id`"*). El valor corregido tiene que venir de una fuente propia y verificable —el sitio del local, como hizo Fer con `ccmatienzo.com.ar`— que además es mejor dato: Google también puede estar viejo. Y se llega **sin un segundo llamador a Google**: el editor consume `GET /api/lugar/[id]/google`, el endpoint que ya existe, ya respeta `google.details_monthly_cap` y ya cuenta el uso en `google_api_usage`. La ficha pública **no** renderiza el campo (dos direcciones contradictorias confunden al visitante y no arreglan el pin, que es lo que estaba mal) |
 | 20 | **⚠️ `npm run backup:db` antes de implementar y antes del QA.** La migración es aditiva, pero el QA de esta feature **escribe sobre `places`** — la tabla del catálogo, en la misma base de dev donde viven los ~3.967 tags de curaduría que no están en git ni en el seed. Y es la primera feature del proyecto que edita el catálogo: la regla del CLAUDE.md aplica con más razón, no con menos |
 
 ## Alcance del código (lo que se toca, y nada más)
@@ -310,13 +310,29 @@ superficie del dueño) es lo primero que se difiere si hace falta.
 
 ## v2 (fuera de scope, con su razón)
 
-- **Detector automático de datos viejos.** El bloque de Google ya trae ahora la dirección en cada
-  apertura de ficha: comparar contra la nuestra y guardar **solo una marca de discrepancia** (un
-  booleano y una fecha, nunca el texto de Google) daría una lista en `/admin` de *"estos N lugares
-  no coinciden"* alimentada por tráfico real, sin una llamada extra ni un peso más. Queda afuera
-  porque es una feature propia —con su decisión de ToS sobre qué es "derivar" y qué es "guardar"—
-  y este spec tiene que entregar primero la herramienta de arreglar. Sin ella, un detector produce
-  una lista que nadie puede accionar.
+- **Detector automático de datos viejos — y ⚠️ el camino obvio NO funciona.** La idea natural es
+  comparar `formattedAddress` contra la nuestra en cada apertura de ficha y guardar una marca de
+  discrepancia. **Es circular y hay que decirlo antes de que alguien lo implemente:** el Text
+  Search del matching busca con `locationRestriction` de **±300 m alrededor de nuestro propio
+  pin**, así que Google solo puede contestar sobre la dirección **vieja**. En el caso Matienzo, Av.
+  Juan B. Justo 2959 cae **fuera de esa caja** y no puede ser devuelto ni aunque Google lo tenga
+  bien: los tres desenlaces posibles —el listado de Google también viejo, otro negocio cerca de
+  Pringles, o nada— terminan en *"coincide, está todo bien"*. **Falso negativo justo en el caso que
+  motivó el spec.**
+  **Lo que sí detectaría una mudanza, y también sale $0:** dos Text Search **IDs-Only** por lugar
+  —uno anclado a ±300 m como hoy, otro con bias amplio sobre AMBA— y **comparar los dos `id`**. Si
+  difieren, el lugar se movió o el match nunca fue ese. Nunca se pide la dirección, así que nunca
+  se sale del tier gratis. **Con la salvedad honesta**: buscar por nombre sobre todo AMBA trae
+  ruido (hay varios "Matienzo"; con cadenas como las 6 Accademia della Pizza es peor), así que
+  sirve como **bandera para revisión humana**, no como verdad. Antes de escribirlo hay que
+  probarlo sobre ~20 lugares conocidos y medir la tasa de falsos positivos.
+  **Y lo que NO hay que hacer: barrer el catálogo pidiendo direcciones.** Los números, verificados
+  el 2026-08-09: Place Details Enterprise a $20/1.000 × 26.057 lugares ≈ **US$500** (ya
+  descontadas las 1.000 gratis del mes), y por Text Search es peor —`places.formattedAddress` ahí
+  es **Pro**, $32/1.000 ⇒ ≈ **US$834**—. El US$0 de la decisión 18 es **marginal**: vale sobre la
+  llamada que ya se hace cuando un humano abre una ficha, no sobre un barrido. Hoy hay **30
+  lugares matcheados de 26.057**, así que el detector gratis solo cubre lo que tiene tráfico — que
+  es, igual, la misma filosofía del ítem 3 de la cola post-v2 (curar por uso real, no los 14.458).
 - **Que el dueño proponga el `name`** (decisión 12). Entra el día que haya un rebranding real y
   más de un puñado de dueños; hasta entonces el admin lo resuelve en una conversación por año.
 - **Corregir contactos desde acá.** `phones`/`websites`/`socials` ya tienen puerta para la ficha
