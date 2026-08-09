@@ -26,9 +26,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Qué es | Estado |
-|------|--------|--------|
-| [MAPA](planned/MAPA.md) | **Tanda D del feedback real** (`FB-04` + `PBETA-R1-06`): el `GeolocateControl` nativo de MapLibre para verte en el mapa (permiso solo al tocarlo, decisión 17 intacta) **sin que el `fitBounds` de los pins te robe la cámara** —el gesto del usuario gana hasta que cambie la búsqueda, no las coordenadas—; + el mapa entra entero en mobile (67% → 100%) colapsando el buscador, pasando los chips a una fila scrolleable y cambiando `h-[70vh]` por `flex-1`. Sin migración, sin cambios en `lib/`. | 🔵 Escrito 2026-08-08, sin implementar |
+_(Ningún spec en diseño hoy.)_
 
 _(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
@@ -61,6 +59,7 @@ FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 est�
 | [CURADURIA](done/CURADURIA.md) | Spec 9 — curaduría asistida de Ambiente/Momento/Actividad: batch offline con LLM que sugiere tags **con evidencia citada** + cola en `/admin`. Corrida completa autónoma con Sonnet (auto-apply de lo evidenciado): ~1.840 lugares, 1.149 tags, 5/9 chips prendidos. [Resumen](../archive/SPECS_ARCHIVO.md#curaduria) · ✅ 2026-07-27 |
 | [CURADURIA_POR_NOMBRE](done/CURADURIA_POR_NOMBRE.md) | **Tanda B del feedback real** (`FB-10` + `FB-10b`): buscar un lugar **por nombre** en `/admin` → Curaduría y curarlo con el editor de siempre, sin cola ni `psql` (el buscador **no** filtra por publicado: consulta `isPlacePublished` para etiquetar, no para filtrar); + el 🔴 bug de que **guardar borraba el precio**. Sin migración ni código de guardado nuevo. **Destraba la curaduría de cobertura.** [Resumen](../archive/SPECS_ARCHIVO.md#curaduria_por_nombre) · ✅ 2026-08-08 |
 | [ADMIN_USUARIOS](done/ADMIN_USUARIOS.md) | **Tanda C del feedback real** (`FB-01` + `FB-03`): tab **Usuarios** en `/admin` con el **premium de cortesía** —dar y sacar, B2C y B2B— extendiendo a `lib/billing/subscriptions.ts` (su dueño único), con motivo obligatorio y bitácora `plan_grants` append-only que **no** es fuente de verdad del estado; + el botón de copiar los mails de Interés. Saca de `psql` las dos operaciones de la beta. De paso unificó la 2ª copia de la escritura del flag que quedaba en `baja.ts`. [Resumen](../archive/SPECS_ARCHIVO.md#admin_usuarios) · ✅ 2026-08-08 |
+| [MAPA](done/MAPA.md) | **Tanda D del feedback real** (`FB-04` + `PBETA-R1-06`), la que cierra el feedback entero: el `GeolocateControl` nativo de MapLibre para verte en el mapa (permiso solo al tocarlo, decisión 17 intacta) **sin que el `fitBounds` de los pins te robe la cámara** —el gesto del usuario gana hasta que cambie la búsqueda, no las coordenadas—; + el mapa entra entero en mobile (**67% → 100%**, `scrollHeight` = `innerHeight`) colapsando el buscador y pasando los chips a una fila scrolleable con barra propia. Sin migración, sin cambios en `lib/`. [Resumen](../archive/SPECS_ARCHIVO.md#mapa) · ✅ 2026-08-08 |
 
 ---
 

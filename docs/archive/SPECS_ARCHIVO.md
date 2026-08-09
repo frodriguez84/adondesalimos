@@ -942,3 +942,54 @@ escribirle a esa gente.
    `users.email` es `NOT NULL` ⇒ borrada la cuenta, la fila de interés se va con ella. El filtro de
    `null` queda como defensa. Un caso de QA que la base vuelve inalcanzable vale escribirlo igual:
    la próxima sesión no lo persigue.
+
+---
+
+## MAPA — «dónde estoy» y que el mapa entre en la pantalla (Tanda D del feedback) {#mapa}
+
+**Spec:** [`docs/specs/done/MAPA.md`](../specs/done/MAPA.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — MAPA](../qa/AnalisisQA.md) · ✅ 2026-08-08
+
+**Qué hace:** cierra los dos reportes que quedaban sobre la misma pantalla y, con eso, **el
+feedback de los primeros usuarios queda cubierto entero**. **(a)** `FB-04` — un control para verte
+en el mapa, que no existía: las `coords` llegaban al componente pero solo alimentaban la clave del
+fetch. **(b)** `PBETA-R1-06` — el mapa ocupaba el 67% del viewport en mobile y había que scrollear
+la página, que es justo el gesto que se pelea con el arrastre del mapa. Y un tercero que no reportó
+nadie y aparece al implementar el primero: el `fitBounds` sobre los pins corría en cada cambio, así
+que un "centrarme" quedaba **pisado por el próximo re-fetch**.
+
+**Alcance:**
+
+- **`GeolocateControl` nativo de MapLibre** (`components/search/map-view.tsx`), no un botón propio:
+  regala punto azul, círculo de precisión y —lo que importa— **pide el permiso recién al tocarlo**,
+  así la decisión 17 de BUSQUEDA queda intacta sin discutirla de nuevo. `trackUserLocation: false`
+  (un toque = un centrado) y `fitBoundsOptions: { maxZoom: 15 }`, el mismo tope que los pins.
+- **La guarda de cámara:** un `useRef` marca que la cámara es del usuario y el `fitBounds`
+  automático se saltea mientras esté puesto. Lo marcan `dragstart`/`zoomstart`/`rotatestart`
+  **filtrados por `originalEvent`** (sin ese filtro el propio `fitBounds` se auto-marcaría), el
+  `easeTo` que abre un cluster y el evento `geolocate`. Lo limpia un efecto sobre
+  `serializeSearchParams(params)` — **la clave sin coordenadas**, no la del fetch.
+- **El mapa entra entero** (`h-[70vh]` → `flex` con piso `min-h-80`): en modo mapa se esconde el
+  buscador de texto y los chips de Ocasión pasan a **una fila que scrollea**, con barra propia de la
+  marca (`.barra-scroll-marca`, `app/globals.css`). `min-h-screen` → `min-h-dvh` en
+  `app/page.tsx`, porque `screen` ignora la barra del navegador en mobile.
+- **Fuera de AMBA avisa, no bloquea** (`AMBA_BBOX` de `lib/geo/amba.ts`, importable desde el
+  cliente porque no importa nada): el mapa te lleva igual —pediste verte, no buscar—.
+- **Sin migración, sin endpoint nuevo y sin un solo cambio en `lib/`.** La URL no gana parámetros:
+  la posición del dispositivo nunca viajó en un link.
+
+**Lo que hay que saber para el próximo spec:**
+
+- **El alto del div del mapa sale de `flex-1`, no de `size-full`.** Al sacar el alto fijo, el
+  `height: 100%` del hijo dejó de resolver —necesita un alto **declarado** en el padre— y el mapa
+  colapsaba a 0 px: canvas desbordado y controles que no reciben el toque. `absolute inset-0`
+  tampoco sirve, porque el CSS de MapLibre pisa el `position` con `.maplibregl-map`.
+- **Los rótulos de los controles se traducen con `locale` del `Map`**, no editando el DOM después
+  de `addControl`: MapLibre arma el botón de forma asíncrona y lo re-rotula en cada cambio de
+  estado. Los del `NavigationControl` (zoom) **siguen en inglés** — deuda anterior, al BACKLOG.
+- **En Chromium ≥ 121, `scrollbar-width`/`scrollbar-color` anulan los `::-webkit-scrollbar`.**
+  Declarar las dos cosas juntas devuelve la barra del sistema apenas teñida, flechitas incluidas.
+- **`MAPA-04` y `MAPA-07` quedaron PARCIALES a propósito**: piden "esperar un re-fetch por coords"
+  y hoy el shell pide las coordenadas **una sola vez** (`pedirUbicacion` corre solo si `coords` es
+  null), así que ese re-fetch no se puede provocar desde la UI. La rama contraria de la guarda —que
+  un cambio de búsqueda **sí** re-encuadra— está confirmada dos veces.

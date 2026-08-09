@@ -341,10 +341,9 @@ son trabajo acotado con criterio de "listo" objetivo.
       ✅ **Tanda C cerrada el 2026-08-08**: [`ADMIN_USUARIOS`](../specs/done/ADMIN_USUARIOS.md)
       escrito e implementado el mismo día (`FB-01` + `FB-03` en un solo spec: misma pantalla, misma
       tanda, mismo criterio de privacidad). **Solo queda `FB-04`** (Tanda D).
-      📝 **Tanda D — spec escrito el 2026-08-08, sin implementar**:
-      [`MAPA`](../specs/planned/MAPA.md) cierra las tres decisiones (`FB-04` + `PBETA-R1-06`, misma
-      pantalla y mismo archivo). **Escribir el spec no es implementarlo** — el ítem sigue abierto
-      hasta que haya código.
+      ✅ **Tanda D cerrada el 2026-08-08**: [`MAPA`](../specs/done/MAPA.md) escrito e implementado
+      el mismo día (`FB-04` + `PBETA-R1-06`, misma pantalla y mismo archivo). **Con esto el feedback
+      de los primeros usuarios queda cubierto entero** — las 4 tandas, los 10 ítems.
       ➕ **Apareció un ítem 11 el 2026-08-08, de otro origen** (un conocido, no los hermanos):
       `FB-11`, Play Protect bloqueando la instalación de la PWA. Está abajo en § *Feedback
       posterior* — **no es de los 10** y no altera el conteo del lote original.
@@ -562,7 +561,9 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       por maximal, **togglear por subconjunto**— hace que ese toque **saque** `restaurante` y
       despinte «Primera cita», que es coherente con "los tags son la verdad". **Elegir a conciencia
       y dejarlo escrito en el código**, no que salga solo.
-- [ ] **FB-04 · 🟢 FEATURE chica — botón de "centrarme" en el mapa.** Verificado:
+- [x] **FB-04 · 🟢 FEATURE chica — botón de "centrarme" en el mapa.** ✅ **Hecho el 2026-08-08**
+      con [`MAPA`](../specs/done/MAPA.md) ([resumen](../archive/SPECS_ARCHIVO.md#mapa)). Verificado
+      en su momento:
       `components/search/map-view.tsx:93` agrega `NavigationControl` (zoom) y **no** hay
       `GeolocateControl`; `coords` llega al componente pero **solo alimenta la clave del fetch**
       (`:55`), no dibuja al usuario ni centra. Dos cosas a resolver: (a) el efecto de resultados hace
@@ -574,7 +575,12 @@ vale para **los dos** caminos. Orden: FB-10b primero (el piso), FB-10 después (
       `PBETA-R1-06`). Las tres decisiones quedaron cerradas ahí: (1) el gesto de cámara del usuario
       gana hasta que cambie la **búsqueda** —no las coordenadas—, (2) `GeolocateControl` nativo
       desacoplado del toggle «Cerca de mí», (3) en modo mapa se colapsa el buscador y los chips
-      pasan a una fila scrolleable. **Sin implementar.**
+      pasan a una fila scrolleable. **Las tres se implementaron tal cual.** El `GeolocateControl`
+      nativo con `trackUserLocation: false`, un `useRef` que marca la cámara del usuario —limpiado por
+      la clave **sin** coordenadas— y el bloque de búsqueda colapsado. QA: 12 criterios de DoD por
+      checkers independientes + los 14 casos `MAPA-01..14` en vivo, con `MAPA-04` y `MAPA-07`
+      **parciales declarados** (el re-fetch por coords no se puede provocar desde la UI: las
+      coordenadas se piden una sola vez).
 
 **Prioridad — aprobada por Fer el 2026-08-08:** arranca la **Tanda A completa** (FB-05, FB-06,
 FB-07, FB-08, FB-09), sin spec. **FB-02 se suma a esa tanda** porque su decisión ya está tomada y
@@ -625,6 +631,13 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       miente. **No es urgente** —hoy las dos hacen lo mismo— pero es un cambio de 5 líneas y va como
       paso aparte, no colado en otra tarea.
 
+- [ ] **Los botones de zoom del mapa siguen en inglés** (visto el 2026-08-08 implementando `MAPA`).
+      El `NavigationControl` de MapLibre rotula «Zoom in» / «Zoom out» en `title` y `aria-label`, y el
+      CLAUDE.md manda que **toda** la UI vaya en rioplatense. Es deuda **anterior** a `MAPA` —ese
+      control ya estaba— y por eso no se tocó ahí. El arreglo son **dos líneas** en el `locale` del
+      `Map` (`components/search/map-view.tsx:134`), al lado de las del control de ubicación que sí se
+      tradujeron: `'NavigationControl.ZoomIn'` y `'NavigationControl.ZoomOut'`.
+
 ### Los 33 hallazgos no bloqueantes de `PULIDO_BETA` F1 (triados por Fer el 2026-08-03)
 
 De los 43 hallazgos de la auditoría de los 6 recorridos en mobile, **10 se confirmaron BLOQUEANTE y
@@ -638,7 +651,7 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 - [ ] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
 - [ ] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
 - [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
-- [ ] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. 📝 **Spec escrito el 2026-08-08 → [`MAPA`](../specs/planned/MAPA.md)**, junto con `FB-04` (mismo archivo, misma pantalla). Re-medido en vivo el mismo día: 67% confirmado al píxel. **Sin implementar.**
+- [x] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. ✅ **Hecho el 2026-08-08** con [`MAPA`](../specs/done/MAPA.md) ([resumen](../archive/SPECS_ARCHIVO.md#mapa)), junto con `FB-04` (mismo archivo, misma pantalla). Medido en vivo antes y después a 390×844: **67% → 100%** y `document.body.scrollHeight` 1.127 → **844 = `innerHeight`**. El bloque de búsqueda pasó de 332 a 188 px (el buscador se esconde y los chips van de 3 filas a 1 que scrollea, 124 → 42 px). En 390×667 el mapa entra entero pero la página gana 60 px de scroll por el piso `min-h-80`: degradación declarada en la decisión 9.
 - [ ] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
 - [ ] **PBETA-R1-08** (COSMÉTICO) — toques de la ficha en 36–40 px (Guardar 36×36), abajo de los 44.
 
@@ -1595,6 +1608,29 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Tanda D del feedback — `MAPA`, escrito ayer e implementado hoy; con esto el feedback de los
+      primeros usuarios queda cubierto entero** (2026-08-08, sesión Opus): `FB-04` (verte en el mapa)
+      + `PBETA-R1-06` (que el mapa entre en la pantalla), juntos por ser el mismo archivo y la misma
+      pantalla. Resumen en [`SPECS_ARCHIVO § mapa`](../archive/SPECS_ARCHIVO.md#mapa) · QA en
+      `docs/qa/AnalisisQA.md` § *QA /qa-spec — MAPA*: **APROBADO** (12 criterios de DoD por 3
+      checkers independientes + los 14 casos `MAPA-01..14` en vivo), typecheck · 663/663 tests ·
+      build en verde. **Qué quedó construido:** el `GeolocateControl` nativo de MapLibre (un toque =
+      un centrado, permiso solo al tocarlo) · un `useRef` que marca la cámara del usuario y saltea el
+      `fitBounds` de los pins, limpiado por la clave de búsqueda **sin coordenadas** · el mapa sin
+      alto fijo con el buscador colapsado y los chips en una fila · aviso propio al caer fuera de
+      `AMBA_BBOX`. Sin migración, sin endpoint y **sin una línea de `lib/`**.
+      **Tres cosas que valen más que el feature:**
+      1. **El mapa colapsaba a 0 px con los 663 tests en verde.** Sacar el alto fijo dejó al
+         `height: 100%` del div interno sin un alto **declarado** contra el cual resolver: el canvas
+         quedaba desbordado y **los controles no recibían el toque**, o sea que la feature nueva no
+         se podía usar. Lo cazó un `elementFromPoint` sobre el botón en el QA en vivo, no la vista.
+      2. **Los rótulos de MapLibre se traducen con `locale` del `Map`**, no editando el DOM después
+         de `addControl`: el botón se arma de forma asíncrona y se re-rotula en cada cambio de
+         estado. (Los del zoom siguen en inglés — anotado abajo.)
+      3. **En Chromium ≥ 121, `scrollbar-width`/`scrollbar-color` anulan los `::-webkit-scrollbar`.**
+         Declarar las dos cosas juntas devuelve la barra del sistema apenas teñida, flechitas
+         incluidas. Apareció al pedido de Fer de que la barra de los chips no pareciera de Windows.
 
 - [x] **Tanda C del feedback — `ADMIN_USUARIOS`, escrito ayer e implementado hoy** (2026-08-08,
       sesión Opus): `FB-01` + `FB-03`, los dos de `/admin`. Resumen en

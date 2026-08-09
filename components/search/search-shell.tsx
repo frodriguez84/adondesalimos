@@ -29,7 +29,10 @@ import { ZoneSheet } from './zone-sheet'
  */
 const MapView = dynamic(() => import('./map-view').then((m) => m.MapView), {
   ssr: false,
-  loading: () => <div className="h-[70vh] animate-pulse rounded-xl border border-border bg-card" />,
+  // Mismo alto que el mapa ya montado (MAPA, decisión 9), para que no salte.
+  loading: () => (
+    <div className="min-h-80 flex-1 animate-pulse rounded-xl border border-border bg-card" />
+  ),
 })
 
 /**
@@ -165,6 +168,18 @@ export function SearchShell({
   // invita a tocarlo, que es lo que sí puede disparar el prompt del browser.
   const gpsSinUbicacion = params.gps && coords === null
 
+  /**
+   * PBETA-R1-06 (MAPA, decisión 8): en modo mapa el bloque de búsqueda se colapsa
+   * para que el mapa entre entero en la pantalla — se esconde el buscador de
+   * texto (nadie tipea el nombre de un bar mirando pins) y los chips de Ocasión
+   * pasan a una fila que scrollea. Quedan a la vista los cuatro gestos que
+   * cambian resultados: zona, chips, Filtros y los chips activos.
+   *
+   * Es "hay un mapa en pantalla" y no "el toggle dice mapa": con `gps=1` sin
+   * coordenadas abajo se muestra el vacío, y ahí el buscador tiene que seguir.
+   */
+  const modoMapa = vista === 'mapa' && Boolean(resultado) && !gpsSinUbicacion
+
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -180,59 +195,61 @@ export function SearchShell({
           <ChevronDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
         </button>
 
-        <div className="relative">
-          <SearchInput
-            placeholder="Buscá lugares o tags"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onFocus={() => setEnfocado(true)}
-            // El blur se demora: sin esto, tocar una sugerencia cierra el
-            // dropdown antes de que el click llegue a registrarse.
-            onBlur={() => setTimeout(() => setEnfocado(false), 150)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter') return
-              // Enter sin elegir sugerencia: busca por nombre de lugar tal cual
-              // (decisión 15). El motor ya tolera typos y acentos.
-              e.currentTarget.blur()
-              navegar({ q: texto.trim() || null }, 'replace')
-            }}
-          />
+        {!modoMapa && (
+          <div className="relative">
+            <SearchInput
+              placeholder="Buscá lugares o tags"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onFocus={() => setEnfocado(true)}
+              // El blur se demora: sin esto, tocar una sugerencia cierra el
+              // dropdown antes de que el click llegue a registrarse.
+              onBlur={() => setTimeout(() => setEnfocado(false), 150)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return
+                // Enter sin elegir sugerencia: busca por nombre de lugar tal cual
+                // (decisión 15). El motor ya tolera typos y acentos.
+                e.currentTarget.blur()
+                navegar({ q: texto.trim() || null }, 'replace')
+              }}
+            />
 
-          {hayDropdown && (
-            <div className="absolute inset-x-0 top-full z-40 mt-1 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
-              <GrupoSugerencias
-                titulo="Filtros"
-                items={sugerencias.tags.map((s) => ({
-                  key: `t-${s.slug}`,
-                  label: s.name,
-                  detalle: s.facetLabel,
-                  onSelect: () => {
-                    setTexto('')
-                    setEnfocado(false)
-                    navegar({ tags: [...params.tags, s.slug], q: null }, 'replace')
-                  },
-                }))}
-              />
-              <GrupoSugerencias
-                titulo="Zonas"
-                items={sugerencias.zonas.map((s) => ({
-                  key: `z-${s.slug}`,
-                  label: s.name,
-                  // "Chacarita y Colegiales · Villa Ortúzar": el alias explica
-                  // por qué apareció una zona que no se llama como lo tipeado.
-                  detalle: s.via ?? 'Zona',
-                  onSelect: () => {
-                    setTexto('')
-                    setEnfocado(false)
-                    navegar({ zones: [...params.zones, s.slug], q: null }, 'replace')
-                  },
-                }))}
-              />
-            </div>
-          )}
-        </div>
+            {hayDropdown && (
+              <div className="absolute inset-x-0 top-full z-40 mt-1 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
+                <GrupoSugerencias
+                  titulo="Filtros"
+                  items={sugerencias.tags.map((s) => ({
+                    key: `t-${s.slug}`,
+                    label: s.name,
+                    detalle: s.facetLabel,
+                    onSelect: () => {
+                      setTexto('')
+                      setEnfocado(false)
+                      navegar({ tags: [...params.tags, s.slug], q: null }, 'replace')
+                    },
+                  }))}
+                />
+                <GrupoSugerencias
+                  titulo="Zonas"
+                  items={sugerencias.zonas.map((s) => ({
+                    key: `z-${s.slug}`,
+                    label: s.name,
+                    // "Chacarita y Colegiales · Villa Ortúzar": el alias explica
+                    // por qué apareció una zona que no se llama como lo tipeado.
+                    detalle: s.via ?? 'Zona',
+                    onSelect: () => {
+                      setTexto('')
+                      setEnfocado(false)
+                      navegar({ zones: [...params.zones, s.slug], q: null }, 'replace')
+                    },
+                  }))}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
-        <OccasionChipsRow chips={chips} params={params} onNavegar={navegar} />
+        <OccasionChipsRow chips={chips} params={params} onNavegar={navegar} compacto={modoMapa} />
 
         <div className="flex items-center justify-between gap-2">
           <button
@@ -293,7 +310,7 @@ export function SearchShell({
           titulo="Elegí zona para arrancar"
           detalle="Decinos por dónde andás y te tiramos la posta."
         />
-      ) : vista === 'mapa' ? (
+      ) : modoMapa ? (
         <MapView params={params} coords={coords} />
       ) : (
         <ResultsList

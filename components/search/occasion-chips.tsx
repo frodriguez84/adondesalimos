@@ -54,9 +54,16 @@ type Props = {
   chips: OccasionChips
   params: SearchParams
   onNavegar: (cambio: Partial<SearchParams>, modo: 'push' | 'replace') => void
+  /**
+   * Modo mapa (MAPA, decisión 8): una sola fila que scrollea en horizontal en vez
+   * de envolver en tres, para que el mapa entre entero en la pantalla. **Solo
+   * presentacional**: qué chip se pinta y qué hace un toque —el subconjunto
+   * maximal de FB-02— no cambia en nada.
+   */
+  compacto?: boolean
 }
 
-export function OccasionChipsRow({ chips, params, onNavegar }: Props) {
+export function OccasionChipsRow({ chips, params, onNavegar, compacto = false }: Props) {
   const [verMas, setVerMas] = React.useState(false)
 
   const activos = new Set(params.tags)
@@ -102,7 +109,12 @@ export function OccasionChipsRow({ chips, params, onNavegar }: Props) {
   const visibles = verMas ? [...chips.home, ...chips.resto] : chips.home
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div
+      className={cn(
+        'flex gap-2',
+        compacto ? 'barra-scroll-marca flex-nowrap overflow-x-auto' : 'flex-wrap',
+      )}
+    >
       {visibles.map((chip) => {
         const aplicado = pintados.has(chip.slug)
         return (
@@ -113,6 +125,8 @@ export function OccasionChipsRow({ chips, params, onNavegar }: Props) {
             aria-pressed={aplicado}
             className={cn(
               'inline-flex h-9 items-center rounded-full border px-4 text-sm transition-colors',
+              // Sin esto la fila única los aplasta en vez de scrollear.
+              compacto && 'shrink-0',
               aplicado
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border bg-card text-foreground hover:bg-secondary',
@@ -127,7 +141,10 @@ export function OccasionChipsRow({ chips, params, onNavegar }: Props) {
         <button
           type="button"
           onClick={() => setVerMas((v) => !v)}
-          className="inline-flex h-9 items-center rounded-full px-3 text-sm text-muted-foreground underline underline-offset-4"
+          className={cn(
+            'inline-flex h-9 items-center rounded-full px-3 text-sm text-muted-foreground underline underline-offset-4',
+            compacto && 'shrink-0',
+          )}
         >
           {verMas ? 'Ver menos' : 'Ver más'}
         </button>

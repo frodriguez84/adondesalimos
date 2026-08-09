@@ -3910,3 +3910,66 @@ estado previo** (planes, fotos, listas e interesados); lo único que persiste es
   (decisión 19) y este spec lo dan por hecho; conviene corregir esa frase donde aparezca.
 - El comentario de `lib/db/schema.ts` sobre `userPlanEnum` («hasta el spec 7 se cambia con un
   UPDATE a mano») quedó viejo: ahora se cambia desde `/admin`. Señalado, no tocado.
+
+## QA /qa-spec — MAPA (2026-08-08)
+
+**Veredicto:** APROBADO. Los 12 criterios del DoD en PASS y los 14 casos manuales corridos en vivo,
+con **dos parciales declarados** (`MAPA-04` y `MAPA-07`) que no son un gap de implementación sino un
+límite de lo que la UI puede provocar hoy — ver abajo.
+**Verificación técnica:** typecheck ✅ · tests ✅ 663/663 (60 archivos) · build ✅
+(`Compiled successfully in 6.5s`, corrido con el dev server parado).
+**Método:** 3 checkers independientes (Explore read-only, haiku, maker≠checker) sobre el DoD de
+`docs/specs/planned/MAPA.md`, + QA en vivo por Playwright contra `https://adondesalimos.ngrok.app`
+a 390×844 y 390×667, con la geolocalización del contexto (`setGeolocation`) y un espía sobre
+`navigator.geolocation` para contar si alguien pide el permiso sin que lo toquen.
+**Sin backup:** el spec no toca la base (sin migración, sin escrituras).
+
+### DoD (checkers independientes)
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| MAPA-QA-01 | El control es el `GeolocateControl` de MapLibre, no uno propio | PASS | `map-view.tsx:144` `new maplibregl.GeolocateControl({…})` · `:154` `addControl(ubicacion, 'top-right')` |
+| MAPA-QA-02 | El permiso no se pide al entrar: solo al tocar el control | PASS | Sin `navigator.geolocation` ni `.trigger()` en el montaje; los handlers solo **responden** a `geolocate`/`error` (`:176`, `:191`). En vivo: 0 llamadas al entrar |
+| MAPA-QA-03 | Centra en el usuario con punto azul, círculo de precisión y zoom ≤ 15 | PASS | `:147-152` `trackUserLocation: false` + `showUserLocation` + `showAccuracyCircle` + `fitBoundsOptions: { maxZoom: 15 }`. En vivo: centro exacto, **zoom 15**, `.maplibregl-user-location-dot` y `-accuracy-circle` presentes |
+| MAPA-QA-04 | Su rótulo accesible dice «Dónde estoy»; sin inglés en ese control | PASS | `:134-137` vía `locale` del `Map`. En vivo: `title` y `aria-label` = «Dónde estoy»; con el permiso denegado, «No podemos ubicarte» |
+| MAPA-QA-05 | Con «Cerca de mí», centrarse deja la cámara donde el usuario la puso | PASS (parcial en vivo) | Guarda en `:307`; el marcador se limpia por `claveBusqueda` (`:105-107`), que **no** lleva coords. En vivo aguanta 12 s — el re-fetch por coords no es provocable, ver `MAPA-04` abajo |
+| MAPA-QA-06 | Cambiar de zona o de filtros **sí** vuelve a encuadrar los pins | PASS | `:105-107` limpia el ref con `serializeSearchParams(params)`. En vivo dos veces: zona (zoom 15 → 12,22) y sacar chip (→ 8,04) |
+| MAPA-QA-07 | Qué marca la cámara como del usuario (los 5 disparadores de la decisión 2) | PASS | `:169-174` los tres eventos **filtrados por `originalEvent`** · `:264` el `easeTo` del cluster · `:177` el `geolocate` |
+| MAPA-QA-08 | El `fitBounds` conserva `padding: 48`, `maxZoom: 15`, `duration: 0` | PASS | `:310` idéntico a HEAD; el único cambio es la guarda de `:307` |
+| MAPA-QA-09 | `lib/search/params.ts` y `query.ts` sin cambios; la URL no gana parámetros | PASS | `git status --porcelain` no lista `lib/`; `SearchParams` conserva sus 6 campos |
+| MAPA-QA-10 | En modo mapa: sin buscador, chips en una fila scrolleable, y zona + Filtros + chips activos a la vista | PASS | `search-shell.tsx` el `SearchInput` dentro de `{!modoMapa && …}`; zona, Filtros y `ChipsActivos` **fuera** de esa condición; `compacto={modoMapa}`. En vivo: bloque de chips 124 px → **42** |
+| MAPA-QA-11 | La prop nueva de los chips es **solo presentacional** (FB-02 intacto) | PASS | `git diff` de `occasion-chips.tsx`: solo `className` condicionales; `alternar` y el cálculo de `pintados` sin tocar |
+| MAPA-QA-12 | El mapa sin alto fijo y `min-h-dvh` en la home | PASS | Cero `h-[70vh]` en `components/` (también el esqueleto de `next/dynamic`); `app/page.tsx:94` `min-h-dvh` |
+
+### QA en vivo (Playwright, 390×844 salvo donde se aclara)
+
+| ID | Caso | Resultado |
+|----|------|-----------|
+| MAPA-01 | Entrar al mapa sin tocar nada | PASS — 0 llamadas a `getCurrentPosition`/`watchPosition`, con el permiso ya concedido en el contexto |
+| MAPA-02 | Tocar «Dónde estoy» la primera vez | PASS — centro exacto en la posición simulada, **zoom 15**, punto azul + círculo; **1** llamada y `watchPosition: 0` (un toque = un centrado) |
+| MAPA-03 | Rechazar el permiso | PASS — «No pudimos ubicarte. Fijate que le hayas dado permiso al navegador.»; el mapa sigue usable y el botón queda deshabilitado con «No podemos ubicarte». **Con el rechazo simulado** (`code: 1`): `clearPermissions()` de Playwright deja el permiso en *prompt* y la llamada queda colgada sin error — es del harness, no de la app |
+| MAPA-04 | «Cerca de mí» + centrarse + esperar el re-fetch | **PARCIAL** — la cámara queda donde el usuario la puso y aguanta 12 s. El sub-caso "llega un re-fetch por coords nuevas" **no se puede provocar desde la UI**: `pedirUbicacion` corre solo si `coords` es null (`zone-sheet.tsx:87`), así que con el toggle ya prendido no hay un segundo cambio de clave |
+| MAPA-05 | Centrarse y después cambiar de zona | PASS — zoom 15 en el Obelisco → encuadra Recoleta (zoom 12,22), mismo objeto `Map` (no remontó) |
+| MAPA-06 | Centrarse, arrastrar y sacar un chip activo | PASS — tras arrastrar a mano, sacar «Recoleta» re-encuadró (zoom 8,04) |
+| MAPA-07 | Abrir un cluster y esperar un re-fetch por coords | **PARCIAL** — el cluster abre (12,74 → 13) y el zoom aguanta 8 s; el re-fetch por coords, mismo límite que `MAPA-04` |
+| MAPA-08 | Rótulo del control | PASS — `title` y `aria-label` = «Dónde estoy» |
+| MAPA-09 | Posición fuera de AMBA (Córdoba capital) | PASS — el mapa **te lleva ahí** y avisa «Por ahora andamos solo por Buenos Aires y alrededores.»; el aviso se va solo a los 6 s |
+| MAPA-10 | 390×844, modo mapa: medir | PASS — `scrollHeight` **844** = `innerHeight` 844 (era 1.127) y el mapa **444 px, 100% visible** (era 67%) |
+| MAPA-11 | 390×844: los controles | PASS — sin buscador; chips en **1** fila que scrollea (721 px de contenido en 358) con barra propia de 6 px; zona (y=92), Filtros (213) y chips activos (263) a la vista |
+| MAPA-12 | Volver a «Lista» | PASS — vuelven el buscador y los chips a 3 filas (124 px); 20 cards |
+| MAPA-13 | Modo mapa con muchos chips activos | PASS — 6 chips en 2 filas, el mapa se achica a 357 px y el overflow de página es **0** |
+| MAPA-14 | 390×667 (teléfono corto) | PASS con nota — el mapa entra entero (320 px, sin recortarse), pero la página gana **60 px** de scroll por el piso `min-h-80`. Es la degradación que la decisión 9 declara aceptable; aparece también en portrait corto, no solo en landscape |
+
+### Hallazgos
+
+- **El mapa colapsaba a 0 px y los 663 tests estaban verdes.** Al cambiar el contenedor a `flex-1`
+  (decisión 9), el `size-full` del div interno dejó de resolver —`height: 100%` necesita un alto
+  **declarado** en el padre—: el canvas quedaba desbordado en 300 px y **los controles no recibían
+  el toque**, o sea que la feature del spec no se podía usar. `absolute inset-0` tampoco alcanza: el
+  CSS de MapLibre pisa el `position` con `.maplibregl-map`. Resuelto dando el alto por flex.
+  Lo cazó el `elementFromPoint` sobre el botón, no la vista.
+- **Los botones de zoom del `NavigationControl` siguen en inglés** («Zoom in» / «Zoom out»). Es
+  anterior a este spec y no lo toca — al BACKLOG.
+- **`clearPermissions()` de Playwright no equivale a "denegar"**: deja el permiso en *prompt* y la
+  llamada queda esperando una UI que en automatización no aparece. Para verificar un rechazo hay que
+  simular el callback de error.

@@ -91,7 +91,7 @@ export default async function Home({
       : { guardados: [] as string[], listas: [] as ListaDestino[] }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-8">
       <header className="flex items-center justify-between gap-3">
         <Wordmark />
         <AccountMenu user={session?.user ? { name: session.user.name ?? null, email: session.user.email } : null} />

@@ -5,6 +5,69 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Cambiar un alto fijo por `flex-1` puede dejar el hijo en 0 px, y ningún test lo ve (2026-08-08 · MAPA)
+
+**Qué pasó.** La decisión 9 de MAPA cambiaba el contenedor del mapa de `h-[70vh]` a `flex-1` para
+que entrara entero en la pantalla. El div interno que MapLibre monta seguía con `size-full`, que es
+`height: 100%` — y `height: 100%` **necesita que el padre tenga un alto declarado**, no uno que sale
+de `flex`. Resultado: el div del mapa quedó en **0 px**, el canvas siguió dibujando con su último
+tamaño (300 px) desbordado del contenedor, y **los controles dejaron de recibir el toque** — o sea,
+el `GeolocateControl` que el spec venía a agregar no se podía tocar. `typecheck`, los **663 tests** y
+el `build` estaban en verde: nada de eso mira layout. La captura tampoco lo delataba, porque el
+canvas desbordado *se veía*.
+
+**Cómo apareció.** No mirando, sino midiendo: el clic de Playwright sobre el botón fallaba con
+*«el contenedor intercepta pointer events»*, y `document.elementFromPoint(x, y)` sobre el centro del
+botón devolvía el contenedor del mapa en lugar del botón. De ahí a medir
+`getBoundingClientRect()` de cada capa (`contenedor: 437 px` · `.maplibregl-map: 0` ·
+`canvas: 300`) fueron dos pasos.
+
+**Por qué el primer arreglo tampoco anduvo.** `absolute inset-0` en el hijo parece la solución
+obvia y **no funciona con MapLibre**: su hoja de estilos declara `.maplibregl-map { position:
+relative }` y gana por orden de cascada, así que el `absolute` de Tailwind se pierde. La que sirve
+es no pelear con esa regla: contenedor `flex flex-col`, hijo `flex-1`. El alto sale del flex y el
+`position` queda como MapLibre lo quiere.
+
+**Qué hacer distinto.**
+
+1. **Cuando un contenedor pasa a tener alto por `flex`, revisar a sus hijos con `h-full`/`size-full`
+   en la misma tanda.** Es el mismo cambio, no un efecto colateral lejano.
+2. **Después de tocar el layout de un componente con canvas o `<iframe>`, medir en vivo las tres
+   capas** (contenedor, wrapper, canvas). Un canvas desbordado se ve bien y está roto.
+3. **Un botón que no se puede tocar es un bug de la feature, no del test.** Cuando Playwright dice
+   que "otro elemento intercepta", el reflejo correcto no es `{ force: true }` —que hizo el clic en
+   el vacío y devolvió verde— sino `elementFromPoint` para saber qué hay realmente ahí.
+
+**Alcance.** Toca a cualquier componente que reciba alto por flex y monte una librería que dibuje su
+propio DOM adentro: hoy el mapa, mañana un chart o un editor.
+
+---
+
+## Dos APIs para la misma barra de scroll: la estándar gana y anula la de WebKit (2026-08-08 · MAPA)
+
+**Qué pasó.** Los chips de Ocasión en modo mapa pasan a una fila que scrollea, y Fer pidió que la
+barra no pareciera "de Windows". El primer intento declaró las dos familias juntas —
+`scrollbar-width: thin` + `scrollbar-color` (estándar) **y** `::-webkit-scrollbar` con su thumb
+redondeado (WebKit)—. Salió la barra **del sistema apenas teñida de naranja, con los triangulitos
+de las puntas**. Y el `::-webkit-scrollbar-button { display: none }` para sacarlos no hizo nada, lo
+que parecía un bug del navegador.
+
+**La causa.** En Chromium ≥ 121 las propiedades estándar **tienen prioridad y desactivan los
+pseudo-elementos de WebKit** para ese elemento. No conviven: declarar `scrollbar-width` es renunciar
+al control fino. Por eso ninguna regla `::-webkit-*` se aplicaba — no estaban "perdiendo por
+especificidad", estaban apagadas.
+
+**Qué hacer distinto.** Elegir una familia por navegador, no las dos a la vez: los
+`::-webkit-scrollbar` sueltos (Chromium y Safari, que es donde hace falta el control) y lo estándar
+detrás de `@supports not selector(::-webkit-scrollbar)`, o sea solo donde no hay pseudo-elementos.
+
+**El otro aprendizaje, de producto:** la primera versión **escondía** la barra, razonando que en un
+teléfono ni se ve. Fer respondió *«¿y cómo muevo los chips?»* — en escritorio la barra es lo único
+de donde agarrar. Esconder un control porque en el dispositivo principal sobra deja sin salida al
+otro. Cuando algo scrollea en horizontal, tiene que verse **con qué** se mueve.
+
+---
+
 ## Un criterio de DoD escrito como grep audita el repo, no el diff (2026-08-08 · ADMIN_USUARIOS)
 
 **Qué pasó.** El DoD de ADMIN_USUARIOS abría con su criterio central escrito como comando:

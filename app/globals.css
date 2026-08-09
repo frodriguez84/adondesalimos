@@ -108,3 +108,32 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Barra de scroll horizontal con la paleta de la app (MAPA, decisión 8): la fila
+   de chips de Ocasión en modo mapa. La del sistema mide 15 px, es gris y trae los
+   triangulitos de Windows; esta mide 6, usa el naranja de acción sobre un riel del
+   color del borde y se lee como parte de la app. **No se esconde**: en escritorio es
+   lo único de donde agarrar para llegar a los chips que quedan a la derecha.
+
+   Ojo con el orden de precedencia: en Chromium ≥ 121 las propiedades estándar
+   (`scrollbar-width` / `scrollbar-color`) **ganan y anulan** los `::-webkit-scrollbar`,
+   así que declarar las dos cosas juntas devuelve la barra del sistema apenas teñida
+   —flechitas incluidas—. Por eso lo estándar va sólo donde no hay pseudo-elementos,
+   que en la práctica es Firefox. */
+.barra-scroll-marca::-webkit-scrollbar {
+  height: 6px;
+}
+.barra-scroll-marca::-webkit-scrollbar-track {
+  background: var(--secondary);
+  border-radius: 9999px;
+}
+.barra-scroll-marca::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 9999px;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .barra-scroll-marca {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) var(--secondary);
+  }
+}
