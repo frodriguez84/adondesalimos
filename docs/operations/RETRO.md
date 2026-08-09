@@ -58,8 +58,13 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
   `--write`, verificar que el repo declare su config; sin config, no correrlo**. El estilo del
   proyecto no está declarado en ningún lado, así que cualquier herramienta impone el suyo y el diff
   se vuelve ilegible. Cuesta un `ls`/`grep` y va a `~/.claude/CLAUDE.md` § *Principios* como parte
-  de "cambios quirúrgicos" (radio grande: aplica a todos los proyectos) — **pendiente del OK de
-  Fer**, igual que la deuda del heredoc que ya lleva cuatro retros anotada y sin aplicar.
+  de "cambios quirúrgicos" (radio grande: aplica a todos los proyectos).
+  ✅ **Aplicada el 2026-08-09 con el OK de Fer**, y **de paso se saldó la deuda del heredoc** que
+  llevaba cuatro retros anotada: esa sección del global dejó de llamarse *«Mensajes de commit
+  multilínea»* y ahora es *«Texto largo que pasa por el shell»*, con la regla explicitada para
+  specs, docs, prompts y scripts — el alcance era lo único que fallaba, el contenido ya estaba.
+  ⚠️ **`~/.claude` no es un repo git**, así que este renglon es la única traza del cambio: no hay
+  commit que mirar. Copia de respaldo previa en el scratchpad de la sesión.
 
 ---
 

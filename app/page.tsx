@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 
 import { auth } from '@/lib/auth'
 import { AccountMenu } from '@/components/shared/account-menu'
-import { Wordmark } from '@/components/shared/wordmark'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { RotatingHeadline } from '@/components/shared/rotating-headline'
 import { SearchShell } from '@/components/search/search-shell'
 import { estadoDeFavoritos, type ListaDestino } from '@/lib/favoritos/query'
@@ -93,7 +93,7 @@ export default async function Home({
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-8">
       <header className="flex items-center justify-between gap-3">
-        <Wordmark />
+        <BrandHeader />
         <AccountMenu user={session?.user ? { name: session.user.name ?? null, email: session.user.email } : null} />
       </header>
 
