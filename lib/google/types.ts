@@ -43,6 +43,15 @@ export type GoogleFoto = {
  */
 export type GoogleEnriquecimiento = {
   horarios: GoogleHorarios | null
+  /**
+   * La dirección que Google tiene para ese lugar (CORRECCION_DATOS, decisión 18).
+   * **Pista, no fuente**, y la señal es asimétrica: el match se resuelve a ±300 m
+   * del pin **nuestro**, así que *que coincida no prueba nada* — solo *que difiera*
+   * es señal. La consume el editor de admin; **la ficha pública no la renderiza**
+   * (dos direcciones contradictorias confunden y no arreglan el pin) y no se
+   * persiste en ningún lado (decisión 19).
+   */
+  formattedAddress: string | null
   rating: number | null
   userRatingCount: number | null
   /** Ya mapeado a `$..$$$$` (o `null`), no el enum crudo de Google. */

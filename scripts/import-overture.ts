@@ -8,6 +8,7 @@ import { places, tags } from '@/lib/db/schema'
 import { tagsForCategory } from '@/lib/overture/tag-map'
 import { EXCLUDE_CATEGORIES, INCLUDE_CATEGORIES, isIncluded } from './overture/categories'
 import { toStringArray } from './overture/normalize'
+import { SET_UPSERT_PLACES, camposFijadosQueCoinciden } from './overture/upsert'
 
 /**
  * Import del catálogo desde Overture Maps.
@@ -18,8 +19,15 @@ import { toStringArray } from './overture/normalize'
  * bajar el umbral no podría revivir a nadie.
  *
  * Idempotente por `overture_id`: re-correrlo actualiza los datos de Overture y
- * preserva lo que Overture no sabe — `google_place_id`, `publish_override` y las
- * tags con `source != 'import'`.
+ * preserva lo que Overture no sabe — `google_place_id`, `publish_override`,
+ * `owner_plan` y las tags con `source != 'import'`.
+ *
+ * **Y lo que Overture sabe mal** (CORRECCION_DATOS, decisión 4): las cinco columnas
+ * corregibles (`name`, `address`, `locality`, `lat`, `lng`) se pisan **salvo** que
+ * un humano las haya corregido, campo por campo, según `places.locked_fields`. La
+ * regla vive en el `set` de `./overture/upsert.ts`, no acá, para poder testearla
+ * sin salir a S3. Al final el reporte lista los campos fijados que Overture ya trae
+ * iguales: los libera un humano desde `/admin` → Lugares, nunca el script.
  */
 
 const RELEASE = '2026-06-17.0'
@@ -147,26 +155,9 @@ async function main() {
           operatingStatus: r.operating_status ?? 'open',
         })),
       )
-      .onConflictDoUpdate({
-        target: places.overtureId,
-        set: {
-          // Solo lo que Overture es dueño de saber. `google_place_id`,
-          // `publish_override` y `source` quedan intactos a propósito.
-          name: sql`excluded.name`,
-          lat: sql`excluded.lat`,
-          lng: sql`excluded.lng`,
-          address: sql`excluded.address`,
-          locality: sql`excluded.locality`,
-          phones: sql`excluded.phones`,
-          websites: sql`excluded.websites`,
-          socials: sql`excluded.socials`,
-          emails: sql`excluded.emails`,
-          overtureCategory: sql`excluded.overture_category`,
-          confidence: sql`excluded.confidence`,
-          operatingStatus: sql`excluded.operating_status`,
-          updatedAt: sql`now()`,
-        },
-      })
+      // El `set` vive en `./overture/upsert.ts` (decisión 4 de CORRECCION_DATOS):
+      // es el mismo upsert de siempre, con el respeto a `locked_fields` adentro.
+      .onConflictDoUpdate({ target: places.overtureId, set: SET_UPSERT_PLACES })
       .returning({ id: places.id, overtureId: places.overtureId })
 
     const idByOvertureId = new Map(inserted.map((p) => [p.overtureId!, p.id]))
@@ -205,7 +196,56 @@ async function main() {
   }
 
   const despues = await countPlaces()
-  await reportar({ leidas: rows.length, usables: usables.length, descartadas, antes, despues, porCategoria, conTags, sinMapeo, conDueno })
+  const alDia = await fijadosQueOvertureYaTraeIguales(usables)
+  await reportar({ leidas: rows.length, usables: usables.length, descartadas, antes, despues, porCategoria, conTags, sinMapeo, conDueno, alDia })
+}
+
+/**
+ * Decisión 10: los campos fijados a mano que **Overture ya trae iguales**. El
+ * import los recorrió igual, así que esto sale gratis. Solo se reporta — liberar
+ * un campo es una decisión humana («Soltar» en `/admin` → Lugares), nunca del
+ * script: la marca no vence por tiempo ni por coincidencia.
+ *
+ * Los lugares corregidos son unidades por año, así que se leen todos de una.
+ */
+async function fijadosQueOvertureYaTraeIguales(
+  usables: OvertureRow[],
+): Promise<{ name: string; campos: string[] }[]> {
+  const corregidos = await db
+    .select({
+      overtureId: places.overtureId,
+      name: places.name,
+      address: places.address,
+      locality: places.locality,
+      lat: places.lat,
+      lng: places.lng,
+      lockedFields: places.lockedFields,
+    })
+    .from(places)
+    .where(sql`array_length(${places.lockedFields}, 1) > 0`)
+
+  const porOvertureId = new Map(usables.map((r) => [r.id, r]))
+  const out: { name: string; campos: string[] }[] = []
+
+  for (const fila of corregidos) {
+    const overture = fila.overtureId ? porOvertureId.get(fila.overtureId) : undefined
+    // Sin fila en este release (o un lugar de dueño) no hay con qué comparar.
+    if (!overture) continue
+
+    const campos = camposFijadosQueCoinciden(
+      { ...fila, overtureId: fila.overtureId! },
+      {
+        name: overture.name ?? '',
+        address: overture.address ?? null,
+        locality: overture.locality ?? null,
+        lat: overture.lat ?? 0,
+        lng: overture.lng ?? 0,
+      },
+    )
+    if (campos.length > 0) out.push({ name: fila.name, campos })
+  }
+
+  return out
 }
 
 async function countPlaces(): Promise<number> {
@@ -223,6 +263,7 @@ async function reportar(r: {
   conTags: number
   sinMapeo: number
   conDueno: number
+  alDia: { name: string; campos: string[] }[]
 }) {
   const dist = await db
     .select({
@@ -258,6 +299,12 @@ async function reportar(r: {
   for (const d of dist) console.log(`  ${d.banda ?? '—'}: ${d.n}`)
   console.log('\nTop categorías importadas:')
   for (const [cat, n] of top) console.log(`  ${n}\t${cat}`)
+
+  // Decisión 10 de CORRECCION_DATOS: se informa, no se libera solo.
+  const totalAlDia = r.alDia.reduce((n, l) => n + l.campos.length, 0)
+  console.log(`\n${totalAlDia} campos fijados que Overture ya trae iguales (soltalos en /admin → Lugares):`)
+  for (const l of r.alDia) console.log(`  ${l.name}: ${l.campos.join(', ')}`)
+
   console.log('───────────────────────────────────────────')
 }
 

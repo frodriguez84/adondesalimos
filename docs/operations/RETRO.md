@@ -37,6 +37,24 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-09 · Implementación de CORRECCION_DATOS (mismo día que su autoría) — Opus
+
+- **Qué salió bien:** el spec traía las 20 decisiones cerradas **y** el § *Alcance del código*
+  archivo por archivo, así que la sesión no re-decidió nada: el diff final coincide con esa tabla
+  y los 9 archivos de la lista «Sin cambios en» tienen **diff vacío**, verificado con un `git diff`
+  sobre esa lista exacta. Escribir la lista de intocables en el spec convierte una intención en algo
+  que se chequea en un comando.
+- **Qué frenó:** nada del método. Dos fricciones técnicas, las dos del entorno y ya conocidas: los
+  reemplazos de texto con backticks y `\t` por heredoc de Python fallaron dos veces en
+  `import-overture.ts` (se resolvió pasando a manipulación por líneas), y las coordenadas de la
+  dirección nueva no salían de Nominatim — quedó anotado en `LECCIONES_APRENDIDAS.md` junto con la
+  consulta de Overpass que sí funciona.
+- **Qué cambiar:** una sola cosa, y ya está aplicada: **en el QA en vivo de un endpoint, forzar un
+  payload inválido y leer el texto que vuelve, no solo el status.** Dos mensajes de error salían en
+  inglés con typecheck, 687 tests y build en verde, porque los tests verifican el `code` y nadie lee
+  el `message` — que sin embargo se pinta en la pantalla. Cuesta un `fetch` por endpoint. Está en
+  `LECCIONES_APRENDIDAS.md` § *El mensaje de un error de validación es copy*.
+
 ## 2026-08-09 · Autoría del spec CORRECCION_DATOS (ítem 6 de la cola post-v2) — Opus
 
 - **Qué salió bien:** el ítem 6 del BACKLOG traía marcada la pregunta que **nadie había

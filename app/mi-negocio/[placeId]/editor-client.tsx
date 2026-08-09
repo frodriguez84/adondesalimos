@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { ChevronDown, Lock, Plus, Trash2 } from 'lucide-react'
 
 import {
@@ -295,6 +296,9 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
         </button>
       </form>
 
+      {/* Ubicación aparte: no se guarda, se **propone** (CORRECCION_DATOS, dec. 11). */}
+      <Ubicacion lugar={lugar} />
+
       {/* Fotos aparte: se suben de a una y el resultado se ve al instante. */}
       <FotosEditor
         placeId={lugar.id}
@@ -487,5 +491,168 @@ function TagToggle({
     >
       {name}
     </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// «Dónde estás» — CORRECCION_DATOS, decisiones 11, 12 y 14
+// ---------------------------------------------------------------------------
+
+// MapLibre son ~200 KB gzip: se carga recién al abrir el formulario de la
+// propuesta. `ssr: false` porque MapLibre toca `window` al construirse.
+const PinPicker = dynamic(() => import('@/components/negocio/pin-picker').then((m) => m.PinPicker), {
+  ssr: false,
+  loading: () => <div className="h-64 animate-pulse rounded-xl border border-border bg-card" />,
+})
+
+/**
+ * La ubicación del lugar: **se propone, no se guarda**. El pin mueve al lugar en
+ * la búsqueda de todos, así que la decide el admin (decisión 11).
+ *
+ * **No hay campo de nombre** (decisión 12): el nombre es la clave del buscador y
+ * del matching con Google a la vez, y renombrar una ficha ajena es el vector
+ * clásico de secuestro de listado. Un rebranding real lo arregla el admin.
+ *
+ * El estado viaja acá y no por mail (decisión 14): el dueño lo ve donde ya está
+ * mirando.
+ */
+function Ubicacion({ lugar }: { lugar: PanelLugar }) {
+  const [abierto, setAbierto] = useState(false)
+  const [address, setAddress] = useState(lugar.address ?? '')
+  const [locality, setLocality] = useState(lugar.locality ?? '')
+  const [coords, setCoords] = useState({ lat: lugar.lat, lng: lugar.lng })
+  const [fuente, setFuente] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [enviado, setEnviado] = useState(false)
+
+  const pendiente = lugar.correccion.pendiente
+  const rechazada = lugar.correccion.ultimaRechazada
+  const movioPin = coords.lat !== lugar.lat || coords.lng !== lugar.lng
+  const hayCambios =
+    movioPin || address !== (lugar.address ?? '') || locality !== (lugar.locality ?? '')
+
+  async function proponer(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setEnviando(true)
+    try {
+      const cambios: Record<string, unknown> = { fuente }
+      if (address !== (lugar.address ?? '')) cambios.address = address
+      if (locality !== (lugar.locality ?? '')) cambios.locality = locality
+      if (movioPin) {
+        cambios.lat = coords.lat
+        cambios.lng = coords.lng
+      }
+
+      const res = await fetch(`/api/mi-negocio/${lugar.id}/ubicacion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cambios),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json?.error?.message ?? 'No pudimos mandar el cambio.')
+        return
+      }
+      setEnviado(true)
+      setAbierto(false)
+    } catch {
+      setError('No pudimos conectarnos. Revisá tu conexión y probá de nuevo.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <Seccion titulo="Dónde estás" bajada="Lo que ve todo el mundo: tu dirección y tu punto en el mapa.">
+      <p className="text-sm text-foreground">
+        {[lugar.address, lugar.locality].filter(Boolean).join(', ') || 'Sin dirección cargada'}
+      </p>
+
+      {(pendiente || enviado) && (
+        <p className="rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          {pendiente ? (
+            <>
+              En revisión:{' '}
+              {String(pendiente.campos.address?.despues ?? 'el punto en el mapa')}
+            </>
+          ) : (
+            'En revisión: lo miramos y te lo aplicamos.'
+          )}
+        </p>
+      )}
+
+      {rechazada && !pendiente && !enviado && (
+        <p className="text-xs text-muted-foreground">
+          No lo tomamos: {rechazada.adminNotes ?? 'no pudimos verificarlo'}
+        </p>
+      )}
+
+      {!abierto ? (
+        <button
+          type="button"
+          disabled={Boolean(pendiente) || enviado}
+          onClick={() => setAbierto(true)}
+          className="w-fit rounded-xl bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
+        >
+          Proponer un cambio
+        </button>
+      ) : (
+        <form onSubmit={proponer} className="flex flex-col gap-4">
+          <p className="text-xs text-muted-foreground">
+            Lo revisamos antes de que se vea. Suele tardar poco.
+          </p>
+
+          <Campo label="Dirección">
+            <input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Av. Juan B. Justo 2959"
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Localidad">
+            <input
+              value={locality}
+              onChange={(e) => setLocality(e.target.value)}
+              placeholder="Buenos Aires"
+              className={inputClass}
+            />
+          </Campo>
+
+          <PinPicker valor={coords} onChange={setCoords} />
+
+          <Campo label="¿De dónde lo sacaste? (queda registrado)">
+            <input
+              value={fuente}
+              onChange={(e) => setFuente(e.target.value)}
+              placeholder="ccmatienzo.com.ar"
+              className={inputClass}
+            />
+          </Campo>
+
+          {error && <Aviso tipo="error">{error}</Aviso>}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setAbierto(false)}
+              className="flex-1 rounded-xl bg-secondary py-3 font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={enviando || !hayCambios || fuente.trim().length < 3}
+              className={`flex-1 ${btnClass}`}
+            >
+              {enviando ? 'Mandando…' : 'Mandar el cambio'}
+            </button>
+          </div>
+        </form>
+      )}
+    </Seccion>
   )
 }

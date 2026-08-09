@@ -27,9 +27,12 @@ describe('TEXT_SEARCH_FIELD_MASK — matching IDs-Only ($0)', () => {
 })
 
 describe('PLACE_DETAILS_FIELD_MASK — Enterprise sin Atmosphere', () => {
-  it('es exactamente el mask de la decisión 11', () => {
+  // Igualdad exacta, no un `contains`: es lo que hace que un campo de más falle.
+  // `formattedAddress` entró con CORRECCION_DATOS (decisión 18) y es Essentials —
+  // costo marginal US$0 porque la request ya se factura a Enterprise.
+  it('es exactamente el mask de la decisión 11 + formattedAddress', () => {
     expect(PLACE_DETAILS_FIELD_MASK).toBe(
-      'id,regularOpeningHours,currentOpeningHours,rating,userRatingCount,priceLevel,googleMapsUri,photos',
+      'id,formattedAddress,regularOpeningHours,currentOpeningHours,rating,userRatingCount,priceLevel,googleMapsUri,photos',
     )
   })
 

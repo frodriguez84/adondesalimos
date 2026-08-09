@@ -126,6 +126,22 @@ regla. `operating_status` hoy no filtra nada (Overture lo entrega NULL en todo A
   FICHA son la línea entre gratis y pago — hay tests que fallan si el field mask trae un campo
   de más. No relajarlos.
 
+### El re-import respeta lo corregido a mano (CORRECCION_DATOS)
+`scripts/import-overture.ts` ya no es *"Overture manda en sus 13 columnas"*: es **"Overture
+manda salvo donde un humano dijo lo contrario"**. La marca es **por campo**, en
+`places.locked_fields` (`text[]`), y cubre solo cinco columnas: `name`, `address`, `locality`,
+`lat`, `lng`. Por campo y no por lugar a propósito — un flag por lugar convertiría cada
+corrección en un opt-out permanente del catálogo, y el lugar más tocado sería el más
+desactualizado. **Un solo módulo escribe una corrección**: `lib/negocio/correcciones.ts`, y hace
+cinco cosas en UNA transacción (valores + `locked_fields` **unidos, nunca reemplazados** +
+bitácora + re-asignar zonas + invalidar el match de Google). El `CASE … = ANY(locked_fields)`
+del upsert vive en `scripts/overture/upsert.ts` para poder testearlo sin S3.
+⚠️ **Mover el pin o cambiar el nombre invalida el `google_place_id`** (se resolvió a ±300 m del
+pin viejo, así que apunta al negocio de la dirección vieja) — **salvo** status `manual` o
+`blocked`, que los fijó un humano. Cambiar solo `address`/`locality` **no** lo dispara. Y la
+marca **no vence**: que Overture traiga el mismo valor solo se **reporta** al final del import;
+soltarlo es una decisión humana desde `/admin` → Lugares.
+
 ### Contenido del dueño y planes (AUTH F3)
 - **Lo que edita el dueño NUNCA va a las columnas base de `places`**: el re-import de Overture
   las pisa. Va a `place_owner_content` (1-a-1, todo nullable) y la ficha resuelve
@@ -416,7 +432,9 @@ hace que un agente pueda mantener este código sin romperlo: si el vocabulario y
 en un único lugar, una sesión no puede divergir en silencio. Ya es así y hay que defenderlo:
 `lib/db/visibility.ts` (qué se publica), `lib/google/places.ts` (única puerta a Google),
 `lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/ai/settings.ts` (claves de
-runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/favoritos/planes.ts` (cuántas
+runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/negocio/correcciones.ts` (la **única**
+puerta que escribe `name`/`address`/`locality`/`lat`/`lng` de `places` — fuera de ella solo el
+upsert del import), `lib/favoritos/planes.ts` (cuántas
 listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
 `lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/negocio/horarios.ts`
 (`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature) y `lib/geo/amba.ts`

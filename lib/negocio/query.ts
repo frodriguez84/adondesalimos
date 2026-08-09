@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import {
+  placeDataEdits,
   placeImpressionsDaily,
   placeOwnerContent,
   placePhotos,
@@ -11,6 +12,7 @@ import {
   placeZones,
   places,
   tags,
+  users,
   zones,
 } from '@/lib/db/schema'
 import { isPlacePublished } from '@/lib/db/visibility'
@@ -19,7 +21,8 @@ import { FACET_LABELS, FACET_ORDER } from '@/lib/db/taxonomy'
 import { TAP_KINDS, type TapKind } from '@/lib/lugar/tap-kinds'
 import { capDeFotos } from './contenido'
 import { normalizarSemana, type HorariosSemana } from './horarios'
-import type { Facet, OwnerPlan } from '@/lib/db/schema'
+import type { CambioDeCampo } from './correcciones'
+import type { ClaimStatus, Facet, OwnerPlan, PlaceEditOrigin } from '@/lib/db/schema'
 
 /**
  * Lecturas del panel del dueño (AUTH F3).
@@ -108,6 +111,9 @@ export type PanelLugar = {
   name: string
   address: string | null
   locality: string | null
+  /** El pin actual: lo edita la sección «Dónde estás» (CORRECCION_DATOS). */
+  lat: number
+  lng: number
   zone: string | null
   publicado: boolean
   plan: OwnerPlan
@@ -128,6 +134,8 @@ export type PanelLugar = {
   fotos: FotoDelPanel[]
   capFotos: number
   facetas: FacetaDelPanel[]
+  /** Su propuesta de ubicación en revisión, o la última rechazada con su motivo. */
+  correccion: EstadoCorreccionDueno
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -147,6 +155,8 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
       name: places.name,
       address: places.address,
       locality: places.locality,
+      lat: places.lat,
+      lng: places.lng,
       phones: places.phones,
       websites: places.websites,
       socials: places.socials,
@@ -161,13 +171,14 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
 
   if (!place) return null
 
-  const [umbral, contenido, fotos, facetas, zonaPorLugar, visitas] = await Promise.all([
+  const [umbral, contenido, fotos, facetas, zonaPorLugar, visitas, correccion] = await Promise.all([
     getConfidenceThreshold(),
     getContenidoDueno(placeId),
     fotosDeLugar(placeId),
     facetasConElegidos(placeId),
     zonaPrimariaDeLugares([placeId]),
     visitasDelMes([placeId]),
+    estadoCorreccionDelDueno(placeId),
   ])
 
   return {
@@ -175,6 +186,8 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
     name: place.name,
     address: place.address,
     locality: place.locality,
+    lat: place.lat,
+    lng: place.lng,
     zone: zonaPorLugar.get(place.id) ?? null,
     publicado: isPlacePublished(
       {
@@ -203,6 +216,7 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
     fotos,
     capFotos: capDeFotos(place.ownerPlan),
     facetas,
+    correccion,
   }
 }
 
@@ -454,4 +468,186 @@ async function zonaPrimariaDeLugares(ids: string[]): Promise<Map<string, string>
 
   for (const f of filas) mapa.set(f.placeId, f.name)
   return mapa
+}
+
+// ---------------------------------------------------------------------------
+// Corrección de datos base — spec CORRECCION_DATOS
+// ---------------------------------------------------------------------------
+
+/**
+ * Las lecturas de las dos pantallas de CORRECCION_DATOS: el editor de `/admin` y
+ * el panel del dueño.
+ *
+ * `place_data_edits` se lee **para mostrar y para revisar, nunca para decidir un
+ * gate** (decisión 7): el estado vigente de un lugar sale siempre de `places`.
+ */
+
+/** Una fila de la bitácora, ya lista para pintar. */
+export type EdicionDeDatos = {
+  id: string
+  origen: PlaceEditOrigin
+  status: ClaimStatus
+  campos: Record<string, CambioDeCampo>
+  fuente: string
+  decidedBy: string | null
+  decidedAt: Date | null
+  adminNotes: string | null
+  createdAt: Date
+  /** Mail de quien la propuso (`null` cuando la hizo el admin). */
+  solicitante: string | null
+}
+
+const SELECT_EDICION = {
+  id: placeDataEdits.id,
+  origen: placeDataEdits.origen,
+  status: placeDataEdits.status,
+  campos: placeDataEdits.campos,
+  fuente: placeDataEdits.fuente,
+  decidedBy: placeDataEdits.decidedBy,
+  decidedAt: placeDataEdits.decidedAt,
+  adminNotes: placeDataEdits.adminNotes,
+  createdAt: placeDataEdits.createdAt,
+  solicitante: users.email,
+}
+
+/** El lugar completo para el editor de admin, con su bitácora. */
+export type LugarParaCorregir = {
+  id: string
+  name: string
+  address: string | null
+  locality: string | null
+  lat: number
+  lng: number
+  /** Los campos fijados a mano: llevan badge «Corregido a mano» y «Soltar». */
+  lockedFields: string[]
+  zona: string | null
+  publicado: boolean
+  /** Con match resuelto el editor pide «Google dice: …» al endpoint que ya existe. */
+  tieneMatchGoogle: boolean
+  pendiente: EdicionDeDatos | null
+  bitacora: EdicionDeDatos[]
+}
+
+export async function getLugarParaCorregir(placeId: string): Promise<LugarParaCorregir | null> {
+  if (!UUID_RE.test(placeId)) return null
+
+  const [place] = await db
+    .select({
+      id: places.id,
+      name: places.name,
+      address: places.address,
+      locality: places.locality,
+      lat: places.lat,
+      lng: places.lng,
+      lockedFields: places.lockedFields,
+      confidence: places.confidence,
+      operatingStatus: places.operatingStatus,
+      publishOverride: places.publishOverride,
+      googlePlaceId: places.googlePlaceId,
+    })
+    .from(places)
+    .where(eq(places.id, placeId))
+    .limit(1)
+
+  if (!place) return null
+
+  const [umbral, zonaPorLugar, bitacora] = await Promise.all([
+    getConfidenceThreshold(),
+    zonaPrimariaDeLugares([placeId]),
+    bitacoraDeLugar(placeId),
+  ])
+
+  return {
+    id: place.id,
+    name: place.name,
+    address: place.address,
+    locality: place.locality,
+    lat: place.lat,
+    lng: place.lng,
+    lockedFields: place.lockedFields,
+    zona: zonaPorLugar.get(place.id) ?? null,
+    publicado: isPlacePublished(
+      {
+        operatingStatus: place.operatingStatus,
+        confidence: place.confidence,
+        publishOverride: place.publishOverride,
+      },
+      umbral,
+    ),
+    tieneMatchGoogle: place.googlePlaceId !== null,
+    pendiente: bitacora.find((e) => e.status === 'pending') ?? null,
+    bitacora,
+  }
+}
+
+/** Toda la bitácora de un lugar, lo más nuevo primero (el índice está en ese orden). */
+export async function bitacoraDeLugar(placeId: string): Promise<EdicionDeDatos[]> {
+  if (!UUID_RE.test(placeId)) return []
+
+  return db
+    .select(SELECT_EDICION)
+    .from(placeDataEdits)
+    .leftJoin(users, eq(users.id, placeDataEdits.requestedBy))
+    .where(eq(placeDataEdits.placeId, placeId))
+    .orderBy(desc(placeDataEdits.createdAt))
+}
+
+/**
+ * Lo que el panel del dueño necesita mostrar: su propuesta en revisión, o la
+ * última que se rechazó con su motivo (decisión 14: el estado se ve donde el dueño
+ * ya está mirando, sin mail de por medio).
+ */
+export type EstadoCorreccionDueno = {
+  pendiente: EdicionDeDatos | null
+  ultimaRechazada: EdicionDeDatos | null
+}
+
+export async function estadoCorreccionDelDueno(placeId: string): Promise<EstadoCorreccionDueno> {
+  const bitacora = await bitacoraDeLugar(placeId)
+  // Ya viene lo más nuevo primero, así que el primero de cada estado es el último.
+  const delDueno = bitacora.filter((e) => e.origen === 'owner')
+  const rechazada = delDueno.find((e) => e.status === 'rejected') ?? null
+  const aprobada = delDueno.find((e) => e.status === 'approved') ?? null
+
+  // El «No lo tomamos» se muestra solo si es la última palabra: con una propuesta
+  // aprobada después, seguir mostrando un rechazo viejo diría lo contrario de lo
+  // que pasó.
+  const vigente = rechazada && (!aprobada || rechazada.createdAt > aprobada.createdAt)
+
+  return {
+    pendiente: delDueno.find((e) => e.status === 'pending') ?? null,
+    ultimaRechazada: vigente ? rechazada : null,
+  }
+}
+
+/** Una propuesta esperando en la cola de `/admin`, con el lugar que toca. */
+export type CorreccionEnCola = EdicionDeDatos & {
+  placeId: string
+  placeName: string
+  placeAddress: string | null
+  zona: string | null
+}
+
+/**
+ * Las correcciones pendientes para la tab «Cola de aprobación» (decisión 16):
+ * revisar una corrección es el mismo trabajo que revisar un reclamo, con el mismo
+ * criterio y la misma persona. Lee el índice parcial de pendientes.
+ */
+export async function correccionesPendientes(): Promise<CorreccionEnCola[]> {
+  const filas = await db
+    .select({
+      ...SELECT_EDICION,
+      placeId: placeDataEdits.placeId,
+      placeName: places.name,
+      placeAddress: places.address,
+    })
+    .from(placeDataEdits)
+    .innerJoin(places, eq(places.id, placeDataEdits.placeId))
+    .leftJoin(users, eq(users.id, placeDataEdits.requestedBy))
+    .where(eq(placeDataEdits.status, 'pending'))
+    .orderBy(desc(placeDataEdits.createdAt))
+
+  const zonaPorLugar = await zonaPrimariaDeLugares(filas.map((f) => f.placeId))
+
+  return filas.map((f) => ({ ...f, zona: zonaPorLugar.get(f.placeId) ?? null }))
 }

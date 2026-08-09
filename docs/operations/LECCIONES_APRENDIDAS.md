@@ -5,6 +5,57 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## El mensaje de un error de validación es copy, y los tests no lo leen (2026-08-09 · CORRECCION_DATOS)
+
+**Qué pasó.** Los endpoints nuevos devuelven al cliente el `message` del `Resultado<T>` de negocio,
+y ese texto se pinta tal cual en la pantalla. Dos caminos lo devolvían **en inglés**: un `PATCH` sin
+el campo `fuente` contestaba *"Invalid input: expected string, received undefined"* y un `POST` de
+dueño con `name` en el body contestaba el `unrecognized_keys` crudo de zod. El schema tenía mensajes
+propios en rioplatense para los mínimos y máximos —que son los que uno escribe pensando en el
+usuario— y ninguno para los dos errores que **zod genera solo**: `invalid_type` y `unrecognized_keys`.
+
+**Por qué no lo cazó nada.** Los 20 tests del módulo verifican `res.code === 'INVALID'`, que es lo
+correcto para una aserción estable: un test que compare el texto se rompe cada vez que se pule una
+palabra. Pero entonces **nadie mira el texto**, y typecheck/tests/build pasan enteros con la UI
+hablando en inglés. Apareció recién en el QA en vivo, leyendo la respuesta del endpoint forzado a
+mano — el mismo lugar donde apareció el bug del mapa la sesión anterior.
+
+**Qué hacer distinto.** Dos cosas, las dos baratas:
+
+1. **Si un endpoint devuelve `error.message` al usuario, ese string es copy** y le aplica la regla
+   del CLAUDE.md (rioplatense, nada de neutro y nada de inglés). Un schema de zod es una superficie
+   de copy disfrazada de validación: los mensajes que uno **no** escribe son los que salen mal.
+2. **Cubrir los códigos que zod genera solo, no solo los que uno declara.** En `mensajeDeZod`
+   (`lib/negocio/correcciones.ts`) se traducen `invalid_type` y `unrecognized_keys`; el resto ya
+   trae mensaje del schema. Es el mismo criterio que `erroresDeZod` en `components/negocio/campos.tsx`
+   ya usaba para el cliente — la diferencia es que el server no lo tenía.
+
+**Regla que queda:** en el QA en vivo de cualquier endpoint, **forzar al menos un payload inválido y
+leer el texto que vuelve**, no solo el status. El status lo cubren los tests; el texto no lo cubre
+nadie.
+
+---
+
+## Para verificar una dirección de CABA, Overpass sí y Nominatim no (2026-08-09 · CORRECCION_DATOS)
+
+**Qué pasó.** Corregir Matienzo necesitaba las coordenadas reales de Av. Juan B. Justo 2959.
+Nominatim (el geocoder de OSM) **devolvió Mar del Plata**: la búsqueda libre matcheó una calle
+homónima con esa altura, y la búsqueda estructurada acotada a CABA devolvió paradas de colectivo de
+la avenida, nunca la altura pedida. Con `viewbox&bounded=1` tampoco. La altura 2959 simplemente no
+existe como punto de dirección en el índice de Nominatim para CABA.
+
+**Lo que sí funcionó, en una consulta.** Overpass buscando **por nombre del lugar** dentro del bbox
+de AMBA devolvió el nodo `Club Cultural Matienzo · Avenida Juan Bautista Justo 2959 · nightclub` con
+sus coordenadas — y de yapa, el nodo viejo (`Centro Cultural Matienzo · Pringles 1249`), que
+confirma la mudanza en el mismo resultado.
+
+**Por qué importa más allá del caso.** Es el patrón para **verificar una mudanza puntual a mano**:
+no se geocodifica la dirección, se busca **el negocio por nombre** y se lee la dirección que OSM le
+tiene. Sale $0 y no agrega ninguna dependencia — es verificación humana antes de escribir la fuente
+en la bitácora, **no** algo que la app consuma. (Y no reemplaza la fuente oficial: acá el sitio del
+club ya decía la dirección; Overpass aportó el punto en el mapa.)
+
+
 ## Cambiar un alto fijo por `flex-1` puede dejar el hijo en 0 px, y ningún test lo ve (2026-08-08 · MAPA)
 
 **Qué pasó.** La decisión 9 de MAPA cambiaba el contenedor del mapa de `h-[70vh]` a `flex-1` para

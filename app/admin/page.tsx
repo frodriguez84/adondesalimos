@@ -10,9 +10,11 @@ import { contarUsuarios, getSuscripcionesAdmin, getUsuariosAdmin } from '@/lib/b
 import { contarInteresados, getInteresadosAdmin } from '@/lib/billing/interes'
 import { getCostosChat, getCupoChat, getSugerenciaPrecio, getUsoGoogle } from '@/lib/admin/costos'
 import { zonasConCola } from '@/lib/curation/query'
+import { correccionesPendientes } from '@/lib/negocio/query'
 import { ColaClient } from './cola-client'
 import { CostosAdmin, SugeridorPrecio } from './costos'
 import { CuraduriaClient } from './curaduria-client'
+import { LugaresClient } from './lugares-client'
 import { PreciosClient } from './precios-client'
 import { SuscripcionesAdmin } from './suscripciones'
 import { AdminTabs } from './tabs'
@@ -54,6 +56,7 @@ export default async function AdminPage() {
     zonasCuraduria,
     usuarios,
     totalUsuarios,
+    correcciones,
   ] = await Promise.all([
     claimsPorEstado('pending'),
     claimsPorEstado('approved'),
@@ -73,6 +76,9 @@ export default async function AdminPage() {
     // El total va aparte del listado, que está topeado (mismo criterio que la
     // lista de interesados).
     contarUsuarios(),
+    // Las correcciones propuestas por dueños van en la MISMA cola que los reclamos
+    // (CORRECCION_DATOS, decisión 16): es el mismo trabajo y la misma persona.
+    correccionesPendientes(),
   ])
 
   return (
@@ -88,7 +94,9 @@ export default async function AdminPage() {
       </header>
 
       <AdminTabs
-        cola={<ColaClient pendientes={pendientes} aprobados={aprobados} />}
+        cola={
+          <ColaClient pendientes={pendientes} aprobados={aprobados} correcciones={correcciones} />
+        }
         precios={<PreciosClient precios={precios} historial={historial} />}
         suscripciones={
           <SuscripcionesAdmin
@@ -110,6 +118,7 @@ export default async function AdminPage() {
         }
         curaduria={<CuraduriaClient zonasIniciales={zonasCuraduria} />}
         usuarios={<UsuariosClient usuariosIniciales={usuarios} total={totalUsuarios} />}
+        lugares={<LugaresClient />}
       />
     </main>
   )

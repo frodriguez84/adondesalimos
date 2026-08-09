@@ -75,6 +75,13 @@ export const claimKindEnum = pgEnum('claim_kind', ['claim', 'new'])
 export const claimStatusEnum = pgEnum('claim_status', ['pending', 'approved', 'rejected'])
 
 /**
+ * Quién originó una corrección de datos base (CORRECCION_DATOS, decisión 7). El
+ * **estado** no tiene enum propio: reusa `claimStatusEnum` — una propuesta de
+ * dueño y una edición de admin son el mismo evento en distinto estado.
+ */
+export const placeEditOriginEnum = pgEnum('place_edit_origin', ['admin', 'owner'])
+
+/**
  * Plan del lugar (AUTH, decisión 18). **Por lugar, no por usuario**: el destaque y
  * las stats del spec 7 son por ficha. Hasta ese spec se cambia a mano con un
  * UPDATE documentado — mismo criterio que el umbral de confidence antes de `/admin`.
@@ -192,6 +199,24 @@ export const places = pgTable(
      * volver a `free` **oculta** el contenido pago, no lo borra.
      */
     ownerPlan: ownerPlanEnum('owner_plan').notNull().default('free'),
+
+    /**
+     * Campos que un humano corrigió y **el re-import de Overture no puede pisar**
+     * (CORRECCION_DATOS, decisiones 2 y 5). Guarda nombres de columna del set
+     * corregible (`name`, `address`, `locality`, `lat`, `lng`): la marca es **por
+     * campo**, no por lugar — corregir la dirección no congela el nombre, así un
+     * lugar corregido no se vuelve un opt-out permanente del catálogo.
+     *
+     * `text[]` y no `jsonb` (divergencia declarada del CLAUDE.md): el consumidor es
+     * el `ON CONFLICT DO UPDATE` del import, que necesita un test de pertenencia
+     * barato (`= ANY(...)`) sobre 26.000 filas × 5 columnas en cada corrida.
+     *
+     * Único dueño de la escritura: `lib/negocio/correcciones.ts`.
+     */
+    lockedFields: text('locked_fields')
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
 
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -712,6 +737,61 @@ export const placeOwnerContent = pgTable('place_owner_content', {
 
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
+
+// ---------------------------------------------------------------------------
+// Corrección de datos base — spec CORRECCION_DATOS
+// ---------------------------------------------------------------------------
+
+/**
+ * Bitácora **y** cola de las correcciones de datos base (decisión 7). Una sola
+ * tabla porque una propuesta de dueño y una edición de admin son el mismo evento
+ * en distinto estado: la del admin nace `approved` con `decided_by` puesto, la del
+ * dueño nace `pending`.
+ *
+ * **NO es fuente de verdad del estado**: el valor vigente se lee siempre de
+ * `places`. Esta tabla se escribe y se lee para mostrar y para revisar, **nunca
+ * para decidir un gate** — mismo criterio que `plan_grants`.
+ *
+ * Guarda el **antes** de cada campo porque sin eso una corrección equivocada no se
+ * puede deshacer leyendo nada.
+ */
+export const placeDataEdits = pgTable(
+  'place_data_edits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    /** `null` = admin actuando sin fila de usuario asociada. */
+    requestedBy: uuid('requested_by').references(() => users.id, { onDelete: 'set null' }),
+    origen: placeEditOriginEnum('origen').notNull(),
+    status: claimStatusEnum('status').notNull().default('pending'),
+    /**
+     * `{ campo: { antes, despues } }` de los campos tocados. `soltado: true` marca
+     * la fila de un «Soltar» (decisión 10), donde el valor no cambió.
+     */
+    campos: jsonb('campos')
+      .$type<Record<string, { antes: unknown; despues: unknown; soltado?: boolean }>>()
+      .notNull(),
+    /** Obligatorio y validado en la función (decisión 13): es lo que hace útil la bitácora. */
+    fuente: text('fuente').notNull(),
+    /** Email del admin que decidió (no hay tabla de roles que referenciar). */
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at'),
+    /** Motivo del rechazo / notas internas. */
+    adminNotes: text('admin_notes'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // La bitácora se lee siempre por lugar, lo más nuevo primero.
+    index('place_data_edits_place_idx').on(t.placeId, t.createdAt.desc()),
+    // Una sola propuesta pendiente por lugar (decisión 17). Parcial, mismo patrón
+    // que `place_claims_aprobado_idx`: aprobadas y rechazadas se repiten libremente.
+    uniqueIndex('place_data_edits_pendiente_idx')
+      .on(t.placeId)
+      .where(sql`${t.status} = 'pending'`),
+  ],
+)
 
 // ---------------------------------------------------------------------------
 // Votación en grupo — spec VOTACION
@@ -1256,6 +1336,9 @@ export type ClaimKind = (typeof claimKindEnum.enumValues)[number]
 export type ClaimStatus = (typeof claimStatusEnum.enumValues)[number]
 export type PlaceOwnerContent = typeof placeOwnerContent.$inferSelect
 export type NewPlaceOwnerContent = typeof placeOwnerContent.$inferInsert
+export type PlaceDataEdit = typeof placeDataEdits.$inferSelect
+export type NewPlaceDataEdit = typeof placeDataEdits.$inferInsert
+export type PlaceEditOrigin = (typeof placeEditOriginEnum.enumValues)[number]
 export type OwnerPlan = (typeof ownerPlanEnum.enumValues)[number]
 export type UserPlan = (typeof userPlanEnum.enumValues)[number]
 export type Poll = typeof polls.$inferSelect

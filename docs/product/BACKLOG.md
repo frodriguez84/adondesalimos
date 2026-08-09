@@ -348,11 +348,11 @@ son trabajo acotado con criterio de "listo" objetivo.
       `FB-11`, Play Protect bloqueando la instalación de la PWA. Está abajo en § *Feedback
       posterior* — **no es de los 10** y no altera el conteo del lote original.
 
-- [ ] **6 · Corregir datos base de un lugar cuando Overture quedó viejo** → spec:
-      [`docs/specs/planned/CORRECCION_DATOS.md`](../specs/planned/CORRECCION_DATOS.md) —
-      **escrito ✅ 2026-08-09** (sesión de autoría con Opus, sin código). Hallazgo del
+- [x] **6 · Corregir datos base de un lugar cuando Overture quedó viejo** ✅ **CERRADO 2026-08-09** → spec:
+      [`docs/specs/done/CORRECCION_DATOS.md`](../specs/done/CORRECCION_DATOS.md) · [Resumen](../archive/SPECS_ARCHIVO.md#correccion_datos) —
+      **escrito e implementado el mismo día** (autoría con Opus + implementación en una sesión). Hallazgo del
       2026-08-08. Fer buscó «Matienzo» y la ficha
-      (`7dbf6b2c-4b2a-4605-a425-df3ca24ce520`) muestra **la sede vieja**: la base guarda
+      (`7dbf6b2c-4b2a-4605-a425-df3ca24ce520`) mostraba **la sede vieja**: la base guardaba
       `address: 'Pringles 1249'` con `lat/lng: -34.5973, -58.4263` (`source: overture`,
       `confidence: 0.77`), y el sitio oficial del club dice **Av. Juan B. Justo 2959**
       (verificado el mismo día contra `ccmatienzo.com.ar`). El lugar **se mudó** y la foto de
@@ -414,7 +414,15 @@ son trabajo acotado con criterio de "listo" objetivo.
       otro negocio**. Corregir el pin sin invalidar el match dejaría el problema peor. El spec lo
       resuelve en su decisión 9 (reset a `pending`, salvo `manual`), y el re-match sale **$0**
       porque es Text Search IDs-Only.
-      **Tamaño estimado:** una sesión, del orden de `ADMIN_USUARIOS`.
+      ✅ **Cerrado el 2026-08-09, y el hallazgo del párrafo de arriba se confirmó ejecutándolo:**
+      antes de corregir, «Google dice» devolvía **`Pringles 1210`** —ni siquiera nuestro 1249, sino
+      otro número de la misma cuadra— y al mover el pin el `google_place_id` **cambió**
+      (`ChIJyVx_WKjLvJUR…` → `ChIJU7cbTnrKvJUR…`), o sea que la ficha **venía mostrando datos de otro
+      local**. Matienzo quedó en `Av. Juan B. Justo 2959` / `-34,597471, -58,448610`, con
+      `locked_fields = {address,lat,lng}`, zonas recalculadas (`zones:assign` después no cambia ni
+      una fila) y el match re-resuelto contra el negocio real. La dirección se verificó con Overpass
+      (OSM tiene el nodo del club en la sede nueva). **Estimación acertada:** una sesión, como
+      `ADMIN_USUARIOS`.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -1713,6 +1721,38 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **Ítem 6 de la cola post-v2 — `CORRECCION_DATOS`, escrito e implementado el mismo día**
+      (2026-08-09, sesión Opus): ahora un dato base mal **se puede arreglar**, la corrección
+      **sobrevive al re-import** y queda registrado quién la hizo y con qué fuente. Resumen en
+      [`SPECS_ARCHIVO § correccion_datos`](../archive/SPECS_ARCHIVO.md#correccion_datos) · QA en
+      `docs/qa/AnalisisQA.md` § *QA /qa-spec — CORRECCION_DATOS*: **APROBADO** (los 26 casos
+      `CORR-01..26` + 16 criterios de DoD por 3 checkers independientes), typecheck · **687/687**
+      tests · build en verde. **Qué quedó construido:** `places.locked_fields` (`text[]`) y la tabla
+      `place_data_edits` (bitácora **y** cola, con índice único parcial de una pendiente por lugar) ·
+      `lib/negocio/correcciones.ts` como **dueño único**, que en **una transacción** escribe los
+      valores, **une** la marca, deja bitácora, re-asigna `place_zones` desde el pin nuevo e invalida
+      el match con Google · el `set` del upsert extraído a `scripts/overture/upsert.ts` con
+      `CASE … = ANY(places.locked_fields)`, testeable contra la base **sin S3** · 7ª tab **«Lugares»**
+      en `/admin` (buscador que reusa `buscarLugaresPorNombre` sin moverlo, editor con el `pin-picker`
+      del alta, bitácora, «Soltar» por campo) · las propuestas de dueño en la **misma cola** que los
+      reclamos · sección «Dónde estás» en `/mi-negocio/[placeId]` · `formattedAddress` en el field
+      mask, **US$0 marginal**.
+      **Tres cosas que valen más que el feature:**
+      1. **La ficha de Matienzo venía mostrando datos de otro local, y se comprobó ejecutándolo.**
+         El spec lo había *deducido* leyendo la base; el QA en vivo lo mostró: antes de corregir,
+         «Google dice» devolvía `Pringles 1210` —ni siquiera nuestro 1249— porque el match se
+         resuelve a **±300 m del pin propio**, y al mover el pin el `google_place_id` **cambió**. Por
+         eso la decisión 9 (invalidar el match al mover el pin) no era una precaución: era el bug.
+      2. **Dos textos de cara al usuario salían en inglés con los tests en verde.** Un `PATCH` sin
+         `fuente` devolvía el `"Invalid input: expected string…"` crudo de zod. Los tests pasaban
+         porque verifican el **código** de error, no el mensaje — el QA en vivo es el que lee el
+         texto. Vale como patrón: si un endpoint devuelve `error.message` al usuario, ese mensaje es
+         copy y tiene que estar en la regla del rioplatense.
+      3. **`asignarZonasDeLugar` esperaba desde AUTH.** Su docstring decía que servía para *"el alta
+         **o edición** de un lugar"* y la edición nunca había existido; ya aceptaba `tx`. Cero código
+         de geometría nuevo. Buscar antes de escribir pagó exactamente lo que la regla del CLAUDE.md
+         promete.
 
 - [x] **Tanda D del feedback — `MAPA`, escrito ayer e implementado hoy; con esto el feedback de los
       primeros usuarios queda cubierto entero** (2026-08-08, sesión Opus): `FB-04` (verte en el mapa)

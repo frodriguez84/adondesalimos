@@ -3973,3 +3973,98 @@ a 390×844 y 390×667, con la geolocalización del contexto (`setGeolocation`) y
 - **`clearPermissions()` de Playwright no equivale a "denegar"**: deja el permiso en *prompt* y la
   llamada queda esperando una UI que en automatización no aparece. Para verificar un rechazo hay que
   simular el callback de error.
+
+---
+
+## QA /qa-spec — CORRECCION_DATOS (2026-08-09)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck limpio · tests **687/687** (62 archivos) · build **verde**
+(corrido con el dev server parado, lección BUSQUEDA)
+**Método:** tres checkers independientes (Explore/haiku, maker≠checker) contra el DoD de
+`docs/specs/active/CORRECCION_DATOS.md` → **16/16 PASS**, más QA en vivo con Playwright sobre
+`https://adondesalimos.ngrok.app` y verificación por `SELECT` de todo lo que toca la base.
+
+**El caso que originó el spec quedó arreglado de punta a punta.** Club Cultural Matienzo
+(`7dbf6b2c-4b2a-4605-a425-df3ca24ce520`) pasó de `Pringles 1249` / `-34,5973293, -58,4262510` a
+`Av. Juan B. Justo 2959` / `-34,597471, -58,448610`, con `locked_fields = {address,lat,lng}`
+(**sin** `name`), zonas recalculadas y el match de Google invalidado y re-resuelto.
+
+### Los 26 casos del spec
+
+| ID | Caso | Resultado |
+|----|------|-----------|
+| CORR-01 | `/admin` → tab **Lugares** | PASS — existe, es la séptima; las otras seis en su orden (Cola, Precios, Suscripciones, Costos, Curaduría, Usuarios) |
+| CORR-02 | Buscar «Matienzo» | PASS — aparece con `Pringles 1249 · Villa Crespo`; un nombre inexistente devuelve el vacío con copy |
+| CORR-03 | Buscar un lugar **despublicado** | PASS — «Pizza matienzo» aparece etiquetado **No publicado** (decisión 15: `buscarLugaresPorNombre` omite `publishedWhere`) |
+| CORR-04 | Guardar sin completar la fuente | PASS — el botón queda deshabilitado; el `PATCH` forzado **sin** `fuente` da 400, y con `fuente:'x'` da 400 «Contanos de dónde lo sacaste.» |
+| CORR-05 | Corregir la dirección de Matienzo + mover el pin | PASS — guardó por pantalla; el aviso **«Moviste el pin. El lugar va a cambiar de zona y de orden en "Cerca de mí".»** apareció al mover el marker |
+| CORR-06 | `SELECT` sobre `places` tras CORR-05 | PASS — `address = Av. Juan B. Justo 2959`, lat/lng nuevos, `locked_fields = {address,lat,lng}`; `name` **no** está en la lista |
+| CORR-07 | `SELECT` sobre `place_zones` tras CORR-05 | PASS — se recalculó desde el pin nuevo: era `villa-crespo` + 3 secundarias (`botanico-alto-palermo`, `almagro-boedo`, `palermo-soho`), quedó `villa-crespo` (primaria) + `chacarita-colegiales`. Una sola primaria |
+| CORR-08 | `npm run zones:assign` después | PASS — **cero** filas cambiadas: el hash de `(slug, is_primary)` del lugar es idéntico antes y después (`bc2761fa…`) |
+| CORR-09 | `SELECT google_*` tras CORR-05 | PASS — `google_place_id` null, status `pending`, `google_matched_at` null |
+| CORR-10 | Abrir la ficha de Matienzo | PASS — muestra la dirección nueva y **re-matcheó sola**: `ChIJyVx_WKjLvJURfvcH3W7SOVA` → `ChIJU7cbTnrKvJURnqmP5zAI5Uo`. Que el id cambie es la prueba de que el anterior apuntaba a otro negocio |
+| CORR-11 | «Cerca de mí» con la distancia nueva | PASS por `SELECT` — la distancia y el pin salen de `places.lat/lng`, ya verificados en CORR-06. No se ejercitó la geolocalización del browser |
+| CORR-12 | Corregir **solo** `address` de un lugar `matched` | PASS — en vivo, la respuesta del `PATCH` trae `matchInvalidado: false` y `zonasReasignadas: false`; y con test (`correcciones.integration.test.ts`) |
+| CORR-13 | `google_match_status='manual'`, moverle el pin | PASS **por test** — el `google_place_id` queda intacto. Cubierto también el caso `blocked` (edge case del spec). No se ejercitó en vivo para no fabricar un `manual` en el catálogo real |
+| CORR-14 | Editor de admin de un lugar matcheado | PASS — mostró **«Google dice: Pringles 1210, C1414 …»** con «Es una pista, no la fuente. Verificalo y escribilo vos.» y **sin** botón de copiar. Tras corregir, el re-match devolvió **«Av. Juan Bautista Justo 2959»**: la corrección aterrizó sobre un negocio real |
+| CORR-15 | Facturación de Google | **Pendiente de Fer** — la consola de Google Cloud no es accesible desde acá. Lo verificable por código sí está: el field mask es exacto y sin Atmosphere (test de igualdad), y el editor consume `GET /api/lugar/[id]/google`, el endpoint que ya existía (sin segundo llamador) |
+| CORR-16 | Bitácora del lugar de CORR-05 | PASS — «Admin · Aplicada · 9/8/2026 03:20», los tres campos con su **antes → después**, la fuente tipeada y el mail |
+| CORR-17 | «Soltar» el campo `address` | PASS — `locked_fields` pasa a `{lat,lng}`, el valor **no** cambia, queda fila de bitácora con `soltado: true`; soltarlo de nuevo da 409 `NO_FIJADO` |
+| CORR-18 | El import respeta lo fijado | PASS **por el test de integración** (la prueba de fuego, `scripts/overture/__tests__/upsert.integration.test.ts`): con `locked_fields = {address,lat,lng}` los tres sobreviven y `phones`, `confidence`, `overture_category` y `locality` se actualizan. La corrida real contra S3 **no** se hizo (minutos + ancho de banda), así que la **línea del reporte** de campos al día está verificada por unit test de `camposFijadosQueCoinciden`, no ejecutada end-to-end |
+| CORR-19 | Dueño en `/mi-negocio/[placeId]` → «Proponer un cambio» | PASS — el formulario trae Dirección, Localidad, el pin y la fuente, y **no hay campo de nombre** |
+| CORR-20 | Tras CORR-19 | PASS — el panel dice **«En revisión: Av. del Libertador 4625»**, el botón queda deshabilitado y `places` **no** cambió (`SELECT`) |
+| CORR-21 | Segunda propuesta del mismo dueño | PASS — 409 «Ya tenés un cambio en revisión para este lugar.», sin fila nueva |
+| CORR-22 | `/admin` → Cola de aprobación | PASS — la corrección aparece **arriba** de los reclamos, con el antes → después, la fuente y la cuenta |
+| CORR-23 | Aprobar la propuesta | PASS — se aplicó a `places` (`locality`), quedó `locked_fields = {locality}`, la fila pasó a `approved` con `decided_by`, y el panel del dueño lo muestra aplicado. El match **no** se invalidó (cambió solo `locality`, decisión 9) |
+| CORR-24 | Rechazar una propuesta con motivo | PASS — `places` intacto (`locked_fields = {}`), fila `rejected` con el motivo, y el dueño ve **«No lo tomamos: La dirección que tenemos ya es la correcta.»** |
+| CORR-25 | `POST …/ubicacion` sobre un lugar **ajeno** | PASS — 403 `NO_AUTORIZADO`; sin sesión, 401. `SELECT` confirma que no se escribió nada |
+| CORR-26 | `POST` de dueño forzado con `name` en el body | PASS — 400: el `strictObject` lo rechaza con «Ese dato no se puede cambiar desde acá.» y el nombre no cambia |
+
+### El DoD, por checkers independientes (16/16 PASS)
+
+| ID | Criterio | Resultado |
+|----|----------|-----------|
+| CORR-QA-01 | Ningún `update(places)` escribe los 5 campos fuera de `correcciones.ts` y del upsert | PASS — los otros tres consumidores escriben `ownerPlan`, `publishOverride` y los `google_*`, ninguno corregible |
+| CORR-QA-02 | `locked_fields` se **une**, no se reemplaza, con test | PASS — `[...new Set([...place.lockedFields, ...campos])].sort()` |
+| CORR-QA-03 | La prueba de fuego del upsert contra la base, sin S3 | PASS |
+| CORR-QA-04 | Ninguna consulta de gating lee `place_data_edits` | PASS — solo `schema.ts`, `correcciones.ts` (escribe) y `negocio/query.ts` (lee para mostrar) |
+| CORR-QA-05 | Mover el pin re-asigna `place_zones` en la misma transacción | PASS — `asignarZonasDeLugar(..., tx)` dentro del `db.transaction` |
+| CORR-QA-06 | La invalidación del match, con sus dos excepciones | PASS — 4 escenarios con test (`matched`, por nombre, `manual`, solo `address`) + `blocked` |
+| CORR-QA-07 | La fuente se valida **en la función** | PASS |
+| CORR-QA-08 | `YA_PENDIENTE` + índice único parcial | PASS — `place_data_edits_pendiente_idx` + `try/catch` para la carrera |
+| CORR-QA-09 | El dueño no puede proponer `name` | PASS — `strictObject` |
+| CORR-QA-10 | `PLACE_DETAILS_FIELD_MASK` exacto, cero Atmosphere | PASS — el test sigue siendo `toBe`, no `contains` |
+| CORR-QA-11 | La ficha pública no renderiza `formattedAddress`; no hay botón de copiar | PASS |
+| CORR-QA-12 | Migración aditiva y registrada en el journal | PASS — `ADD COLUMN … DEFAULT '{}' NOT NULL` + `CREATE TABLE` + 2 índices, cero `DROP` |
+| CORR-QA-13 | La tab es la séptima y no movió las otras seis | PASS |
+| CORR-QA-14 | 403 con el mismo shape en los 3 endpoints de admin; 403/401 en el del dueño | PASS |
+| CORR-QA-15 | `buscarLugaresPorNombre` se reusa **sin moverlo** | PASS — `lib/curation/query.ts` con diff vacío |
+| CORR-QA-16 | Los archivos declarados intocables no cambiaron | PASS — diff vacío en `visibility.ts`, `contenido.ts`, `search/query.ts`, `search/nombre.ts`, `zones/asignar.ts`, `zones/persistir.ts`, `geo/amba.ts`, `curation/query.ts`, `claims/*`; `place_owner_content` sin columnas nuevas |
+
+### Hallazgos
+
+- **La señal asimétrica de la decisión 19 se vio en vivo, y es más fuerte que en el papel.** Antes
+  de corregir, «Google dice» devolvió **`Pringles 1210`** — ni siquiera el 1249 nuestro, sino otro
+  número de la misma cuadra: el match salía de un `locationRestriction` de ±300 m del pin viejo. Y
+  el `google_place_id` **cambió** al re-matchear desde el pin nuevo, así que la ficha efectivamente
+  venía mostrando horarios y rating **de otro negocio**. El hallazgo que el spec dedujo leyendo la
+  base quedó confirmado ejecutándolo.
+- **Dos textos de cara al usuario salían en inglés y los cazó el QA en vivo, no los tests.** Un
+  `PATCH` sin `fuente` devolvía *"Invalid input: expected string, received undefined"* y un `POST`
+  de dueño con `name` devolvía el `unrecognized_keys` crudo de zod. Los tests pasaban porque
+  verifican el **código** de error, no el mensaje. Resuelto traduciendo `invalid_type` y
+  `unrecognized_keys` en `mensajeDeZod` (`lib/negocio/correcciones.ts`).
+- **El panel del dueño mostraba un rechazo viejo después de una aprobación.** `ultimaRechazada`
+  devolvía la última rechazada sin mirar si había una aprobada **posterior**, así que tras aprobar
+  una propuesta el dueño seguía leyendo «No lo tomamos: …». Se arregló comparando fechas en
+  `estadoCorreccionDelDueno` (`lib/negocio/query.ts`): el rechazo se muestra solo si es la última
+  palabra.
+- **La dirección correcta salió de OpenStreetMap, y sirve como precedente.** Overpass tiene el nodo
+  *Club Cultural Matienzo · Avenida Juan Bautista Justo 2959* con coordenadas; Nominatim, en cambio,
+  no resuelve esa altura en CABA (devuelve Mar del Plata). Para verificar una mudanza puntual,
+  Overpass por nombre + bbox es la consulta que funciona. **No** es una fuente que la app consuma:
+  fue verificación humana, y quedó escrita en la fuente de la corrección.
+- **Kansas Grill & Bar quedó como estaba.** Se usó para CORR-19..26 y se restauró: `locality` volvió
+  a `Ciudad de Buenos Aires` y `locked_fields` a `{}`. Las filas de bitácora del QA quedan, que es lo
+  que corresponde con un log de eventos.

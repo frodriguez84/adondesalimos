@@ -993,3 +993,54 @@ que un "centrarme" quedaba **pisado por el próximo re-fetch**.
   y hoy el shell pide las coordenadas **una sola vez** (`pedirUbicacion` corre solo si `coords` es
   null), así que ese re-fetch no se puede provocar desde la UI. La rama contraria de la guarda —que
   un cambio de búsqueda **sí** re-encuadra— está confirmada dos veces.
+
+## CORRECCION_DATOS — corregir los datos base cuando Overture quedó viejo {#correccion_datos}
+
+**Spec:** [`docs/specs/done/CORRECCION_DATOS.md`](../specs/done/CORRECCION_DATOS.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — CORRECCION_DATOS](../qa/AnalisisQA.md) · ✅ 2026-08-09
+
+**Qué hace:** hasta acá **no existía forma de arreglar un dato base mal**, ni para el admin ni
+para el dueño con reclamo aprobado — `place_owner_content` cubre contacto y contenido, y no
+tiene `address`, `lat`, `lng` ni `name`; y un `UPDATE` a mano lo pisaba el próximo re-import.
+El caso: Club Cultural Matienzo se mudó y el catálogo tenía la sede vieja, o sea el **pin
+equivocado**, que mueve al lugar en la búsqueda de todos (zona por geometría, orden por
+distancia, pin del mapa). Ahora el dato se corrige, la corrección **sobrevive al re-import** y
+queda registrado quién la hizo y con qué fuente.
+
+**Alcance:**
+
+- **La marca es por campo, no por lugar** (`places.locked_fields`, `text[]`): el re-import pisa
+  cada una de las cinco columnas corregibles (`name`, `address`, `locality`, `lat`, `lng`)
+  **salvo** donde un humano dijo lo contrario. Por campo y no por lugar a propósito — un flag
+  por lugar convertiría cada corrección en un opt-out permanente del catálogo, y el lugar más
+  tocado sería el más desactualizado.
+- **Un solo módulo escribe una corrección**: `lib/negocio/correcciones.ts`, que hace **cinco
+  cosas en UNA transacción** — valores en `places` · `locked_fields` **unidos, nunca
+  reemplazados** · fila de bitácora · re-asignar `place_zones` desde el pin nuevo (reusando
+  `asignarZonasDeLugar`, que aceptaba `tx` desde AUTH y nunca se había usado para una edición) ·
+  invalidar el match con Google.
+- **El import cambia en un solo lugar**: el `set` del `onConflictDoUpdate` se extrajo a
+  `scripts/overture/upsert.ts` con un `CASE … = ANY(places.locked_fields)` en las cinco
+  columnas, para poder testear la regla contra la base **sin salir a S3**. Al final, el reporte
+  lista los campos fijados que Overture ya trae iguales — **se informa, no se libera solo**.
+- **Dos superficies con reglas distintas**: el admin edita directo desde una **7ª tab
+  «Lugares»** (buscador que reusa `buscarLugaresPorNombre` sin moverlo, editor con el
+  `pin-picker` del alta, bitácora y «Soltar» por campo); el dueño **propone** desde
+  `/mi-negocio/[placeId]` y su propuesta entra a la **misma cola de aprobación** que los
+  reclamos. El pin mueve al lugar en la búsqueda de todos, y correr el pin a una zona de más
+  tráfico es el incentivo clásico de spam en un directorio.
+- **El `name` es solo de admin** y una sola propuesta pendiente por lugar (índice único
+  parcial). La **fuente es obligatoria** en las dos superficies y se valida en la función, no
+  solo en la UI: *"quién"* con un solo admin vale poco, *"con qué lo verificó"* vale mucho.
+- **`formattedAddress` entró al field mask de Place Details** con costo marginal **US$0**
+  verificado contra la doc (la request ya se factura a Enterprise, y sumar un campo Essentials
+  no mueve el tier). Lo consume **solo** el editor de admin, vía el endpoint que ya existía. La
+  ficha pública no lo renderiza y **no hay botón que lo copie a `places.address`**: eso sería
+  persistir contenido de Google.
+
+**Lo que el QA en vivo confirmó y el spec solo había deducido:** el `google_place_id` de
+Matienzo **apuntaba a otro negocio**. Antes de corregir, Google contestaba `Pringles 1210` —ni
+siquiera nuestro 1249, sino otro número de la misma cuadra—, porque el match se resuelve a
+±300 m del pin propio; al corregir el pin, el id cambió y la dirección de Google pasó a ser
+`Av. Juan Bautista Justo 2959`. La ficha venía mostrando horarios y rating de un local que no
+era.

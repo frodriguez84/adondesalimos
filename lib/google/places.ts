@@ -51,9 +51,17 @@ export const TEXT_SEARCH_FIELD_MASK = 'places.id'
  * `reviews`, `editorialSummary` ni atributos de ambiente — eso es Enterprise +
  * Atmosphere ($25/1.000) y el ambiente es tag propio (decisión 12). Un test falla
  * si aparece cualquiera de esos.
+ *
+ * `formattedAddress` (CORRECCION_DATOS, decisión 18) es **Essentials** y su costo
+ * marginal es **US$0**: la doc de Google dice que una request con campos de varios
+ * tiers *"se factura al SKU más alto"*, y este mask ya mezcla tres (photos =
+ * Essentials · googleMapsUri = Pro · horarios/rating/priceLevel = Enterprise). Se
+ * factura una sola vez a Enterprise, así que sumar un Essentials no mueve el tier.
+ * Lo consume **solo el editor de admin**, como pista para corregir la dirección:
+ * la ficha pública no lo renderiza y **no se persiste** (decisión 19).
  */
 export const PLACE_DETAILS_FIELD_MASK =
-  'id,regularOpeningHours,currentOpeningHours,rating,userRatingCount,priceLevel,googleMapsUri,photos'
+  'id,formattedAddress,regularOpeningHours,currentOpeningHours,rating,userRatingCount,priceLevel,googleMapsUri,photos'
 
 // ---------------------------------------------------------------------------
 // Builders puros (testeables sin red)
@@ -123,6 +131,7 @@ type RawOpeningHours = { openNow?: unknown; weekdayDescriptions?: unknown }
 type RawAuthorAttribution = { displayName?: unknown; uri?: unknown }
 type RawPhoto = { name?: unknown; authorAttributions?: unknown }
 type RawPlaceDetails = {
+  formattedAddress?: unknown
   regularOpeningHours?: RawOpeningHours
   currentOpeningHours?: RawOpeningHours
   rating?: unknown
@@ -180,6 +189,9 @@ export function parseDetails(raw: RawPlaceDetails): GoogleEnriquecimiento {
 
   return {
     horarios,
+    // La dirección que Google tiene: **pista, no fuente** (decisión 19). No se
+    // persiste ni se muestra en la ficha pública.
+    formattedAddress: typeof raw.formattedAddress === 'string' ? raw.formattedAddress : null,
     rating: typeof raw.rating === 'number' ? raw.rating : null,
     userRatingCount: typeof raw.userRatingCount === 'number' ? raw.userRatingCount : null,
     priceLevel: mapPriceLevel(raw.priceLevel),

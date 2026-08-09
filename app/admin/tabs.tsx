@@ -15,7 +15,9 @@ import { cn } from '@/lib/utils'
  * Curaduría (CURADURIA, decisión 9) es la quinta, y Usuarios (ADMIN_USUARIOS,
  * decisión 13) la sexta: dar una cortesía es la acción más rara de todo `/admin`, y
  * mover de lugar una tab existente le rompería la memoria muscular a la única
- * persona que usa esta pantalla a cambio de nada.
+ * persona que usa esta pantalla a cambio de nada. Lugares (CORRECCION_DATOS,
+ * decisión 16) entra séptima y última por el mismo criterio: corregir un dato base
+ * es más raro todavía que dar una cortesía.
  */
 
 const TABS = [
@@ -25,6 +27,7 @@ const TABS = [
   { key: 'costos', label: 'Costos' },
   { key: 'curaduria', label: 'Curaduría' },
   { key: 'usuarios', label: 'Usuarios' },
+  { key: 'lugares', label: 'Lugares' },
 ] as const
 
 type TabKey = (typeof TABS)[number]['key']
@@ -36,6 +39,7 @@ export function AdminTabs({
   costos,
   curaduria,
   usuarios,
+  lugares,
 }: Record<TabKey, React.ReactNode>) {
   const [activa, setActiva] = useState<TabKey>('cola')
   const contenido: Record<TabKey, React.ReactNode> = {
@@ -45,6 +49,7 @@ export function AdminTabs({
     costos,
     curaduria,
     usuarios,
+    lugares,
   }
 
   return (
