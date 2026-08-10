@@ -446,23 +446,31 @@ son trabajo acotado con criterio de "listo" objetivo.
       § *Deuda técnica señalada, no tocada*. Se hizo además la **auditoría completa de drift**
       (conteo de las 37 tablas + `app_settings` clave por clave): todo lo de catálogo y config
       coincide; las 22 tablas que difieren son transaccionales y deben diferir.
-- [ ] **7 · Completar la lista de `search.cadenas` — es un `UPDATE`, no un deploy** (salió al
-      implementar `ORDEN_ORGANICO` el 2026-08-10). La lista inicial son **22 nombres**, pero
-      `npm run cadenas:proponer` —el detector a ≥ 8 locales de la decisión 15— encuentra **49
-      nombres / 1.562 lugares**. Los 19 del anexo del spec eran un recorte que ya había pasado por
-      ojo humano; el detector crudo nunca dio 19 (y 1.562 es lo que cierra con los 1.513 de la
-      banda «cadena» del propio anexo). **Cadenas reales que hoy NO están en la lista y sí se ven
-      en la app:** `tea connection` · `green eat` · `el noble` · `sushiclub` · `wendy's` ·
-      `mccafe` · `la continental` · `la farola express` — esta última salió **14ª en *Quilmes ·
-      Cenar afuera***. **A mirar con criterio antes de sumarlas** (el detector las ve, pero pueden
-      ser homónimos y no una cadena): `lo de carlitos` · `la fabrica` · `mi gusto` · `romario` ·
-      `sensu` · `betos` · `delicity` · `pizza lo+hot`.
-      **Por qué no lo decidí yo:** la decisión 5 del spec dice explícitamente que quién es cadena
-      **necesita criterio humano** (Havanna y Café Martínez son cadenas para el detector y opciones
-      reales en el conurbano), y la decisión 14 que la máquina propone y el humano acepta. **Costo:**
-      correr el script, editar la lista propuesta y pegar el `UPDATE`. Sin deploy, reversible, y el
-      efecto se ve al recargar. **Se re-corre después de cada import de Overture**, que es cuando
-      pueden aparecer nombres nuevos por encima del umbral.
+- [x] **7 · Lista de `search.cadenas` completada: 22 → 43** ✅ **2026-08-10**. Se corrió
+      `npm run cadenas:proponer` y, antes de decidir a ojo, **se midió**: los 28 candidatos
+      **comparten cada uno un dominio web propio y dominante** (`lo de carlitos` 19/19 en
+      `lodecarlitos.com`, `rincon norteno` 10/10, `la fabrica` 12/14). O sea que **no había
+      homónimos**: la sospecha era mía y el dato la descartó, y la pregunta dejó de ser "¿es
+      cadena?" para ser "¿la despriorizo?" — que es la decisión 5 del spec.
+      **Fer aceptó 21** (grupos A y B): las 16 de fast food genérico (`mccafe`, `la continental`,
+      `la farola express`, `taco box`, `sushiclub`, `betos`, `el noble`, `deniro`, `green eat`,
+      `dean & dennys`, `wendy's`, `sensu`, `delicity`, `romario`, `pizza lo+hot`, `tomasso pizzas`)
+      y las 5 cafeterías de cadena (`tienda de cafe`, `tea connection`, `le ble`, `nucha`,
+      `croque madame`) — estas porque **sus pares ya estaban** (The Coffee Store, Le Pain Quotidien,
+      Brioche Dorée): dejarlas afuera les daba mejor trato por accidente de cuándo se armó la lista.
+      **Quedan 7 afuera, ahora declaradas en código** (`EXCLUIDAS_A_PROPOSITO` en
+      `lib/search/cadenas.ts`, para que la próxima corrida no las re-proponga como novedad y alguien
+      las sume sin saber que ya se decidió): `tostado cafe club` y `cervelar` porque **la decisión 15
+      del spec las nombra** entre las cadenas chicas que sí son un buen plan; `cinemark hoyts
+      argentina` porque son **cines** y no gastronomía; y `lo de carlitos`, `mi gusto`, `la fabrica`
+      y `rincon norteno` porque **no está claro que sean fast food genérico** y nadie tenía criterio
+      firme. *Lo de Carlitos* quedó #20 en «Quilmes · Cenar afuera», así que hay un caso real a mano
+      para decidirlo cuando se quiera.
+      **Aplicado en las DOS bases** (dev y Neon) con un `UPDATE` generado **desde el propio
+      `DEFAULT_CADENAS`**, para que código y datos no puedan divergir. Verificado en producción:
+      *La Farola Express*, que estaba 14ª en «Quilmes · Cenar afuera», salió del top 20; el conteo
+      quedó en 361, igual que antes — orden, no filtro.
+
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
@@ -1172,7 +1180,10 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ### Deuda técnica señalada, no tocada
 
-- [ ] **`sembrarChips` no puede re-sincronizar los tags de un chip que ya existe — y por eso una
+- [x] **`sembrarChips` ya re-sincroniza los tags de un chip que existe** ✅ **2026-08-10** — `scripts/seed-chips.ts` (extraído de `seed.ts` para poder testearlo, mismo criterio que `scripts/overture/upsert.ts`) borra los tags que sobran e inserta los que faltan, y **solo escribe si hay diferencia**: un re-seed sobre una base al día informa «tags al día» y no toca una fila. Cubierto por `scripts/__tests__/seed-chips.integration.test.ts` (7 casos), incluido el que reproduce el bug: *redefinir los tags de un chip que ya existe los reemplaza de verdad* — verificado por mutación, devolverle el `if (n === 0)` lo hace fallar. `active` sigue sin tocarse: es curaduría. 
+      <details><summary>Por qué existía la deuda (registro)</summary>
+
+      **`sembrarChips` no podía re-sincronizar los tags de un chip que ya existe — y por eso una
       redefinición se olvida** (destapado por el QA en producción del 2026-08-10). `scripts/seed.ts`
       hace `if (n === 0)` antes de insertar en `chip_tags`: si el chip ya tiene tags, **los deja como
       están**. La fila del chip sí se upsertea (`name`, `in_home`, `sort`), así que un re-seed deja el
@@ -1190,6 +1201,8 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       mismo criterio que ya aplica a los tags.
       **Costo:** chico, ~15 líneas en `scripts/seed.ts` + un test de integración que redefina un chip
       y re-siembre. **Valor:** cierra el único camino de sincronización de catálogo que hoy es manual.
+
+      </details>
 
 - [ ] **Unificar el tercer llamador del match por nombre** (visto el 2026-08-08 implementando
       `CURADURIA_POR_NOMBRE`). Ahora que `lib/search/nombre.ts` es el dueño único de

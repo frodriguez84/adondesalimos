@@ -28,18 +28,20 @@ import { normalizado } from './nombre'
 export const CADENAS_KEY = 'search.cadenas'
 
 /**
- * La lista inicial del seed (decisión 14): los 19 nombres normalizados con ≥ 8
- * locales que midió el anexo del spec, más las tres variantes que el umbral de 8 se
- * pierde y un humano reconoce al toque (`mc donalds`, `starbucks argentina`,
- * `burger king argentina`).
+ * La lista del seed: **43 nombres** (decisión 14). Nació con 22 el 2026-08-10 —los 19
+ * del anexo del spec más tres variantes que el umbral de 8 se pierde y un humano
+ * reconoce (`mc donalds`, `starbucks argentina`, `burger king argentina`)— y ese mismo
+ * día sumó 21 tras correr el detector contra el catálogo completo.
  *
  * Van **normalizadas** —minúsculas y sin acentos, como las emite el generador—,
  * aunque el match tolera que un humano escriba «Café Martínez» en el `UPDATE`:
  * la comparación normaliza los dos lados (ver `esCadenaSql`).
  *
- * Quedan **afuera** a propósito las cadenas chicas que sí son un buen plan
- * (Antares, La Birra Bar, Lattente, Tostado Café Club): el usuario no se quejó de
- * «cadena», se quejó de fast food genérico (decisión 15).
+ * **Esto es la semilla, no la verdad.** Manda `app_settings['search.cadenas']`, que se
+ * edita con un `UPDATE` sin deploy — y hay **dos bases**: un cambio acá no llega solo a
+ * producción (lección del 2026-08-10). Quedan **afuera** a propósito las cadenas chicas
+ * que sí son un buen plan (Antares, La Birra Bar, Lattente, Tostado Café Club) y las
+ * que se listan en `EXCLUIDAS_A_PROPOSITO`.
  */
 export const DEFAULT_CADENAS: string[] = [
   "mcdonald's",
@@ -64,6 +66,59 @@ export const DEFAULT_CADENAS: string[] = [
   'brioche doree',
   'kfc',
   'almacen de pizzas',
+
+  // --- Segunda tanda (2026-08-10): las 21 que el detector veía y la lista no ---
+  // Aceptadas por Fer tras medir que **todas comparten un dominio web propio y
+  // dominante** (`lo de carlitos` 19/19 en `lodecarlitos.com`, `rincon norteno` 10/10):
+  // el dato descartó la sospecha de que fueran homónimos. La pregunta dejó de ser
+  // "¿es cadena?" y pasó a ser "¿la despriorizo?", que es la decisión 5.
+  'mccafe',
+  'la continental',
+  'la farola express',
+  'taco box',
+  'sushiclub',
+  'betos',
+  'el noble',
+  'deniro',
+  'green eat',
+  'dean & dennys',
+  "wendy's",
+  'sensu',
+  'delicity',
+  'romario',
+  'pizza lo+hot',
+  'tomasso pizzas',
+  // Cafeterías de cadena. Van porque sus pares **ya estaban** (The Coffee Store, Le
+  // Pain Quotidien, Brioche Dorée): dejarlas afuera le daría mejor trato a unas que a
+  // otras por accidente de cuándo se armó la lista.
+  'tienda de cafe',
+  'tea connection',
+  'le ble',
+  'nucha',
+  'croque madame',
+]
+
+/**
+ * Cadenas que el detector encuentra y que **quedan afuera a propósito** (2026-08-10).
+ * Se escriben acá para que la próxima corrida de `npm run cadenas:proponer` no las
+ * vuelva a proponer como novedad y alguien las sume sin saber que ya se decidió:
+ *
+ *  - `tostado cafe club` y `cervelar` — la **decisión 15 del spec las nombra** entre las
+ *    cadenas chicas que **sí son un buen plan** (junto a Antares, La Birra Bar, Lattente).
+ *    El usuario no se quejó de "cadena", se quejó de fast food genérico.
+ *  - `cinemark hoyts argentina` — son **cines**, no gastronomía; ir al cine es un plan
+ *    legítimo y despriorizarlo es otra discusión.
+ *  - `lo de carlitos`, `mi gusto`, `la fabrica`, `rincon norteno` — cadenas de bodegón y
+ *    rotisería. Quedaron sin decidir: no está claro que sean "fast food genérico".
+ */
+export const EXCLUIDAS_A_PROPOSITO: string[] = [
+  'tostado cafe club',
+  'cervelar',
+  'cinemark hoyts argentina',
+  'lo de carlitos',
+  'mi gusto',
+  'la fabrica',
+  'rincon norteno',
 ]
 
 /**

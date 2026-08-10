@@ -63,6 +63,15 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
   ninguna de mis diez métricas elegidas a mano había pescado. **El chequeo sistemático encontró lo
   que la intuición no**, cuesta una query, y quedó escrito como el paso de cabecera para el próximo
   deploy que toque datos.
+- **Cola del día (`sembrarChips` y la lista de cadenas):** las dos cerradas, y en las dos el patrón
+  fue el mismo — **medir antes de decidir**. En `sembrarChips`, escribir el test primero y después
+  devolverle el bug al código para ver caer el test correcto. En las cadenas, sospeché que
+  `lo de carlitos` y `rincon norteno` eran homónimos y no cadenas; **el dato me desmintió** (19/19 y
+  10/10 comparten dominio web propio), y eso cambió la pregunta que había que hacerle a Fer: no
+  «¿son cadena?» sino «¿las despriorizás?». Diez minutos de query ahorraron una lista mal armada.
+  Lo que quedó sin decidir (4 bodegones) quedó **declarado en código** (`EXCLUIDAS_A_PROPOSITO`) en
+  vez de en la cabeza de nadie, así que la próxima corrida del detector no las re-propone como
+  novedad.
 - **Qué cambiar:** nada del método. Dos cosas quedaron escritas donde van: la de correr el código
   viejo para probar que algo **no** cambió (`git show HEAD:archivo` a un temporal, correr, diffear) y
   la de Drizzle sin calificar la tabla en el `SELECT` — las dos en `LECCIONES_APRENDIDAS.md`, que es
