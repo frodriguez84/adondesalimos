@@ -37,6 +37,28 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · Piso de los chips por zona (implementación del fix) — Opus
+
+- **Qué salió bien:** los tests nuevos **buscan su caso en la base en vez de hardcodearlo** (un
+  chip que se lista en AMBA y da 0 en alguna zona, otro que da 1-2), y de paso exigen
+  `count(AMBA) > 0` — sin eso `plan-tranqui`, que da 0 en todos lados, los hacía pasar sin probar
+  nada. Y el QA en vivo con Playwright confirmó los 5 casos del DoD incluido uno que ningún test
+  cubre: apagar el chip pintado en la zona donde da 0 lo saca de la fila, o sea el toggle no queda
+  atrapado prendido.
+- **Qué frenó:** **el punto 3 del alcance era imposible como estaba escrito.** Asignaba la exención
+  del chip pintado a `pintado.ts` + `occasion-chips.tsx` —los dos del cliente—, pero el gate corre
+  en el server y **filtra la lista antes de que viaje**: un chip exento tiene que sobrevivir ahí o
+  el componente no lo tiene para dibujar. La solución fue barata (que `chips.ts` importe
+  `chipsPintados` y reciba también `tagsActivos`, o sea consultarlo sin reimplementarlo, que es lo
+  que el detalle pedía), pero costó rehacer el plan a mitad de camino.
+- **Qué cambiar:** cuando un ítem decidido liste **archivos a tocar**, tratar esa lista como
+  hipótesis y no como parte de la decisión — el diseño de ayer nombró los dos archivos correctos
+  del *concepto* (quién es dueño del pintado) y los equivocados de la *mecánica* (dónde corre el
+  gate). Cuesta cero: es leer la función que filtra antes de escribir el punto, o directamente
+  escribir el ítem en términos de reglas y dejar los archivos para la sesión que implementa.
+
+---
+
 ## 2026-08-10 · Piso de los chips por zona (decisión, sin código) — Opus
 
 - **Qué salió bien:** **leer el código antes de elegir entre opciones de producto cambió cuál se

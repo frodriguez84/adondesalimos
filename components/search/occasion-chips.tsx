@@ -22,6 +22,13 @@ import { chipsPintados, tagsAlTocar } from '@/lib/search/pintado'
  * tres ramas del toque, con el porqué de cada una). Son funciones puras de
  * `(chips, tags)` y adentro del componente no se podían testear — que es como se
  * escaparon FB-02 y el bug del 2026-08-09. Este archivo es presentación.
+ *
+ * **Qué chips llegan acá depende de la zona** (fix del 2026-08-10): el server
+ * cuenta cada chip en la zona elegida y no manda los que no llegan al piso, así
+ * que la fila puede cambiar entre una navegación y otra. El chip que está pintado
+ * viene **siempre**, exento de ese gate, para que el toggle no desaparezca con
+ * sus tags puestos — la exención la aplica `lib/search/chips.ts` consultando al
+ * mismo `chipsPintados` que se usa acá, así que los dos lados coinciden.
  */
 
 type Props = {

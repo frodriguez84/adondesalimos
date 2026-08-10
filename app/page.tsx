@@ -49,7 +49,12 @@ export default async function Home({
   const [facetas, zonas, chips, resultado, destacados, session] = await Promise.all([
     getFacetCatalog(),
     getZoneCatalog(),
-    getOccasionChips(),
+    // Los chips se cuentan **en el contexto de la búsqueda**: la zona elegida
+    // acota el conteo y `params.tags` dice cuál está pintado (exento del gate,
+    // para no llevarse el toggle al cambiar de zona). Es el único caller, y la
+    // home ya se re-renderiza en cada navegación —elegir zona *es* una
+    // navegación—, así que el recuento no agrega nada.
+    getOccasionChips(new Date(), params.zones, params.tags),
     tieneBusqueda(params) ? searchPlaces(params) : null,
     mostrarDestacados ? buscarDestacados(params) : Promise.resolve<SearchedPlace[]>([]),
     auth.api.getSession({ headers: await headers() }).catch(() => null),

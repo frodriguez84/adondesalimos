@@ -836,7 +836,7 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       dan 35+). El piso se quedó **sin caso vivo**; se actualizó su docstring en `lib/search/chips.ts`
       y el bullet de `CLAUDE.md` que lo citaba con "1 lugar".
 
-- [ ] **🔵 DECIDIDO, falta implementar (`fix(BUSQUEDA)`, NO spec) — el piso de los chips se mide en
+- [x] **🔵 → ✅ HECHO el 2026-08-10 (`fix(BUSQUEDA)`, NO spec) — el piso de los chips se medía en
       AMBA, pero el usuario busca por zona.** Destapado el 2026-08-10 investigando el chip de arriba;
       **no** es de ese chip. **El diseño cerrado está al final del ítem**; lo de acá abajo es el
       análisis que llevó a él.
@@ -1007,6 +1007,43 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
          un problema. **No se hace junto con el fix**: con 6 candidatos para 4 lugares ya hay cola, y
          su techo por zona es 6, así que entraría a la portada en pocas zonas. Evaluarlo después de
          ver el fix andando.
+
+      ---
+
+      ✅ **IMPLEMENTADO el 2026-08-10** (sesión Opus). Los 6 puntos del alcance, hechos tal cual,
+      con **una divergencia de forma** sobre el punto 3, explicada abajo.
+      **Código**: `getOccasionChips(now, zones = [], tagsActivos = [])` (`lib/search/chips.ts`) —
+      `zones` entra en los 17 `countPlaces` que ya corrían en paralelo, `PISO_ZONA = 3` con su
+      docstring, y `const piso = conZona ? PISO_ZONA : PISO_HOME` aplicado tanto al corte de la
+      portada como —vía `count > 0`— al de "Ver más". `app/page.tsx` (único caller) le pasa
+      `params.zones` y `params.tags`.
+      **Divergencia sobre el punto 3**: la exención del chip pintado **no se pudo hacer en el
+      cliente**. El gate corre en el server y **filtra la lista antes de que viaje**, así que un
+      chip exento tiene que sobrevivir ahí o `occasion-chips.tsx` no lo tiene para dibujar. Por eso
+      `chips.ts` **importa `chipsPintados` de `pintado.ts`** —lo consulta, no lo reimplementa, que
+      es lo que el detalle 1 pedía— y para eso `getOccasionChips` recibe también `tagsActivos`. Los
+      dos archivos del punto 3 se tocaron igual, pero solo en sus docstrings (`pintado.ts` decía
+      *"esto corre en el cliente"* y ahora corre en los dos lados). **La exención está atada a que
+      haya zona**: sin zona no exenta a nadie, para que el comportamiento de la primera visita sea
+      idéntico al de antes.
+      **Verificado en la base real** (`retiro-microcentro`, una de las 16 zonas donde
+      `salida-con-amigos` da 0): sin zona la home no cambia —`salida-con-amigos(38)`,
+      `salir-a-bailar(586)`, `tomar-algo(3.219)`, `cenar-afuera(11.438)`—; con Retiro
+      `salida-con-amigos` **desaparece de los dos lados** y `un-cafe(307)` ocupa su lugar; y con sus
+      tags puestos vuelve a la portada con `count 0`, conservando el toggle. Los conteos que viajan
+      al cliente son los de la zona (57 / 248 / 901), no los de AMBA.
+      **Tests**: 5 casos nuevos en `chips.integration.test.ts` (los 4 del punto 4 + que sin zona los
+      tags activos no cambien nada). Buscan su caso en la base en vez de hardcodearlo —la curaduría
+      lo mueve— y exigen `count(AMBA) > 0` para que `plan-tranqui`, que da 0 en todos lados, no los
+      haga pasar sin probar nada. Suite completa verde sin tocar ningún test existente;
+      `pintado.test.ts` sigue con sus 12 casos, el inventario de las 289 combinaciones no se movió.
+      **Docs**: docstrings de `PISO_HOME` (la limitación que declaraba abierta queda cerrada),
+      `PISO_ZONA`, el encabezado de `chips.ts` con la enmienda a la decisión 25, `pintado.ts`,
+      `occasion-chips.tsx` y el bullet del piso en `CLAUDE.md` § *Notas importantes*.
+      **Queda abierto, chico y aparte** (además del punto 6): el chip **«Para ahora»** sigue
+      contándose en AMBA aunque haya zona — el alcance decía "los 17" y ese es el 18°, con su propia
+      decisión 9 en ABIERTO_AHORA. Es el mismo gate y el mismo riesgo (prometer una franja que en
+      esa zona da 0); pasarle `zones` es una palabra, pero es decisión de ese spec, no de este fix.
 
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar

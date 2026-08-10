@@ -7,8 +7,14 @@
  * testear — el precio se pagó con FB-02, que salió en dos vueltas, y con el bug
  * del 2026-08-09 que se llevó por delante a un chip que nadie tocó.
  *
- * Nada de acá toca la base ni el DOM: `lib/search/chips.ts` es server-only
- * (arma la lista y los conteos), esto corre en el cliente con la lista ya armada.
+ * Nada de acá toca la base ni el DOM: `lib/search/chips.ts` es server-only (arma
+ * la lista y los conteos), esto es puro. Corre en los **dos** lados: en el
+ * cliente para dibujar el `aria-pressed`, y en el server desde `chips.ts`, que
+ * consulta `chipsPintados` para **exentar al chip pintado del gate por zona**
+ * (fix del 2026-08-10). Si no lo exentara, cambiar de zona se llevaría de la fila
+ * a un chip con sus tags todavía aplicados y el usuario perdería el toggle para
+ * apagarlo. Esa excepción se apoya en este módulo justamente para no reimplementar
+ * acá ni allá qué cuenta como "pintado".
  *
  * ## El pintado: subconjunto maximal (FB-02, decidido con Fer el 2026-08-08)
  *

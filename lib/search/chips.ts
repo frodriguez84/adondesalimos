@@ -4,6 +4,7 @@ import { chipTags, occasionChips, tags } from '@/lib/db/schema'
 import { getSetting } from '@/lib/db/settings'
 import { franjaActual, NOMBRE_AHORA, SLUG_AHORA } from './ahora'
 import { EMPTY_SEARCH } from './params'
+import { chipsPintados } from './pintado'
 import { countPlaces } from './query'
 import {
   CHIPS_SCHEDULE_KEY,
@@ -26,15 +27,35 @@ import {
  * (decisión 27), por el mismo motivo: ofrecer un atajo que devuelve 0 siempre es
  * mentir.
  *
- * El conteo es **global**, no de la búsqueda en curso: la decisión 25 habla del
- * catálogo, no del contexto. Un chip que existe en AMBA pero no en la zona
- * elegida se muestra igual y cae en el estado de 0 resultados de la decisión 23,
- * que ya sabe rescatar al usuario.
+ * El conteo es **contextual a la zona** (fix del 2026-08-10, enmienda explícita a
+ * la decisión 25): sin zona elegida cuenta todo AMBA, con zona cuenta la zona.
+ * La decisión 25 —*"el conteo es del catálogo, no del contexto"*— pasa a ser *"es
+ * del catálogo mientras no haya contexto; cuando lo hay, es del contexto"*. Se
+ * había escrito para que un chip no desapareciera por una búsqueda en curso, y lo
+ * que la práctica mostró es que el atajo que miente es peor que el atajo que no
+ * está: `salida-con-amigos`, **primero** en la home, daba 0 lugares en 16 de las
+ * 46 zonas y 1 en la mediana de las demás. La decisión 23 (*el vacío rescata*)
+ * sigue cubriendo el caso de 0, ahora como red y no como plan A.
+ *
+ * **El contexto son las zonas y nada más**: `q` y los tags ya activos NO entran en
+ * el conteo. Cruzar el chip con los tags activos lo convertiría en un
+ * refinamiento de la búsqueda en curso, que es otra feature. Y en **modo GPS se
+ * cuenta AMBA**: las coordenadas no viajan en la URL —son del dispositivo que
+ * mira, no del que compartió el link (`params.ts`)—, así que el server no tiene
+ * contexto geográfico que aplicar; mejor el gate del catálogo que uno inventado.
  *
  * Sobre ese `> 0` hay **dos filtros más, y los dos son solo para la home**: el
- * piso de `PISO_HOME` lugares (abajo) y la ventana horaria de `solo`
+ * piso (`PISO_HOME` sin zona, `PISO_ZONA` con zona) y la ventana horaria de `solo`
  * (`rotacion.ts`). Un chip que no los pasa sigue existiendo detrás de "Ver más" —
  * salvo el de ventana, que fuera de hora no se ve en ningún lado.
+ *
+ * **Excepción: un chip pintado se muestra siempre**, exento de los dos gates de
+ * zona. Sin eso, tocar «Salida con amigos» en Palermo y cambiar a Retiro se lo
+ * llevaría de la fila **con sus tags todavía aplicados**: el usuario pierde el
+ * toggle para apagarlo (quedan removibles en `ChipsActivos`, pero el
+ * `aria-pressed` desaparecido es una regresión del pintado). Qué está pintado lo
+ * decide `lib/search/pintado.ts`, su dueño único — acá se lo **consulta**, no se
+ * lo reimplementa.
  */
 
 export type OccasionChipView = {
@@ -42,7 +63,11 @@ export type OccasionChipView = {
   name: string
   /** Tags que aplica. Van a la URL tal cual al tocarlo. */
   tags: string[]
-  /** Lugares publicados que devuelve hoy en todo AMBA. Siempre ≥ 1. */
+  /**
+   * Lugares publicados que devuelve hoy **en el contexto de la búsqueda**: todo
+   * AMBA si no hay zona elegida, la zona si la hay. Siempre ≥ 1, salvo un chip
+   * pintado, que se lista exento del gate (ver arriba) y puede traer 0.
+   */
   count: number
 }
 
@@ -61,9 +86,10 @@ export type OccasionChips = {
 export const CHIPS_EN_HOME = 4
 
 /**
- * Mínimo de lugares en AMBA para ocupar uno de los 4 de la home. **Es un piso
- * distinto del `> 0`** que habilita "Ver más": un chip con 1 lugar sigue
- * existiendo, pero no se gana la portada.
+ * Mínimo de lugares en AMBA para ocupar uno de los 4 de la home **cuando no hay
+ * zona elegida**. Con zona manda `PISO_ZONA` (abajo). **Es un piso distinto del
+ * `> 0`** que habilita "Ver más": un chip con 1 lugar sigue existiendo, pero no
+ * se gana la portada.
  *
  * El caso que lo motivó: `salida-con-chongo` daba **1** lugar en todo AMBA y
  * tiene `sort` 1, así que era el **segundo** chip de la home. Como la home pide
@@ -82,18 +108,56 @@ export const CHIPS_EN_HOME = 4
  * 35 en AMBA da **0 en 18 de las 46 zonas** y a lo sumo 6 en la mejor, así que
  * quedaba tan expuesto como `salida-con-amigos`. Se lo dejó en "Ver más" con
  * `inHome: false` (`lib/db/chips.ts`) — una decisión de curaduría, no de este
- * piso. Mientras el piso siga contándose **sin zona**, subirlo o bajarlo no
- * arregla el caso real; eso es el ítem 🔵 del BACKLOG.
+ * piso.
+ *
+ * **La limitación que este docstring declaraba abierta —"el piso se cuenta sin
+ * zona"— está cerrada** (fix del 2026-08-10): el conteo pasó a ser contextual y
+ * el piso por zona es `PISO_ZONA`. Este 20 se queda como está y mide lo que
+ * siempre midió: una propiedad del **catálogo**, no del contexto.
  */
 export const PISO_HOME = 20
+
+/**
+ * Mínimo de lugares **en la zona elegida** para ocupar uno de los 4 de la home.
+ * Reemplaza a `PISO_HOME` en cuanto hay zona; el gate de "Ver más" sigue siendo
+ * `> 0`, contado también en la zona.
+ *
+ * **Por qué es otro número y no 20.** Los dos pisos responden preguntas
+ * distintas. Sin zona, el conteo mide una propiedad del **catálogo**: *¿este chip
+ * tiene espalda para ser un atajo de la portada?* — 20 es el umbral correcto para
+ * eso. Con zona mide una propiedad del **contexto**: *¿este atajo devuelve algo
+ * acá?* — y ahí 20 es absurdo, porque medido el 2026-08-10 (16 chips × 46 zonas)
+ * **ningún chip de ocasión llega a 20 en ninguna zona**: aplicar 20 por zona
+ * dejaría la portada con puros chips de Tipo (`cenar-afuera`, `tomar-algo`,
+ * `un-cafe`), que es perder justo lo que un chip de ocasión aporta.
+ *
+ * **Por qué 3 y no `> 0` a secas**: lo que se reportó no fue una pantalla vacía,
+ * fue **1 resultado** — que no dispara el copy de rescate de la decisión 23 y
+ * deja una lista raquítica sin explicación. Con `> 0`, `salida-con-amigos`
+ * (mediana **1** por zona) seguiría primero en la portada devolviendo un solo
+ * lugar en media AMBA, que es el síntoma original. **3 es el mínimo que no se lee
+ * como "esto está roto"**. Con 3, `after-office` (mediana 5) y `salir-a-bailar`
+ * (mediana 10,5) conservan su lugar en la mayoría de las zonas. Subirlo a 5 es
+ * cambiar esta constante.
+ */
+export const PISO_ZONA = 3
 
 /**
  * `now` es un parámetro (y no `new Date()` adentro) para poder testear la franja
  * con un `Date` fijo. La hora se computa acá, en el server —lo llama el server
  * component de `/`— y el chip viaja como prop: el cliente no lee el reloj, así
  * que no hay riesgo de divergencia de hidratación (ABIERTO_AHORA decisión 10).
+ *
+ * `zones` es el contexto del conteo (vacío = todo AMBA) y `tagsActivos` es lo que
+ * el usuario ya tiene puesto, del que sale qué chip está pintado. Los dos salen
+ * de los `SearchParams` de la home y son opcionales para que un caller que no los
+ * tenga siga viendo el comportamiento sin contexto, que es el de siempre.
  */
-export async function getOccasionChips(now: Date = new Date()): Promise<OccasionChips> {
+export async function getOccasionChips(
+  now: Date = new Date(),
+  zones: string[] = [],
+  tagsActivos: string[] = [],
+): Promise<OccasionChips> {
   const filas = await db
     .select({
       slug: occasionChips.slug,
@@ -133,6 +197,10 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   // El conteo del chip «Para ahora» arranca acá, junto con los demás, para no
   // sumarle un round-trip en serie al render de la home. Mismo motivo para la
   // lectura de las reglas de rotación: se necesita recién al partir home/resto.
+  //
+  // El contexto (`zones`) entra en los 17 conteos que ya corrían en paralelo: no
+  // suma round-trips y las queries quedan más chicas. El chip «Para ahora» no lo
+  // lleva: su gate es la franja horaria, no la zona.
   const franja = franjaActual(now)
   const contarAhora = countPlaces({ ...EMPTY_SEARCH, tags: franja.tags })
   const leerReglas = getSetting<unknown>(CHIPS_SCHEDULE_KEY)
@@ -140,7 +208,7 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   const conConteo = await Promise.all(
     [...porSlug.values()].map(async (c) => ({
       ...c,
-      count: await countPlaces({ ...EMPTY_SEARCH, tags: c.tags }),
+      count: await countPlaces({ ...EMPTY_SEARCH, zones, tags: c.tags }),
     })),
   )
 
@@ -155,10 +223,21 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   // pueda colarse por el `primero` de otra regla.
   const fueraDeVentana = chipsFueraDeVentana(reglas, now)
 
+  // La excepción del pintado, y **solo cuando hay zona**: sin contexto el gate es
+  // el de siempre y exentar a alguien cambiaría el comportamiento de la primera
+  // visita, que este fix no toca. Qué está pintado lo resuelve `pintado.ts` —
+  // acá se lo consulta con la lista completa (home + "Ver más"), igual que hace
+  // el cliente, porque un chip que tapa a otro no deja de contar por estar
+  // detrás de "Ver más". La ventana horaria NO se exenta: es un gate del reloj,
+  // no del contexto, y un after office un domingo a las 11 no existe ni pintado.
+  const conZona = zones.length > 0
+  const exentos = conZona ? chipsPintados(conConteo, tagsActivos) : new Set<string>()
+
   // Un chip sin tags no filtra nada: devolvería el catálogo entero, que es la
   // pantalla que la decisión 2 evita. Se descarta con los que dan 0.
   const vivos = conConteo.filter(
-    (c) => c.count > 0 && c.tags.length > 0 && !fueraDeVentana.has(c.slug),
+    (c) =>
+      (c.count > 0 || exentos.has(c.slug)) && c.tags.length > 0 && !fueraDeVentana.has(c.slug),
   )
 
   // Decisión 6 (4 fijos en la home) + decisión 25 (los que dan 0 no se ven): la
@@ -176,7 +255,12 @@ export async function getOccasionChips(now: Date = new Date()): Promise<Occasion
   // El piso se aplica acá, sobre los candidatos, y **también a los forzados por
   // la regla**: mismo criterio: si un chip no tiene espalda para la portada,
   // adelantarlo no se la da. Sigue estando en "Ver más", que solo pide `> 0`.
-  const paraHome = vivos.filter((c) => c.count >= PISO_HOME)
+  //
+  // Cuál de los dos pisos manda lo decide el contexto, no la hora: `PISO_ZONA`
+  // en cuanto hay zona elegida, `PISO_HOME` si no (ver los docstrings de las dos
+  // constantes: miden cosas distintas y por eso no comparten número).
+  const piso = conZona ? PISO_ZONA : PISO_HOME
+  const paraHome = vivos.filter((c) => c.count >= piso || exentos.has(c.slug))
   const adelante = chipsPrimero(reglas, now)
   const forzados = adelante
     .map((slug) => paraHome.find((c) => c.slug === slug))

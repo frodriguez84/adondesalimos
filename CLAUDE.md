@@ -256,15 +256,23 @@ Cicatrices reales — gotchas que sorprenden:
   `select value from app_settings where key='chips.schedule'`, no el código.
 - **Un chip vivo puede no verse por dos motivos más, y ninguno está en `occasion_chips`.** (a) Su
   regla tiene `solo: [...]` ⇒ fuera de esa ventana **no aparece en ningún lado**, tampoco detrás de
-  "Ver más" (hoy: `after-office`, L-V 17-21). (b) Devuelve menos de `PISO_HOME` (**20**) lugares en
-  AMBA ⇒ no entra a los 4 de la home, ni siquiera forzado por la regla, pero **sí** sigue en "Ver
-  más". El `> 0` de la decisión 25 es el piso de "Ver más", no el de la home. Dueños:
+  "Ver más" (hoy: `after-office`, L-V 17-21). (b) No llega al piso ⇒ no entra a los 4 de la home,
+  ni siquiera forzado por la regla, pero **sí** sigue en "Ver más". Dueños:
   `lib/search/rotacion.ts` (ventana) y `lib/search/chips.ts` (piso).
-  ⚠️ **(b) hoy no tiene ningún chip** (medido el 2026-08-10: o dan 0 —`plan-tranqui`— o dan 35 o
-  más), así que si un chip no se ve, el motivo NO es el piso. Su único caso vivo era
-  `salida-con-chongo` con **1** lugar, y se redefinió: ahora da **35** y pasa el piso. **Sigue en
-  "Ver más", pero por `in_home = false`**, no por (b) — con 35 en AMBA da **0 en 18 de las 46
-  zonas**, y el piso se cuenta **sin zona** (ítem abierto del BACKLOG).
+  ⚠️ **El conteo del piso es contextual y por eso el piso son DOS números** (fix del 2026-08-10,
+  enmienda a la decisión 25 de BUSQUEDA): **sin zona** elegida se cuenta todo AMBA y el piso de la
+  portada es `PISO_HOME` (**20**); **con zona** se cuenta la zona y el piso es `PISO_ZONA` (**3**).
+  El gate de "Ver más" es `> 0` en los dos casos, contado igual de contextual. **En modo GPS se
+  cuenta AMBA** (las coordenadas no viajan en la URL, así que el server no tiene zona que aplicar).
+  Son dos números porque miden cosas distintas: sin zona, si el chip tiene espalda para ser un
+  atajo; con zona, si devuelve algo acá — y **ningún chip de ocasión llega a 20 en ninguna zona**,
+  así que aplicar 20 por zona dejaría la portada con puros chips de Tipo.
+  ⚠️ **La única excepción son los chips pintados**: se listan aunque den 0 en la zona, o cambiar de
+  zona se llevaría el chip de la fila con sus tags todavía aplicados y el usuario perdería el
+  toggle. Quién está pintado lo dice `lib/search/pintado.ts`, que `chips.ts` **consulta** desde el
+  server. Corolario para debuggear: si un chip "desaparece al elegir barrio", eso es el gate
+  funcionando — mirá el conteo en esa zona antes que el código. Y si un chip no se ve **sin** zona,
+  el motivo NO es `PISO_HOME`: medido el 2026-08-10 no hay ninguno entre 1 y 19 en AMBA.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o
