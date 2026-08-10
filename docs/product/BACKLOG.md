@@ -824,7 +824,7 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       que se llevaría puesto su `active`— y correr `npm run db:seed`, que al ver 0 filas inserta los
       nuevos). **Verificado contra la base: 35 en AMBA**, de 1.
       **Se quedó en "Ver más" (`inHome: false`)**, decidido con Fer: pasa `PISO_HOME` pero el dato
-      que faltaba lo desaconseja — esos 35 dan **0 en 17 de las 46 zonas** y el techo por zona es
+      que faltaba lo desaconseja — esos 35 dan **0 en 18 de las 46 zonas** y el techo por zona es
       **6** (Retiro 6 · Palermo Soho 5 · Monserrat 5 · el resto 1-4), o sea el problema reportado
       vuelve por la ventana en cuanto el usuario elige zona. Vuelve a la home cuando se resuelva el
       ítem 🔵 de abajo; es un flag del seed, sale gratis.
@@ -842,13 +842,53 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       su propio docstring dice que *"el problema real es la división por zona"* — pero **cuenta sin
       zona**. Resultado, medido el 2026-08-10:
 
-      | Zona | `salida-con-amigos` (38 en AMBA, **hoy en la home**) |
-      |------|------|
-      | Retiro-Microcentro | **0** |
-      | Recoleta | **0** |
-      | Monserrat-Congreso | **0** |
-      | Palermo Soho | 2 |
-      | Villa Crespo | 3 |
+      **La matriz completa — 16 chips vivos × 46 zonas activas, medida el 2026-08-10** con el mismo
+      criterio que usa el motor (`place_zones` cualquiera, no la primaria, y `zones.active`). Los 5
+      que pueden ocupar la home están arriba de la línea:
+
+      | Chip | AMBA | zonas en **0** | mejor zona | mediana por zona | zonas con ≥ 20 |
+      |------|-----:|-----:|-----:|-----:|-----:|
+      | `salida-con-amigos` (home, sort 0) | 38 | **16** | **3** | 1 | **0** |
+      | `salir-a-bailar` (home, sort 2) | 586 | 0 | 93 | 10,5 | 16 |
+      | `after-office` (home, sort 3) | 171 | 0 | **13** | 5 | **0** |
+      | `tomar-algo` (home, sort 9) | 3.219 | 0 | 269 | 77 | 46 |
+      | `cenar-afuera` (home, sort 10) | 11.438 | 0 | 901 | 257,5 | 46 |
+      | — | | | | | |
+      | `salida-con-chongo` | 35 | 18 | 6 | 1 | 0 |
+      | `primera-cita` | 187 | 1 | 22 | 5 | 1 |
+      | `cumpleanos` | 246 | 0 | 31 | 7 | 3 |
+      | `cena-familiar` | 107 | 2 | 7 | 3 | 0 |
+      | `merienda` | 176 | 1 | 24 | 4 | 1 |
+      | `un-cafe` | 2.058 | 0 | 307 | 40,5 | 39 |
+      | `musica-en-vivo` | 1.023 | 0 | 76 | 25,5 | 31 |
+      | `teatro-y-cultura` | 603 | 0 | 117 | 11 | 13 |
+      | `catas-y-vinos` | 229 | 2 | 26 | 5 | 2 |
+      | `jugar` | 226 | 0 | 18 | 6 | 0 |
+      | `al-aire-libre` | 101 | 3 | 6 | 2 | 0 |
+      | `plan-tranqui` | 0 | 46 | 0 | 0 | 0 |
+
+      ⚠️ **El hallazgo que reordena la decisión: `PISO_HOME` aplicado por zona vaciaría la home de
+      chips de ocasión.** Mirar la última columna de los candidatos: `salida-con-amigos` llega a 20
+      en **cero** zonas (su mejor es **3**) y `after-office` también en **cero** (mejor **13**). O sea
+      la salida que parecía obvia —*contar con la zona activa y aplicar el mismo piso de 20*—
+      dejaría la portada, en casi toda zona, con `salir-a-bailar` + los genéricos V1 (`tomar-algo`,
+      `cenar-afuera`, `un-café`), que son **Tipo puro**: la home perdería justo lo que un chip de
+      *ocasión* aporta. **Cualquier opción que se elija tiene que decir qué pasa con esto** — un piso
+      por zona distinto del de AMBA, un orden por conteo en vez de un corte, o aceptar la home
+      genérica.
+      ⚠️ **Y el peor no es el que motivó todo esto**: `salida-con-amigos` está **primero** en la home
+      (sort 0) y es **peor por zona que `salida-con-chongo`**, al que se acaba de sacar de la home
+      por flaco (mejor zona 3 vs 6; 16 zonas en 0 vs 18, pero con la mitad de techo). Las 16 donde
+      da **0** incluyen las más obvias para salir: **Retiro-Microcentro, Recoleta,
+      Monserrat-Congreso, Puerto Madero, Las Cañitas, La Boca-Barracas**, más Olivos-Vicente López,
+      Martínez-Acassuso, San Isidro-zona norte (Escobar, Monte Grande), Saavedra, San Justo, Moreno,
+      Ituza-ingó, Adrogué-Burzaco y Lomas de Zamora-Banfield.
+      💡 **Dato de contexto para elegir:** el problema **no** es transversal al catálogo. Los
+      chips genéricos aguantan cualquier zona (`cenar-afuera` mediana **257**, `tomar-algo` **77**);
+      los que se caen son los de **ocasión con faceta Ambiente o Momento**, que es la misma escasez
+      de curaduría que ya arregló `salida-con-chongo` por definición. **Redefinir
+      `salida-con-amigos` —como se hizo con chongo— puede ser más barato que cambiar el piso**, y
+      es la opción que **no** estaba en la lista de abajo.
 
       O sea el síntoma que reportó Fer —*"toco un chip y no hay nada, esto no anda"*— **ya está
       pasando desde la portada, con otro chip**, y subir el piso no lo arregla porque el piso mide
@@ -859,11 +899,18 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       muerta. **Lo que no cubre: 1 resultado**, que no dispara ese copy y deja una lista raquítica
       sin ninguna explicación — que es exactamente lo que vio Fer.
       **Opciones a evaluar en el spec** (ninguna decidida): contar los chips **con la zona activa**
-      (el mismo trabajo que ya hace el botón "Ver N lugares", pero cambia la decisión 25) · mostrar
-      el conteo en el propio chip · subir el piso · extender el copy de rescate a "muy pocos
-      resultados", no solo a cero.
+      (el mismo trabajo que ya hace el botón "Ver N lugares", pero cambia la decisión 25 — y ojo con
+      el hallazgo de arriba: con el mismo piso de 20 vacía la home) · mostrar el conteo en el propio
+      chip · subir el piso · extender el copy de rescate a "muy pocos resultados", no solo a cero ·
+      **redefinir los chips flacos uno por uno** (lo que se le hizo a `salida-con-chongo`: no toca
+      código de la home, solo `lib/db/chips.ts` + reseed dirigido) · **ordenar por conteo en la zona
+      en vez de cortar por un piso** (la home siempre llena sus 4, con los mejores que haya ahí).
       **Decidido con Fer el 2026-08-10: anotar con los números medidos y no escribir el spec
-      todavía** — mismo criterio que el `?c=` del ítem de arriba.
+      todavía** — mismo criterio que el `?c=` del ítem de arriba. **La medición ya está hecha**
+      (matriz completa arriba, sesión Opus del 2026-08-10), así que la sesión que lo tome arranca
+      decidiendo, no midiendo. El SQL que la produjo no quedó versionado — es una consulta de
+      análisis, no una red; para rehacerla: por cada chip activo, AND entre facetas de sus
+      `chip_tags`, cruzado con `place_zones` × `zones.active`.
 
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar

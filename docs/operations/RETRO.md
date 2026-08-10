@@ -41,7 +41,7 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 - **Qué salió bien:** el triaje previo dejó el trabajo tan especificado que la implementación fue
   mecánica — y la única decisión que había quedado abierta (¿vuelve a la home?) se resolvió con
-  **una consulta de 30 segundos**: los 35 lugares dan **0 en 17 de las 46 zonas**, o sea el problema
+  **una consulta de 30 segundos**: los 35 lugares dan **0 en 18 de las 46 zonas**, o sea el problema
   reportado volvía por la ventana. Sin ese conteo por zona, "pasa el piso de 20" habría alcanzado
   para mandarlo a la home. Las dos redes hicieron su trabajo sin ruido: `pintado.test.ts` no
   inventó casos nuevos y `chips.integration.test.ts` fue la prueba de que el reseed dirigido

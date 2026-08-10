@@ -263,7 +263,7 @@ Cicatrices reales — gotchas que sorprenden:
   ⚠️ **(b) hoy no tiene ningún chip** (medido el 2026-08-10: o dan 0 —`plan-tranqui`— o dan 35 o
   más), así que si un chip no se ve, el motivo NO es el piso. Su único caso vivo era
   `salida-con-chongo` con **1** lugar, y se redefinió: ahora da **35** y pasa el piso. **Sigue en
-  "Ver más", pero por `in_home = false`**, no por (b) — con 35 en AMBA da **0 en 17 de las 46
+  "Ver más", pero por `in_home = false`**, no por (b) — con 35 en AMBA da **0 en 18 de las 46
   zonas**, y el piso se cuenta **sin zona** (ítem abierto del BACKLOG).
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de

@@ -79,7 +79,7 @@ export const CHIPS_EN_HOME = 4
  * **Esa franja vacía ya no lo está**: al redefinir `salida-con-chongo`
  * (2026-08-10) pasó de 1 a **35**, o sea cae dentro de 2-37 y **pasa** este piso.
  * No volvió a la home igual, y por el motivo que este docstring anticipaba: con
- * 35 en AMBA da **0 en 17 de las 46 zonas** y a lo sumo 6 en la mejor, así que
+ * 35 en AMBA da **0 en 18 de las 46 zonas** y a lo sumo 6 en la mejor, así que
  * quedaba tan expuesto como `salida-con-amigos`. Se lo dejó en "Ver más" con
  * `inHome: false` (`lib/db/chips.ts`) — una decisión de curaduría, no de este
  * piso. Mientras el piso siga contándose **sin zona**, subirlo o bajarlo no

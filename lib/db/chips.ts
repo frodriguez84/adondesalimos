@@ -88,7 +88,7 @@ export const CHIPS_OBJETIVO: readonly ChipSeed[] = [
   {
     slug: 'salida-con-chongo',
     name: 'Salida con chongo',
-    // Fuera de la home a propósito, aun con 35 (pasa `PISO_HOME`): en **17 de
+    // Fuera de la home a propósito, aun con 35 (pasa `PISO_HOME`): en **18 de
     // las 46 zonas da 0** y el techo por zona es 6, o sea el problema que lo
     // motivó —tocar un atajo de la portada y caer en "sin resultados"— vuelve
     // por la ventana, porque la home pide zona primero. Vuelve a `true` el día
