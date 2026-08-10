@@ -28,6 +28,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
+| [ORDEN_ORGANICO](planned/ORDEN_ORGANICO.md) | `PBETA-R1-02` — que la primera pantalla no abra con Burger King. Enmienda la decisión 16 de BUSQUEDA: el orden orgánico pasa a `dueño > banda > confidence > nombre`, donde la banda combina **es cadena** (lista editable en `app_settings`) y **está curado** (`place_tags source='admin'`). Es orden, no filtro: los conteos no cambian. | 🔵 Escrito 2026-08-10 — sin código |
 
 _(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e

@@ -1157,6 +1157,19 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 
 **R1 · Descubrir**
 - [ ] **PBETA-R1-02** (MOLESTO) — Palermo Soho abre con Burger King y Subway: el listado no prioriza nada. Es orden, no curaduría.
+      📄 **Spec escrito 2026-08-10** → [`docs/specs/planned/ORDEN_ORGANICO.md`](../specs/planned/ORDEN_ORGANICO.md).
+      Ratificado por Fer ese día como el ítem que más rompe la lógica esperada por el usuario. **Diagnóstico
+      medido, no supuesto:** `places.confidence` mide prolijidad del dato de Overture, no calidad del lugar
+      para salir, y una cadena tiene dato impecable — las cadenas de ≥ 8 locales tienen **25,8 %** de sus
+      fichas con `confidence ≥ 0,99` contra **6,1 %** de los lugares únicos (**4,2×**). El orden pasa a
+      `dueño > banda > confidence > nombre`, con la banda combinando **es cadena** (lista editable en
+      `app_settings`, sin deploy) y **está curado** (`place_tags source='admin'`), en ese orden de
+      precedencia — invertirla pone Starbucks 2º en «Un café», porque la curaduría curó 41 Starbucks y 85
+      McDonald's. **Es orden, no filtro**: `countPlaces`, «Ver N lugares» y el piso de los chips no cambian
+      un número. Sin migración de datos y reversible con un `UPDATE`. Las 46 zonas tienen ≥ 21 lugares
+      curados, así que arregla la primera pantalla en todo AMBA, no solo en Palermo.
+      **`PBETA-R1-03` y `PBETA-R1-04` quedan fuera a propósito** (decidido con Fer): son la misma pantalla
+      pero son UI y no tocan el motor — van juntos en otro pase.
 - [ ] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
 - [ ] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
 - [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.

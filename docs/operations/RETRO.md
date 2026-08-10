@@ -37,6 +37,27 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · Orden orgánico del listado (autoría de spec, sin código) — Fable
+
+- **Qué salió bien:** **medir antes de opinar volvió a cambiar la decisión, y esta vez dos veces.**
+  El diagnóstico heredado ("`confidence` premia a las cadenas") era correcto pero no tenía número;
+  agruparlo por tamaño de cadena lo convirtió en un mecanismo defendible (**25,8 % vs 6,1 %** de
+  fichas con `confidence ≥ 0,99`, 4,2×). Y simular el orden propuesto **antes** de escribirlo
+  destapó dos cosas que la intuición daba al revés: la curaduría curó **85 McDonald's y 41
+  Starbucks**, así que "curado primero" ponía Starbucks 2º en «Un café» ⇒ la precedencia entre las
+  dos señales se invirtió; y la "riqueza de perfil" (website/redes), que parecía la señal obvia de
+  un lugar con identidad, **está 2× más presente en las cadenas** que en los lugares únicos ⇒ habría
+  agravado el problema. Las dos se descartaron con datos, no con criterio.
+- **Qué frenó:** nada relevante. `docker exec … psql` sobre el contenedor `adondesalimos_db`
+  alcanzó para las ~15 mediciones (no hay `psql` en el PATH de Windows) y las simulaciones de orden
+  salieron con `row_number() over (order by …)` sin tocar una línea de código ni la base.
+- **Qué cambiar:** nada. La única cosa que anoto sin proponerla como regla: el spec quedó con un
+  **anexo de medición** con los números crudos y su fecha, para que la sesión que implemente no
+  tenga que re-medir para entender por qué las bandas están en ese orden — si en el próximo spec
+  vuelve a hacer falta, ahí sí es un patrón y se escribe en `AGENTES.md`.
+
+---
+
 ## 2026-08-10 · Piso de los chips por zona (implementación del fix) — Opus
 
 - **Qué salió bien:** los tests nuevos **buscan su caso en la base en vez de hardcodearlo** (un
