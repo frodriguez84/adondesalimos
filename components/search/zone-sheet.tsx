@@ -11,6 +11,7 @@ import { REGION_LABELS, REGION_ORDER } from '@/lib/zones/canon'
 import type { CatalogZone } from '@/lib/search/catalog'
 import { normalizar } from '@/lib/search/suggest'
 import type { SearchParams } from '@/lib/search/params'
+import { contarLugares } from '@/lib/search/resumen'
 import { useCount } from './use-count'
 
 /**
@@ -216,7 +217,7 @@ export function BotonAplicar({
           ? 'Ver lugares'
           : count === 0
             ? 'Nada con eso'
-            : `Ver ${count.toLocaleString('es-AR')} ${count === 1 ? 'lugar' : 'lugares'}`}
+            : `Ver ${contarLugares(count)}`}
     </button>
   )
 }

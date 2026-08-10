@@ -1239,9 +1239,28 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       de `cobertura-chips`). Detalle en § *Hecho*.
       **`PBETA-R1-03` y `PBETA-R1-04` quedaron fuera a propósito** (decidido con Fer): son la misma
       pantalla pero son UI y no tocan el motor — van juntos en otro pase, y con el orden arreglado
-      el techo del scroll de `R1-04` deja de ser arbitrario.
-- [ ] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
-- [ ] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
+      el techo del scroll de `R1-04` deja de ser arbitrario. **Ese pase se hizo el mismo día** — ver
+      los dos ítems acá abajo.
+- [x] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
+      ✅ **Hecho el 2026-08-10**, junto con `R1-04` y en el mismo elemento: un renglón arriba del
+      listado que dice **«1.094 lugares en Palermo Soho»** + «Incluye lo que está a la vuelta, hasta
+      400 m del borde.» El buffer **no se tocó** (sigue arbitrado). Se descartó marcar card por card:
+      repetiría el aviso ~38 veces en 100 cards. QA `ZONA-01..06` en `docs/qa/AnalisisQA.md`
+      § *PBETA-R1-03 y PBETA-R1-04*.
+      **Lo que el QA dejó a la vista:** con `ORDEN_ORGANICO` las 8 primeras de Palermo Soho ya son
+      todas de la zona, así que el síntoma original **no se reproduce en la primera pantalla** — pero
+      38 de las 100 cards siguen entrando por el buffer. Mirando solo la portada, el hallazgo se
+      hubiera cerrado como «ya está».
+- [x] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
+      ✅ **Hecho el 2026-08-10**. El conteo encabeza el listado (server-side con `countPlaces`; en
+      GPS lo cuenta el cliente con el mismo `useCount` de los sheets) y **scrollea con la lista**, no
+      queda fijo. El scroll corta en **100 cards** y ahí empuja a filtrar: «Son 100 de 1.094 lugares.
+      Afiná con los filtros o probá otra zona» + botón «Abrir filtros» (108×44). Medido en vivo:
+      **280 cards / 36.207 px / 12 tandas sin final → 100 cards / 13.325 px / 5 tandas**. QA
+      `CONT-01..05` y `TECHO-01..05`.
+      **Por qué 100 y no 200 (el techo de pins del mapa, decisión 32 de BUSQUEDA):** un pin es barato
+      y una card no — 200 cards son ~26.000 px, el mismo problema dividido por 1,4. El número es
+      puerta de ida y vuelta (`TECHO_CARDS` en `results-list.tsx`): se mueve cuando haya uso real.
 - [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
 - [x] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. ✅ **Hecho el 2026-08-08** con [`MAPA`](../specs/done/MAPA.md) ([resumen](../archive/SPECS_ARCHIVO.md#mapa)), junto con `FB-04` (mismo archivo, misma pantalla). Medido en vivo antes y después a 390×844: **67% → 100%** y `document.body.scrollHeight` 1.127 → **844 = `innerHeight`**. El bloque de búsqueda pasó de 332 a 188 px (el buscador se esconde y los chips van de 3 filas a 1 que scrollea, 124 → 42 px). En 390×667 el mapa entra entero pero la página gana 60 px de scroll por el piso `min-h-80`: degradación declarada en la decisión 9.
 - [ ] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
@@ -2236,9 +2255,10 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `green eat`, `el noble`, `sushiclub`, `wendy's`, `mccafe`, `la continental`,
       `la farola express` (esta última salió 14ª en *Quilmes · Cenar afuera*)—. Sumarlas es
       `npm run cadenas:proponer` + un `UPDATE`, sin deploy. Ver *Cola siguiente*.
-      **`PBETA-R1-03` y `PBETA-R1-04` siguen abiertos a propósito**: son la misma pantalla pero son
-      UI y no tocan el motor. Con el orden arreglado, ponerle techo al scroll (`R1-04`) deja de ser
-      arbitrario.
+      **`PBETA-R1-03` y `PBETA-R1-04` se cerraron el mismo día, en un pase aparte** (2026-08-10): son
+      la misma pantalla pero son UI y no tocan el motor — `lib/search/query.ts` no aparece en su
+      diff. La condición que este spec puso se cumplió: con el orden arreglado, cortar la lista en
+      100 deja afuera la cola y no una muestra al azar.
 
 - [x] **🔴 Bug de chips — apagar uno apagaba otro y prendía dos que nadie tocó** (2026-08-09,
       sesión Opus; reportado por Fer usando la app el mismo día). **El fix es una línea de idea:**

@@ -37,6 +37,24 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · PBETA-R1-03 + R1-04 (buffer explicado y techo del scroll) — Opus
+
+- **Qué salió bien:** **decidir las tres cosas de producto antes de abrir un archivo hizo que el
+  código saliera de una** — y una de las tres decisiones (explicar el buffer en un renglón en vez de
+  card por card) fusionó los dos hallazgos en un solo elemento, así que el fix terminó siendo más
+  chico que la suma de las partes. También se pagó leer `is_primary` antes de proponer opciones:
+  saber que se **puede** distinguir card por card volvió honesta la comparación entre las dos
+  alternativas, en vez de descartarla por "no hay dato".
+- **Qué frenó:** nada de método. Un tropiezo propio: probé la multi-zona con el slug inventado
+  `chacarita-y-colegiales` (el real es `chacarita-colegiales`) y por un momento leí «2 zonas» con 3
+  en la URL como un bug del renglón. Lo desarmó mirar `lib/zones/canon.ts`, 30 segundos. Vale como
+  recordatorio de que en este repo **los slugs son contrato y se copian, no se tipean**.
+- **Qué cambiar:** nada. Pero queda anotado un hallazgo del QA que no es del método sino de cómo se
+  verifica: **`ORDEN_ORGANICO` borró el síntoma de `R1-03` de la primera pantalla sin arreglar el
+  problema** (38 de 100 cards siguen siendo del buffer, solo que más abajo). Si el QA se hubiera
+  hecho mirando la portada, el hallazgo se cerraba como "ya está". Cuando un fix previo toca el
+  **orden**, re-verificar un hallazgo viejo exige bajar la lista, no mirar arriba.
+
 ## 2026-08-10 · ORDEN_ORGANICO implementado y cerrado — Opus
 
 - **Qué salió bien:** **el anexo de medición del spec se pagó entero.** La sesión de autoría dejó

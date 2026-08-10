@@ -8,6 +8,7 @@ import { PlaceCard } from '@/components/shared/place-card'
 import type { ListaDestino } from '@/lib/favoritos/query'
 import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
 import { serializeApiParams, type SearchParams } from '@/lib/search/params'
+import { contarLugares } from '@/lib/search/resumen'
 import type { SearchedPlace } from '@/lib/search/query'
 
 /**
@@ -29,6 +30,20 @@ import type { SearchedPlace } from '@/lib/search/query'
  * es puerta de ida y vuelta: se mueve cuando haya uso real.
  */
 const RESULTADOS_FLACOS = 5
+
+/**
+ * Techo del scroll infinito (PBETA-R1-04, decidido con Fer el 2026-08-10): 5
+ * páginas de 20. Medido antes del fix: 280 cards y 36.207 px sin final a la
+ * vista, en un celular.
+ *
+ * **Por qué recién ahora**: hasta `ORDEN_ORGANICO` el orden no ponía lo bueno
+ * arriba, así que cortar en N escondía cosas al azar. Con `dueño > banda >
+ * confidence > nombre` el corte deja afuera la cola, no una muestra arbitraria.
+ *
+ * Cuenta solo los orgánicos: los hasta 3 destacados son otro bloque y no gastan
+ * el techo. Puerta de ida y vuelta — el número se mueve cuando haya uso real.
+ */
+const TECHO_CARDS = 100
 
 type Props = {
   initialPlaces: SearchedPlace[]
@@ -55,6 +70,14 @@ type Props = {
   coords: { lat: number; lng: number } | null
   /** Estado de 0 resultados: lo dibuja el shell, que tiene los chips a mano. */
   vacio: React.ReactNode
+  /**
+   * Total de la búsqueda entera (PBETA-R1-04). Solo se usa para el cierre del
+   * techo ("100 de 1.095"); `null` cuando todavía no se sabe y el cierre lo
+   * omite en vez de inventar un número.
+   */
+  total: number | null
+  /** El cierre del techo empuja a filtrar, así que necesita abrir el sheet. */
+  onAbrirFiltros: () => void
 }
 
 export function ResultsList({
@@ -67,6 +90,8 @@ export function ResultsList({
   params,
   coords,
   vacio,
+  total,
+  onAbrirFiltros,
 }: Props) {
   const usaGps = params.gps && coords !== null
   const clave = serializeApiParams({ ...params, cursor: null }, coords)
@@ -82,6 +107,10 @@ export function ResultsList({
   )
 
   const sentinela = React.useRef<HTMLDivElement>(null)
+
+  // El scroll llegó al techo y todavía queda cola sin traer (PBETA-R1-04). Con
+  // `agotado` no es techo: es el final de verdad, y tiene su propio cierre.
+  const enElTecho = places.length >= TECHO_CARDS && !agotado
 
   // La búsqueda cambió: se descarta lo acumulado. En modo normal el server ya
   // trajo la página nueva; en GPS hay que pedirla.
@@ -116,7 +145,7 @@ export function ResultsList({
   }, [clave, initialPlaces, initialCursor, initialDestacados, initialGuardados])
 
   const cargarMas = React.useCallback(async () => {
-    if (cargando || agotado || !cursor) return
+    if (cargando || agotado || enElTecho || !cursor) return
     setCargando(true)
     try {
       const qs = serializeApiParams({ ...params, cursor }, coords)
@@ -145,11 +174,13 @@ export function ResultsList({
     } finally {
       setCargando(false)
     }
-  }, [cargando, agotado, cursor, params, coords])
+  }, [cargando, agotado, enElTecho, cursor, params, coords])
 
   React.useEffect(() => {
     const nodo = sentinela.current
-    if (!nodo || agotado) return
+    // Desconectar el observer en el techo es lo que corta el scroll infinito: sin
+    // esto seguiría pidiendo páginas aunque `cargarMas` no haga nada.
+    if (!nodo || agotado || enElTecho) return
     // `rootMargin` adelanta la carga: la página siguiente empieza a viajar antes
     // de que el usuario toque el fondo de la lista.
     const obs = new IntersectionObserver(
@@ -158,7 +189,7 @@ export function ResultsList({
     )
     obs.observe(nodo)
     return () => obs.disconnect()
-  }, [cargarMas, agotado])
+  }, [cargarMas, agotado, enElTecho])
 
   // Dedupe (decisión 21): un destacado que también cae en el orgánico no se
   // dibuja dos veces. Se saca del orgánico en todas las páginas cargadas —más
@@ -216,6 +247,27 @@ export function ResultsList({
       <div ref={sentinela} aria-hidden className="h-px" />
 
       {cargando && <p className="py-3 text-center text-sm text-muted-foreground">Buscando…</p>}
+
+      {/* El cierre del techo empuja a filtrar, no a seguir bajando: quien
+          scrolleó 100 cards no está eligiendo, está perdido. */}
+      {enElTecho && (
+        <div className="rounded-xl border border-dashed border-border p-6 text-center">
+          <p className="text-sm font-medium text-foreground">Hasta acá te mostramos</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {total === null
+              ? `Son los primeros ${TECHO_CARDS}. Afiná con los filtros o probá otra zona.`
+              : `Son ${TECHO_CARDS} de ${contarLugares(total)}. Afiná con los filtros o probá otra zona.`}
+          </p>
+          <button
+            type="button"
+            onClick={onAbrirFiltros}
+            className="mt-3 inline-flex h-11 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            Abrir filtros
+          </button>
+        </div>
+      )}
+
       {agotado && (
         <div className="py-3 text-center text-sm text-muted-foreground">
           <p>Eso es todo lo que tenemos por acá.</p>

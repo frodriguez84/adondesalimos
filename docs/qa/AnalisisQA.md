@@ -4347,3 +4347,63 @@ el chip devuelve **35** (20 en la primera página) y se dibuja prendido.
 | **Excepción del chip pintado** (`8972271`): con «Salida con chongo» aplicado, cambiar a **Belgrano**, donde da 0 | PASS — el chip **sigue listado y prendido** detrás de «Ver más»; el usuario no pierde el toggle. (Ojo al verificarlo: con la fila colapsada el chip no está en el DOM — hay que expandir «Ver más» antes de cantar un FAIL) |
 | **Primera pantalla en mobile** (390×844), Palermo Soho + Cenar afuera | PASS — *Las Pizarras bistro · L'Adesso · Barú Gastropub*, sin cadenas. Captura en `.playwright-mcp/prod-mobile-palermo-cenar.png` |
 | **CHIPS_ROTACION**, de rebote | PASS — lunes 17:07 AR y «After office» aparece adelantado en la home: la regla de `chips.schedule` corre en producción |
+
+---
+
+## QA — PBETA-R1-03 y PBETA-R1-04 (2026-08-10)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests ✅ **742/742** (+7 nuevos en
+`lib/search/__tests__/resumen.test.ts`) · build ⏳ pendiente (el dev server está levantado y
+comparte `.next`; se corre con el server parado antes del commit)
+**Método:** QA en vivo con Playwright contra `https://adondesalimos.ngrok.app`, 390×844 y 360×740,
+midiendo el DOM. Los dos hallazgos venían de `PULIDO_BETA F1` y quedaron esperando a
+`ORDEN_ORGANICO` a propósito: sin un orden que ponga lo bueno arriba, cortar la lista en N escondía
+cosas al azar.
+
+**Las tres decisiones de producto, tomadas con Fer antes de tocar código (2026-08-10):**
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| 1 | El buffer se explica en **un renglón arriba de la lista**, no en cada card | Los dos hallazgos son la misma pantalla: un solo elemento los tapa a los dos. Marcar card por card repetiría el aviso ~38 veces en 100 cards y le agrega una línea a la pantalla más vista |
+| 2 | El scroll corta en **100 cards** (5 páginas de 20) | Quien scrolleó 100 cards no está eligiendo, está perdido: el cierre lo empuja a **filtrar**, no a seguir bajando. Se descartó igualar el techo del mapa (200 pins, decisión 32 de BUSQUEDA) porque un pin es barato y una card no: 200 cards son ~26.000 px, el mismo problema dividido por 1,4 |
+| 3 | El renglón **scrollea con la lista**, no queda fijo | Es contexto de entrada, no un HUD. En 390 px una barra sticky más le come altura a las cards cuando arriba ya hay entre 188 y 443 px de controles. El problema de R1-04 era que el número **no existía** en la pantalla, no que no persistiera |
+
+Se decidió **no escribir spec**: son 3 decisiones de UI en una sola pantalla, todas puerta de ida y
+vuelta (copy y un número), sin schema, datos ni settings. El registro va acá y en el BACKLOG.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| ZONA-01 | Con una zona, el renglón la nombra y explica el buffer | ✅ PASS | `/?z=palermo-soho` → «**1.094 lugares en Palermo Soho**» + «Incluye lo que está a la vuelta, hasta 400 m del borde.» Captura: `.playwright-mcp/pbeta-r1-03-renglon.png` |
+| ZONA-02 | El aviso corresponde a algo real: sigue habiendo cards de otra zona | ✅ PASS | De las 100 cards de `/?z=palermo-soho`: **62 Palermo Soho · 20 Palermo Hollywood · 10 Botánico y Alto Palermo · 7 Villa Crespo · 1 Almagro y Boedo**. 38 de 100 entran por el buffer (en la medición de `PULIDO_BETA` eran 3 de las 8 primeras; con el orden nuevo las 8 primeras son todas de la zona y las del buffer quedaron abajo) |
+| ZONA-03 | Con varias zonas no se enumeran los nombres | ✅ PASS | `/?z=palermo-soho,villa-crespo,chacarita-colegiales&t=bar` → «365 lugares en **3 zonas**» + la aclaración. Los 3 chips activos siguen arriba diciendo cuáles son |
+| ZONA-04 | Sin zona elegida no se habla de bordes | ✅ PASS | `/?t=bar,cerveceria` → «3.219 lugares», **sin** segunda línea. No hay borde de zona que explicar |
+| ZONA-05 | En GPS manda el radio y tampoco hay buffer que aclarar | ✅ PASS | `resumirBusqueda({gps:true})` → «N lugares a menos de 2 km», `aclaracion: null` (`resumen.test.ts`). El radio sale de `GPS_RADIUS_KM`, no de un literal |
+| ZONA-06 | El buffer de 400 m **no se tocó** (decisión 5 de ZONAS, arbitrada) | ✅ PASS | `git status`: el diff no toca `lib/zones/`, `data/zones/` ni `place_zones` |
+| CONT-01 | El conteo existe en la pantalla de resultados, no solo en el botón del sheet | ✅ PASS | Búsqueda de `/[\d.]+\s*lugares?/` en el texto visible del listado: ahora matchea **arriba de la primera card**, no solo dentro del sheet cerrado |
+| CONT-02 | El número del renglón coincide con la lista cuando la lista se agota | ✅ PASS | `/?z=palermo-soho&t=musica-en-vivo` → renglón «42 lugares» y la lista carga exactamente **42** cards antes de agotarse |
+| CONT-03 | Con 0 resultados no aparece el renglón (no duplica el estado vacío) | ✅ PASS | `/?z=palermo-soho&q=zzzzqx` → sin renglón; queda el vacío de la decisión 23 entero, con su nota de beta |
+| CONT-04 | Sin búsqueda (primera visita) no aparece | ✅ PASS | `/` → sin renglón, «Elegí zona para arrancar» intacto |
+| CONT-05 | En modo mapa no aparece | ✅ PASS | Toggle «Mapa» con el mapa montado (`canvas` presente) → cero matches de `lugares` en el `main` |
+| TECHO-01 | El scroll infinito corta en 100 cards | ✅ PASS | `/?z=palermo-soho` scrolleado hasta que deja de crecer: **100 cards · 13.325 px · 5 tandas**. Antes del fix: **280 cards · 36.207 px · 12 tandas sin llegar a ningún final** |
+| TECHO-02 | Al llegar al techo se dice cuánto se mostró de cuánto | ✅ PASS | «Hasta acá te mostramos · **Son 100 de 1.094 lugares.** Afiná con los filtros o probá otra zona.» |
+| TECHO-03 | El cierre del techo empuja a filtrar, con un toque de 44 px | ✅ PASS | Botón «Abrir filtros» medido en **108×44** (el mínimo que `PBETA-R1-08` reclama para la ficha). Al tocarlo abre el sheet de **Filtros** (`y=111`, dentro del viewport) y no el de zona (`y=740`, fuera) |
+| TECHO-04 | Una búsqueda que se agota antes de 100 conserva el cierre viejo | ✅ PASS | 42 resultados → «Eso es todo lo que tenemos por acá.» (DEPLOY, decisión 21) y **no** el bloque del techo. `enElTecho` exige `!agotado` justamente para esto |
+| TECHO-05 | El observer se desconecta en el techo (no sigue pidiendo páginas) | ✅ PASS | El `IntersectionObserver` no se monta con `enElTecho`; la altura se estabiliza en 13.325 px y no entran más requests a `/api/search` |
+| RESP-01 | Sin desborde horizontal a 390 y a 360 | ✅ PASS | 390: `scrollWidth` = `clientWidth` = 375. 360: 345 = 345 |
+| CODE-01 | El motor no se tocó (los dos hallazgos son UI) | ✅ PASS | `git status`: `app/page.tsx`, `components/search/{results-list,results-summary,search-shell,zone-sheet}.tsx`, `lib/search/resumen.ts` + su test. **`lib/search/query.ts` no aparece en el diff** |
+| CODE-02 | El copy del conteo tiene un dueño único | ✅ PASS | `lib/search/resumen.ts` (`contarLugares`) lo usan el renglón, el cierre del techo y el «Ver N lugares» de los dos sheets. Antes el plural y el formato es-AR vivían inline en `BotonAplicar`; era una segunda implementación esperando a driftear |
+
+### Lo que el QA en vivo dejó a la vista (y no era el hallazgo)
+
+**El síntoma original de `R1-03` ya no se reproduce en la primera pantalla, pero el problema sí
+existe.** La medición de `PULIDO_BETA` decía «3 de las 8 primeras cards son de otra zona»; hoy las 8
+primeras de Palermo Soho son todas de Palermo Soho — las movió `ORDEN_ORGANICO`, no este fix. Lo que
+el orden **no** cambió es que 38 de las 100 cards de esa búsqueda entran por el buffer: el hallazgo
+seguía vivo, solo que más abajo. Si el renglón se hubiera evaluado mirando únicamente la primera
+pantalla, la conclusión habría sido «ya está arreglado» y el aviso no se escribía.
+
+**Una card del buffer cae justo antes del cierre del techo** (*Fat Broder · Botánico y Alto
+Palermo*): el último lugar que se ve en `/?z=palermo-soho` es de otra zona. Es el argumento a favor
+de la decisión 1 medido sin querer — la explicación tiene que estar arriba, porque abajo también hay
+cards del buffer.

@@ -287,6 +287,12 @@ Cicatrices reales — gotchas que sorprenden:
   `select value from app_settings where key='search.cadenas'` y corré `npm run cadenas:proponer`.
   Y en **GPS la banda no participa**: manda la distancia, y un Burger King a 100 m es legítimamente
   lo más cercano.
+- **El listado corta en 100 cards y eso NO es un bug del cursor** (`TECHO_CARDS` en
+  `components/search/results-list.tsx`, PBETA-R1-04). El `IntersectionObserver` se **desconecta** al
+  llegar, así que dejan de salir requests a `/api/search` aunque `nextCursor` no sea null: si estabas
+  depurando paginación, el cursor está bien. El cierre de «100 de 1.094» y el de «Eso es todo lo que
+  tenemos por acá» son **dos bloques distintos** — el segundo es el final de verdad y solo sale con
+  la lista agotada antes del techo.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o

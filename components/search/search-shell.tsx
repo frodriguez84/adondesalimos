@@ -21,6 +21,8 @@ import type { SearchedPlace, SearchResult } from '@/lib/search/query'
 import { FiltersSheet } from './filters-sheet'
 import { OccasionChipsRow } from './occasion-chips'
 import { ResultsList } from './results-list'
+import { ResultsSummary } from './results-summary'
+import { useCount } from './use-count'
 import { ZoneSheet } from './zone-sheet'
 
 /**
@@ -55,6 +57,12 @@ type Props = {
   /** Null cuando no hay búsqueda todavía (primera visita, decisión 2). */
   resultado: SearchResult | null
   /**
+   * Total de la búsqueda entera, contado en el server (PBETA-R1-04). **Null en
+   * GPS**: las coordenadas no llegan al server, así que ahí lo cuenta el cliente
+   * con el mismo `useCount` que ya usan los sheets.
+   */
+  total: number | null
+  /**
    * Bloque de destacados de la primera página (MONETIZACION, decisión 21). Solo
    * afecta la lista: el mapa (`resultado`) y el conteo no lo ven. Vacío en GPS —
    * ahí lo trae la API porque el server no tiene coordenadas.
@@ -80,6 +88,7 @@ export function SearchShell({
   zonas,
   chips,
   resultado,
+  total,
   destacados,
   guardados,
   listas,
@@ -167,6 +176,15 @@ export function SearchShell({
   // No se pide permiso solo (decisión 17) — se muestra el toggle prendido y se
   // invita a tocarlo, que es lo que sí puede disparar el prompt del browser.
   const gpsSinUbicacion = params.gps && coords === null
+
+  /**
+   * El número del renglón de arriba de la lista (PBETA-R1-04). En modo normal lo
+   * contó el server junto con la primera página; en GPS **no puede** —las
+   * coordenadas no llegan al server— y lo pide el cliente con el mismo hook que
+   * ya alimenta el "Ver N lugares" de los dos sheets.
+   */
+  const totalGps = useCount(params, coords, params.gps && coords !== null)
+  const totalVisible = params.gps ? totalGps : total
 
   /**
    * PBETA-R1-06 (MAPA, decisión 8): en modo mapa el bloque de búsqueda se colapsa
@@ -313,40 +331,48 @@ export function SearchShell({
       ) : modoMapa ? (
         <MapView params={params} coords={coords} />
       ) : (
-        <ResultsList
-          initialPlaces={resultado.places}
-          initialCursor={resultado.nextCursor}
-          initialDestacados={destacados}
-          initialGuardados={guardados}
-          listas={listas}
-          autenticado={autenticado}
-          params={params}
-          coords={coords}
-          vacio={
-            // Decisión 23: nunca una pantalla muerta. Los chips activos siguen
-            // arriba, a mano para sacar.
-            <Vacio
-              titulo="No encontramos nada con eso"
-              detalle={
-                tieneBusqueda(params)
-                  ? 'Sacá alguno de los chips de arriba o ampliá la zona.'
-                  : 'Probá ampliando la zona.'
-              }
-              // Aviso de beta (DEPLOY, decisión 21): el momento en que alguien
-              // piensa "esto no busca bien" es mirando una pantalla vacía, no un
-              // banner en la home.
-              nota={
-                <>
-                  Puede que exista y todavía no lo tengamos etiquetado —{' '}
-                  <Link href="/legales" className="underline underline-offset-4">
-                    estamos en beta
-                  </Link>
-                  .
-                </>
-              }
-            />
-          }
-        />
+        <div className="flex flex-col gap-3">
+          {/* PBETA-R1-03 + PBETA-R1-04: cuántos hay, de dónde, y que el filtro de
+              zona también trae lo que queda a la vuelta (buffer de 400 m). */}
+          <ResultsSummary total={totalVisible} zonas={nombresZona} gps={params.gps} />
+
+          <ResultsList
+            initialPlaces={resultado.places}
+            initialCursor={resultado.nextCursor}
+            initialDestacados={destacados}
+            initialGuardados={guardados}
+            listas={listas}
+            autenticado={autenticado}
+            params={params}
+            coords={coords}
+            total={totalVisible}
+            onAbrirFiltros={() => setFiltrosAbiertos(true)}
+            vacio={
+              // Decisión 23: nunca una pantalla muerta. Los chips activos siguen
+              // arriba, a mano para sacar.
+              <Vacio
+                titulo="No encontramos nada con eso"
+                detalle={
+                  tieneBusqueda(params)
+                    ? 'Sacá alguno de los chips de arriba o ampliá la zona.'
+                    : 'Probá ampliando la zona.'
+                }
+                // Aviso de beta (DEPLOY, decisión 21): el momento en que alguien
+                // piensa "esto no busca bien" es mirando una pantalla vacía, no un
+                // banner en la home.
+                nota={
+                  <>
+                    Puede que exista y todavía no lo tengamos etiquetado —{' '}
+                    <Link href="/legales" className="underline underline-offset-4">
+                      estamos en beta
+                    </Link>
+                    .
+                  </>
+                }
+              />
+            }
+          />
+        </div>
       )}
 
       <ZoneSheet

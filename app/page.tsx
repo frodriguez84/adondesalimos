@@ -16,7 +16,12 @@ import {
   registrarTagsDeBusqueda,
 } from '@/lib/search/impressions'
 import { parseSearchParams, tieneBusqueda, type RawParams } from '@/lib/search/params'
-import { buscarDestacados, searchPlaces, type SearchedPlace } from '@/lib/search/query'
+import {
+  buscarDestacados,
+  countPlaces,
+  searchPlaces,
+  type SearchedPlace,
+} from '@/lib/search/query'
 
 /**
  * Home = Search (decisión 1). Server component: lee `searchParams` y consulta,
@@ -46,7 +51,7 @@ export default async function Home({
   // link con `cursor` es una página interior y no lo lleva.
   const mostrarDestacados = tieneBusqueda(params) && !params.cursor
 
-  const [facetas, zonas, chips, resultado, destacados, session] = await Promise.all([
+  const [facetas, zonas, chips, resultado, total, destacados, session] = await Promise.all([
     getFacetCatalog(),
     getZoneCatalog(),
     // Los chips se cuentan **en el contexto de la búsqueda**: la zona elegida
@@ -56,6 +61,12 @@ export default async function Home({
     // navegación—, así que el recuento no agrega nada.
     getOccasionChips(new Date(), params.zones, params.tags),
     tieneBusqueda(params) ? searchPlaces(params) : null,
+    // PBETA-R1-04: el conteo dejó de vivir solo en el botón del sheet y ahora
+    // encabeza el listado. Una query más, en el mismo `Promise.all` — el
+    // `count(*)` corre en paralelo con la página, no en serie después.
+    // En GPS el server no puede contar (no tiene las coordenadas): lo cuenta el
+    // cliente con el mismo `useCount` de los sheets.
+    tieneBusqueda(params) ? countPlaces(params) : null,
     mostrarDestacados ? buscarDestacados(params) : Promise.resolve<SearchedPlace[]>([]),
     auth.api.getSession({ headers: await headers() }).catch(() => null),
   ])
@@ -120,6 +131,7 @@ export default async function Home({
         zonas={zonas}
         chips={chips}
         resultado={resultado}
+        total={total}
         destacados={destacados}
         guardados={guardados}
         listas={listas}
