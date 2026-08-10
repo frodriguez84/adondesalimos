@@ -778,6 +778,76 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       home**, se reabre y se va **directo a `?c=`** — las otras dos alternativas ya están evaluadas
       y descartadas.
 
+- [ ] **🟠 `salida-con-chongo` devuelve 1 solo lugar en todo AMBA — redefinirlo (opción C, decidido
+      con Fer el 2026-08-10).** Reportado por Fer usando la app: *"queda medio feo que alguien lo
+      toque y le devuelva 1 solo lugar; pensaría que esto no funciona o es una porquería"*.
+      **La sospecha inicial —que lo angostaba `wine-bar`— quedó refutada por los datos: sin
+      `wine-bar` el chip daría 0.** Ese único lugar **es** un wine bar; `wine-bar` está en la misma
+      faceta que `bar` y entra por **OR**, así que solo puede sumar.
+      **Causa real: el AND entre tres facetas**, con dos casi vacías. `(bar OR wine-bar)` **AND**
+      `romantico` **AND** `hasta-tarde` ⇒ embudo **2.806 → 12 → 1**. `romantico` tiene **71**
+      lugares sobre 18.993 publicados (**0,4%**) y `hasta-tarde` **173** (0,9%). Y no es del tag:
+      **la faceta Ambiente entera está al 1%** — su tag más poblado es `wifi-trabajar` con 201.
+      Cualquier chip que cruce Ambiente con Momento va a dar números de un dígito.
+
+      **Lo decidido — opción C, "ambiente ancho":**
+      `(bar | wine-bar)` **AND** `(romantico | speakeasy | con-vista | terraza-rooftop | bar-notable)`
+      ⇒ **35 lugares** en AMBA (de 1). Saca la faceta **Momento**, que era la que lo mataba, y
+      amplía `romantico` a sus ambientes hermanos — lo que un chongo busca es un lugar **lindo**, no
+      uno que cierre tarde.
+      **Medido el 2026-08-10 contra la base de dev** (18.993 publicados, umbral 0.5): hoy **1** ·
+      sin `hasta-tarde` **12** · sin `romantico` **56** · **C 35** · solo `(bar|wine)` **2.806**.
+      **Ninguna definición que conserve las tres facetas supera 6.**
+      **Por qué C y no la de 56** (`(bar|wine) + hasta-tarde`): da más, pero deja el chip como "un
+      bar abierto hasta tarde" — indistinguible de `tomar-algo` (`bar, cerveceria`) y sin lo que lo
+      hacía distinto. C conserva el significado, que es lo que un chip de ocasión vende.
+
+      **Alcance del trabajo** (sesión Opus corta, no es spec — es curaduría de un chip):
+      1. `lib/db/chips.ts` — los tags de `salida-con-chongo`.
+      2. **Reseed dirigido**: editar el seed NO alcanza, `occasion_chips` vive en la base
+         (`chips.integration.test.ts` compara código contra base y va a fallar hasta sincronizar).
+      3. Re-correr **`pintado.test.ts`**: cambiar los tags de un chip puede mover el inventario de
+         los 12 casos de la rama `prender` (el ítem cerrado arriba). Si aparece uno nuevo, el test
+         lo dice por nombre — es la red funcionando, no una regresión.
+      4. **Dos docs quedan desactualizados y hay que tocarlos**: el docstring de `PISO_HOME` en
+         `lib/search/chips.ts` dice *"no hay ningún chip entre 2 y 37"* — con C el chip cae en **35**,
+         justo en esa franja, y **vuelve a la home** (sort 1); y `CLAUDE.md` § *Notas importantes*
+         cita a `salida-con-chongo` con "1 lugar" como ejemplo del piso.
+      ⚠️ **Antes de decidir si vuelve a la home, mirar el ítem de abajo**: con 35 en AMBA da 3-6 por
+      zona, o sea queda igual de expuesto que `salida-con-amigos`. Dejarlo en "Ver más"
+      (`in_home = false`) hasta que eso se resuelva es una salida válida — y con CHIPS_ROTACION,
+      `in_home` ya no es "candidato a la home" sino "candidato **por defecto**", así que una regla de
+      `chips.schedule` podría adelantarlo igual.
+
+- [ ] **🔵 DECISIÓN / candidato a spec — el piso de los chips se mide en AMBA, pero el usuario busca
+      por zona.** Destapado el 2026-08-10 investigando el chip de arriba; **no** es de ese chip.
+      `PISO_HOME = 20` (`lib/search/chips.ts`) existe para que un chip flaco no ocupe la portada, y
+      su propio docstring dice que *"el problema real es la división por zona"* — pero **cuenta sin
+      zona**. Resultado, medido el 2026-08-10:
+
+      | Zona | `salida-con-amigos` (38 en AMBA, **hoy en la home**) |
+      |------|------|
+      | Retiro-Microcentro | **0** |
+      | Recoleta | **0** |
+      | Monserrat-Congreso | **0** |
+      | Palermo Soho | 2 |
+      | Villa Crespo | 3 |
+
+      O sea el síntoma que reportó Fer —*"toco un chip y no hay nada, esto no anda"*— **ya está
+      pasando desde la portada, con otro chip**, y subir el piso no lo arregla porque el piso mide
+      el catálogo entero. Es la decisión **25** (*el conteo es del catálogo, no del contexto*) y la
+      **23** (*el vacío rescata*) chocando en la práctica.
+      **Lo que hoy sí cubre:** el estado vacío de `search-shell.tsx` (*"No encontramos nada con eso —
+      Sacá alguno de los chips de arriba o ampliá la zona"* + nota de beta) no es una pantalla
+      muerta. **Lo que no cubre: 1 resultado**, que no dispara ese copy y deja una lista raquítica
+      sin ninguna explicación — que es exactamente lo que vio Fer.
+      **Opciones a evaluar en el spec** (ninguna decidida): contar los chips **con la zona activa**
+      (el mismo trabajo que ya hace el botón "Ver N lugares", pero cambia la decisión 25) · mostrar
+      el conteo en el propio chip · subir el piso · extender el copy de rescate a "muy pocos
+      resultados", no solo a cero.
+      **Decidido con Fer el 2026-08-10: anotar con los números medidos y no escribir el spec
+      todavía** — mismo criterio que el `?c=` del ítem de arriba.
+
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar
       sale *«Se bloqueó la app no segura — Esta app se diseñó para una versión anterior de Android,

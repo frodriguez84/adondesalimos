@@ -37,19 +37,26 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
-## 2026-08-10 · Triaje del ítem 🟠 de chips (decisión, sin código) — Fable
+## 2026-08-10 · Triaje de dos temas de chips (decisiones, sin código) — Fable
 
-- **Qué salió bien:** la decisión la dio un **dato medido en 3 minutos**, no la deliberación. Contar
-  cuántos chips quedan *tapados* en los 17 estados de un solo toque (7 de 17) mostró que "tapado" es
-  la mecánica normal del pintado, no la anomalía — y eso mató la opción del tercer estado visual,
-  que sobre el papel era la más razonable. **Medir la frecuencia del caso normal antes de diseñar la
-  señal para el caso raro** es lo que evitó reintroducir FB-02.
-- **Qué frenó:** nada del método. El prompt traía el hecho medido, las 4 opciones y qué leer en
-  orden, así que la sesión no re-derivó nada: fue leer, medir el dato que faltaba y decidir.
-- **Qué cambiar:** nada. La única novedad ya quedó escrita donde se usa: un ítem que se cierra como
-  *decisión tomada* lleva **disparador de reapertura** — qué tiene que pasar para volver a abrirlo y
-  a cuál de las opciones ya evaluadas se va —, para que la sesión que lo encuentre no repita el
-  análisis.
+- **Qué salió bien:** las dos decisiones las dio un **dato medido en minutos**, no la
+  deliberación — y en los dos casos el dato **contradijo la hipótesis de partida**. (1) Contar
+  cuántos chips quedan *tapados* en los 17 estados de un solo toque (**7 de 17**) mostró que
+  "tapado" es la mecánica normal del pintado, no la anomalía: eso mató la opción del tercer estado
+  visual, que sobre el papel era la más razonable, porque habría reintroducido FB-02. (2) Fer
+  reportó que `salida-con-chongo` da 1 lugar *"por `wine-bar`"*; una query mostró que **sin
+  `wine-bar` da 0** — el tag sospechado era lo único que lo mantenía vivo, y el culpable era el AND
+  de tres facetas con Ambiente al 1%.
+- **Qué frenó:** nada del método. El prompt del primer tema traía el hecho medido, las 4 opciones y
+  qué leer en orden, así que la sesión no re-derivó nada. Única fricción técnica, menor y ya
+  resuelta: `psql` no está en el PATH y el rol no es `postgres` — se consulta con
+  `docker exec -i adondesalimos_db psql -U adondesalimos -d adondesalimos -f -` leyendo el SQL de un
+  archivo (mismo criterio que `git commit -F`: nada de heredoc con acentos).
+- **Qué cambiar:** una sola cosa, y ya está aplicada en los dos ítems del BACKLOG: **antes de
+  diseñar el arreglo de un caso raro, medir la frecuencia del caso normal que comparte mecanismo.**
+  Es lo que descartó el tercer estado visual, y es lo que convirtió "el chip de Fer da 1 lugar" en
+  el hallazgo real — medir por zona mostró que `salida-con-amigos` (38 en AMBA, **en la home**) da
+  **0 en Retiro, Recoleta y Monserrat**: el síntoma ya estaba en la portada con otro chip.
 
 ## 2026-08-09 · Bug de chips: fix + barrido de las 289 — Opus
 
