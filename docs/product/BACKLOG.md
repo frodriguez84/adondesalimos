@@ -777,6 +777,23 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       reporta, o si la curaduría hace que los dos chips de un caso caigan juntos entre los **4 de la
       home**, se reabre y se va **directo a `?c=`** — las otras dos alternativas ya están evaluadas
       y descartadas.
+      📏 **El segundo disparador, MEDIDO el 2026-08-10** (se escribió como condición a futuro y nunca
+      se había verificado contra la portada real): **está a 0, y el fix del piso por zona no lo
+      movió**. Los 12 casos son estas secuencias, y **ninguna es alcanzable tocando solo la
+      portada** — ni sin zona ni en ninguna de las 46 zonas, porque **los 12 necesitan al menos un
+      chip que hoy vive detrás de "Ver más"** (`cumpleanos`, `al-aire-libre`, `plan-tranqui`,
+      `primera-cita`, `after-office`, `salida-con-chongo`; ninguno es `in_home`):
+      `cumpleanos ↔ tomar-algo ⇒ salida-con-amigos` · `cumpleanos ↔ after-office ⇒ salida-con-amigos`
+      · `cumpleanos ↔ al-aire-libre ⇒ salida-con-amigos` · `al-aire-libre ↔ {salida-con-chongo,
+      primera-cita, plan-tranqui} ⇒ tomar-algo` (y sus simétricas). O sea el caso pide abrir "Ver
+      más" **y** tocar dos chips específicos: la decisión de no ir a `?c=` sigue en pie, ahora con
+      número en vez de con criterio.
+      ⚠️ **Cómo NO medirlo** (se hizo mal primero y daba 6 zonas expuestas): contar los pares cuya
+      **unión de tags completa** a un tercer chip sobreestima, porque un tercero contenido en el que
+      se tocó queda **tapado** por el maximal y no se ve prendido — que es la mecánica normal, no la
+      anomalía. Hay que simular la secuencia real (`tagsAlTocar` y después `chipsPintados`) y contar
+      solo lo que **queda pintado** sin haberse tocado. Es la misma cuenta que el barrido de
+      `pintado.test.ts`: si da distinto de **12**, la medición está mal, no el código.
 
 - [x] **🟠 `salida-con-chongo` devuelve 1 solo lugar en todo AMBA — redefinirlo (opción C, decidido
       con Fer el 2026-08-10).** Reportado por Fer usando la app: *"queda medio feo que alguien lo
