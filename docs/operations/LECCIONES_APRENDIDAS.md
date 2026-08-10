@@ -5,6 +5,68 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Deployar un feature de datos es dos deploys, y el segundo no lo hace Vercel (2026-08-10 · ORDEN_ORGANICO en producción)
+
+**Qué pasó.** El push a `main` deployó el código nuevo, y hasta ahí todo bien. Pero al ir a
+producción a verificar aparecieron **tres** cosas que el deploy no lleva, y **ninguna de las tres
+rompe nada de forma visible** — que es justamente lo que las hace peligrosas:
+
+1. **`search.cadenas` no existía en Neon.** Sin la lista, la banda colapsa a 2/3 y el orden degrada
+   en silencio (decisión 16, funcionando como se diseñó). Resultado: el deploy "no hacía nada" y
+   Palermo Soho seguía abriendo con Burger King. Cero errores en los logs.
+2. **Neon estaba dos migraciones atrás, no una.** Faltaba la `0016` de CORRECCION_DATOS, cuyo
+   **código ya estaba deployado desde hacía un día**: `/admin` → Lugares apuntaba a una tabla y una
+   columna que no existían. La feature estaba rota en producción y nadie se había enterado porque
+   nadie la había abierto.
+3. **La corrección de Matienzo no había viajado.** Se hizo en dev el 09/08; el dump que fundó Neon
+   es del 03/08. Producción seguía con el pin viejo y, peor, con el `google_place_id` que apunta a
+   **otro negocio** — la ficha mostraba horarios y foto de un local ajeno, en vivo.
+
+**El patrón.** `app_settings`, `place_tags` de curaduría, correcciones de `places`: **son datos, no
+código.** Git no los lleva, Vercel no los lleva, y el schema de Drizzle tampoco — las migraciones
+viajan en el repo pero **aplicarlas es un comando aparte contra Neon**. Un feature cuya mitad vive
+en una tabla se deploya en dos actos, y el segundo es manual.
+
+**Y el modo de falla es el peor posible: silencioso.** Los tres casos degradan sin error. El
+primero por diseño (la degradación silenciosa es una virtud de la feature, pero convierte "me
+olvidé el paso de datos" en "el deploy no sirvió para nada"); el tercero ni siquiera degrada:
+**muestra datos de otro negocio con total confianza.**
+
+**Qué hacer la próxima.** Antes de dar por deployado un feature, preguntarse **"¿de qué se alimenta
+esto además del código?"** y verificar cada fuente contra prod, no contra dev. Tres chequeos que
+cuestan un minuto y que acá habrían encontrado las tres cosas:
+
+La versión sistemática, que es la que no depende de qué se te ocurra mirar: **contar las filas de
+todas las tablas en las dos bases y diffear**. Se corrió después de Matienzo y encontró el cuarto
+caso; las 22 tablas que difieren son transaccionales (usuarios, sesiones, votos, impresiones) y las
+de catálogo y config coinciden todas. Es una query y un `join`, y ahora es el chequeo de cabecera:
+
+```sql
+-- 1. ¿está el setting que el feature necesita?
+select key, value from app_settings where key = '<la clave>';
+-- 2. ¿en qué migración está prod?
+select count(*) from drizzle.__drizzle_migrations;   -- comparar con drizzle/meta/_journal.json
+-- 3. ¿los datos que el feature consume están y son los mismos?
+select count(*) from place_tags where source = 'admin';  -- comparar dev vs prod
+```
+
+**Cuarto caso, encontrado por el mismo QA horas después:** `salida-con-chongo` tenía en producción
+los `chip_tags` viejos — el chip devolvía **1 lugar en vez de 35**, el bug que el commit de esa
+mañana había arreglado. Y agrega una vuelta de tuerca: **ahí no había paso manual que olvidar,
+había un paso manual que ni siquiera existía como comando.** `sembrarChips` no re-sincroniza los
+tags de un chip que ya existe, así que la redefinición se había hecho con "un reseed dirigido" a
+mano en dev. **Si la única forma de aplicar un cambio de datos es un SQL improvisado, ese cambio no
+va a llegar a producción** — no por descuido, sino porque no hay nada que correr. Cuando un cambio
+toque datos, la pregunta no es "¿lo apliqué?" sino **"¿con qué comando lo vuelvo a aplicar en otra
+base?"**; si la respuesta es "lo hice a mano", falta código (quedó como deuda en el BACKLOG).
+
+**Lo que sí funcionó:** comparar **un número** entre dev y prod. La diferencia de **1** en el conteo
+de Palermo Soho (1.095 vs 1.094) es lo que destapó lo de Matienzo. Un solo lugar de diferencia sobre
+mil parecía redondeo y no lo era. Si dos entornos tienen que dar el mismo número, cualquier
+diferencia se persigue hasta encontrarle causa — no se redondea.
+
+---
+
 ## Para probar que algo NO cambió, corré el código viejo — no argumentes que no puede cambiar (2026-08-10 · ORDEN_ORGANICO)
 
 **Qué pasó.** El spec pedía dos invariantes de "nada se movió": que `countPlaces` diera exactamente

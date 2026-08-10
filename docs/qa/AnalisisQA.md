@@ -4222,3 +4222,128 @@ trabajo (116,6 → 41,5 ms, −64 %) y quedó 1,5 ms por encima de la línea, co
 esta máquina es más rápida que la del diseño (8,4 vs 13,8 ms). **No se materializa:** compraría los
 10 ms chicos, rompería la puerta de ida y vuelta de la decisión 16 y dejaría intacta la mitad
 grande. Se revisa si la home sin zona pasa a ser el caso mayoritario.
+
+---
+
+## QA en vivo — ORDEN_ORGANICO **en producción** (2026-08-10)
+
+**Veredicto:** APROBADO · **Dónde:** `https://adondesalimos.com.ar` (Vercel + Neon), catálogo real
+· **Método:** Playwright sobre el sitio deployado + verificación por `SELECT` contra Neon.
+
+Corrido **después** del deploy y de los dos pasos de base que el deploy no trae solo: la migración
+(`0016` + `0017`) y el `INSERT` de `search.cadenas`. Backup de producción previo:
+`backups/NEON_prod_2026-08-10_161723.sql.gz` (5,1 MB, 37 tablas) — el primero que se le hace a Neon.
+
+### Los 9 casos públicos
+
+| ID | Caso | Resultado en producción |
+|----|------|-------------------------|
+| ORD-01 | Palermo Soho sin chip | PASS — 1 *70 30 Bar* · 2 *La Choppería*; cero cadenas en el top 20 |
+| ORD-02 | + **Cenar afuera** | PASS — los 7 del *Objetivo* del spec, en ese orden. Idéntico a dev |
+| ORD-03 | + **Un café** | PASS — *Mulata Café* · *Maricafe* · *Full City*; ningún Starbucks |
+| ORD-04 | Quilmes + **Cenar afuera** | PASS — 1 *Vinsanto*, 20 cards, sin cadenas |
+| ORD-05 | **Las 46 zonas** | PASS — medido con una query sobre Neon: **0 zonas con menos de 20 publicados** y **0 zonas cuyo #1 sea una cadena de la lista** |
+| ORD-06 | Cursor, 3 páginas | PASS — 60 cards, 60 ids distintos |
+| ORD-07 | GPS (Obelisco) | PASS — distancias monótonas; Burger King 1º a 0,00 km (correcto: manda la distancia) |
+| ORD-08 | Texto "burger" | PASS — Burger King 1º y 2º |
+| ORD-09 | Mapa > 200 | PASS — 200 pins + `truncated`; los primeros 20 = la página 1, mismo orden |
+
+### `/admin` → Lugares (verifica que la migración 0016 quedó aplicada)
+
+| Caso | Resultado |
+|------|-----------|
+| La tab abre | PASS — antes de aplicar `0016` esta tab apuntaba a una tabla y una columna inexistentes en Neon |
+| Buscar «Matienzo» | PASS — trae el club y **«Pizza matienzo» etiquetado *No publicado*** (el buscador de admin omite `publishedWhere` a propósito) |
+| Guardar sin fuente | PASS — el botón nace deshabilitado |
+| Corregir dirección + mover el pin | PASS — apareció el aviso «Moviste el pin. El lugar va a cambiar de zona y de orden en "Cerca de mí"» |
+
+### 🔴 Hallazgo: la corrección de Matienzo nunca había llegado a producción (y se arregló acá)
+
+Lo destapó **una diferencia de 1** en el conteo de Palermo Soho: **1.095 en prod contra 1.094 en
+dev**. No era ruido. Producción seguía con la sede vieja:
+
+| | dev | prod (antes) |
+|---|---|---|
+| Dirección | Av. Juan B. Justo 2959 | **Pringles 1249** |
+| `google_place_id` | `ChIJU7cbTnrKvJUR…` | **`ChIJyVx_WKjLvJUR…`** |
+
+Ese id de producción es **el que el QA de CORRECCION_DATOS ya había probado que apunta a otro
+negocio**: la ficha de Matienzo venía mostrando horarios, rating y foto de un local ajeno, en vivo,
+desde el deploy. Y por el pin viejo el lugar contaba dentro de Palermo Soho.
+
+**La causa no es un bug: las correcciones son datos y no viajan en git.** La corrección se hizo en
+dev el 2026-08-09 y el dump que fundó Neon es del 2026-08-03. Misma familia que la curaduría y que
+`search.cadenas`.
+
+**Se corrigió en producción por la UI** (con OK de Fer), que de paso es el end-to-end de
+CORRECCION_DATOS en prod. Verificado por `SELECT` contra Neon:
+
+- `address` / `lat` / `lng` → los nuevos, **6 decimales idénticos a dev**
+- `locked_fields = {address,lat,lng}` — **sin** `name` ni `locality`: la marca es por campo
+- `place_data_edits` → una fila con el antes/después de cada campo, la fuente citada y
+  `decided_by = frodriguez.este@gmail.com`
+- `place_zones` → re-asignadas desde el pin nuevo: `villa-crespo` (primaria) + `chacarita-colegiales`;
+  **se fue `palermo-soho`**
+- Match de Google → invalidado a `pending` y re-resuelto al abrir la ficha:
+  **`ChIJU7cbTnrKvJURnqmP5zAI5Uo`**, el mismo id que dev, o sea el negocio real. Costo **$0** (Text
+  Search IDs-Only)
+- El conteo de Palermo Soho quedó en **1.094**, ahora igual que dev
+
+**Nota de método:** el pin se posicionó centrando el mapa en el destino a zoom 20 y clickeando el
+canvas, no arrastrando a ojo — a zoom 13 un píxel son ~8 m y el pin habría quedado a media cuadra.
+Quedó exacto a 6 decimales.
+
+### Auditoría de drift dev ↔ prod (el mismo día, después de lo de Matienzo)
+
+Lo de Matienzo salió de comparar **un** número. Se hizo entonces la comparación **completa**, que es
+la que no depende de qué se me ocurra mirar: conteo de filas de **las 37 tablas** en las dos bases,
+más el diff de `app_settings` clave por clave.
+
+| Chequeo | Resultado |
+|---|---|
+| Esquema | ✅ 37 tablas en las dos, ninguna que exista en una sola |
+| `app_settings` | ✅ mismas claves; **única** diferencia de valor: `ai.chat_monthly_cap` (500 en prod vs 5.000 en dev), **deliberada** (DEPLOY F0, decisión 8) |
+| Catálogo y config | ✅ `tags` (105) · `tags` inactivos (1) · `occasion_chips` (17) · `places` (26.057) · `place_tags` (43.637, de los cuales 3.967 `admin`) · `zones` (46) · `place_zones` (35.587) · `zone_aliases` — **todo idéntico** |
+| Tablas con diferencias | ✅ **las 22 son transaccionales** y deben diferir: `users`, `session`, `account`, `polls`, `poll_votes`, `chat_*`, `place_impressions_daily`, `place_lists`, `place_photos`, `place_claims`, `subscriptions`, `premium_interest`… |
+| **`chip_tags`** | 🔴 **52 en dev, 49 en prod** → ver abajo |
+
+De paso, señal de uso real en producción: `premium_interest` = 1, `place_lists` = 2 con 6 lugares
+guardados y `place_taps_daily` = 3. Gente que no es Fer.
+
+### 🔴 Hallazgo: `salida-con-chongo` tenía los tags viejos en producción
+
+El commit `c8aac77` (2026-08-10, la misma mañana) redefinió el chip: pasa de 1 lugar a 35 y sale de
+la home. **El código llegó a producción; la fila de la base no.**
+
+| | dev | prod (antes) |
+|---|---|---|
+| `in_home` | `false` | **`true`** |
+| tags | `bar, bar-notable, con-vista, romantico, speakeasy, terraza-rooftop, wine-bar` | **`bar, hasta-tarde, romantico, wine-bar`** |
+| lugares en AMBA | 35 | **1** (*Verdot Wine Bar*) |
+
+**Verificado en la app antes de tocar nada:** tocar «Salida con chongo» en producción devolvía **una
+sola card**. Era el bug reportado, vivo.
+
+**Por qué no viajó, y es lo que hay que arreglar:** el mensaje del propio commit lo dice —*"la base
+se sincronizó con un reseed dirigido"*—. `sembrarChips` **no puede** repetirlo: inserta `chip_tags`
+solo si el chip no tiene ninguno (`if (n === 0)`, `scripts/seed.ts`). O sea que redefinir un chip no
+tiene camino idempotente y **cada redefinición es un parche manual que se olvida**. Anotado como
+deuda en el BACKLOG.
+
+**Dos redes lo taparon a medias, y conviene entender la interacción:** el chip no se veía en la home
+—no porque el dato estuviera bien, sino porque el **fix del piso** que salió en el mismo deploy lo
+filtra por devolver 1 < `PISO_HOME` (20)—. Sin ese fix habría estado entre los 4 de la portada. Una
+red atajó lo que otra dejó pasar; con una sola de las dos, el usuario lo veía.
+
+**Corregido en Neon** con un SQL dirigido en transacción (con un `RAISE EXCEPTION` que corta si no
+quedan exactamente 7 tags). Después: **los 17 chips dan `diff` vacío entre dev y prod**, y en la app
+el chip devuelve **35** (20 en la primera página) y se dibuja prendido.
+
+### Los fixes de hoy que solo se pueden verificar clickeando
+
+| Caso | Resultado |
+|------|-----------|
+| **Bug de chips** (`6ea2000`): «Tomar algo» + «Primera cita» prendidos, apagar «Tomar algo» | PASS — se fue **solo** `cerveceria`, «Primera cita» quedó prendido y **no se prendió nada solo**. El repro del 2026-08-09 no ocurre en producción |
+| **Excepción del chip pintado** (`8972271`): con «Salida con chongo» aplicado, cambiar a **Belgrano**, donde da 0 | PASS — el chip **sigue listado y prendido** detrás de «Ver más»; el usuario no pierde el toggle. (Ojo al verificarlo: con la fila colapsada el chip no está en el DOM — hay que expandir «Ver más» antes de cantar un FAIL) |
+| **Primera pantalla en mobile** (390×844), Palermo Soho + Cenar afuera | PASS — *Las Pizarras bistro · L'Adesso · Barú Gastropub*, sin cadenas. Captura en `.playwright-mcp/prod-mobile-palermo-cenar.png` |
+| **CHIPS_ROTACION**, de rebote | PASS — lunes 17:07 AR y «After office» aparece adelantado en la home: la regla de `chips.schedule` corre en producción |

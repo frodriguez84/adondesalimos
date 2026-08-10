@@ -51,6 +51,18 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
   *Texto largo que pasa por el shell* dice que va a pasar. Lo escribí con `Write` a un archivo del
   scratchpad y lo anexé con `cat >>`, que es lo que la regla ya manda. Costo: un turno. **La regla
   está bien; la sesión la salteó** por escribir "un bloque cortito" que resultó de 60 líneas.
+- **Adenda del cierre (QA en producción):** el QA en prod encontró **tres** cosas que el deploy no
+  lleva y que ninguna avisa — el setting sin sembrar, Neon dos migraciones atrás (con `/admin` →
+  Lugares roto desde el deploy de CORRECCION_DATOS) y la corrección de Matienzo que nunca viajó, con
+  la ficha mostrando datos de otro negocio. Las tres son la misma cosa: **la mitad de un feature vive
+  en datos y los datos no están en git.** Lo destapó comparar un número entre entornos (1.095 vs
+  1.094 en Palermo Soho) y no redondear la diferencia. Lección en `LECCIONES_APRENDIDAS.md`.
+- **Y lo que salió de ahí vale más que los cuatro arreglos:** después de Matienzo, en vez de seguir
+  eligiendo qué mirar, se comparó **el conteo de las 37 tablas** entre dev y prod. Ahí apareció el
+  cuarto caso (un chip con los tags viejos, devolviendo 1 lugar en vez de 35 en producción) que
+  ninguna de mis diez métricas elegidas a mano había pescado. **El chequeo sistemático encontró lo
+  que la intuición no**, cuesta una query, y quedó escrito como el paso de cabecera para el próximo
+  deploy que toque datos.
 - **Qué cambiar:** nada del método. Dos cosas quedaron escritas donde van: la de correr el código
   viejo para probar que algo **no** cambió (`git show HEAD:archivo` a un temporal, correr, diffear) y
   la de Drizzle sin calificar la tabla en el `SELECT` — las dos en `LECCIONES_APRENDIDAS.md`, que es

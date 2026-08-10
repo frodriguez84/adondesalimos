@@ -424,6 +424,28 @@ son trabajo acotado con criterio de "listo" objetivo.
       (OSM tiene el nodo del club en la sede nueva). **Estimación acertada:** una sesión, como
       `ADMIN_USUARIOS`.
 
+- [x] **6.5 · Matienzo corregido EN PRODUCCIÓN** ✅ **2026-08-10**. La corrección hecha en dev el
+      09/08 nunca había llegado a Neon (el dump que fundó prod es del 03/08 y **las correcciones son
+      datos, no código**): producción seguía con `Pringles 1249`, el pin viejo y el
+      `google_place_id` que apunta a **otro negocio** — la ficha mostraba horarios y foto de un local
+      ajeno, en vivo. Lo destapó una diferencia de **1** entre el conteo de Palermo Soho en prod
+      (1.095) y en dev (1.094). Se corrigió por la UI de `/admin` → Lugares, que de paso fue el
+      end-to-end de CORRECCION_DATOS en producción: `locked_fields = {address,lat,lng}`, bitácora con
+      fuente citada, zonas re-asignadas (se fue `palermo-soho`) y el match re-resuelto al negocio real
+      (`ChIJU7cbTnrKvJUR…`, el mismo id que dev) a costo **$0**. Detalle en `docs/qa/AnalisisQA.md`
+      § *QA en vivo — ORDEN_ORGANICO en producción*.
+      ⚠️ **De paso se descubrió que Neon estaba dos migraciones atrás**: faltaba la `0016` de
+      CORRECCION_DATOS, con su código ya deployado ⇒ `/admin` → Lugares estaba **roto en producción**
+      y nadie lo había notado. Aplicadas `0016` + `0017` el 2026-08-10, con backup previo
+      (`backups/NEON_prod_2026-08-10_161723.sql.gz`, el primero de prod). Lección registrada.
+      🆕 **Y el mismo QA encontró un cuarto caso, del deploy de ese mismo día:** `salida-con-chongo`
+      tenía en Neon los **tags viejos** (el código de `c8aac77` viajó, la fila no), así que en
+      producción el chip devolvía **1 lugar en vez de 35** — el bug reportado, vivo. Sincronizado con
+      un SQL dirigido; los 17 chips quedaron con `diff` vacío entre dev y prod. La causa de fondo
+      —que `sembrarChips` no puede re-sincronizar los tags de un chip existente— quedó como deuda en
+      § *Deuda técnica señalada, no tocada*. Se hizo además la **auditoría completa de drift**
+      (conteo de las 37 tablas + `app_settings` clave por clave): todo lo de catálogo y config
+      coincide; las 22 tablas que difieren son transaccionales y deben diferir.
 - [ ] **7 · Completar la lista de `search.cadenas` — es un `UPDATE`, no un deploy** (salió al
       implementar `ORDEN_ORGANICO` el 2026-08-10). La lista inicial son **22 nombres**, pero
       `npm run cadenas:proponer` —el detector a ≥ 8 locales de la decisión 15— encuentra **49
@@ -1149,6 +1171,25 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 ## Mejoras futuras (fuera de v1)
 
 ### Deuda técnica señalada, no tocada
+
+- [ ] **`sembrarChips` no puede re-sincronizar los tags de un chip que ya existe — y por eso una
+      redefinición se olvida** (destapado por el QA en producción del 2026-08-10). `scripts/seed.ts`
+      hace `if (n === 0)` antes de insertar en `chip_tags`: si el chip ya tiene tags, **los deja como
+      están**. La fila del chip sí se upsertea (`name`, `in_home`, `sort`), así que un re-seed deja el
+      chip **medio actualizado**, que es peor que no actualizarlo: sale de la home pero sigue
+      ofreciendo la combinación vieja detrás de «Ver más».
+      **No es teórico, ya costó:** `c8aac77` redefinió `salida-con-chongo` (de 1 lugar a 35) y su
+      propio mensaje dice *"la base se sincronizó con un reseed dirigido"* — un SQL a mano, en dev.
+      A producción nunca llegó: durante todo el día, tocar ese chip en `adondesalimos.com.ar`
+      devolvía **una sola card**. Se corrigió a mano otra vez, en Neon.
+      **El arreglo:** que `sembrarChips` sincronice los `chip_tags` del chip (borrar los que sobran e
+      insertar los que faltan, o `delete` + `insert` dentro de una transacción por chip) en vez de
+      saltearlos. Con eso, redefinir un chip vuelve a ser *editar `lib/db/chips.ts` + correr el
+      seed*, que es lo que cualquiera espera y lo que el docstring del seed ya promete
+      ("idempotente"). Cuidado con no pisar `active`, que es curaduría y el seed **no** debe tocar —
+      mismo criterio que ya aplica a los tags.
+      **Costo:** chico, ~15 líneas en `scripts/seed.ts` + un test de integración que redefina un chip
+      y re-siembre. **Valor:** cierra el único camino de sincronización de catálogo que hoy es manual.
 
 - [ ] **Unificar el tercer llamador del match por nombre** (visto el 2026-08-08 implementando
       `CURADURIA_POR_NOMBRE`). Ahora que `lib/search/nombre.ts` es el dueño único de
