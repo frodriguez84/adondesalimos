@@ -716,24 +716,67 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       fix ya solo lo genera la promoción, y limpiarlo borraría un filtro que el usuario ve puesto), y
       el caso nuevo que destapó el barrido va al BACKLOG sin tocarse — es el ítem que sigue.
 
-- [ ] **🟠 Al prender un chip, la unión de tags puede completar a un tercero** (destapado por el
-      barrido de las 289 el 2026-08-09, **no** por un usuario). «Cumpleaños» + «Tomar algo» completa
-      a **«Salida con amigos»** (`bar, cerveceria, grupos-grandes`): se prende sin que nadie lo toque
-      y, como **contiene** a «Tomar algo», deja tapado —visualmente apagado— al chip que se acaba de
-      tocar. **12 de 289** combinaciones, **1** con el tocado tapado.
-      **Por qué no se arregló con el bug de arriba:** no es el mismo hueco. Al apagar hay elección
-      (qué tags sacar) y por eso se pudo arreglar; al prender no la hay —sumar los tags del chip es
-      lo que lo prende— y ese tercer chip queda **genuinamente entero**. Mientras los tags sean el
-      estado (decisión 18) y el pintado se derive de ellos, esconderlo pediría romper uno de los dos
-      chips que el usuario sí quiere.
-      **Qué costaría:** cambiar la regla del pintado — p. ej. que la URL lleve también **qué chips
-      tocó** el usuario, en vez de derivar todo de los tags. Toca la decisión 18, el back y el link
-      compartido: **amerita spec**, no un fix. **Decidido con Fer el 2026-08-09: anotar y no tocar
-      ahora.**
-      🛡️ **Ya está contenido, no suelto:** el test verifica que el que se prende de más esté
-      contenido en la unión (la excepción se demuestra, no se tolera) e **inventaría por nombre** el
-      único caso con el tocado tapado. Si la curaduría mueve los tags de un chip y aparece otro, el
-      test falla y lo dice.
+- [x] **🟠 Al prender un chip, la unión de tags puede completar a un tercero** — ✅ **Cerrado como
+      decisión, 2026-08-10: NO se arregla.** Destapado por el barrido de las 289 el 2026-08-09,
+      **no** por un usuario. «Cumpleaños» + «Tomar algo» completa a **«Salida con amigos»**
+      (`bar, cerveceria, grupos-grandes`): se prende sin que nadie lo toque y, como **contiene** a
+      «Tomar algo», deja tapado —visualmente apagado— al chip que se acaba de tocar. **12 de 289**
+      combinaciones (6 pares, en los dos órdenes), **1** con el tocado tapado.
+      **Por qué no era el mismo hueco que el 🔴 de arriba:** al apagar hay elección (qué tags sacar)
+      y por eso se pudo arreglar; al prender no la hay —sumar los tags del chip es lo que lo
+      prende— y ese tercer chip queda **genuinamente entero**. Mientras los tags sean el estado
+      (decisión 18) y el pintado se derive de ellos, esconderlo pediría romper uno de los dos chips
+      que el usuario sí quiere. Es una propiedad de la regla, no un descuido.
+
+      ✅ **Cómo se decidió** (2026-08-10, sesión Fable de triaje — sin código). Se evaluaron cuatro
+      opciones y ganó **no arreglar y documentar**, con el mismo criterio que el "bug de zonas" que
+      era la decisión 5 tal como se especificó: costo cero, riesgo cero, y el comportamiento ya
+      contenido por tests.
+
+      **El dato que cerró la discusión** (medido sobre el seed, 2026-08-10): **"tapado" es la
+      mecánica normal del pintado maximal, no la anomalía.** Con **un solo chip tocado**, 7 de los
+      17 estados limpios ya dejan algún chip tapado (8 en total): `salida-con-amigos` y
+      `after-office` tapan a `tomar-algo` · `primera-cita` tapa a `cenar-afuera` y `un-cafe` ·
+      `cumpleanos` y `cena-familiar` tapan a `cenar-afuera` · `plan-tranqui` y `merienda` tapan a
+      `un-cafe`.
+
+      **Por qué se descartó cada alternativa:**
+      - **Tercer estado visual para el chip tapado** — no señalizaría los 12 casos raros, pintaría
+        el **camino feliz**: tocar «Primera cita» mostraría dos chips en estado intermedio, que es
+        literalmente el reporte de FB-02 (*"se prenden de a varios"*) ya arreglado el 2026-08-08.
+        Y distinguir "tapado normal" de "tapé al que acabás de tocar" exige saber **qué tocó el
+        usuario** — o sea, exige la opción de abajo. No es una opción independiente.
+      - **Que la URL lleve también qué chips tocó el usuario (`?c=` además de `?t=`)** — es el
+        arreglo de verdad y el más caro: toca las decisiones **12 y 18**, el back y el link
+        compartido, agrega a una URL pública un parámetro **puramente cosmético** (el server no lo
+        usa: no cambia ni un resultado) y obliga a resolver tres reconciliaciones (`c` vs `t`
+        contradictorios · link viejo sin `c` · tag sacado a mano en `ChipsActivos`). Desproporcionado
+        para 12/289. El atajo "recordar el último chip tocado solo en memoria" es peor que ambas:
+        rompe la decisión 12 —dos personas con la misma URL verían distinto, y recargar cambiaría
+        el pintado—.
+      - **Retocar los tags de los chips que colisionan** — inviable y al revés: `tomar-algo`
+        (`{bar, cerveceria}`) está contenido **estructuralmente** en `salida-con-amigos` y en
+        `after-office` sin que ninguna unión intervenga, así que romperlo exige sacarle `bar` o
+        `cerveceria` a alguno — cambiar **qué lugares devuelve** un chip para arreglar cómo se ve un
+        botón. Y la curaduría edita `occasion_chips` **sin deploy**: cualquier arreglo por tags se
+        vuelve a romper solo en la próxima corrida.
+
+      **Qué queda vivo, en concreto.** `al-aire-libre` es el disparador más común (8 de los 12
+      casos), no `cumpleanos`. **En 11 de los 12 la UI no miente**: el chip que se prende de más
+      tiene sus tags efectivamente puestos, así que la lista que se ve es la suya. **El único feo
+      tiene salida en un toque**: en `cumpleanos` + «Tomar algo», volver a tocarlo lo promueve y
+      queda solo él — no hay estado inalcanzable.
+
+      🛡️ **Contenido en dos capas, y la curaduría no puede crear un caso nuevo en silencio por
+      ninguna.** `lib/search/__tests__/pintado.test.ts` verifica que el que se prende de más esté
+      **contenido en la unión** (la excepción se demuestra, no se tolera) e **inventaría por
+      nombre** el único caso con el tocado tapado. Como esa red corre sobre el **seed** y no sobre
+      la base, el otro flanco lo cubre `chips.integration.test.ts`, que compara código contra base:
+      editar `occasion_chips` sin tocar el seed falla ahí.
+      ♻️ **Disparador de reapertura** (escrito para no re-derivar el análisis): si un usuario real lo
+      reporta, o si la curaduría hace que los dos chips de un caso caigan juntos entre los **4 de la
+      home**, se reabre y se va **directo a `?c=`** — las otras dos alternativas ya están evaluadas
+      y descartadas.
 
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar
@@ -1809,9 +1852,11 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
          fallar y, además, destapó **12 casos en la rama `prender`** que nadie había visto: la unión
          de tags puede completar a un tercer chip («Cumpleaños» + «Tomar algo» prende «Salida con
          amigos») y en 1 de esos casos deja tapado al chip recién tocado. **No se arregló**: es
-         inherente a derivar el pintado de los tags, así que quedó como ítem propio con spec
-         pendiente — pero **contenido por el test**, que exige que el que se prende de más esté
-         contenido en la unión e inventaría el caso conocido por nombre.
+         inherente a derivar el pintado de los tags, así que quedó como ítem propio — pero
+         **contenido por el test**, que exige que el que se prende de más esté contenido en la
+         unión e inventaría el caso conocido por nombre. **El 2026-08-10 se cerró como decisión
+         tomada: no se arregla** (§ *Feedback posterior*, con las cuatro opciones evaluadas y el
+         disparador de reapertura).
       3. **Un invariante barato pagó el fix mismo:** «ningún toque es un botón muerto» es la
          verificación de que el propio arreglo no podía dejar un chip que no se apaga cuando todos
          sus tags los sostiene otro.

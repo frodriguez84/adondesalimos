@@ -4110,11 +4110,27 @@ apagado. Son **12 de 289** combinaciones (todas por `tomar-algo` o `salida-con-a
 con el tocado tapado.
 **No se puede arreglar dentro de la regla vigente:** mientras los tags sean el estado (decisión 18)
 y el pintado se derive de ellos, ese tercer chip está genuinamente entero y esconderlo pediría
-romper uno de los dos que el usuario sí quiere. Fer decidió (2026-08-09) **anotarlo en el BACKLOG y
-no tocarlo ahora**: el arreglo pide cambiar la regla del pintado, que es decisión de producto.
+romper uno de los dos que el usuario sí quiere.
 El test **no lo tolera en silencio**: verifica que el que se prende de más esté contenido en la
 unión, e **inventaría por nombre** el único caso con el tocado tapado — si la curaduría mueve los
 tags de un chip y aparece otro, el test lo dice.
+
+✅ **Cerrado como decisión tomada el 2026-08-10 — no se arregla, y no es deuda.** El 2026-08-09 Fer
+lo había anotado en el BACKLOG "para no tocarlo ahora"; el triaje del día siguiente (sesión Fable,
+sin código) evaluó las cuatro salidas y ninguna paga. **El dato que las cierra:** estar *tapado* es
+la mecánica normal del pintado maximal, no la anomalía — con **un solo chip tocado, 7 de los 17**
+estados limpios ya dejan alguno tapado (8 en total). Entonces dibujar al tapado en un tercer estado
+pintaría el **camino feliz** (volvería el "se prenden de a varios" de FB-02, ya arreglado), y
+distinguir "tapado normal" de "tapé al recién tocado" exige saber qué chip tocó el usuario;
+recurar los tags tampoco sirve, porque `tomar-algo` está contenido en `salida-con-amigos` y en
+`after-office` **por construcción** y la curaduría los edita sin deploy. Queda solo llevar `?c=` en
+la URL — decisiones 12 y 18, back y link compartido, para un parámetro que no cambia ni un
+resultado: desproporcionado para 12/289. **Qué queda vivo:** en **11 de los 12** la UI no miente (el
+chip de más tiene sus tags efectivamente puestos, la lista que se ve es la suya) y el único feo
+tiene salida en un toque (volver a tocar el chip lo promueve y queda solo él). **Se reabre** —y se
+va directo a `?c=`— si un usuario real lo reporta o si la curaduría deja los dos
+chips de un caso juntos entre los **4 de la home**. Análisis completo en `docs/product/BACKLOG.md`
+§ *Feedback posterior*.
 
 **H-2 — El tag suelto se volvió un caso raro, y queda como está.**
 Con el fix, apagar ya **no** deja tags huérfanos: lo que sobrevive está sosteniendo a otro chip

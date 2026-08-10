@@ -37,6 +37,20 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · Triaje del ítem 🟠 de chips (decisión, sin código) — Fable
+
+- **Qué salió bien:** la decisión la dio un **dato medido en 3 minutos**, no la deliberación. Contar
+  cuántos chips quedan *tapados* en los 17 estados de un solo toque (7 de 17) mostró que "tapado" es
+  la mecánica normal del pintado, no la anomalía — y eso mató la opción del tercer estado visual,
+  que sobre el papel era la más razonable. **Medir la frecuencia del caso normal antes de diseñar la
+  señal para el caso raro** es lo que evitó reintroducir FB-02.
+- **Qué frenó:** nada del método. El prompt traía el hecho medido, las 4 opciones y qué leer en
+  orden, así que la sesión no re-derivó nada: fue leer, medir el dato que faltaba y decidir.
+- **Qué cambiar:** nada. La única novedad ya quedó escrita donde se usa: un ítem que se cierra como
+  *decisión tomada* lleva **disparador de reapertura** — qué tiene que pasar para volver a abrirlo y
+  a cuál de las opciones ya evaluadas se va —, para que la sesión que lo encuentre no repita el
+  análisis.
+
 ## 2026-08-09 · Bug de chips: fix + barrido de las 289 — Opus
 
 - **Qué salió bien.** Escribir el test **antes** del fix y sobre las funciones ya extraídas: falló

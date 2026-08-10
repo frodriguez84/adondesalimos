@@ -53,8 +53,26 @@
  *
  * **No se puede arreglar acá**: mientras los tags sean el estado (decisión 18) y
  * el pintado se derive de ellos, ese chip está genuinamente entero y esconderlo
- * pediría romper uno de los dos que el usuario sí quiere. Sale de cambiar la
- * regla del pintado, que es decisión de producto — está en el BACKLOG.
+ * pediría romper uno de los dos que el usuario sí quiere.
+ *
+ * **Es decisión tomada, no deuda** (Fer, 2026-08-10): se evaluaron las cuatro
+ * salidas y ninguna paga. Lo que las cierra a las dos más tentadoras es que
+ * **estar tapado es la mecánica normal del pintado maximal, no la anomalía**: con
+ * un solo chip tocado, **7 de los 17** estados limpios ya dejan alguno tapado
+ * (`primera-cita` tapa a `cenar-afuera` y `un-cafe`, `after-office` a
+ * `tomar-algo`, y así). Entonces (1) dibujar al tapado en un tercer estado
+ * pintaría el camino feliz — volvería el "se prenden de a varios" de FB-02 —, y
+ * distinguir "tapado normal" de "tapé al que acabás de tocar" exige saber qué
+ * chip tocó el usuario; y (2) los tags no se pueden recurar para evitarlo, porque
+ * `tomar-algo` está contenido en `salida-con-amigos` y en `after-office` **por
+ * construcción**, y la curaduría los edita sin deploy. Queda solo llevar en la
+ * URL qué chips tocó el usuario (`?c=`), que toca las decisiones 12 y 18, el back
+ * y el link compartido para un parámetro que no cambia ni un resultado.
+ *
+ * Se reabre —y se va directo a `?c=`— si un usuario real lo reporta o si la
+ * curaduría deja los dos chips de un caso juntos entre los 4 de la home. El
+ * análisis entero, con los 12 casos y las cuatro opciones, está en el BACKLOG
+ * § *Feedback posterior*.
  *
  * Lo que **no** hace, a propósito: no rescata a un chip que quedó *tapado*. Sigue
  * aplicado (sus tags están puestos) y se ve apagado; tocarlo lo promueve. Y un tag
