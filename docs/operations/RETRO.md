@@ -37,6 +37,29 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · Redefinición de `salida-con-chongo` (implementación) — Opus
+
+- **Qué salió bien:** el triaje previo dejó el trabajo tan especificado que la implementación fue
+  mecánica — y la única decisión que había quedado abierta (¿vuelve a la home?) se resolvió con
+  **una consulta de 30 segundos**: los 35 lugares dan **0 en 17 de las 46 zonas**, o sea el problema
+  reportado volvía por la ventana. Sin ese conteo por zona, "pasa el piso de 20" habría alcanzado
+  para mandarlo a la home. Las dos redes hicieron su trabajo sin ruido: `pintado.test.ts` no
+  inventó casos nuevos y `chips.integration.test.ts` fue la prueba de que el reseed dirigido
+  funcionó.
+- **Qué frenó:** **un script de edición dejó `lib/search/chips.ts` en 0 bytes.** Abrir el destino
+  en modo escritura **lo trunca en el acto**, así que cuando el `write` falló —el texto de
+  reemplazo tenía un emoji convertido en par de *surrogates*, que UTF-8 no codifica— el archivo ya
+  estaba vacío. Se recuperó con `git checkout --` **solo porque todavía no tenía cambios míos**;
+  con una edición previa sin commitear, se perdía. Y el surrogate no lo escribí a mano: el escape
+  iba duplicado en el heredoc y llegó al archivo a medio desescapar — la misma clase de trampa que
+  la regla de `git commit -F`, un backslash que cambia de significado al cruzar el shell.
+- **Qué cambiar:** al editar un archivo con un script, **escribir a un `.tmp` y renombrar encima**
+  — el destino no se abre para escritura hasta tener el contenido ya codificado, así que un error
+  de encoding no puede dejar un archivo vacío. Cuesta dos líneas por script y ya se pagó solo: el
+  mismo error volvió dos ediciones después y esa vez murió en el `.tmp`, con el original intacto.
+
+---
+
 ## 2026-08-10 · Triaje de dos temas de chips (decisiones, sin código) — Fable
 
 - **Qué salió bien:** las dos decisiones las dio un **dato medido en minutos**, no la

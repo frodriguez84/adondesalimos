@@ -65,17 +65,25 @@ export const CHIPS_EN_HOME = 4
  * distinto del `> 0`** que habilita "Ver más": un chip con 1 lugar sigue
  * existiendo, pero no se gana la portada.
  *
- * El caso que lo motivó: `salida-con-chongo` da **1** lugar en todo AMBA y tiene
- * `sort` 1, así que era el **segundo** chip de la home. Como la home pide zona
- * primero, en una zona concreta ese 1 es 0 casi siempre — el usuario tocaba un
- * atajo de la portada para caer en "sin resultados".
+ * El caso que lo motivó: `salida-con-chongo` daba **1** lugar en todo AMBA y
+ * tiene `sort` 1, así que era el **segundo** chip de la home. Como la home pide
+ * zona primero, en una zona concreta ese 1 es 0 casi siempre — el usuario tocaba
+ * un atajo de la portada para caer en "sin resultados".
  *
- * Por qué 20: sobre los 18.993 publicados (medido el 2026-08-03) no hay ningún
- * chip entre 2 y 37, así que hoy 10 y 20 hacen exactamente lo mismo —dejan afuera
- * a `salida-con-chongo` (1) y no tocan al que le sigue, `salida-con-amigos` (38)—.
- * Ante dos números equivalentes gana el más exigente, porque el problema real es
- * la división por zona. Bajarlo es cambiar esta constante; el día que un chip
- * caiga en la franja 2-19 va a ser una decisión con datos y no una hipótesis.
+ * Por qué 20: cuando se eligió (2026-08-03, 18.993 publicados) no había ningún
+ * chip entre 2 y 37, así que 10 y 20 hacían exactamente lo mismo —dejaban afuera
+ * a `salida-con-chongo` (1) y no tocaban al que le seguía, `salida-con-amigos`
+ * (38)—. Ante dos números equivalentes ganó el más exigente, porque el problema
+ * real es la división por zona. Bajarlo es cambiar esta constante.
+ *
+ * **Esa franja vacía ya no lo está**: al redefinir `salida-con-chongo`
+ * (2026-08-10) pasó de 1 a **35**, o sea cae dentro de 2-37 y **pasa** este piso.
+ * No volvió a la home igual, y por el motivo que este docstring anticipaba: con
+ * 35 en AMBA da **0 en 17 de las 46 zonas** y a lo sumo 6 en la mejor, así que
+ * quedaba tan expuesto como `salida-con-amigos`. Se lo dejó en "Ver más" con
+ * `inHome: false` (`lib/db/chips.ts`) — una decisión de curaduría, no de este
+ * piso. Mientras el piso siga contándose **sin zona**, subirlo o bajarlo no
+ * arregla el caso real; eso es el ítem 🔵 del BACKLOG.
  */
 export const PISO_HOME = 20
 

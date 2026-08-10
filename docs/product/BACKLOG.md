@@ -778,7 +778,7 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       home**, se reabre y se va **directo a `?c=`** — las otras dos alternativas ya están evaluadas
       y descartadas.
 
-- [ ] **🟠 `salida-con-chongo` devuelve 1 solo lugar en todo AMBA — redefinirlo (opción C, decidido
+- [x] **🟠 `salida-con-chongo` devuelve 1 solo lugar en todo AMBA — redefinirlo (opción C, decidido
       con Fer el 2026-08-10).** Reportado por Fer usando la app: *"queda medio feo que alguien lo
       toque y le devuelva 1 solo lugar; pensaría que esto no funciona o es una porquería"*.
       **La sospecha inicial —que lo angostaba `wine-bar`— quedó refutada por los datos: sin
@@ -818,6 +818,23 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       (`in_home = false`) hasta que eso se resuelva es una salida válida — y con CHIPS_ROTACION,
       `in_home` ya no es "candidato a la home" sino "candidato **por defecto**", así que una regla de
       `chips.schedule` podría adelantarlo igual.
+
+      ✅ **HECHO el 2026-08-10.** Los tags quedaron en `lib/db/chips.ts` y se sincronizó la base con
+      un reseed dirigido (borrar los `chip_tags` de **ese** chip —nunca la fila de `occasion_chips`,
+      que se llevaría puesto su `active`— y correr `npm run db:seed`, que al ver 0 filas inserta los
+      nuevos). **Verificado contra la base: 35 en AMBA**, de 1.
+      **Se quedó en "Ver más" (`inHome: false`)**, decidido con Fer: pasa `PISO_HOME` pero el dato
+      que faltaba lo desaconseja — esos 35 dan **0 en 17 de las 46 zonas** y el techo por zona es
+      **6** (Retiro 6 · Palermo Soho 5 · Monserrat 5 · el resto 1-4), o sea el problema reportado
+      vuelve por la ventana en cuanto el usuario elige zona. Vuelve a la home cuando se resuelva el
+      ítem 🔵 de abajo; es un flag del seed, sale gratis.
+      **Redes:** `pintado.test.ts` 12/12 — **ningún caso nuevo** en la rama `prender`, o sea el
+      inventario de chips que se prenden de más no se movió — y `chips.integration.test.ts` 16/16
+      (código vs base, la prueba de que el reseed funcionó). Suite completa 699/699 + typecheck.
+      **Efecto lateral en los docs, ya aplicado:** con `salida-con-chongo` en 35, **ningún chip queda
+      hoy en la franja "más de 0 pero menos de `PISO_HOME`"** (medido: o dan 0 —`plan-tranqui`— o
+      dan 35+). El piso se quedó **sin caso vivo**; se actualizó su docstring en `lib/search/chips.ts`
+      y el bullet de `CLAUDE.md` que lo citaba con "1 lugar".
 
 - [ ] **🔵 DECISIÓN / candidato a spec — el piso de los chips se mide en AMBA, pero el usuario busca
       por zona.** Destapado el 2026-08-10 investigando el chip de arriba; **no** es de ese chip.

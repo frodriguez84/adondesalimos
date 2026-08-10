@@ -258,8 +258,13 @@ Cicatrices reales — gotchas que sorprenden:
   regla tiene `solo: [...]` ⇒ fuera de esa ventana **no aparece en ningún lado**, tampoco detrás de
   "Ver más" (hoy: `after-office`, L-V 17-21). (b) Devuelve menos de `PISO_HOME` (**20**) lugares en
   AMBA ⇒ no entra a los 4 de la home, ni siquiera forzado por la regla, pero **sí** sigue en "Ver
-  más" (hoy: `salida-con-chongo`, 1 lugar). El `> 0` de la decisión 25 es el piso de "Ver más", no
-  el de la home. Dueños: `lib/search/rotacion.ts` (ventana) y `lib/search/chips.ts` (piso).
+  más". El `> 0` de la decisión 25 es el piso de "Ver más", no el de la home. Dueños:
+  `lib/search/rotacion.ts` (ventana) y `lib/search/chips.ts` (piso).
+  ⚠️ **(b) hoy no tiene ningún chip** (medido el 2026-08-10: o dan 0 —`plan-tranqui`— o dan 35 o
+  más), así que si un chip no se ve, el motivo NO es el piso. Su único caso vivo era
+  `salida-con-chongo` con **1** lugar, y se redefinió: ahora da **35** y pasa el piso. **Sigue en
+  "Ver más", pero por `in_home = false`**, no por (b) — con 35 en AMBA da **0 en 17 de las 46
+  zonas**, y el piso se cuenta **sin zona** (ítem abierto del BACKLOG).
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o

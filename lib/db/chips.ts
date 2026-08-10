@@ -62,6 +62,9 @@ export type ChipSeed = {
  * `plan-tranqui` 0. En una zona concreta son uno o dos órdenes menos, que es
  * como se usan de verdad (la home pide zona primero).
  *
+ * `salida-con-chongo` dejó de ser 1: se **redefinió** el 2026-08-10 y da **35**
+ * (ver su comentario abajo). El resto de los números sigue siendo de esa foto.
+ *
  * De `salir-a-bailar` conviene saber por qué anda: sus 575 `dj` + 11
  * `salsa-bachata` cubren *exactamente* los 586 `boliche`, así que la faceta
  * Actividad no filtra nada. En los hechos es un chip de un solo Tipo.
@@ -85,8 +88,22 @@ export const CHIPS_OBJETIVO: readonly ChipSeed[] = [
   {
     slug: 'salida-con-chongo',
     name: 'Salida con chongo',
-    inHome: true,
-    tags: ['bar', 'wine-bar', 'romantico', 'hasta-tarde'],
+    // Fuera de la home a propósito, aun con 35 (pasa `PISO_HOME`): en **17 de
+    // las 46 zonas da 0** y el techo por zona es 6, o sea el problema que lo
+    // motivó —tocar un atajo de la portada y caer en "sin resultados"— vuelve
+    // por la ventana, porque la home pide zona primero. Vuelve a `true` el día
+    // que se resuelva el piso por zona (ítem 🔵 del BACKLOG).
+    inHome: false,
+    // Sin `hasta-tarde` y con `romantico` ampliado a sus hermanos de Vibra.
+    // Antes `(bar|wine-bar) AND romantico AND hasta-tarde` daba **1** lugar en
+    // todo AMBA: el AND entre tres facetas con dos casi vacías (`romantico` 71
+    // sobre 18.993, la faceta Ambiente entera al 1%) ⇒ embudo 2.806 → 12 → 1.
+    // No era `wine-bar` — sin él el chip daba 0, el único lugar ES un wine bar.
+    // Medido el 2026-08-10: sin `hasta-tarde` 12 · sin `romantico` 56 · así 35.
+    // Se saca Momento (lo que un chongo busca es un lugar lindo, no uno que
+    // cierre tarde) y no se usa la de 56 (`(bar|wine) + hasta-tarde`) porque
+    // dejaba el chip indistinguible de `tomar-algo`.
+    tags: ['bar', 'wine-bar', 'romantico', 'speakeasy', 'con-vista', 'terraza-rooftop', 'bar-notable'],
   },
   {
     slug: 'salir-a-bailar',
