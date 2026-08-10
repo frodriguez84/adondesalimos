@@ -5,6 +5,56 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Para probar que algo NO cambió, corré el código viejo — no argumentes que no puede cambiar (2026-08-10 · ORDEN_ORGANICO)
+
+**Qué pasó.** El spec pedía dos invariantes de "nada se movió": que `countPlaces` diera exactamente
+los mismos números y que la matriz de `cobertura-chips` fuera **la misma que hoy**. Los dos son
+fáciles de dar por buenos con un argumento estructural correcto —la banda está en el `ORDER BY`,
+`construirWhere` no se tocó, `countPlaces` ni llama a `clavesDeOrden`— y ese argumento **es** cierto.
+Pero "es cierto" y "está verificado" no son lo mismo, y acá lo que colgaba del invariante era el piso
+de los chips (`PISO_HOME` 20 / `PISO_ZONA` 3): si el conteo se movía, la home se vaciaba sola sin que
+nadie tocara un chip.
+
+**Qué se hizo, y costó tres líneas de shell.** `git show HEAD:lib/search/query.ts > /tmp/…`, copiarlo
+encima, correr el script de medición, restaurar y `diff`. La matriz salió **idéntica byte a byte**, y
+lo mismo para las 46 zonas (misma cantidad de resultados, misma primera pantalla llena, 29 zonas con
+otro #1). Eso no es una aserción sobre el código: es el antes y el después puestos uno al lado del
+otro.
+
+**La regla.** Cuando un DoD dice *"X no cambia"* y X se puede **medir con un script**, la evidencia
+es correr el script con el árbol viejo y con el nuevo y diffear la salida. Con un `git show` a un
+archivo temporal alcanza — no hace falta stash, ni branch, ni worktree. El mismo truco sirve para
+medir el costo de un cambio (acá dio el "antes" de las mediciones de la decisión 18) y para
+**verificar que un test muerde**: poner el mutante, correr el test, ver caer los 8 que tenían que
+caer. Un test que nunca se vio fallar no es evidencia todavía.
+
+---
+
+## Drizzle omite la tabla en la lista de SELECT, y una expresión de orden termina ahí (2026-08-10 · ORDEN_ORGANICO)
+
+**Qué pasó.** `lib/search/query.ts` ya tenía documentado el filo: `${places.id}` dentro de un
+fragmento `sql` se renderiza **calificado** (`"places"."id"`) en el `WHERE` y **sin calificar**
+(`"id"`) en la lista de `SELECT` — fue el bug H-1 de `lib/claims/query.ts`. Lo que la nota vieja no
+decía es **cuándo** una expresión termina en la lista de SELECT sin que uno lo pida: el motor
+**selecciona cada clave de orden con un alias** (`k_o`, `k_c`, `k_n`) para poder armar el cursor. O
+sea que toda expresión de orden nueva viaja **a los tres lugares a la vez**: `ORDER BY`, keyset y
+`SELECT`. La banda de este spec lleva adentro un `EXISTS (… WHERE pt.place_id = places.id …)`, y ahí
+`"id"` a secas hubiera quedado resolviéndose por *scoping* (`place_tags` no tiene columna `id`, así
+que Postgres sube al query externo y **funciona por descarte**) en vez de por contrato.
+
+**Cómo se vio antes de escribirlo.** Un probe de 10 líneas con `.toSQL()` sobre una query que usa el
+mismo fragmento en `select`, `where` y `orderBy`, e imprimir el SQL. Los tres renders salen en
+pantalla y la diferencia es obvia.
+
+**La regla.** Antes de meter un `sql` con una referencia a columna en una **clave de orden**,
+imprimí el `.toSQL()`. Y si la referencia va adentro de una subquery correlacionada, escribila
+**calificada a mano** (`"places"."id"`): el fragmento tiene que decir a qué tabla apunta, no
+depender de que ninguna otra tabla del scope tenga una columna con ese nombre. Corolario del
+corolario: envolver la columna en una función (`immutable_unaccent(lower(${places.name}))`) la deja
+calificada igual en los tres contextos — el filo es solo la referencia pelada.
+
+---
+
 ## Una regla de negocio adentro de un componente no tiene tests, y por eso vuelve (2026-08-09 · bug de chips)
 
 **Qué pasó.** Qué chip de Ocasión se ve prendido y qué escribe un toque son **funciones puras de

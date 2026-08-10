@@ -37,6 +37,31 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · ORDEN_ORGANICO implementado y cerrado — Opus
+
+- **Qué salió bien:** **el anexo de medición del spec se pagó entero.** La sesión de autoría dejó
+  los números crudos con su fecha y esta sesión no re-midió nada del diagnóstico: arrancó
+  escribiendo código. Y las dos decisiones que más fácil se rompían venían con su caso de prueba ya
+  escrito (ORD-03 para la precedencia, la matriz de `cobertura-chips` para el piso de los chips), así
+  que el QA no hubo que inventarlo. Lo que sí agregué fue **verificar que los tests muerden**:
+  correr dos mutantes (sacar la banda ⇒ caen 8; invertir la precedencia ⇒ caen 2) antes de darlos por
+  buenos. Un test que nunca se vio fallar todavía no es evidencia.
+- **Qué frenó:** el heredoc de bash con el markdown de la sección de QA (**acentos + backticks +
+  `$`**) tiró `syntax error near unexpected token` — exactamente lo que la regla de `CLAUDE.md` §
+  *Texto largo que pasa por el shell* dice que va a pasar. Lo escribí con `Write` a un archivo del
+  scratchpad y lo anexé con `cat >>`, que es lo que la regla ya manda. Costo: un turno. **La regla
+  está bien; la sesión la salteó** por escribir "un bloque cortito" que resultó de 60 líneas.
+- **Qué cambiar:** nada del método. Dos cosas quedaron escritas donde van: la de correr el código
+  viejo para probar que algo **no** cambió (`git show HEAD:archivo` a un temporal, correr, diffear) y
+  la de Drizzle sin calificar la tabla en el `SELECT` — las dos en `LECCIONES_APRENDIDAS.md`, que es
+  su lugar, no acá. Lo único que anoto como observación: el DoD del spec puso una **línea absoluta**
+  de performance (40 ms) medida en otra máquina, y quedó rozada por 1,5 ms con el índice funcionando
+  (−64 %); la decisión no se tomó con el umbral sino con la medición partida, que mostró que la
+  mitad cara era otra. Si vuelve a pasar, el umbral conviene escribirlo **relativo** ("que el índice
+  baje al menos la mitad"), no absoluto.
+
+---
+
 ## 2026-08-10 · Orden orgánico del listado (autoría de spec, sin código) — Fable
 
 - **Qué salió bien:** **medir antes de opinar volvió a cambiar la decisión, y esta vez dos veces.**

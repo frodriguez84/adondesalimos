@@ -1,0 +1,1 @@
+CREATE INDEX "place_tags_admin_idx" ON "place_tags" USING btree ("place_id") WHERE "place_tags"."source" = 'admin';

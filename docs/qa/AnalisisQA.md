@@ -4144,3 +4144,81 @@ El pintado y el toggle eran funciones puras dentro de un componente cliente: nad
 llamar. Extraerlas fueron ~90 líneas movidas sin cambiar comportamiento, y ahí el bug se
 reprodujo en un test en el primer intento. FB-02 salió en dos vueltas y este bug llegó por un
 reporte de Fer clickeando; los dos vivían en el mismo archivo. Lección registrada.
+
+---
+
+## QA /qa-spec — ORDEN_ORGANICO (2026-08-10)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck limpio · tests **728/728** (65 archivos) · build **verde**
+(corrido con el dev server parado, lección BUSQUEDA)
+**Método:** tres checkers independientes (Explore/haiku, maker≠checker) contra el DoD de
+`docs/specs/planned/ORDEN_ORGANICO.md` → **11/11 PASS**, más los 10 casos ORD en vivo con
+Playwright sobre `https://adondesalimos.ngrok.app` (catálogo real, 18.993 publicados) y las
+mediciones de costo con `EXPLAIN (ANALYZE, BUFFERS)` sobre el Postgres de dev.
+
+**Lo que originó el spec quedó arreglado donde se veía.** *Palermo Soho · Cenar afuera* pasó de
+`1 Burger King · 2 Subway · … · 10 McDonald's` a los siete lugares que el spec listó en su
+sección *Objetivo*, **en ese orden**; *Un café* pasa de abrir con Starbucks a abrir con Mulata
+Café, Maricafe y Full City. **29 de las 46 zonas cambiaron de #1** y ninguna perdió un lugar:
+`countPlaces` es idéntico al de antes en las 46.
+
+### DoD — checkers independientes
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| ORDEN-QA-01 | `lib/search/cadenas.ts` es el único que lee `search.cadenas`, valida y degrada a lista vacía | PASS | `lib/search/cadenas.ts:28,74,90`; el grep solo lo encuentra ahí + `scripts/seed.ts:131` + `scripts/cadenas.ts`. 6 casos en `cadenas.test.ts` (null, no-lista, basura, vacía, dupes, la del seed) |
+| ORDEN-QA-02 | La banda en `clavesDeOrden`, dentro de `if (!usaGps)`, entre `ownerRank` y `confKey`, con la precedencia de la decisión 3 | PASS | `lib/search/query.ts:315` entre 310 y 316; `bandaKey` en 101-103 (ser cadena vale 2, estar curado 1 ⇒ 3/2/1/0). Test de las 4 bandas con los `confidence` **invertidos**; verificado por mutación: invertir la precedencia rompe 2 tests |
+| ORDEN-QA-03 | El cursor sobrevive: 3 páginas sin duplicados ni saltos | PASS | `orden-organico.integration.test.ts:364-384` — 45 fixtures, 45 ids distintos, bandas no-crecientes; 15 comparten nombre para forzar el empate hasta el `id`. No hubo código de cursor nuevo: `clavesDeOrden` es fuente única (decisión 11) |
+| ORDEN-QA-04 | Nada se filtra: `countPlaces` igual en una matriz de búsquedas | PASS | La banda no aparece en `construirWhere` (239-261) ni en `countPlaces` (269-279), solo en el ORDER BY. Test `it.each` de 6 casos × lista prendida/apagada, más "mismo conjunto, otro orden" |
+| ORDEN-QA-05 | `buscarDestacados` intacto | PASS | `git diff HEAD -- lib/search/query.ts`: cero cambios dentro de la función |
+| ORDEN-QA-06 | `scripts/cadenas.ts` + `npm run cadenas:proponer` proponen sin escribir | PASS | `package.json:21`; el script solo hace `db.select()` — ni insert, ni update, ni delete. Imprime los nombres detectados y el `UPDATE` con la unión contra lo que ya hay |
+| ORDEN-QA-07 | El seed siembra `search.cadenas` y es idempotente | PASS | `scripts/seed.ts:131` + `onConflictDoNothing` en 133: un re-run no pisa una lista curada a mano |
+| ORDEN-QA-08 | Índice parcial por migración, también declarado en el schema | PASS | `drizzle/0017_orden_organico.sql:1`, `lib/db/schema.ts:273`, journal idx 17. Verificado en la base con `\d place_tags` |
+| ORDEN-QA-09 | Costo re-medido con `EXPLAIN ANALYZE` en los dos casos y **anotado en el spec** | PASS | Decisión 18 del spec: con zona **2,5 → 5,9 ms**; sin zona **8,4 → 41,5 ms** con el índice contra **116,6 ms** sin él (−64 %). Ver H-3 |
+| ORDEN-QA-10 | En GPS el orden no cambia | PASS | La banda solo entra en `if (!usaGps)`; test que compara el resultado con la lista prendida y con la lista apagada |
+| ORDEN-QA-11 | `searchPins` hereda el orden sin duplicarlo | PASS | `lib/search/query.ts:424` llama a `clavesDeOrden`; no hay una segunda expresión de orden |
+| ORDEN-QA-12 | La matriz de `cobertura-chips` no se mueve | PASS | Corrida con el `query.ts` de HEAD y con el nuevo: **`diff` vacío**, byte a byte (8/9 chips en ≥1 zona, 46/46 zonas). Es el DoD que protege el piso de los chips |
+
+### Los 10 casos en vivo (Playwright contra ngrok, catálogo real)
+
+| ID | Caso | Resultado |
+|----|------|-----------|
+| ORD-01 | Palermo Soho, sin chip | PASS — 1 *70 30 Bar* · 2 *La Choppería*; **cero cadenas en el top 20** (antes: Burger King y Subway 1º y 2º) |
+| ORD-02 | Palermo Soho + **Cenar afuera** | PASS — los 7 primeros son exactamente los de la sección *Objetivo* del spec, en ese orden; McDonald's no está en la primera página |
+| ORD-03 | Palermo Soho + **Un café** | PASS — 1 *Mulata Café* · 2 *Maricafe* · 3 *Full City Coffee House*; **ningún Starbucks en las 20**. Es el caso que fija la precedencia de la decisión 3 |
+| ORD-04 | Quilmes, sin chip y con **Cenar afuera** | PASS — 20 cards en los dos, 1 *Vinsanto*, sin cadenas de la lista. Con la lista vacía volvían dos McDonald's al top 6 |
+| ORD-05 | Las 46 zonas | PASS — las 46 con la primera pantalla llena (20) y `countPlaces` idéntico al de HEAD; 29 cambiaron de #1 |
+| ORD-06 | Scroll de 3 páginas en Palermo Soho | PASS — 60 cards, **60 ids distintos**; el sheet sigue anunciando 1.094 |
+| ORD-07 | "Cerca de mí" (GPS, Obelisco) | PASS — distancias monótonas; **Burger King 1º a 0,00 km**, que es lo correcto: quien pide cerca pide cercanía (decisión 10) |
+| ORD-08 | Texto libre "burger" | PASS — 1 y 2 son Burger King: con texto manda la similitud |
+| ORD-09 | Mapa con resultado > 200 | PASS — 200 pins + `truncated`; los primeros 20 son los mismos ids **y en el mismo orden** que la página 1 |
+| ORD-10 | `search.cadenas = '[]'` | PASS — 200 sin errores de consola, `count` intacto (1.094) y las cadenas vuelven (Subway 1º; Starbucks 1º y 3º en *Un café*); el `UPDATE` de vuelta lo restaura. Ver H-1 |
+
+### Hallazgos (no bloqueantes)
+
+**H-1 — "Degrada al de hoy" es exacto en la mitad que importa, no en las dos.**
+Con `search.cadenas = '[]'` la banda colapsa a 2/3: las cadenas vuelven al top (verificado), pero
+lo curado **sigue** arriba de lo no curado. Es deliberado y quedó escrito en la decisión 16 del
+spec: vaciar la lista apaga la mitad «cadena», que es la que causaba la queja; apagar también la
+mitad «curaduría» pediría sacar la clave entera del orden y acoplaría dos señales que no tienen
+por qué viajar juntas. El rollback real sigue siendo un `UPDATE`.
+
+**H-2 — El detector encuentra 49 nombres, no los 19 del anexo.**
+Agrupando por nombre normalizado sobre el catálogo publicado con el umbral de ≥ 8 locales de la
+decisión 15, `npm run cadenas:proponer` devuelve **49 nombres / 1.562 lugares** — que es lo que
+cierra con los 1.513 de la banda «cadena» del anexo, cosa que 19 nombres no explicaban. Los 19 del
+anexo eran el recorte que ya había pasado por ojo humano. **La lista inicial (22) deja afuera
+cadenas reales** que el detector sí ve: `tea connection`, `green eat`, `el noble`, `sushiclub`,
+`wendy's`, `mccafe`, `la continental`, `la farola express` — esta última apareció 14ª en
+*Quilmes · Cenar afuera*. Sumarlas es un `UPDATE` y es decisión de producto (decisión 5: la lista
+necesita criterio humano), no un bug. Anotado en el BACKLOG.
+
+**H-3 — La mitad cara del costo no era el `EXISTS`, era el `unaccent` del nombre.**
+La decisión 18 atribuía el costo a la curaduría por fila y pedía replantear materializar si no
+bajaba de 40 ms sin zona. Medido partido sobre AMBA entero: la curaduría sola suma **+10,5 ms** y
+el `immutable_unaccent(lower(name))` del match de cadena suma **+17 ms**. El índice parcial hizo su
+trabajo (116,6 → 41,5 ms, −64 %) y quedó 1,5 ms por encima de la línea, con una baseline que en
+esta máquina es más rápida que la del diseño (8,4 vs 13,8 ms). **No se materializa:** compraría los
+10 ms chicos, rompería la puerta de ida y vuelta de la decisión 16 y dejaría intacta la mitad
+grande. Se revisa si la home sin zona pasa a ser el caso mayoritario.

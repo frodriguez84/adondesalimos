@@ -18,6 +18,7 @@
     "zones:load": "tsx scripts/zones/load.ts",
     "zones:assign": "tsx scripts/zones/assign.ts",
     "curar": "tsx scripts/curar.ts",
+    "cadenas:proponer": "tsx scripts/cadenas.ts",
     "fotos:borrar": "tsx scripts/borrar-fotos.ts",
     "eval:chat": "tsx scripts/eval-chat.ts",
     "backup:db": "bash scripts/backup-db.sh",

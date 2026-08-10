@@ -424,6 +424,24 @@ son trabajo acotado con criterio de "listo" objetivo.
       (OSM tiene el nodo del club en la sede nueva). **Estimación acertada:** una sesión, como
       `ADMIN_USUARIOS`.
 
+- [ ] **7 · Completar la lista de `search.cadenas` — es un `UPDATE`, no un deploy** (salió al
+      implementar `ORDEN_ORGANICO` el 2026-08-10). La lista inicial son **22 nombres**, pero
+      `npm run cadenas:proponer` —el detector a ≥ 8 locales de la decisión 15— encuentra **49
+      nombres / 1.562 lugares**. Los 19 del anexo del spec eran un recorte que ya había pasado por
+      ojo humano; el detector crudo nunca dio 19 (y 1.562 es lo que cierra con los 1.513 de la
+      banda «cadena» del propio anexo). **Cadenas reales que hoy NO están en la lista y sí se ven
+      en la app:** `tea connection` · `green eat` · `el noble` · `sushiclub` · `wendy's` ·
+      `mccafe` · `la continental` · `la farola express` — esta última salió **14ª en *Quilmes ·
+      Cenar afuera***. **A mirar con criterio antes de sumarlas** (el detector las ve, pero pueden
+      ser homónimos y no una cadena): `lo de carlitos` · `la fabrica` · `mi gusto` · `romario` ·
+      `sensu` · `betos` · `delicity` · `pizza lo+hot`.
+      **Por qué no lo decidí yo:** la decisión 5 del spec dice explícitamente que quién es cadena
+      **necesita criterio humano** (Havanna y Café Martínez son cadenas para el detector y opciones
+      reales en el conurbano), y la decisión 14 que la máquina propone y el humano acepta. **Costo:**
+      correr el script, editar la lista propuesta y pegar el `UPDATE`. Sin deploy, reversible, y el
+      efecto se ve al recargar. **Se re-corre después de cada import de Overture**, que es cuando
+      pueden aparecer nombres nuevos por encima del umbral.
+
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
 **Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).
@@ -1156,20 +1174,18 @@ se arreglaron** en F3; estos 33 los bajó el triaje y **no se tocan hasta que Fe
 acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 
 **R1 · Descubrir**
-- [ ] **PBETA-R1-02** (MOLESTO) — Palermo Soho abre con Burger King y Subway: el listado no prioriza nada. Es orden, no curaduría.
-      📄 **Spec escrito 2026-08-10** → [`docs/specs/planned/ORDEN_ORGANICO.md`](../specs/planned/ORDEN_ORGANICO.md).
-      Ratificado por Fer ese día como el ítem que más rompe la lógica esperada por el usuario. **Diagnóstico
-      medido, no supuesto:** `places.confidence` mide prolijidad del dato de Overture, no calidad del lugar
-      para salir, y una cadena tiene dato impecable — las cadenas de ≥ 8 locales tienen **25,8 %** de sus
-      fichas con `confidence ≥ 0,99` contra **6,1 %** de los lugares únicos (**4,2×**). El orden pasa a
-      `dueño > banda > confidence > nombre`, con la banda combinando **es cadena** (lista editable en
-      `app_settings`, sin deploy) y **está curado** (`place_tags source='admin'`), en ese orden de
-      precedencia — invertirla pone Starbucks 2º en «Un café», porque la curaduría curó 41 Starbucks y 85
-      McDonald's. **Es orden, no filtro**: `countPlaces`, «Ver N lugares» y el piso de los chips no cambian
-      un número. Sin migración de datos y reversible con un `UPDATE`. Las 46 zonas tienen ≥ 21 lugares
-      curados, así que arregla la primera pantalla en todo AMBA, no solo en Palermo.
-      **`PBETA-R1-03` y `PBETA-R1-04` quedan fuera a propósito** (decidido con Fer): son la misma pantalla
-      pero son UI y no tocan el motor — van juntos en otro pase.
+- [x] **PBETA-R1-02** (MOLESTO) — Palermo Soho abre con Burger King y Subway: el listado no prioriza nada. Es orden, no curaduría.
+      ✅ **Hecho el 2026-08-10** con [`ORDEN_ORGANICO`](../specs/done/ORDEN_ORGANICO.md)
+      ([resumen](../archive/SPECS_ARCHIVO.md#orden_organico) · QA APROBADO, 11/11 + 10/10 en vivo).
+      El orden pasó a `dueño > banda > confidence > nombre`, con la banda combinando **es cadena**
+      (`search.cadenas`, editable sin deploy) y **está curado** (`place_tags source='admin'`), en
+      esa precedencia. Medido en vivo: *Palermo Soho · Cenar afuera* abre con los siete lugares que
+      el spec puso en su *Objetivo*, *Un café* con Mulata Café en vez de Starbucks, y **29 de las 46
+      zonas cambiaron de #1 sin que ninguna perdiera un lugar** (`countPlaces` intacto, `diff` vacío
+      de `cobertura-chips`). Detalle en § *Hecho*.
+      **`PBETA-R1-03` y `PBETA-R1-04` quedaron fuera a propósito** (decidido con Fer): son la misma
+      pantalla pero son UI y no tocan el motor — van juntos en otro pase, y con el orden arreglado
+      el techo del scroll de `R1-04` deja de ser arbitrario.
 - [ ] **PBETA-R1-03** (MOLESTO) — el chip dice una zona y 3 de 8 cards dicen otra; el buffer de 400 m (decisión 5 de `ZONAS`, ya arbitrado) no se explica en pantalla.
 - [ ] **PBETA-R1-04** (MOLESTO) — el conteo vive solo en el botón del sheet y desaparece al entrar; scroll infinito sin techo (280 cards / 36.207 px sin final).
 - [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
@@ -2130,6 +2146,45 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`PBETA-R1-02` — que la primera pantalla no abra con Burger King** (2026-08-10, sesión
+      Opus; spec escrito y ratificado por Fer esa misma mañana). Cerrado entero con
+      [`ORDEN_ORGANICO`](../specs/done/ORDEN_ORGANICO.md)
+      ([resumen](../archive/SPECS_ARCHIVO.md#orden_organico) ·
+      [QA](../qa/AnalisisQA.md) § *QA /qa-spec — ORDEN_ORGANICO*, **APROBADO**, 11/11 checkers +
+      10/10 casos en vivo · typecheck · **728/728** tests · build verde).
+      **Qué cambió:** el orden orgánico pasó de `dueño > confidence > nombre` a
+      `dueño > banda > confidence > nombre`. La banda es un entero 0-3 que combina **es cadena**
+      (`search.cadenas` en `app_settings`, dueño único `lib/search/cadenas.ts`) y **está curado**
+      (`place_tags source='admin'`), con la precedencia **cadena antes que curado**.
+      **El efecto, medido en vivo sobre el catálogo real:** *Palermo Soho · Cenar afuera* pasó de
+      `1 Burger King · 2 Subway · … · 10 McDonald's` a los siete lugares que el spec había puesto
+      en su sección *Objetivo*, **en ese orden**; *Un café* abre con Mulata Café, Maricafe y Full
+      City en vez de Starbucks. **29 de las 46 zonas cambiaron de #1 y ninguna perdió un lugar.**
+      **Las tres cosas que valen más que el diff:**
+      1. **La precedencia no era cuestión de gusto y estaba medida en el spec.** La curaduría curó
+         **85 McDonald's y 41 Starbucks**, así que «curado primero» habría puesto Starbucks 2º y 3º
+         en «Un café» — el spec lo anticipó, lo dejó como caso ORD-03 y el test lo defiende: la
+         mutación que invierte la precedencia rompe 2 tests.
+      2. **Orden y filtro se mantuvieron separados de verdad, no de palabra.** `construirWhere` no
+         se tocó, y se verificó corriendo `cobertura-chips` con el `query.ts` de HEAD y con el
+         nuevo: **`diff` vacío, byte a byte**. Ese es el DoD que protege el piso de los chips
+         (`PISO_HOME` 20 / `PISO_ZONA` 3), que si se movía vaciaba la home sin que nadie tocara un
+         chip.
+      3. **El cursor no necesitó una línea de código.** `clavesDeOrden` ya era fuente única del
+         orden y el keyset la reusa, así que la banda entró como una clave más (`'b'`) y
+         `searchPins` heredó el orden solo. La decisión 11 del spec lo predijo; el test lo
+         confirmó (45 fixtures, 3 páginas, 45 ids distintos, con 15 que comparten nombre para
+         forzar el empate hasta el `id`).
+      **Lo que quedó abierto y es decisión de producto, no deuda:** el detector a ≥ 8 locales
+      encuentra **49 nombres**, no los 19 del anexo (esos ya eran un recorte humano), y la lista
+      inicial de 22 deja afuera cadenas reales que sí se ven en la app —`tea connection`,
+      `green eat`, `el noble`, `sushiclub`, `wendy's`, `mccafe`, `la continental`,
+      `la farola express` (esta última salió 14ª en *Quilmes · Cenar afuera*)—. Sumarlas es
+      `npm run cadenas:proponer` + un `UPDATE`, sin deploy. Ver *Cola siguiente*.
+      **`PBETA-R1-03` y `PBETA-R1-04` siguen abiertos a propósito**: son la misma pantalla pero son
+      UI y no tocan el motor. Con el orden arreglado, ponerle techo al scroll (`R1-04`) deja de ser
+      arbitrario.
 
 - [x] **🔴 Bug de chips — apagar uno apagaba otro y prendía dos que nadie tocó** (2026-08-09,
       sesión Opus; reportado por Fer usando la app el mismo día). **El fix es una línea de idea:**

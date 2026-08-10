@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placeImpressionsDaily, placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { publishedWhere } from '@/lib/db/visibility'
+import { esCadenaSql, getCadenas } from './cadenas'
 import { coincideNombre, simKey } from './nombre'
 import { GPS_RADIUS_KM, MAP_PIN_LIMIT, PAGE_SIZE, type SearchParams } from './params'
 
@@ -13,8 +14,9 @@ import { GPS_RADIUS_KM, MAP_PIN_LIMIT, PAGE_SIZE, type SearchParams } from './pa
  *  - visibilidad: SIEMPRE vía `publishedWhere` (CATALOGO, fuente única)
  *  - decisión 13: OR dentro de una faceta, AND entre facetas; padre de Cocina
  *    expande a sus hijos
- *  - decisión 16: orden orgánico dueño > confidence > nombre; con texto manda la
- *    similitud; con GPS manda la distancia
+ *  - decisión 16, **enmendada por ORDEN_ORGANICO**: orden orgánico
+ *    dueño > banda > confidence > nombre; con texto manda la similitud; con GPS
+ *    manda la distancia
  *  - decisión 17: GPS = 2 km fijos, Haversine con prefiltro por bounding box
  *  - decisión 19: paginación por cursor (keyset), página de 20
  *
@@ -63,6 +65,42 @@ const ownerRank = sql<number>`(CASE WHEN ${places.source} = 'owner' OR ${places.
 
 /** Los lugares de dueño tienen confidence null; -1 los ordena de forma estable. */
 const confKey = sql<number>`COALESCE(${places.confidence}, -1)`
+
+/**
+ * "Alguien miró este lugar y le encontró una ocasión" (ORDEN_ORGANICO, decisión 4).
+ * Es la única señal de calidad **del lugar** que tiene el catálogo: `confidence` es
+ * la confianza de Overture en el **dato**, que es otra cosa y es justo lo que rompía
+ * el orden.
+ *
+ * `"places"."id"` va escrito a mano y calificado a propósito: la banda también viaja
+ * en la lista de SELECT (como `k_b`, para el cursor) y ahí Drizzle **omite la tabla**
+ * al renderizar `${places.id}` — el mismo filo que documenta `filtrosDeTags`. Con
+ * `"id"` a secas la correlación quedaría resuelta por scoping en vez de por contrato.
+ */
+const curadoRank = sql<number>`(CASE WHEN EXISTS (
+  SELECT 1 FROM ${placeTags} pt WHERE pt.place_id = "places"."id" AND pt.source = 'admin'
+) THEN 1 ELSE 0 END)`
+
+/**
+ * La banda del orden orgánico (ORDEN_ORGANICO, decisiones 2 y 3). Un entero 0-3, no
+ * un score con pesos: una banda se lee de un vistazo, se testea con igualdad y se
+ * puede explicar ("está 4º porque es cadena").
+ *
+ * ```
+ *  3  no-cadena y curado      2  no-cadena      1  cadena curada      0  cadena
+ * ```
+ *
+ * **La precedencia es cadena ANTES que curado y no es un detalle de gusto**: la
+ * curaduría curó 85 McDonald's y 41 Starbucks, así que con "curado primero" *Un café
+ * · Palermo Soho* abriría con Starbucks 2º y 3º. Por eso ser cadena vale 2 y estar
+ * curado vale 1: la suma no puede empatar una cadena curada con un lugar único.
+ *
+ * Lista de cadenas vacía o ausente ⇒ nadie es cadena ⇒ la banda colapsa a 2/3
+ * (decisión 16): la mitad "cadena" del orden se apaga con un `UPDATE`, sin deploy.
+ */
+function bandaKey(cadenas: readonly string[]): SQL<number> {
+  return sql<number>`((CASE WHEN ${esCadenaSql(cadenas)} THEN 0 ELSE 2 END) + ${curadoRank})`
+}
 
 /**
  * Haversine en SQL, sin PostGIS — consistente con ZONAS, que resuelve la
@@ -241,17 +279,27 @@ export async function countPlaces(params: SearchParams): Promise<number> {
 }
 
 /**
- * Las claves de orden de la decisión 16, en orden de precedencia.
+ * Las claves de orden de la decisión 16 —**enmendada por ORDEN_ORGANICO**: la banda
+ * entra entre el dueño y `confidence`—, en orden de precedencia.
  *
  * Vive aparte por el mismo motivo que `construirWhere`: la vista mapa
  * (`searchPins`) tiene que quedarse con **los mismos** lugares que encabezan la
  * lista cuando el resultado excede el tope de pins. Si el orden se escribiera
  * dos veces, el mapa mostraría otros 200.
+ *
+ * Y es también la fuente única del **cursor**: el keyset se arma con estas mismas
+ * expresiones, así que sumar una clave acá no pide tocar nada de la paginación
+ * (ORDEN_ORGANICO, decisión 11).
+ *
+ * Es `async` desde ORDEN_ORGANICO porque la lista de cadenas se lee de
+ * `app_settings` en cada búsqueda —un `UPDATE` tiene que cambiar el orden sin
+ * redeploy—; `getCadenas` deduplica por request. En modo GPS ni se pide: la banda
+ * no participa.
  */
-function clavesDeOrden(
+async function clavesDeOrden(
   params: SearchParams,
   usaGps: boolean,
-): { nombre: string; expr: SQL; desc: boolean }[] {
+): Promise<{ nombre: string; expr: SQL; desc: boolean }[]> {
   const claves: { nombre: string; expr: SQL; desc: boolean }[] = []
   if (usaGps) {
     claves.push({ nombre: 'd', expr: distKey(params.coords!.lat, params.coords!.lng), desc: false })
@@ -260,6 +308,11 @@ function clavesDeOrden(
   }
   if (!usaGps) {
     claves.push({ nombre: 'o', expr: ownerRank, desc: true })
+    // ORDEN_ORGANICO, decisión 10: la banda va acá y solo acá. En GPS manda la
+    // distancia —quien pide "cerca mío" pide cercanía, y un Burger King a 100 m es
+    // legítimamente lo más cercano—; con texto manda la similitud y la banda
+    // desempata, que es donde hace falta ("cafe" empata mucho).
+    claves.push({ nombre: 'b', expr: bandaKey(await getCadenas()), desc: true })
     claves.push({ nombre: 'c', expr: confKey, desc: true })
     claves.push({ nombre: 'n', expr: sql`${places.name}`, desc: false })
   }
@@ -276,7 +329,7 @@ export async function searchPlaces(params: SearchParams): Promise<SearchResult> 
   const { where, usaGps } = await construirWhere(params, umbral)
 
   // --- Orden (decisión 16) + cursor sobre las mismas expresiones -------------
-  const claves = clavesDeOrden(params, usaGps)
+  const claves = await clavesDeOrden(params, usaGps)
 
   if (cursor) {
     const conValor = claves
@@ -368,7 +421,7 @@ export async function searchPlaces(params: SearchParams): Promise<SearchResult> 
 export async function searchPins(params: SearchParams): Promise<PinsResult> {
   const umbral = await getConfidenceThreshold()
   const { where, usaGps } = await construirWhere(params, umbral)
-  const claves = clavesDeOrden(params, usaGps)
+  const claves = await clavesDeOrden(params, usaGps)
 
   const orderBy = sql.join(
     claves.map((k) => sql`${k.expr} ${sql.raw(k.desc ? 'DESC' : 'ASC')}`),

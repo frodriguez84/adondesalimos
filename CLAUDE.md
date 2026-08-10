@@ -273,6 +273,20 @@ Cicatrices reales — gotchas que sorprenden:
   server. Corolario para debuggear: si un chip "desaparece al elegir barrio", eso es el gate
   funcionando — mirá el conteo en esa zona antes que el código. Y si un chip no se ve **sin** zona,
   el motivo NO es `PISO_HOME`: medido el 2026-08-10 no hay ninguno entre 1 y 19 en AMBA.
+- **El orden de la búsqueda ya NO es «confidence primero»** (ORDEN_ORGANICO, enmienda a la
+  decisión 16 de BUSQUEDA): es **`dueño > banda > confidence > nombre`**, con la banda 0-3 =
+  `3` no-cadena curado · `2` no-cadena · `1` cadena curada · `0` cadena. La precedencia **cadena
+  antes que curado** es deliberada y está medida (la curaduría curó 85 McDonald's y 41 Starbucks):
+  invertirla pone Starbucks 2º en «Un café». La banda vive **solo** en `clavesDeOrden`
+  (`lib/search/query.ts`) y es `ORDER BY`, **nunca `WHERE`** — si `countPlaces` cambia un número,
+  es un bug: se mueve el piso de los chips y se vacía la home.
+  ⚠️ **El match de cadena es igualdad exacta sobre el nombre normalizado**, no prefijo: los 114
+  lugares llamados exactamente «Burger King» bajan, pero «Burger King Berazategui» **no** —es otra
+  entrada de la lista o no está—. Es a propósito (un prefijo se comería «La Parrilla» al querer «La
+  Parrilla del Tío»), así que si una cadena "no baja", mirá primero
+  `select value from app_settings where key='search.cadenas'` y corré `npm run cadenas:proponer`.
+  Y en **GPS la banda no participa**: manda la distancia, y un Burger King a 100 m es legítimamente
+  lo más cercano.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o
@@ -449,7 +463,8 @@ runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/negocio/corr
 puerta que escribe `name`/`address`/`locality`/`lat`/`lng` de `places` — fuera de ella solo el
 upsert del import), `lib/favoritos/planes.ts` (cuántas
 listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
-`lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/negocio/horarios.ts`
+`lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/search/cadenas.ts`
+(quién es cadena a los efectos del orden — nadie más lee `search.cadenas`), `lib/negocio/horarios.ts`
 (`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature) y `lib/geo/amba.ts`
 (el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta — **sin imports**, para
 que el script de import no arrastre `lib/claims`).

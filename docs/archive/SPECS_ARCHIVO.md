@@ -1044,3 +1044,66 @@ siquiera nuestro 1249, sino otro número de la misma cuadra—, porque el match 
 ±300 m del pin propio; al corregir el pin, el id cambió y la dirección de Google pasó a ser
 `Av. Juan Bautista Justo 2959`. La ficha venía mostrando horarios y rating de un local que no
 era.
+
+---
+
+## ORDEN_ORGANICO — que la primera pantalla no abra con Burger King (PBETA-R1-02) {#orden_organico}
+
+**Spec:** [`docs/specs/done/ORDEN_ORGANICO.md`](../specs/done/ORDEN_ORGANICO.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — ORDEN_ORGANICO](../qa/AnalisisQA.md) · ✅ 2026-08-10
+
+**Qué hace:** el orden orgánico de la búsqueda ordenaba por `places.confidence`, que **no mide la
+calidad del lugar sino la confianza de Overture en el dato** — y una cadena tiene dato impecable.
+Medido: una cadena grande tenía **4,2× más probabilidad** de caer en el tramo de `confidence` que
+encabeza el listado, así que *Palermo Soho · Cenar afuera* abría con `1 Burger King · 2 Subway · …
+· 10 McDonald's`. Ahora el orden es **dueño > banda > confidence > nombre**, y esa misma pantalla
+abre con Las Pizarras bistro, L'Adesso y Barú Gastropub. **Es orden, no filtro**: ninguna cadena se
+oculta ni se despublica.
+
+**Alcance:**
+
+- **La señal nueva es una banda 0-3, no un score con pesos** (decisión 2): `3` no-cadena y curado ·
+  `2` no-cadena · `1` cadena curada · `0` cadena. Se lee de un vistazo, se testea con
+  igualdad y se puede explicar ("está 4º porque es cadena"). Vive en `bandaKey`
+  (`lib/search/query.ts`), dentro de `clavesDeOrden` y **entre `ownerRank` y `confKey`**.
+- **La precedencia es cadena ANTES que curado, y está medida** (decisión 3): la curaduría curó
+  **85 McDonald's y 41 Starbucks**, así que con «curado primero» *Un café · Palermo Soho* abriría
+  con Starbucks 2º y 3º. Es el caso ORD-03 del QA y existe para eso.
+- **«Curado» = tiene al menos un `place_tags` con `source='admin'`** (decisión 4): 1.202 de 18.993
+  lugares, y **las 46 zonas tienen ≥ 21**, o sea que alcanza para llenar la primera pantalla en
+  todas. Corolario deliberado: **cada corrida de curaduría mejora el orden sola**, sin tocar código.
+- **«Cadena» = el nombre normalizado está en `search.cadenas`** (`app_settings`, decisión 5), con
+  **igualdad exacta** sobre `immutable_unaccent(lower(name))` — nunca prefijo ni `LIKE`, que se
+  comería «La Parrilla» al querer «La Parrilla del Tío». Dueño único:
+  **`lib/search/cadenas.ts`**, que lee, valida, cachea por request y expone el fragmento SQL.
+  Nadie más lee esa clave.
+- **No se computa al vuelo a propósito**: un `COUNT` por nombre en el `ORDER BY` es un agregado
+  global, y sobre todo la lista **necesita criterio humano** — Havanna (110 locales) y Café
+  Martínez (95) son cadenas para el detector y opciones reales en el conurbano. Sacarlas es un
+  `UPDATE`, no un deploy.
+- **La banda ordena, NUNCA filtra** (decisión 8): `construirWhere` no se tocó, así que
+  `countPlaces`, «Ver N lugares» y el piso de los chips (`PISO_HOME` / `PISO_ZONA`) devuelven los
+  mismos números. Verificado con la matriz de `cobertura-chips` corrida antes y después: **`diff`
+  vacío**.
+- **El cursor no necesitó código nuevo** (decisión 11): `clavesDeOrden` es fuente única y el keyset
+  la reusa, así que la banda entró como una clave más (`'b'`). Lo mismo `searchPins`, que hereda el
+  orden — los 200 pins siguen siendo los mismos lugares que encabezan la lista.
+- **Dónde la banda no manda** (decisión 10): en GPS ordena la distancia (un Burger King a 100 m es
+  legítimamente lo más cercano) y con texto manda la similitud; ahí la banda solo desempata, que es
+  donde hace falta ("cafe" empata mucho).
+- **`scripts/cadenas.ts` (`npm run cadenas:proponer`) propone, no escribe** (decisión 14): imprime
+  los nombres con ≥ 8 locales y el `UPDATE` listo para pegar. Se corre después de cada import.
+- **Puerta de ida y vuelta** (decisión 16): sin columna nueva y sin dato materializado. Vaciar
+  `search.cadenas` apaga la mitad «cadena» del orden en silencio, sin error y sin pantalla rota.
+- **Una sola migración, y es un índice**: `0017_orden_organico` agrega el parcial
+  `place_tags (place_id) WHERE source='admin'` (3.967 filas de 51 mil). El costo de la página 1 sin
+  zona pasó de **116,6 ms sin índice a 41,5 ms con él** (−64 %); con zona, el caso mayoritario,
+  2,5 → 5,9 ms.
+
+**Lo que NO hace:** no cura nada (consume la curaduría, no la toca) · no usa señales de Google
+(rating y reviews no se pueden persistir) ni de uso (`detail_views` tiene 211 en total: ordenar con
+eso sería ruido, y el rich-get-richer sobre un catálogo sin tráfico es un pozo) · no toca los
+destacados pagos, que son una query aparte · descartó la «riqueza de perfil» (website/redes) por
+**contraproducente**: 88,8 % de las cadenas tienen website contra 44,1 % de los únicos.
+
+**Efecto medido:** 29 de las 46 zonas cambiaron de #1 y ninguna perdió un lugar.

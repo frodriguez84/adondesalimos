@@ -266,6 +266,11 @@ export const placeTags = pgTable(
   (t) => [
     primaryKey({ columns: [t.placeId, t.tagId] }),
     index('place_tags_tag_idx').on(t.tagId),
+    // "¿este lugar está curado?" — la señal de calidad del orden orgánico
+    // (ORDEN_ORGANICO, decisión 18). Parcial porque los `admin` son 3.967 de 51 mil:
+    // el PK `(place_id, tag_id)` no sirve para esto, el EXISTS lo evalúa el motor
+    // por fila del resultado y sin este índice la home sin zona se va a 116 ms.
+    index('place_tags_admin_idx').on(t.placeId).where(sql`${t.source} = 'admin'`),
   ],
 )
 
