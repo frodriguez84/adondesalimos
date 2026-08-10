@@ -666,8 +666,9 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ### 🆕 Feedback posterior (fuera del lote de los 10)
 
-- [ ] **🔴 BUG — apagar un chip apaga otro y prende dos que nadie tocó** (reportado por Fer,
-      2026-08-09, usando la app). **Repro exacto, determinista:** tocar «Tomar algo» → tocar
+- [x] **🔴 BUG — apagar un chip apaga otro y prende dos que nadie tocó** ✅ **Resuelto 2026-08-09**
+      (QA `CHIP-01..12`, ver el cierre al final del ítem). Reportado por Fer,
+      2026-08-09, usando la app. **Repro exacto, determinista:** tocar «Tomar algo» → tocar
       «Primera cita» (los dos quedan prendidos, correcto) → **apagar «Tomar algo»** ⇒ se apaga
       **«Primera cita»** y se prenden solos **«Cenar afuera»** y **«Un café»**.
       **Causa raíz, ya trazada contra el código** (`components/search/occasion-chips.tsx`, la rama
@@ -700,6 +701,39 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       de Fer lo viola tres veces en un solo toque. Eso convierte "hay comportamientos raros" en algo
       que el CI caza para siempre, que es justo lo que no pasó con FB-02.
       **Tamaño:** chico el fix, medio el QA exhaustivo. Sesión propia.
+
+      ✅ **Cómo se cerró** (2026-08-09, sesión Opus). El arreglo candidato se validó y quedó tal
+      cual: apagar saca `chip.tags − ⋃ tags(otros pintados)` — en el repro se va solo `cerveceria`
+      y queda exactamente «Primera cita». Lo que **no** estaba previsto: el pintado y el toggle se
+      extrajeron a **`lib/search/pintado.ts`** (dueño único, funciones puras, sin base ni DOM) y
+      `occasion-chips.tsx` quedó de presentación — sin eso no había test posible. Las 289
+      combinaciones se verifican en `lib/search/__tests__/pintado.test.ts` contra **seis**
+      invariantes (nadie se prende de prepo · el toque hace lo que el chip muestra · apagar no
+      apaga a otro · promover apaga solo a los que tapaban · prender no saca tags · ningún botón
+      muerto), con los chips del **seed**, sin base. QA en `docs/qa/AnalisisQA.md` § *Bug de chips*:
+      **APROBADO**, typecheck · **699/699** tests · QA en vivo del repro y de las dos regresiones de
+      FB-02. **Las dos decisiones abiertas las cerró Fer:** el tag suelto **queda como está** (con el
+      fix ya solo lo genera la promoción, y limpiarlo borraría un filtro que el usuario ve puesto), y
+      el caso nuevo que destapó el barrido va al BACKLOG sin tocarse — es el ítem que sigue.
+
+- [ ] **🟠 Al prender un chip, la unión de tags puede completar a un tercero** (destapado por el
+      barrido de las 289 el 2026-08-09, **no** por un usuario). «Cumpleaños» + «Tomar algo» completa
+      a **«Salida con amigos»** (`bar, cerveceria, grupos-grandes`): se prende sin que nadie lo toque
+      y, como **contiene** a «Tomar algo», deja tapado —visualmente apagado— al chip que se acaba de
+      tocar. **12 de 289** combinaciones, **1** con el tocado tapado.
+      **Por qué no se arregló con el bug de arriba:** no es el mismo hueco. Al apagar hay elección
+      (qué tags sacar) y por eso se pudo arreglar; al prender no la hay —sumar los tags del chip es
+      lo que lo prende— y ese tercer chip queda **genuinamente entero**. Mientras los tags sean el
+      estado (decisión 18) y el pintado se derive de ellos, esconderlo pediría romper uno de los dos
+      chips que el usuario sí quiere.
+      **Qué costaría:** cambiar la regla del pintado — p. ej. que la URL lleve también **qué chips
+      tocó** el usuario, en vez de derivar todo de los tags. Toca la decisión 18, el back y el link
+      compartido: **amerita spec**, no un fix. **Decidido con Fer el 2026-08-09: anotar y no tocar
+      ahora.**
+      🛡️ **Ya está contenido, no suelto:** el test verifica que el que se prende de más esté
+      contenido en la unión (la excepción se demuestra, no se tolera) e **inventaría por nombre** el
+      único caso con el tocado tapado. Si la curaduría mueve los tags de un chip y aparece otro, el
+      test falla y lo dice.
 
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar
@@ -1756,6 +1790,31 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **🔴 Bug de chips — apagar uno apagaba otro y prendía dos que nadie tocó** (2026-08-09,
+      sesión Opus; reportado por Fer usando la app el mismo día). **El fix es una línea de idea:**
+      apagar saca `chip.tags − ⋃ tags(otros pintados)` en vez de todos los tags del chip, así un
+      tag que otro chip pintado está usando no se lo lleva el que se apaga. En el repro se va solo
+      `cerveceria` y queda exactamente «Primera cita» prendido. QA en `docs/qa/AnalisisQA.md`
+      § *Bug de chips*: **APROBADO** (`CHIP-01..12`), typecheck · **699/699** tests · QA en vivo del
+      repro y de las dos regresiones de FB-02.
+      **Lo que vale más que el fix:**
+      1. **El QA fue extraer para poder testear.** El pintado y el toggle eran funciones puras
+         `(chips, tags)` **adentro de un componente cliente**: nadie las podía llamar, y por eso
+         FB-02 salió en dos vueltas y esto llegó por un reporte clickeando. Ahora son
+         `lib/search/pintado.ts` —dueño único, sin base ni DOM— y `occasion-chips.tsx` es
+         presentación. Las **17 × 17 = 289** combinaciones se verifican contra seis invariantes con
+         los chips del **seed**, sin base.
+      2. **El test se escribió antes del fix y encontró más de lo reportado.** Falló donde tenía que
+         fallar y, además, destapó **12 casos en la rama `prender`** que nadie había visto: la unión
+         de tags puede completar a un tercer chip («Cumpleaños» + «Tomar algo» prende «Salida con
+         amigos») y en 1 de esos casos deja tapado al chip recién tocado. **No se arregló**: es
+         inherente a derivar el pintado de los tags, así que quedó como ítem propio con spec
+         pendiente — pero **contenido por el test**, que exige que el que se prende de más esté
+         contenido en la unión e inventaría el caso conocido por nombre.
+      3. **Un invariante barato pagó el fix mismo:** «ningún toque es un botón muerto» es la
+         verificación de que el propio arreglo no podía dejar un chip que no se apaga cuando todos
+         sus tags los sostiene otro.
 
 - [x] **Ítem 6 de la cola post-v2 — `CORRECCION_DATOS`, escrito e implementado el mismo día**
       (2026-08-09, sesión Opus): ahora un dato base mal **se puede arreglar**, la corrección

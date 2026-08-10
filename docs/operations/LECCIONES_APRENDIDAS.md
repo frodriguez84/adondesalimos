@@ -5,6 +5,44 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Una regla de negocio adentro de un componente no tiene tests, y por eso vuelve (2026-08-09 · bug de chips)
+
+**Qué pasó.** Qué chip de Ocasión se ve prendido y qué escribe un toque son **funciones puras de
+`(chips, tags)`** — no tocan la base, ni la red, ni el DOM. Vivían adentro de
+`components/search/occasion-chips.tsx`, declaradas dentro del cuerpo del componente. Nadie las
+podía llamar desde un test, así que **la única forma de verificarlas era clickear**. Y así se
+verificaron: FB-02 salió en dos vueltas (el primer toggle apagaba dos chips y prendía un tercero, lo
+cazó Fer probando) y el 2026-08-09 volvió el mismo hueco por el otro camino — apagar «Tomar algo»
+apagaba «Primera cita» y prendía «Cenar afuera» y «Un café». Dos bugs, el mismo archivo, los dos
+reportados por un humano usando la app.
+
+**Por qué no lo cazó nada.** No es que fueran difíciles de testear: es que **no eran alcanzables**.
+Los 687 tests del repo estaban verdes con el bug adentro. Y el docstring del componente era largo y
+bueno —declaraba las tres ramas del toque y hasta el caso que la promoción no rescata—, lo que
+esconde el problema: **una regla bien explicada sigue sin estar verificada**. La prosa no falla el
+CI.
+
+**Qué se hizo.** Extraerlas a `lib/search/pintado.ts` (dueño único, sin base ni DOM) y escribir el
+test **antes** del fix, sobre las **17 × 17 = 289** combinaciones, con los chips del seed. El test
+falló donde tenía que fallar, validó el arreglo candidato en el primer intento y —lo que no estaba
+previsto— **destapó 12 casos más** en la rama de prender que nadie había reportado. La extracción
+fueron ~90 líneas movidas sin cambiar comportamiento: costó menos que la segunda vuelta de FB-02.
+
+**Regla que queda:** si una regla de negocio es una función pura y vive adentro de un componente,
+**el testeo no es "difícil", es imposible** — y el costo se paga en vueltas de QA manual. Sacarla a
+su módulo es el mismo movimiento que ya pide `CLAUDE.md` § *Una regla, un dueño*: la señal de que
+hace falta no es la duplicación, es **que no se puede llamar desde un test**. Y cuando se saca, el
+test que corresponde no es un caso: es el **barrido con un invariante**, porque el espacio de
+estados de una UI de chips es chico y entero.
+
+**Corolario sobre los invariantes.** Escribirlos como reglas y no como listas de casos es lo que
+hizo que el barrido sirviera: la excepción real de la rama de prender quedó **verificada** (el chip
+que se prende de más tiene que estar contenido en la unión de tags) en vez de tolerada con un
+`skip`. Un invariante que se relaja para pasar deja de ser una red; uno que **demuestra** su
+excepción sigue cazando el caso nuevo.
+
+---
+
 ## El mensaje de un error de validación es copy, y los tests no lo leen (2026-08-09 · CORRECCION_DATOS)
 
 **Qué pasó.** Los endpoints nuevos devuelven al cliente el `message` del `Resultado<T>` de negocio,

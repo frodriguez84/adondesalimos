@@ -37,6 +37,22 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-09 · Bug de chips: fix + barrido de las 289 — Opus
+
+- **Qué salió bien.** Escribir el test **antes** del fix y sobre las funciones ya extraídas: falló
+  donde tenía que fallar, validó el arreglo candidato en el primer intento y destapó **12 casos**
+  en la rama de prender que nadie había reportado. El brief venía con la causa raíz ya trazada y
+  el arreglo candidato escrito, así que la sesión no gastó nada en re-investigar.
+- **Qué frenó.** Nada material. Única fricción real: correr un script de análisis suelto desde el
+  scratchpad no resuelve el alias `@/` de `tsconfig`, así que hubo que copiarlo a la raíz del repo
+  para que `tsx` lo levantara. Diez segundos, se menciona por ser concreto.
+- **Qué cambiar.** Nada del método. Lo que había para aprender era del código, no del proceso, y
+  quedó en `LECCIONES_APRENDIDAS.md`: una regla pura adentro de un componente no es "difícil de
+  testear", es inalcanzable, y el precio se cobra en vueltas de QA manual (FB-02 y este bug, mismo
+  archivo).
+
+---
+
 ## 2026-08-09 · Implementación de CORRECCION_DATOS (mismo día que su autoría) — Opus
 
 - **Qué salió bien:** el spec traía las 20 decisiones cerradas **y** el § *Alcance del código*

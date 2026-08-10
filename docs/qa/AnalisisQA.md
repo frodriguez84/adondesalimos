@@ -4068,3 +4068,63 @@ a 390×844 y 390×667, con la geolocalización del contexto (`setGeolocation`) y
 - **Kansas Grill & Bar quedó como estaba.** Se usó para CORR-19..26 y se restauró: `locality` volvió
   a `Ciudad de Buenos Aires` y `locked_fields` a `{}`. Las filas de bitácora del QA quedan, que es lo
   que corresponde con un log de eventos.
+
+---
+
+## QA — Bug de chips: apagar uno apagaba otro y prendía dos (2026-08-09)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests ✅ **699/699** (12 nuevos) · build ✅ (con el dev
+server parado)
+**Método:** test exhaustivo de las **17 × 17 = 289** combinaciones sobre las funciones puras
+recién extraídas (`lib/search/__tests__/pintado.test.ts`, sin base: los chips salen del seed)
+**escrito antes del fix, para verlo fallar**, más QA en vivo del repro original y de las dos
+regresiones de FB-02 en `https://adondesalimos.ngrok.app` con Playwright.
+
+No es un spec: es el ítem 🔴 BUG de `docs/product/BACKLOG.md` § *Feedback posterior*, reportado
+por Fer usando la app.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| CHIP-01 | El repro de Fer queda arreglado: «Tomar algo» + «Primera cita» prendidos, apagar «Tomar algo» deja **solo** «Primera cita» y no prende nada | ✅ PASS | En vivo: `?t=bar,cafe,cerveceria,restaurante,romantico,tranqui` → toque → `?t=bar,cafe,restaurante,romantico,tranqui`, `aria-pressed="true"` solo en «Primera cita». Antes se apagaba «Primera cita» y se prendían «Cenar afuera» y «Un café» |
+| CHIP-02 | Apagar saca **solo los tags exclusivos** del chip: `sacar = chip.tags − ⋃ tags(otros pintados)` | ✅ PASS | Se va `cerveceria`; `bar` se queda porque lo sostiene «Primera cita». `lib/search/pintado.ts` (rama "se ve prendido ⇒ apagarlo") + test *apagar «Tomar algo» deja «Primera cita» prendido* |
+| CHIP-03 | **Regresión FB-02** — tocar «Primera cita» desde cero prende **uno** solo | ✅ PASS | En vivo: `?t=bar,cafe,restaurante,romantico,tranqui` con un único `aria-pressed="true"`. «Cenar afuera» y «Un café» quedan aplicados pero tapados |
+| CHIP-04 | **Regresión FB-02** — un chip tapado se **promueve**: tocar «Un café» sobre «Primera cita» deja «Un café» y nada más | ✅ PASS | En vivo: → `?t=cafe`, único prendido «Un café» |
+| CHIP-05 | Invariante sobre las 289: **nunca se prende un chip que no se tocó** | ✅ PASS | Con la excepción **verificada** (no tolerada) de la rama `prender`: el chip que se prende de más tiene que estar contenido en la unión `tags previos ∪ tags del tocado` — ver H-1 |
+| CHIP-06 | Invariante: **el toque hace lo que el chip muestra** (prendido ⇒ se apaga · apagado ⇒ se prende) | ✅ PASS | Única excepción, inventariada por nombre en el test: «Cumpleaños» puesto + toco «Tomar algo» (H-1) |
+| CHIP-07 | Invariante: **apagar un chip no apaga a ningún otro** | ✅ PASS | 0 violaciones en las 289. Es el corazón del bug: antes fallaba en el repro de Fer |
+| CHIP-08 | Invariante: **promover apaga solo a los chips que tapaban** al que se tocó | ✅ PASS | 0 violaciones. Es la excepción declarada en FB-02, escrita como regla verificable |
+| CHIP-09 | Invariante: **prender no saca ningún tag** | ✅ PASS | 0 violaciones |
+| CHIP-10 | Invariante: **ningún toque es un botón muerto** — siempre cambia el estado | ✅ PASS | 0 violaciones. Es el riesgo que introducía el fix: si `sacar` quedaba vacío, apagar no hacía nada |
+| CHIP-11 | El barrido cubre de verdad las 289 y las **tres** ramas del toque | ✅ PASS | `expect(casos).toHaveLength(289)` + cada rama con al menos un caso. La rama se clasifica en el test, no se le pregunta a la implementación |
+| CHIP-12 | El pintado y el toggle tienen **dueño único** y el componente queda de presentación | ✅ PASS | `lib/search/pintado.ts` (`chipsPintados` + `tagsAlTocar`, puras, sin base ni DOM); `components/search/occasion-chips.tsx` ya no implementa ninguna regla. `grep -rn "estaAplicado\|contieneEstricto"` fuera del módulo y su test: 0 |
+
+### Hallazgos
+
+**H-1 — El barrido destapó un segundo caso, del mismo apellido, en la rama `prender`.**
+Al prender un chip no hay elección —sumar sus tags es lo que lo prende— y la unión con lo que ya
+estaba puede **completar a un tercer chip**. Con los tags reales, «Cumpleaños» + «Tomar algo»
+completa a **«Salida con amigos»** (`bar, cerveceria, grupos-grandes`): se prende sin que nadie lo
+toque y, como **contiene** a «Tomar algo», el chip que se tocó queda tapado y se sigue viendo
+apagado. Son **12 de 289** combinaciones (todas por `tomar-algo` o `salida-con-amigos`), **1 sola**
+con el tocado tapado.
+**No se puede arreglar dentro de la regla vigente:** mientras los tags sean el estado (decisión 18)
+y el pintado se derive de ellos, ese tercer chip está genuinamente entero y esconderlo pediría
+romper uno de los dos que el usuario sí quiere. Fer decidió (2026-08-09) **anotarlo en el BACKLOG y
+no tocarlo ahora**: el arreglo pide cambiar la regla del pintado, que es decisión de producto.
+El test **no lo tolera en silencio**: verifica que el que se prende de más esté contenido en la
+unión, e **inventaría por nombre** el único caso con el tocado tapado — si la curaduría mueve los
+tags de un chip y aparece otro, el test lo dice.
+
+**H-2 — El tag suelto se volvió un caso raro, y queda como está.**
+Con el fix, apagar ya **no** deja tags huérfanos: lo que sobrevive está sosteniendo a otro chip
+pintado. El único camino que todavía los genera es la **promoción** de un chip tapado, que ya
+estaba declarada conocida el 2026-08-08. Fer decidió dejarlo: es lo coherente con la decisión 18
+—los tags son el estado, se ven y se sacan uno por uno en `ChipsActivos`— y limpiarlos solo le
+borraría al usuario un filtro que él ve puesto.
+
+**H-3 — El bug estaba fuera del alcance de los tests por dónde vivía, no por ser difícil.**
+El pintado y el toggle eran funciones puras dentro de un componente cliente: nadie las podía
+llamar. Extraerlas fueron ~90 líneas movidas sin cambiar comportamiento, y ahí el bug se
+reprodujo en un test en el primer intento. FB-02 salió en dos vueltas y este bug llegó por un
+reporte de Fer clickeando; los dos vivían en el mismo archivo. Lección registrada.
