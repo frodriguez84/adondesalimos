@@ -428,6 +428,8 @@ un fix puntual. Ante la duda, si el trabajo es "lo mismo × N ítems independien
 | Red | Cuándo |
 |-----|--------|
 | `npm run backup:db` | **ANTES de cualquier operación destructiva sobre la base.** La curaduría (~3.967 tags) no está en git ni en el seed |
+| `npm run backup:prod` | **Producción (Neon)**, que es otra base y no la cubre `backup:db`. Antes de tocar schema o datos de prod, y de tanto en tanto |
+| `npm run prod:check` | Read-only sobre prod: migraciones, drift de `app_settings` y catálogo vs dev, topes, backup y uso. **Después de cada deploy que toque datos** y semanal. Ver `docs/operations/OPERAR-EN-PRODUCCION.md` |
 | `npm run backup:check` | Lo llaman solos el hook pre-commit (si el commit toca `drizzle/`) y `/consistency-check`. Avisa, no bloquea |
 | `/consistency-check` | Tras una corrida de curaduría, un cambio en `app_settings`, o al retomar tras un parate. Cruza docs ↔ código ↔ **datos del runtime** |
 | `npm run fotos:borrar` | Solo por **abuso**. ⚠️ Puerta de ida: el objeto de R2 no vuelve. Revocar un reclamo **oculta, no borra** |
@@ -490,4 +492,5 @@ que el script de import no arrastre `lib/claims`).
 | Pendientes | `docs/product/BACKLOG.md` |
 | Retro por sesión + las 3 preguntas de cierre | `docs/operations/RETRO.md` |
 | Redes de seguridad (backup, consistency, borrados) | `docs/operations/REDES-DE-SEGURIDAD.md` |
+| Operar la app en producción (qué mirar y cada cuánto) | `docs/operations/OPERAR-EN-PRODUCCION.md` |
 | Checklist de cierre de un spec (9 pasos) | `docs/specs/README.md` § *Al cerrar un spec* |

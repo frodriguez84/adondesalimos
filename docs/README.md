@@ -11,6 +11,7 @@
 | **Agente / dev** | [`CLAUDE.md`](../CLAUDE.md) | Specs activos en [`specs/active/`](specs/active/); manifiesto [`specs/README.md`](specs/README.md); hecho en [`archive/SPECS_ARCHIVO.md`](archive/SPECS_ARCHIVO.md) |
 | **QA** | [`qa/AnalisisQA.md`](qa/AnalisisQA.md) | No condensar — IDs y pass/fail son trazabilidad |
 | **Ops / local dev** | [`operations/OPERACIONES.md`](operations/OPERACIONES.md) | [`operations/LECCIONES_APRENDIDAS.md`](operations/LECCIONES_APRENDIDAS.md) |
+| **Operar en producción** | [`operations/OPERAR-EN-PRODUCCION.md`](operations/OPERAR-EN-PRODUCCION.md) | [`operations/REDES-DE-SEGURIDAD.md`](operations/REDES-DE-SEGURIDAD.md) |
 | **Pendientes** | [`product/BACKLOG.md`](product/BACKLOG.md) | — |
 | **Diseño / UI** | [`product/IDENTIDAD.md`](product/IDENTIDAD.md) | Logo, paleta y contrastes medidos. Fijada, **todavía no aplicada**: la app corre con la paleta provisoria |
 
