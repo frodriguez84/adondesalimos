@@ -836,8 +836,10 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       dan 35+). El piso se quedó **sin caso vivo**; se actualizó su docstring en `lib/search/chips.ts`
       y el bullet de `CLAUDE.md` que lo citaba con "1 lugar".
 
-- [ ] **🔵 DECISIÓN / candidato a spec — el piso de los chips se mide en AMBA, pero el usuario busca
-      por zona.** Destapado el 2026-08-10 investigando el chip de arriba; **no** es de ese chip.
+- [ ] **🔵 DECIDIDO, falta implementar (`fix(BUSQUEDA)`, NO spec) — el piso de los chips se mide en
+      AMBA, pero el usuario busca por zona.** Destapado el 2026-08-10 investigando el chip de arriba;
+      **no** es de ese chip. **El diseño cerrado está al final del ítem**; lo de acá abajo es el
+      análisis que llevó a él.
       `PISO_HOME = 20` (`lib/search/chips.ts`) existe para que un chip flaco no ocupe la portada, y
       su propio docstring dice que *"el problema real es la división por zona"* — pero **cuenta sin
       zona**. Resultado, medido el 2026-08-10:
@@ -911,6 +913,100 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       decidiendo, no midiendo. El SQL que la produjo no quedó versionado — es una consulta de
       análisis, no una red; para rehacerla: por cada chip activo, AND entre facetas de sus
       `chip_tags`, cruzado con `place_zones` × `zones.active`.
+
+      ---
+
+      ✅ **DECIDIDO con Fer el 2026-08-10 (sesión Opus, sobre la matriz de arriba — se decidió, no se
+      volvió a medir). Reemplaza el "no escribir el spec todavía" del párrafo anterior.**
+
+      **Qué se hace: el conteo del chip pasa a ser contextual, y el piso deja de ser uno solo — son
+      dos, según haya zona o no.**
+
+      | Estado de la home | Gate para los 4 de la portada | Gate para "Ver más" |
+      |---|---|---|
+      | **Sin zona** (primera visita, y modo GPS) | `count(AMBA) >= PISO_HOME` (**20**, como hoy) | `count(AMBA) > 0` (como hoy) |
+      | **Con zona elegida** | `count(zona) >= PISO_ZONA` (**3**, nuevo) | `count(zona) > 0` |
+
+      **Por qué dos pisos y no uno.** Los dos gates responden preguntas distintas y por eso no pueden
+      compartir número. Sin zona, el conteo mide una **propiedad del catálogo**: *¿este chip tiene
+      espalda para ser un atajo de la portada?* — 20 es el umbral correcto para eso y no se toca. Con
+      zona, mide una **propiedad del contexto**: *¿este atajo devuelve algo acá?* — y ahí 20 es
+      absurdo, porque ningún chip de ocasión llega a 20 en ninguna zona.
+
+      **Cómo responde el hallazgo 1** (⚠️ el que reordenaba la decisión): el hallazgo no dice *"no
+      apliques piso por zona"*, dice *"no apliques **20** por zona"*. Con **3**, la portada conserva
+      sus chips de ocasión: `after-office` (mediana por zona **5**, mejor **13**) sobrevive en la
+      mayoría de las zonas y `salir-a-bailar` (mediana **10,5**) en casi todas. La home genérica de
+      solo-Tipo que el hallazgo advertía **no ocurre**.
+
+      **Cómo responde el hallazgo 2** (`salida-con-amigos`, `sort` 0, peor que el chip que se acaba de
+      sacar): **se resuelve solo, sin tocarle los tags**. Con mediana **1** y mejor zona **3**, se cae
+      de la portada exactamente en las zonas donde miente (las 16 en 0 y todas las de 1-2) y se queda
+      donde tiene algo. Redefinirlo por curaduría —la opción barata, precedente de `salida-con-chongo`—
+      **deja de ser necesaria para cerrar este ítem**; queda como mejora independiente y no
+      bloqueante, porque 38 en todo AMBA sigue siendo flaco para el `sort` 0.
+
+      **Por qué NO se ordena por conteo en la zona** (la opción `f` de la lista de arriba, evaluada y
+      descartada): los candidatos a home son **6 para 4 lugares**, y ordenados por conteo dan siempre
+      `cenar-afuera` (901) · `tomar-algo` (269) · `un-café` · `salir-a-bailar`. O sea `salida-con-amigos`
+      y `after-office` quedarían afuera **en toda zona y siempre** — es el hallazgo 1 pero permanente
+      en vez de ocasional. El `sort` es intención de curaduría (los de ocasión primero) y ordenar por
+      volumen la pisa.
+
+      **Por qué el gate con zona no es `> 0` a secas** (evaluado y descartado): lo que Fer reportó no
+      fue 0 resultados, fue **1**. Con `> 0`, `salida-con-amigos` —mediana **1** por zona— seguiría
+      **primero** en la portada devolviendo un solo lugar en media AMBA, que es literalmente el
+      síntoma original. **3 es el mínimo que no se lee como "esto está roto"**; subirlo a 5 es cambiar
+      una constante si con el uso real se ve que hace falta.
+
+      **Enmienda explícita a la decisión 25 de BUSQUEDA** (*"el conteo es del catálogo, no del
+      contexto"*): pasa a ser **"el conteo es del catálogo mientras no haya contexto; cuando lo hay,
+      es del contexto"**. La decisión 25 se escribió para que un chip no desapareciera por una
+      búsqueda en curso; lo que la práctica mostró es que el atajo que miente es peor que el atajo que
+      no está. La decisión **23** (*el vacío rescata*) sigue cubriendo el caso de 0, ahora como red y
+      no como plan A.
+
+      **Dos detalles que la implementación tiene que llevar sí o sí** (destapados leyendo el código,
+      no estaban en el análisis original):
+      1. **Un chip pintado se muestra SIEMPRE, exento del gate contextual.** Si tocás
+         «Salida con amigos» en Palermo y después cambiás la zona a Retiro, con el gate a secas el
+         chip se iría de la fila **con sus tags todavía aplicados**: perdés el toggle para apagarlo
+         (quedan removibles en `ChipsActivos`, pero el `aria-pressed` desaparecido es una regresión
+         del pintado). El dueño de qué se pinta es `lib/search/pintado.ts` — la excepción se coordina
+         con él, no se reimplementa.
+      2. **En modo GPS el conteo sigue siendo el de AMBA.** Las coordenadas no viajan en la URL (son
+         del dispositivo que mira, no del que compartió el link, `params.ts`), así que el server no
+         tiene contexto geográfico que aplicar. Es la fila "sin zona" de la tabla, y es correcto:
+         mejor el gate del catálogo que uno inventado.
+
+      **El contexto son las zonas, no la búsqueda entera**: `q` (texto libre) y los tags ya activos
+      **no** entran en el conteo del chip. Cruzar el chip con los tags activos lo convertiría en un
+      refinamiento de la búsqueda en curso, que es otra feature; acá se arregla "la home pide zona
+      primero".
+
+      **Alcance del trabajo — es un `fix`, no un spec.** Puerta de ida y vuelta: no hay migración ni
+      dato, revertir es revertir un commit.
+      1. `lib/search/chips.ts` — `getOccasionChips(now, zones = [])`, pasar `zones` a los
+         `countPlaces` (los 17 ya corren en paralelo: **no suma round-trips** y las queries quedan más
+         chicas), `PISO_ZONA = 3` con su docstring, y el gate según `zones.length`.
+      2. `app/page.tsx:52` — pasarle `params.zones`. **Es el único caller.** La home es server
+         component y ya se re-renderiza en cada navegación: elegir zona *es* una navegación, así que
+         el recuento ocurre sin agregar nada.
+      3. `lib/search/pintado.ts` + `components/search/occasion-chips.tsx` — el detalle 1 de arriba.
+      4. `lib/search/__tests__/chips.integration.test.ts` — los tests ya pasan `now`, así que el
+         parámetro opcional no rompe ninguno. Casos nuevos: con zona donde un chip da 0 no aparece ·
+         con zona donde da 1-2 no está en la portada pero sí en "Ver más" · sin zona el
+         comportamiento es idéntico al de hoy · un chip pintado se muestra aunque dé 0 en la zona.
+         Correr también `pintado.test.ts` (toca su terreno).
+      5. **Docs a actualizar en el mismo commit**: el docstring de `PISO_HOME` en `lib/search/chips.ts`
+         (hoy dice que el piso "se cuenta sin zona" como limitación abierta) y el bullet de
+         `CLAUDE.md` § *Notas importantes* que describe el piso — el `(b)` de ese bullet cambia de
+         forma con esto.
+      6. **Queda desbloqueado, como decisión aparte**: `salida-con-chongo` puede volver a
+         `inHome: true` (`lib/db/chips.ts`) — con el gate contextual, sus 18 zonas en 0 dejan de ser
+         un problema. **No se hace junto con el fix**: con 6 candidatos para 4 lugares ya hay cola, y
+         su techo por zona es 6, así que entraría a la portada en pocas zonas. Evaluarlo después de
+         ver el fix andando.
 
 - [ ] **FB-11 · ⚠️ EXTERNO — Google Play Protect bloquea la instalación de la PWA.** Reportado el
       **2026-08-08** por un conocido de Fer (origen distinto al lote de los hermanos): al instalar

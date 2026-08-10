@@ -37,6 +37,25 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-10 · Piso de los chips por zona (decisión, sin código) — Opus
+
+- **Qué salió bien:** **leer el código antes de elegir entre opciones de producto cambió cuál se
+  eligió.** El ítem del BACKLOG traía la matriz medida y seis opciones, pero dos preguntas que
+  decidían entre ellas solo las contestaba el código: `app/page.tsx:52` mostró que contar con la
+  zona **no cuesta un round-trip** (la home es server component y ya se re-renderiza al elegir
+  zona), lo que sacó "es caro" de la mesa; y `occasion-chips.tsx` + `pintado.ts` destaparon un caso
+  que **no estaba en ninguna de las seis opciones** — un chip pintado desaparecería de la fila con
+  sus tags aplicados. Media hora de lectura evitó especear la opción equivocada.
+- **Qué frenó:** nada. La única duda real —¿spec o `fix`?— la resolvió la regla de reversibilidad
+  de `CLAUDE.md` sin discusión: sin migración ni dato, revertir es revertir un commit.
+- **Qué cambiar:** cuando un ítem 🔵 liste opciones, **separar las dimensiones independientes de
+  las alternativas**. Acá "contar con la zona activa" venía con *"con el mismo piso de 20 vacía la
+  home"* pegado en el mismo bullet, o sea la opción correcta llegaba a esta sesión pareciendo ya
+  refutada — cuando en realidad eran dos ejes (*con qué contexto se cuenta* y *qué piso se aplica*)
+  y el problema era el segundo. Cuesta cero: es cómo se escribe el ítem, no una regla nueva.
+
+---
+
 ## 2026-08-10 · Redefinición de `salida-con-chongo` (implementación) — Opus
 
 - **Qué salió bien:** el triaje previo dejó el trabajo tan especificado que la implementación fue
