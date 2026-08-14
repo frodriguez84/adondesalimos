@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { VOTACION_TTL_HORAS } from '../constantes'
 import {
+  cierreEnPalabras,
   estaActiva,
   estaExpirada,
   estadoVisible,
@@ -72,5 +73,39 @@ describe('sePuedeVotar', () => {
     expect(sePuedeVotar({ status: 'open', expiresAt: FUTURO }, AHORA)).toBe(true)
     expect(sePuedeVotar({ status: 'open', expiresAt: PASADO }, AHORA)).toBe(false)
     expect(sePuedeVotar({ status: 'closed', expiresAt: FUTURO }, AHORA)).toBe(false)
+  })
+})
+
+/**
+ * INVITACION, decisión 5 (`PBETA-R2-06`). Lo que importa: **redondea siempre para
+ * abajo**, así nunca promete más tiempo del que hay, y una vencida no anuncia
+ * plazo (esa votación se muestra en modo cerrado).
+ */
+describe('cierreEnPalabras', () => {
+  const en = (horas: number) => new Date(AHORA.getTime() + horas * 60 * 60 * 1000)
+
+  it('cuenta días enteros mientras falte un día o más', () => {
+    expect(cierreEnPalabras(en(VOTACION_TTL_HORAS), AHORA)).toBe('Cierra en 3 días')
+    expect(cierreEnPalabras(en(48), AHORA)).toBe('Cierra en 2 días')
+    expect(cierreEnPalabras(en(24), AHORA)).toBe('Cierra en 1 día')
+  })
+
+  it('redondea para abajo: 47 h no son 2 días', () => {
+    expect(cierreEnPalabras(en(47), AHORA)).toBe('Cierra en 1 día')
+    expect(cierreEnPalabras(en(23.9), AHORA)).toBe('Cierra en 23 horas')
+  })
+
+  it('pasa a horas abajo del día, y singulariza', () => {
+    expect(cierreEnPalabras(en(5), AHORA)).toBe('Cierra en 5 horas')
+    expect(cierreEnPalabras(en(1), AHORA)).toBe('Cierra en 1 hora')
+  })
+
+  it('abajo de una hora no da un número que envejece en el acto', () => {
+    expect(cierreEnPalabras(en(0.5), AHORA)).toBe('Cierra en menos de una hora')
+  })
+
+  it('una ya vencida no tiene plazo que anunciar', () => {
+    expect(cierreEnPalabras(PASADO, AHORA)).toBeNull()
+    expect(cierreEnPalabras(AHORA, AHORA)).toBeNull()
   })
 })

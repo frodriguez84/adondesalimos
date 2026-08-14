@@ -48,3 +48,30 @@ export function estadoVisible(poll: EstadoTemporal, ahora: Date): EstadoVisible 
 export function sePuedeVotar(poll: EstadoTemporal, ahora: Date): boolean {
   return estaActiva(poll, ahora)
 }
+
+/**
+ * Cuánto falta para que cierre, en palabras (INVITACION, decisión 5 —
+ * `PBETA-R2-06`): el invitado no sabía que las votaciones **vencen solas a las
+ * 72 h**, así que no sabía si tenía 5 minutos o dos días.
+ *
+ * Es **relativo y sin huso horario a propósito**: una fecha absoluta obligaría a
+ * pasar por la hora de AR (`partesEnAR`, `lib/negocio/horarios.ts`) y sumaría un
+ * consumidor a esa regla para una pregunta que no lo necesita — lo que se quiere
+ * saber es *si da el tiempo*, y eso es una resta. Vive acá porque este módulo ya
+ * es el dueño de lo temporal de una votación, y así se testea sin base.
+ *
+ * **Siempre redondea para abajo**: nunca promete más tiempo del que hay.
+ * Devuelve `null` si ya venció — esa votación se muestra en modo cerrado y no
+ * tiene plazo que anunciar.
+ */
+export function cierreEnPalabras(expiresAt: Date, ahora: Date): string | null {
+  const ms = expiresAt.getTime() - ahora.getTime()
+  if (ms <= 0) return null
+
+  const horas = Math.floor(ms / (60 * 60 * 1000))
+  const dias = Math.floor(horas / 24)
+
+  if (dias >= 1) return `Cierra en ${dias} ${dias === 1 ? 'día' : 'días'}`
+  if (horas >= 1) return `Cierra en ${horas} ${horas === 1 ? 'hora' : 'horas'}`
+  return 'Cierra en menos de una hora'
+}

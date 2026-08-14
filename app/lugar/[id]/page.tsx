@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 import Link from 'next/link'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
@@ -49,11 +49,17 @@ function tipoYCocina(tags: FichaTag[]): string[] {
   return tags.filter((t) => t.facet === 'tipo' || t.facet === 'cocina').map((t) => t.name)
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}): Promise<Metadata> {
+/**
+ * ⚠️ Una página que declara `openGraph` **pisa el del padre entero**, imagen
+ * incluida: sin esto, la imagen de `app/og/route.tsx` no llega hasta acá y el link
+ * vuelve a verse pelado, que es justo lo que arregla `PBETA-R2-02`. La imagen se
+ * hereda del padre en vez de escribir la ruta a mano, así sigue habiendo **un
+ * solo** archivo que la define.
+ */
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> },
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
   const { id } = await params
   const place = await getPlaceDetail(id)
   if (!place) return { title: 'Lugar no encontrado — ¿A dónde salimos?' }
@@ -72,6 +78,7 @@ export async function generateMetadata({
     openGraph: {
       title: place.name,
       description: descripcion || undefined,
+      images: (await parent).openGraph?.images,
     },
   }
 }

@@ -28,7 +28,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| _(vacía)_ | — | Todo lo escrito está implementado |
+| [INVITACION](planned/INVITACION.md) | Los 8 hallazgos abiertos del recorrido **R2 de `PULIDO_BETA`** (*me invitaron a votar*), que es el loop viral y por donde entran los usuarios nuevos: `og:image` de marca para toda la app, el H1 que deja de ser la lista de nombres, los toques a 44, hasta cuándo se puede votar, y **el desglose por opción oculto hasta votar** (enmienda parcial a la decisión 13 de `VOTACION`). Trae de R4 solo `R4-02`, porque su síntoma se paga acá. | 🔵 Escrito 2026-08-14 |
 
 _(La carpeta tiene además stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1, y CURADURIA_POR_NOMBRE (2026-08-08),

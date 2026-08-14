@@ -9,9 +9,36 @@ const inter = Inter({
   subsets: ['latin'],
 })
 
+const TITULO = '¿A dónde salimos?'
+const DESCRIPCION = 'Decidí a dónde salir esta noche sin dar mil vueltas.'
+
+/**
+ * De dónde cuelga la URL **absoluta** del `og:image`. Misma variable que usan los
+ * mails y el checkout — el día que se unifique en un helper, son cuatro lugares.
+ */
+const BASE = process.env.BETTER_AUTH_URL ?? 'http://localhost:5178'
+
 export const metadata: Metadata = {
-  title: '¿A dónde salimos?',
-  description: 'Decidí a dónde salir esta noche sin dar mil vueltas.',
+  metadataBase: new URL(BASE),
+  title: TITULO,
+  description: DESCRIPCION,
+  // INVITACION, decisión 3 (`PBETA-R2-02`): la app no declaraba **ninguna**
+  // etiqueta `og:`/`twitter:`, así que un link nuestro pegado en un grupo se veía
+  // pelado. La imagen la dibuja `app/og/route.tsx` y la heredan todas las rutas;
+  // acá van los datos que la acompañan. `summary_large_image` es lo que
+  // hace que se dibuje grande en vez de como miniatura al costado.
+  openGraph: {
+    type: 'website',
+    siteName: TITULO,
+    locale: 'es_AR',
+    title: TITULO,
+    description: DESCRIPCION,
+    // La dibuja `app/og/route.tsx` (ahí está el porqué de que sea una ruta y no
+    // un `opengraph-image.tsx`). Va relativa a propósito: así se resuelve contra
+    // `metadataBase` y el preview apunta al dominio real en dev y en producción.
+    images: [{ url: '/og', width: 1200, height: 630, alt: TITULO }],
+  },
+  twitter: { card: 'summary_large_image' },
 }
 
 // Pinta la barra del navegador (y la de estado en standalone) con el fondo de la

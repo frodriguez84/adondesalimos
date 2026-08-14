@@ -85,6 +85,19 @@ export function VotacionPublicaCliente({
 
   const abierta = estado === 'open'
 
+  /**
+   * INVITACION, decisión 6 (`PBETA-R2-12`) — **enmienda parcial a la decisión 13
+   * de VOTACION**. El conteo y la barra **por opción** aparecen recién con el voto
+   * puesto: el que llega último veía que uno ya había ganado y votaba eso, o no
+   * votaba. El que empuja el re-compartir ("vamos 2 a 2, voten") ya votó, así que
+   * conserva los resultados en vivo intactos. Cerrada, vencida o cancelada ⇒ se ve
+   * todo, con o sin voto propio (decisión 15 de VOTACION).
+   *
+   * El **total** se muestra siempre, abajo: es la señal de que la votación está
+   * viva y no ancla ninguna opción.
+   */
+  const muestraDesglose = !abierta || votado !== null
+
   const aplicarResultados = useCallback((r: Resultados) => {
     setEstado(r.estado)
     setGanador(r.winnerPlaceId)
@@ -242,12 +255,18 @@ export function VotacionPublicaCliente({
           return (
             <li
               key={o.optionId}
-              className={`flex flex-col gap-2 rounded-2xl border p-1 ${
-                esGanador ? 'border-primary' : 'border-transparent'
+              /* PBETA-R2-11: el chip de origen flotaba arriba de la card y la
+                 barra y el botón caían abajo, sobre el fondo de la página — con
+                 tres lugares seguidos, la barra de uno quedaba más cerca de la
+                 card del siguiente. Ahora el recuadro es este `li` y `PlaceCard`
+                 entra adentro sin caja propia (decisión 8: no se le agrega un
+                 slot de pie a un componente que comparten 5 pantallas). */
+              className={`flex flex-col overflow-hidden rounded-xl border bg-card ${
+                esGanador ? 'border-primary' : 'border-border'
               }`}
             >
               {sugerida && (
-                <div className="flex items-center justify-between gap-2 px-2 pt-1">
+                <div className="flex items-center justify-between gap-2 px-4 pt-3">
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
                     {esMia ? 'Lo sumaste vos' : 'Lo sumó alguien del grupo'}
                   </span>
@@ -265,11 +284,17 @@ export function VotacionPublicaCliente({
                 </div>
               )}
 
-              <PlaceCard id={o.placeId} name={o.name} tags={o.tags} location={o.location} />
+              <PlaceCard
+                id={o.placeId}
+                name={o.name}
+                tags={o.tags}
+                location={o.location}
+                className="rounded-none border-transparent bg-transparent hover:border-transparent"
+              />
 
               {/* Confirmación de quitar con votos: se los lleva puestos (cascade). */}
               {aConfirmar === o.optionId && (
-                <div className="flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
+                <div className="mx-4 mb-3 flex flex-col gap-2 rounded-xl border border-border bg-background p-3">
                   <p className="text-sm text-foreground">
                     Si lo sacás se pierden {votos} {votos === 1 ? 'voto' : 'votos'}. Esto no se
                     puede deshacer.
@@ -295,32 +320,45 @@ export function VotacionPublicaCliente({
                 </div>
               )}
 
-              <div className="flex items-center gap-3 px-2 pb-1">
-                {/* Barra de conteo en vivo */}
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      {votos} {votos === 1 ? 'voto' : 'votos'}
-                      {esGanador && <span className="ml-1 font-semibold text-primary">· Ganó</span>}
-                    </span>
-                    <span>{pct}%</span>
+              <div className="flex items-center gap-3 px-4 pb-3">
+                {/* Barra de conteo en vivo — solo con el voto puesto (R2-12) */}
+                {muestraDesglose && (
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {votos} {votos === 1 ? 'voto' : 'votos'}
+                        {esGanador && (
+                          <span className="ml-1 font-semibold text-primary">· Ganó</span>
+                        )}
+                      </span>
+                      <span>{pct}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          esGanador ? 'bg-primary' : 'bg-primary/60'
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        esGanador ? 'bg-primary' : 'bg-primary/60'
-                      }`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
+                )}
 
+                {/* PBETA-R2-05: medía 63×34, y es *la* acción del recorrido. Sube a
+                    44 con las clases a mano y no adoptando el primitivo `Button`
+                    (decisión 10): el estado "sin votar" es un botón con borde y
+                    fondo transparente, variante que `Button` no tiene, y agregarle
+                    una `outline` para un solo uso sería especular. Sin desglose al
+                    lado ocupa la fila entera — no hay nada que poner a la izquierda
+                    y es el toque más cómodo posible. */}
                 {abierta && (
                   <button
                     type="button"
                     onClick={() => votar(o.optionId)}
                     disabled={votando !== null}
-                    className={`flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                    className={`flex h-11 items-center justify-center gap-1 rounded-lg px-4 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                      muestraDesglose ? 'shrink-0' : 'w-full'
+                    } ${
                       esVotado
                         ? 'bg-primary text-primary-foreground'
                         : 'border border-border text-foreground hover:bg-secondary'
@@ -334,7 +372,7 @@ export function VotacionPublicaCliente({
 
               {/* Tras sumar, se le OFRECE votarlo — nunca se vota solo (decisión 9). */}
               {abierta && recienSumada === o.optionId && votado !== o.optionId && (
-                <p className="px-2 pb-1 text-xs text-muted-foreground">
+                <p className="px-4 pb-3 text-xs text-muted-foreground">
                   Sumaste este lugar.{' '}
                   <button
                     type="button"
@@ -381,9 +419,12 @@ export function VotacionPublicaCliente({
         </p>
       )}
 
+      {/* El total se ve siempre, con o sin voto propio (decisión 6): es la señal
+          de que la votación está viva y no ancla ninguna opción. "Podés cambiar tu
+          voto" se mudó al encabezado, donde se lee **antes** de votar
+          (PBETA-R2-07); repetirla acá sería decirla dos veces. */}
       <p className="text-center text-xs text-muted-foreground">
         {total} {total === 1 ? 'voto' : 'votos'} en total
-        {abierta && votado && ' · Podés cambiar tu voto mientras esté abierta'}
       </p>
 
       <SheetSumar
@@ -470,9 +511,11 @@ function SheetSumar({
   return (
     <BottomSheet open={open} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-2">
+        {/* PBETA-R2-10: la bajada se alineaba a la derecha, en la misma línea que
+            el título, y se leía como dos elementos sin relación. */}
+        <div className="flex flex-col gap-0.5">
           <h2 className="text-base font-semibold text-foreground">Sumá un lugar</h2>
-          <span className="text-xs text-muted-foreground">Buscalo por nombre</span>
+          <p className="text-xs text-muted-foreground">Buscalo por nombre</p>
         </div>
 
         <div className="relative">
@@ -527,7 +570,7 @@ function SheetSumar({
                     onClick={() => sumar(place)}
                     disabled={sumando !== null}
                     aria-label={`Sumar ${place.name}`}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-primary transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-primary transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Plus className="size-4" />
                   </button>

@@ -1,11 +1,12 @@
 import { cache } from 'react'
-import type { Metadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 import Link from 'next/link'
 import { cookies, headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 
 import { auth } from '@/lib/auth'
 import { VOTER_COOKIE } from '@/lib/votaciones/constantes'
+import { cierreEnPalabras } from '@/lib/votaciones/estado'
 import {
   esCreadorDeVotacion,
   getVotacionPublica,
@@ -44,17 +45,33 @@ function primerNombre(nombre: string): string {
   return nombre.trim().split(/\s+/)[0] ?? nombre
 }
 
-function tituloDe(votacion: { title: string | null; opciones: { name: string }[] }): string {
-  if (votacion.title) return votacion.title
-  const nombres = votacion.opciones.map((o) => o.name)
-  return nombres.length > 0 ? `¿A dónde salimos? ${nombres.join(' · ')}` : '¿A dónde salimos?'
+/**
+ * El título de la votación, **uno solo** para el H1 y para el `og:title`
+ * (INVITACION, decisión 4).
+ *
+ * `PBETA-R2-04`: el fallback era la lista de nombres concatenada y ocupaba el
+ * tercio superior de la pantalla —3 líneas a 390 px, 4 a 360— para repetir lo que
+ * ya dicen las cards de abajo. Ahora es un texto fijo, y de paso deja de poder
+ * desactualizarse cuando alguien suma un lugar (`PBETA-R2-13`).
+ *
+ * Los nombres no se pierden: siguen en la descripción del preview
+ * («Votá entre X, Y, Z»), que es donde sirven.
+ */
+function tituloDe(votacion: { title: string | null }): string {
+  return votacion.title || '¿A dónde vamos?'
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ token: string }>
-}): Promise<Metadata> {
+/**
+ * ⚠️ Una página que declara `openGraph` **pisa el del padre entero**, imagen
+ * incluida: sin esto, la imagen de `app/og/route.tsx` no llega hasta acá y el link
+ * vuelve a verse pelado, que es justo lo que arregla `PBETA-R2-02`. La imagen se
+ * hereda del padre en vez de escribir la ruta a mano, así sigue habiendo **un
+ * solo** archivo que la define.
+ */
+export async function generateMetadata(
+  { params }: { params: Promise<{ token: string }> },
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
   const { token } = await params
   const votacion = await cargar(token)
   if (!votacion) return { title: 'Votación no encontrada — ¿A dónde salimos?' }
@@ -68,7 +85,11 @@ export async function generateMetadata({
   return {
     title: `${titulo} — ¿A dónde salimos?`,
     description: descripcion,
-    openGraph: { title: titulo, description: descripcion },
+    openGraph: {
+      title: titulo,
+      description: descripcion,
+      images: (await parent).openGraph?.images,
+    },
   }
 }
 
@@ -95,6 +116,11 @@ export default async function VotacionPage({
   const esCreador = session?.user
     ? await esCreadorDeVotacion(votacion.id, session.user.id)
     : false
+
+  // Hasta cuándo se puede votar (PBETA-R2-06). Se calcula en el server, que es
+  // donde ya se resolvió la expiración perezosa; una votación cerrada no tiene
+  // plazo que anunciar y la línea desaparece entera.
+  const plazo = votacion.estado === 'open' ? cierreEnPalabras(votacion.expiresAt, new Date()) : null
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
@@ -123,10 +149,23 @@ export default async function VotacionPage({
               salida con el grupo.
             </p>
           )}
+          {/* PBETA-R2-06 + PBETA-R2-07 en una sola línea, y arriba: cuánto tiempo
+              queda, y que el voto es reversible **antes** de tocar — que es cuando
+              esa frase abarata el click. Después de votar ya no hace falta, así que
+              no se repite en el pie. */}
+          {plazo && (
+            <p className="text-xs text-muted-foreground">
+              {plazo} · Podés cambiar tu voto cuando quieras
+            </p>
+          )}
         </div>
+        {/* PBETA-R2-05: medía 35×20. Los márgenes negativos son el precio de que el
+            área de toque crezca sin mover el texto: `-mr-2` compensa el padding
+            lateral y `-mt-3.5` los 14 px que el alto de 44 le corría respecto del
+            eyebrow, con el que tiene que seguir alineado. */}
         <Link
           href="/"
-          className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-primary"
+          className="-mr-2 -mt-3.5 inline-flex h-11 shrink-0 items-center px-2 text-sm text-muted-foreground transition-colors hover:text-primary"
         >
           Inicio
         </Link>
@@ -149,7 +188,10 @@ export default async function VotacionPage({
         {esCreador ? (
           <>
             Esta votación la armaste vos. Pasale el link al grupo y seguila desde{' '}
-            <Link href="/mis-votaciones" className="underline underline-offset-4">
+            <Link
+              href="/mis-votaciones"
+              className="inline-flex min-h-11 items-center underline underline-offset-4"
+            >
               Mis votaciones
             </Link>
             .
@@ -157,7 +199,11 @@ export default async function VotacionPage({
         ) : (
           <>
             Armá tu propia votación desde{' '}
-            <Link href="/" className="underline underline-offset-4">
+            {/* PBETA-R2-05: era la única salida de la página y medía 106×15. */}
+            <Link
+              href="/"
+              className="inline-flex min-h-11 items-center underline underline-offset-4"
+            >
               ¿A dónde salimos?
             </Link>
           </>

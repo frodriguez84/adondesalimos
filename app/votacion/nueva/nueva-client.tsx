@@ -199,9 +199,19 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
         )}
       </section>
 
-      {/* Título opcional */}
+      {/* PBETA-R4-02 — el nudge, no un campo obligatorio (INVITACION, decisión 9).
+          El rótulo decía "Título (opcional)" y no pasaba nada si lo dejabas en
+          blanco: se creaba igual y nunca se te volvía a preguntar. La falla se
+          origina acá y se paga en la pantalla del invitado. Sigue siendo opcional
+          —el creador es el lado escaso del loop viral y no se le traba la pantalla
+          para arreglar la de enfrente—, así que la bajada nombra al destinatario
+          real en vez de exigir. El fallback del H1 se arregló igual, aparte: hay
+          votaciones ya creadas sin título y ningún nudge las alcanza. */}
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-semibold text-foreground">Título (opcional)</span>
+        <span className="text-sm font-semibold text-foreground">Ponele un título</span>
+        <span className="text-xs text-muted-foreground">
+          Es lo primero que ve el grupo cuando abre el link. Si lo dejás vacío ponemos uno.
+        </span>
         <input
           type="text"
           value={titulo}

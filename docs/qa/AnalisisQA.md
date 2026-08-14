@@ -4617,3 +4617,57 @@ El arreglo no cambia la decisión ni la firma pura: el marcador guarda **la pant
 la pestaña** (`ads:pantalla-de-entrada`) en vez de un booleano, y «hay historia propia» pasa a ser
 «la pantalla actual no es la de entrada». La guardia doble de la decisión 6 sigue igual
 (`historyLength > 1`), y sigue siendo la que salva el caso del `sessionStorage` clonado.
+
+---
+
+## QA /qa-spec — INVITACION (2026-08-14)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ · tests **773/773** ✅ · build ✅ (corrido con el dev server
+**parado**, `CLAUDE.md` § *Notas importantes*). El build confirma además la decisión 2 bis: `/og`
+aparece como **`○ (Static)`**, o sea prerenderizada en build y no por request.
+**Método:** tres checkers independientes (Explore read-only, haiku, maker≠checker) sobre 16
+criterios de código — **16/16 PASS** — **más** recorrido en vivo contra
+`https://adondesalimos.ngrok.app` con Playwright a **390×844 y 360×844**, en ventana sin sesión y
+sin cookie de voto, midiendo con `getBoundingClientRect()`, y `curl` sobre el **HTML servido** para
+las etiquetas `og:`. Ningún criterio se declaró PASS por lectura de código sola.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| `INV-01` | `og:image` + `twitter:card` en el HTML servido de `/votacion/[token]` | ✅ PASS | `og:image = https://adondesalimos.ngrok.app/og` · `twitter:card = summary_large_image` · `og:title = ¿A dónde vamos?` · `og:description = Votá entre Soria Bar, Cerveceria Söt.` |
+| `INV-02` | Ídem en `/` (la mitad de `R2-02` que no es la votación) | ✅ PASS | La home no declaraba **ninguna** `og:`/`twitter:`; ahora trae 10 `og:` + 8 `twitter:`, con `og:site_name`, `og:locale = es_AR` y `og:type = website` |
+| `INV-03` | La imagen responde 200 y mide 1200×630 | ✅ PASS | `GET /og` → **200** `image/png` **45.314 bytes**; cabecera PNG leída: **1200×630**. Inspección visual: pin con gradiente + wordmark con «salimos?» en naranja + bajada, acentos bien |
+| `INV-03b` | La ficha (`/lugar/[id]`) también hereda la imagen (decisión 2 ter) | ✅ PASS | `/lugar/<Soria Bar>` → `og:title = Soria Bar` **y** `og:image = …/og`. Antes de heredar del `parent` salía sin imagen: declarar `openGraph` pisa el del padre entero |
+| `INV-04` | H1 sin título propio: **una línea** a 360 px, sin nombres de lugares | ✅ PASS | `¿A dónde vamos?` — alto 30 px sobre `line-height` 30 px ⇒ **1 línea** a 390 **y** a 360. Antes: 3 líneas a 390, 4 a 360 |
+| `INV-05` | H1 **con** título propio: sin cambios respecto de hoy | ✅ PASS | `/votacion/GPeDP-dIOCDVHlDbCIRGNA` → H1 `¿Que hacemos?`, tal cual antes |
+| `INV-06` | Toques ≥ 44 px (los 4 de la tabla de `R2-05`) | ✅ PASS | «Votar» **324×44** (era 63×34) · «Inicio» **51×44** (era 35×20) · «+» del sheet **44×44** (era 32×32) · link del pie **106×44** (era 106×15). «Inicio» además quedó **alineado con el eyebrow**: los dos centrados en `y=98` |
+| `INV-07` | Plazo visible y coherente con `expires_at` | ✅ PASS | Con `expires_at = now() + 50 h` la pantalla dice **«Cierra en 2 días»** (redondea para abajo: nunca promete de más). En una cerrada la línea **no aparece** |
+| `INV-08` | «Podés cambiar tu voto» legible **antes** de votar | ✅ PASS | Sin cookie de voto se lee `Cierra en 2 días · Podés cambiar tu voto cuando quieras`. Y **no** se repite en el pie: el pie quedó en `0 votos en total` a secas |
+| `INV-09` | Sin voto: sin desglose por opción, con total | ✅ PASS | Ni un `%` en toda la página (`hayDesglose = false`) y el total presente (`0 votos en total`) |
+| `INV-10` | Al votar: aparecen conteo y barra, y el voto propio queda marcado | ✅ PASS | Tras votar: `1 voto / 100%` y `0 votos / 0%`, botón en «✓ Tu voto», total `1 voto en total` |
+| `INV-11` | Cerrada **sin haber votado**: desglose completo y ganador | ✅ PASS | `/votacion/GPeDP…`: las **4** opciones con barra, «Ganó», sin botón «Votar», y sin línea de plazo. La decisión 15 de `VOTACION` queda intacta |
+| `INV-12` | El bloque de voto queda dentro del recuadro de su card | ✅ PASS | Medido por contención de rects: barra ✔, botón ✔ y chip de origen ✔ dentro del `li` (358×170, `border 1px #2A2A3E`, `bg #1A1A2E`). `PlaceCard` **sin tocar** |
+| `INV-13` | Bajada del sheet debajo del título | ✅ PASS | «Sumá un lugar» en `x=16, y=172` y «Buscalo por nombre» en `x=16, y=198` — mismo `x`, debajo. Antes: `x=245`, misma línea |
+| `INV-14` | Sumar un lugar no desactualiza el H1 | ✅ PASS | Sumado «Kalua Pizza Bar»: 3 opciones en pantalla y el H1 sigue en `¿A dónde vamos?`, sin nombres. `R2-13` **queda cerrado por construcción**, no por código propio |
+| `INV-15` | `/votacion/nueva`: rótulo que explica, y sigue opcional | ✅ PASS | «Ponele un título» + «Es lo primero que ve el grupo cuando abre el link. Si lo dejás vacío ponemos uno.»; `input.required = false` y `title` sigue `.optional()` en `lib/votaciones/validacion.ts` |
+| `INV-16` | 360 px sin desbordes en el recorrido completo | ✅ PASS | `scrollWidth = clientWidth = 345` (Chrome descuenta 15 px de scrollbar ⇒ se probó **más angosto** que el piso de Android) |
+
+**La base quedó como estaba** (decisión 13 de `PULIDO_BETA`). Para tener una votación abierta se
+reactivó `nhFX8wepGjwVHo1glPnyrg` moviendo su `expires_at` a `now() + 50 h`; al terminar se borró
+el voto y la opción sumados y se restauró el valor original (`2026-08-11 16:05:45.877`).
+Verificado: `status=open · expires_at` original · **2 opciones · 0 votos**, idéntico al previo.
+
+### Lo que se vio y **no** entró (nuevo, para triaje de Fer)
+
+- **Quedan 5 toques abajo de 44 px en la pantalla**, ninguno de la tabla de `R2-05`: el wordmark
+  del `BrandHeader` (212×34, compartido por varias pantallas), la **X de sacar** un lugar sumado
+  (28×28), «¿La votás?» (61×16), «Sumar un lugar» (313×**42**, que el propio F1 llamó *«el único
+  cómodo»*) y el handle «Cerrar» del sheet (96×16). Los tres del medio son de
+  `SUGERIR_EN_VOTACION`, no de R2. **No se tocaron para no ampliar el alcance en silencio.**
+- ⚠️ **El panel del creador tiene su propia regla de título** y ahora las dos **no coinciden**:
+  `app/mis-votaciones/mis-votaciones-client.tsx:43` (`tituloDeVotacion`) sigue armando el nombre
+  con la lista de lugares, así que Pepe comparte un link cuya pantalla dice «¿A dónde vamos?»
+  mientras su panel la llama «Soria Bar · Cerveceria Söt». **Puede estar bien**: en una *lista* de
+  votaciones los nombres son lo que las distingue, y encabezar una *página* es otra pregunta. Se
+  anota porque es una segunda implementación de la misma regla y `CLAUDE.md` § *Una regla, un
+  dueño* manda señalarla apenas se ve. Es territorio de R4 → `BACKLOG`.
