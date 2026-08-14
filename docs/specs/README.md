@@ -28,8 +28,7 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-
-**Vacía.** ORDEN_ORGANICO, el último que quedaba acá, se escribió e implementó el 2026-08-10.
+| [HOME_ENTRADAS](planned/HOME_ENTRADAS.md) | Mini-spec — `PBETA-R1-05`: que desde la home se descubra que hay votaciones y chat IA. Dos líneas de texto en el hero del estado vacío (el bloque que ya se colapsa al buscar), landing sin login para `/votacion/nueva` con el patrón de `/chat`, y el menú de cuenta abierto también para anónimos. | 🔵 Planned — decisiones cerradas con Fer el 2026-08-14, sin código |
 
 _(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e

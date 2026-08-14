@@ -1261,7 +1261,14 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       **Por qué 100 y no 200 (el techo de pins del mapa, decisión 32 de BUSQUEDA):** un pin es barato
       y una card no — 200 cards son ~26.000 px, el mismo problema dividido por 1,4. El número es
       puerta de ida y vuelta (`TECHO_CARDS` en `results-list.tsx`): se mueve cuando haya uso real.
-- [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
+- [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat.
+      📄 **Especeado el 2026-08-14**: [`HOME_ENTRADAS`](../specs/planned/HOME_ENTRADAS.md) (4 decisiones
+      cerradas con Fer, sin código todavía). Al leer el código el hallazgo se achicó: no falta
+      navegación, falta **anuncio para el anónimo** — con sesión las 7 rutas ya están en el
+      `AccountMenu`, y `/chat` ya recibe anónimos con landing propia. Solo `/votacion/nueva` redirige.
+      **Se dejó de llamar «espejo de R2-03»:** `R2-03` era BLOQUEANTE y **ya se arregló en F3** (la
+      votación dice «Te invitó Pepe» y explica qué es la app). Lo que queda de esa punta —el link
+      «Inicio» de 35×20 y el pie a 990 px— es `PBETA-R2-05`, no esto.
 - [x] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. ✅ **Hecho el 2026-08-08** con [`MAPA`](../specs/done/MAPA.md) ([resumen](../archive/SPECS_ARCHIVO.md#mapa)), junto con `FB-04` (mismo archivo, misma pantalla). Medido en vivo antes y después a 390×844: **67% → 100%** y `document.body.scrollHeight` 1.127 → **844 = `innerHeight`**. El bloque de búsqueda pasó de 332 a 188 px (el buscador se esconde y los chips van de 3 filas a 1 que scrollea, 124 → 42 px). En 390×667 el mapa entra entero pero la página gana 60 px de scroll por el piso `min-h-80`: degradación declarada en la decisión 9.
 - [x] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
       ✅ **Hecho el 2026-08-14**. Ahora dice «**Cerrado · abre a las 20**» (verificado en vivo en Congo,
