@@ -128,7 +128,11 @@ function BottomSheet({ open, onClose, children, className }: BottomSheetProps) {
             }
             onClose()
           }}
-          className="mx-auto mb-3 flex w-24 items-center justify-center py-1.5"
+          // `INV-A`: medía 96×16 y es el único cierre visible del sheet en
+          // mobile. Sube a 44 de alto con el `mb` recortado, así lo que se come
+          // arriba del contenido son 20 px y no 28 (medido: el contenido del
+          // sheet de zona arranca en 192 px).
+          className="mx-auto mb-1 flex min-h-11 w-24 items-center justify-center"
         >
           <span className="block h-1 w-10 rounded-full bg-muted-foreground/40" />
         </button>

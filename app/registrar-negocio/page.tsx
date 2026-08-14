@@ -6,6 +6,7 @@ import { Search } from 'lucide-react'
 
 import { auth } from '@/lib/auth'
 import { buscarCatalogoCompleto } from '@/lib/claims/query'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { AltaForm } from './alta-form'
 
 /**
@@ -38,6 +39,9 @@ export default async function RegistrarNegocioPage({
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      {/* PBETA-R4-06: ver la nota en `/votacion/nueva`. */}
+      <BrandHeader />
+
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Registrá tu negocio</h1>
         <Link href="/" className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-primary">

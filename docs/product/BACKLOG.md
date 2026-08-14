@@ -1375,23 +1375,71 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 
 **R4 · Armar una votación**
 - [x] **PBETA-R4-02** (MOLESTO) — nada empuja a ponerle título, y sin título el invitado ve el H1 feo de R2-04. La falla se origina acá y se paga allá. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): «Ponele un título» + «Es lo primero que ve el grupo cuando abre el link», y **sigue siendo opcional** — el creador es el lado escaso del loop viral y no se le traba la pantalla para arreglar la de enfrente. El fallback del H1 se arregló igual y aparte: las votaciones ya creadas sin título existen y ningún nudge las alcanza.
-- [ ] **`INV-A` — quedan 5 toques abajo de 44 px en la votación, y ninguno es de `PBETA-R2-05`**
+- [x] **`INV-A` — quedan 5 toques abajo de 44 px en la votación, y ninguno es de `PBETA-R2-05`**
       (medido el 2026-08-14 al cerrar `INVITACION`, a 360 px): la **X de sacar** un lugar sumado
       (28×28), **«¿La votás?»** (61×16) y el handle **«Cerrar»** del sheet (96×16) —los tres de
       `SUGERIR_EN_VOTACION`—, el **wordmark** del `BrandHeader` (212×34, compartido por varias
       pantallas) y **«Sumar un lugar»** (313×**42**, a 2 px, y el propio F1 lo llamó *«el único
       cómodo»*). No se tocaron para no ampliar el alcance en silencio.
-- [ ] **`INV-B` — la misma votación se llama distinto en cada pantalla.** Desde `INVITACION`, al
+      ✅ **Hecho 2026-08-14** (R4): los 5 miden **44** de alto, medidos con `getBoundingClientRect()`
+      a 390 y a 360 → X de sacar `44×44` · «¿La votás?» `61×44` · handle del sheet `96×44` · wordmark
+      `212×44` · «Sumar un lugar» `343×44` (390) / `313×44` (360). **Ninguno cambió de tamaño
+      aparente**: lo que crece es el área táctil. Los dos compartidos se tocaron con su radio medido
+      antes (criterio de `PBETA-R1-08`): el **wordmark** lo usan 13 pantallas —10 + las 3 que suma
+      `PBETA-R4-06`— y el costo es 10 px de alto en cada header, sin reflow lateral; el **handle** lo
+      comparten todos los sheets y se come 20 px arriba del contenido en vez de 28, porque el `mb-3`
+      bajó a `mb-1`. La **X** absorbe su crecimiento con márgenes negativos, así que el chip de al
+      lado no se movió.
+- [x] **`INV-B` — la misma votación se llama distinto en cada pantalla.** Desde `INVITACION`, al
       invitado sin título propio se le muestra «¿A dónde vamos?» mientras el panel del creador la
       sigue llamando «Soria Bar · Cerveceria Söt»: `tituloDeVotacion`
       (`app/mis-votaciones/mis-votaciones-client.tsx:43`) es una **segunda implementación** de la
       misma regla. **Puede estar bien** —en una *lista* los nombres son lo que las distingue, y
       encabezar una *página* es otra pregunta—, pero mientras no se decida, driftea. Es territorio de
       R4, va con el resto de ese recorrido.
-- [ ] **PBETA-R4-03** (MOLESTO) — «Cerrar» y «Cancelar votación» juntos, sin decir qué hace cada uno (la confirmación posterior sí está bien).
-- [ ] **PBETA-R4-04** (MOLESTO) — el botón de crear queda enterrado abajo de los resultados de búsqueda (y = 1.480 px).
-- [ ] **PBETA-R4-05** (COSMÉTICO) — el link a compartir se muestra cortado y no se puede leer entero.
-- [ ] **PBETA-R4-06** (COSMÉTICO) — `/votacion/nueva`, `/registrar-negocio` y `/reclamar/[placeId]` no llevan el wordmark arriba (3 de 3 pantallas de flujo).
+      ✅ **Decidido y hecho 2026-08-14** (Fer, inline): **se unifica el dueño, no el resultado.** Los
+      dos textos siguen difiriendo —a propósito— pero salen de un solo módulo,
+      **`lib/votaciones/titulo.ts`**, con las dos funciones nombradas por su rol: `tituloDePagina()`
+      (el H1 y el `og:title`, INVITACION d.4) y `rotuloEnLista()` (el panel y su historial). **Por
+      qué no se unificó el texto:** encabezar una *página* y distinguir filas de una *lista* son dos
+      preguntas distintas — en el historial premium, N filas «¿A dónde vamos?» se distinguirían solo
+      por la fecha y el ganador. Lo que sí desaparece es la segunda implementación suelta.
+- [x] **PBETA-R4-03** (MOLESTO) — «Cerrar» y «Cancelar votación» juntos, sin decir qué hace cada uno (la confirmación posterior sí está bien).
+      ✅ **Hecho 2026-08-14**: «Cerrar» pasa a **«Terminar y elegir ganador»**, que es literalmente la
+      decisión 14 de `VOTACION`, y deja de leerse como «cerrar esta tarjeta». Dejan de compartir fila:
+      la que anula queda debajo y con menos peso visual, así que ya no compiten. **Sigue siendo la
+      primaria a propósito** — terminar es el desenlace esperado (decisión 4: el creador cierra cuando
+      quiere); lo que estaba mal no era el color, era el color con una etiqueta ambigua. **La
+      confirmación no se tocó**, tal como pedía el hallazgo: se verificó en vivo que sigue entera
+      («¿Quién ganó?» + el aviso de que sale del panel + las 2 opciones + «Confirmar cierre»/«Volver»).
+      Las dos etiquetas miden `294×44`.
+- [x] **PBETA-R4-04** (MOLESTO) — el botón de crear queda enterrado abajo de los resultados de búsqueda (y = 1.480 px).
+      ✅ **Hecho 2026-08-14**: con la shortlist **ya válida** el CTA se pega al pie (`sticky bottom-0`).
+      Medido con la misma búsqueda del hallazgo («congo», 12 resultados) a 390×844: **antes** y = 1.518
+      de una página de 1.598 —el QA había medido 1.480/1.560, y la diferencia son los 38 px que sumó el
+      nudge de título de `INVITACION`—; **después**, visible sin scrollear. Verificado también a 360, y
+      con la lista scrolleada hasta el fondo el último resultado **no** queda tapado. Se pega **recién
+      cuando la shortlist es válida** y no antes: en una pantalla que arranca vacía, una barra fija con
+      un botón deshabilitado sería alto ocupado para nada.
+- [x] **PBETA-R4-05** (COSMÉTICO) — el link a compartir se muestra cortado y no se puede leer entero.
+      ✅ **Hecho 2026-08-14**: era un `input` de una línea, y un input no corta línea. Pasa a ser texto
+      con `break-all` — se lee entero en 3 líneas a 360 px. `select-all` lo selecciona de un toque, que
+      es el fallback que antes daba el `.select()` del input cuando no hay permiso de portapapeles.
+      «Copiar» funcionaba y no cambió.
+- [x] **PBETA-R4-06** (COSMÉTICO) — `/votacion/nueva`, `/registrar-negocio` y `/reclamar/[placeId]` no llevan el wordmark arriba (3 de 3 pantallas de flujo).
+      ✅ **Hecho 2026-08-14**: las 3 llevan `<BrandHeader />` arriba del header propio, sin
+      reemplazarlo — el dueño de «el wordmark linkea al inicio» sigue siendo
+      `components/shared/brand-header.tsx` y no se escribió ese `Link` a mano. Verificado en vivo en las
+      3 (`212×44`, `href="/"`). **Queda fuera a propósito** la pantalla de bienvenida de
+      `/votacion/nueva` sin sesión: está centrada en el viewport (`justify-center`) y no es la pantalla
+      del hallazgo, que midió la de armado.
+
+- [ ] **`R4-C` — los toques cortos siguen en `/mis-votaciones`, y esta vez están medidos.** Al arreglar
+      `PBETA-R4-03` las dos acciones del creador quedaron en 44, pero las de su vecindario no: dentro
+      de la confirmación de cierre, **«Confirmar cierre» mide 38** px de alto. No se tocó porque no
+      estaba en `INV-A` (que contó los de `/votacion/[token]`, otra pantalla) ni en R4, y ampliar el
+      alcance en silencio es justo lo que este bloque evitó dos veces. Faltaría medir en la misma
+      pasada «Ver», «Compartir», «Volver» y el «Ver más» del historial.
 
 **R5 · Chat + premium apagado**
 - [ ] **PBETA-R5-01 (causa raíz)** — **el síntoma está tapado, el diagnóstico no se hizo.** Las 4 sugerencias ya no caen sobre tags flacos, pero sigue sin saberse **por qué** el motor devolvió Palermo Soho para «una birra con amigos por Villa Crespo» y afirmó que el barrio no tiene carga (tiene 207 lugares con `bar`). Los tool-inputs no se persisten: se diagnostica con `npm run eval:chat`, **que cuesta tokens reales de Sonnet**. Decisión de Fer del 2026-08-03: primero el síntoma, la causa cuando se justifique el gasto.
@@ -2310,6 +2358,35 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`R4` — armar una votación, el lado emisor del loop viral** (los 4 hallazgos abiertos del
+      recorrido R4 de `PULIDO_BETA` + `INV-A` e `INV-B`, que dejó el cierre de `INVITACION`;
+      2026-08-14, sesión Opus). **Fix directo con IDs, sin spec**: a diferencia de R2, acá no había
+      enmienda a ningún spec cerrado y la única decisión de producto (`INV-B`) se preguntó inline
+      antes de tocar el código. Verificado **en vivo a 390×844 y 360×844** con
+      `getBoundingClientRect()` · typecheck · **773/773** tests · build verde con el server parado.
+      **Lo que vale más que el diff:**
+      1. **La medición «antes» no dio el número del QA, y eso era información, no ruido.** El hallazgo
+         decía y = 1.480 de 1.560; hoy daba **1.518 de 1.598**. Los 38 px de diferencia son el nudge
+         de título que agregó `INVITACION` hace un rato: cada arreglo que suma texto empuja el CTA un
+         poco más abajo. Re-medir antes de tocar confirmó el fenómeno **y** explicó el desvío; dar por
+         bueno el número viejo lo habría escondido.
+      2. **`INV-B` se cerró unificando el dueño y no el resultado.** Las dos pantallas siguen
+         llamando distinto a la misma votación —a propósito— pero desde `lib/votaciones/titulo.ts`,
+         con las funciones nombradas por su rol (`tituloDePagina` / `rotuloEnLista`). *Una regla, un
+         dueño* no obliga a que la regla devuelva siempre lo mismo: obliga a que esté escrita una vez
+         y con su porqué al lado. Forzar el mismo texto habría dejado el historial premium con N
+         filas distinguibles solo por la fecha.
+      3. **De los dos toques compartidos, el radio se midió antes de tocarlos** (criterio de
+         `PBETA-R1-08`): el wordmark lo usan 13 pantallas y el handle, todos los sheets. Los dos
+         subieron a 44 sin cambiar de tamaño aparente —crece el área táctil, no el dibujo— y el
+         handle se come 20 px en vez de 28 recortándole el margen de abajo.
+      4. **El fix de `PBETA-R4-03` fue una etiqueta, no una red.** El hallazgo era explícito en que la
+         confirmación estaba bien resuelta; la tentación era «reforzar» igual. Se cambió solo lo que
+         mentía —la etiqueta— y se verificó en vivo que el flujo de cierre siguiera entero.
+      5. **Quedó un ítem nuevo abierto y anotado (`R4-C`), no arreglado de prepo:** «Confirmar cierre»
+         mide 38 px. Está en una pantalla que `INV-A` nunca midió, así que entra al backlog con su
+         número en vez de colarse en este diff.
 
 - [x] **`INVITACION` — la pantalla por donde entran los usuarios nuevos** (bloque **R2** de
       `PULIDO_BETA` + `PBETA-R4-02`, 2026-08-14, sesión Opus). Spec

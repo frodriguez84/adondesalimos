@@ -13,7 +13,12 @@ import { Wordmark } from './wordmark'
  */
 export function BrandHeader() {
   return (
-    <Link href="/" aria-label="Ir al inicio" className="w-fit">
+    // `INV-A`: el toque medía 212×**34**. Sube a 44 con `min-h-11` y no tocando
+    // el `Wordmark`, que es el asset y se dibuja igual: lo que crece es el área
+    // táctil. Radio medido antes de tocarlo (mismo criterio que `PBETA-R1-08`):
+    // lo comparten 13 pantallas y el costo es 10 px de alto en cada header, sin
+    // reflow lateral y sin mover nada de su eje horizontal.
+    <Link href="/" aria-label="Ir al inicio" className="flex min-h-11 w-fit items-center">
       <Wordmark />
     </Link>
   )

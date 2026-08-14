@@ -276,7 +276,11 @@ export function VotacionPublicaCliente({
                       onClick={() => (votos > 0 ? setAConfirmar(o.optionId) : quitar(o.optionId))}
                       disabled={quitando !== null}
                       aria-label={`Sacar ${o.name}`}
-                      className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                      /* `INV-A`: medía 28×28. Sube a 44 con márgenes negativos
+                         que absorben el crecimiento, así el chip de al lado no se
+                         mueve y la fila no engorda: lo único que cambia es el
+                         área táctil. */
+                      className="-my-2 -mr-1.5 flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
                     >
                       <X className="size-4" />
                     </button>
@@ -378,7 +382,9 @@ export function VotacionPublicaCliente({
                     type="button"
                     onClick={() => votar(o.optionId)}
                     disabled={votando !== null}
-                    className="font-medium text-primary underline underline-offset-2 disabled:opacity-50"
+                    /* `INV-A`: medía 61×16 dentro del párrafo. Sube a 44 de
+                       alto sin salirse de la línea de texto. */
+                    className="inline-flex min-h-11 items-center align-middle font-medium text-primary underline underline-offset-2 disabled:opacity-50"
                   >
                     ¿La votás?
                   </button>
@@ -402,7 +408,8 @@ export function VotacionPublicaCliente({
             type="button"
             onClick={() => setSheetAbierto(true)}
             disabled={!puedeSumar}
-            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-primary/50 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground disabled:hover:bg-transparent"
+            /* `INV-A`: quedaba en 42 px, a 2 del mínimo. */
+            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-primary/50 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground disabled:hover:bg-transparent"
           >
             <Plus className="size-4" />
             Sumar un lugar

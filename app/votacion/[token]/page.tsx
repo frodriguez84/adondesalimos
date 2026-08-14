@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { VOTER_COOKIE } from '@/lib/votaciones/constantes'
 import { cierreEnPalabras } from '@/lib/votaciones/estado'
+import { tituloDePagina } from '@/lib/votaciones/titulo'
 import {
   esCreadorDeVotacion,
   getVotacionPublica,
@@ -46,22 +47,6 @@ function primerNombre(nombre: string): string {
 }
 
 /**
- * El título de la votación, **uno solo** para el H1 y para el `og:title`
- * (INVITACION, decisión 4).
- *
- * `PBETA-R2-04`: el fallback era la lista de nombres concatenada y ocupaba el
- * tercio superior de la pantalla —3 líneas a 390 px, 4 a 360— para repetir lo que
- * ya dicen las cards de abajo. Ahora es un texto fijo, y de paso deja de poder
- * desactualizarse cuando alguien suma un lugar (`PBETA-R2-13`).
- *
- * Los nombres no se pierden: siguen en la descripción del preview
- * («Votá entre X, Y, Z»), que es donde sirven.
- */
-function tituloDe(votacion: { title: string | null }): string {
-  return votacion.title || '¿A dónde vamos?'
-}
-
-/**
  * ⚠️ Una página que declara `openGraph` **pisa el del padre entero**, imagen
  * incluida: sin esto, la imagen de `app/og/route.tsx` no llega hasta acá y el link
  * vuelve a verse pelado, que es justo lo que arregla `PBETA-R2-02`. La imagen se
@@ -76,7 +61,7 @@ export async function generateMetadata(
   const votacion = await cargar(token)
   if (!votacion) return { title: 'Votación no encontrada — ¿A dónde salimos?' }
 
-  const titulo = tituloDe(votacion)
+  const titulo = tituloDePagina(votacion)
   const descripcion =
     votacion.opciones.length > 0
       ? `Votá entre ${votacion.opciones.map((o) => o.name).join(', ')}.`
@@ -140,7 +125,7 @@ export default async function VotacionPage({
                 : 'Te invitaron a votar'}
           </p>
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
-            {tituloDe(votacion)}
+            {tituloDePagina(votacion)}
           </h1>
           {votacion.estado === 'open' && (
             <p className="text-sm text-muted-foreground">

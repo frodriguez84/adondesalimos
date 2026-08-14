@@ -5,6 +5,30 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## «Una regla, un dueño» no dice que la regla devuelva siempre lo mismo (2026-08-14 · R4)
+
+**Qué pasó.** `INV-B`: la misma votación se llamaba distinto en dos pantallas. Al invitado sin
+título propio se le mostraba «¿A dónde vamos?» y el panel del creador la seguía llamando «Congo
+Club Cultural · Circo Congo». Dos funciones, dos archivos, la misma pregunta — el caso de manual de
+la convención *una regla, un dueño*, que manda unificar.
+
+Unificar el **texto**, sin embargo, habría sido peor: en el historial premium, N filas
+«¿A dónde vamos?» se distinguen solo por la fecha y el ganador. La divergencia no era el bug.
+
+**Qué se hizo.** Se unificó el **dueño** y no el resultado: un módulo (`lib/votaciones/titulo.ts`)
+con las dos funciones nombradas por su rol —`tituloDePagina()` y `rotuloEnLista()`— y el porqué de
+la diferencia escrito arriba, en el módulo.
+
+**Qué hacer distinto.** Cuando aparezca una segunda implementación de "la misma" regla, la primera
+pregunta no es *cuál de las dos gana*, es **si son de verdad la misma pregunta**. Dos consumidores
+con necesidades distintas (encabezar una *página* vs. distinguir filas de una *lista*) no son una
+duplicación: son dos reglas hermanas que necesitan **un solo dueño y dos nombres**. El olor a
+detectar no es "devuelven distinto", es **"están escritas en dos lados"** — que es lo que driftea.
+Y si de verdad tienen que diferir, el módulo es el único lugar donde eso se puede dejar dicho: en
+dos archivos separados, la próxima sesión unifica sin saber lo que rompe.
+
+---
+
 ## Lo que el framework hace "solo" puede estar mirando otra URL que la tuya (2026-08-14 · INVITACION)
 
 **Qué pasó.** `PBETA-R2-02` pedía una imagen de preview para el link que circula por WhatsApp. La

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MapPin, Plus, Search, Sparkles, X } from 'lucide-react'
@@ -106,6 +106,8 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
 
   const yaEsta = (id: string) => elegidos.some((p) => p.id === id)
   const lleno = elegidos.length >= MAX_OPCIONES
+  /** Shortlist válida: a partir de acá el CTA se pega al pie (PBETA-R4-04). */
+  const listo = elegidos.length >= MIN_OPCIONES
 
   function agregar(place: SearchedPlace) {
     if (yaEsta(place.id) || lleno) return
@@ -323,14 +325,33 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={crear}
-        disabled={enviando || elegidos.length < MIN_OPCIONES}
-        className="rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+      {/* PBETA-R4-04 — con una búsqueda activa el CTA quedaba abajo de los
+          resultados: medido a 390×844, en y = 1.518 px de una página de 1.598.
+          Terminabas de elegir y tenías que scrollear la lista que ya no te
+          interesa para poder crear (con el teclado abierto, peor).
+
+          Se queda pegado al pie **recién cuando la shortlist es válida**, que es
+          exactamente lo que pedía el hallazgo («siempre a mano una vez que la
+          shortlist es válida») y no antes: en una pantalla que arranca vacía, una
+          barra fija con un botón deshabilitado sería alto ocupado para nada. El
+          `-mx-4` cancela el padding del `main` para que la barra llegue a los
+          bordes. */}
+      <div
+        className={
+          listo
+            ? 'sticky bottom-0 -mx-4 border-t border-border bg-background px-4 pb-4 pt-3'
+            : 'contents'
+        }
       >
-        {enviando ? 'Creando…' : 'Crear votación y obtener link'}
-      </button>
+        <button
+          type="button"
+          onClick={crear}
+          disabled={enviando || !listo}
+          className="w-full rounded-xl bg-primary py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {enviando ? 'Creando…' : 'Crear votación y obtener link'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -338,7 +359,6 @@ export function NuevaVotacion({ esPremium }: { esPremium: boolean }) {
 /** Pantalla de éxito: el link listo para pegar en el grupo. */
 function VotacionCreada({ link }: { link: string }) {
   const [copiado, setCopiado] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   async function copiar() {
     try {
@@ -346,8 +366,8 @@ function VotacionCreada({ link }: { link: string }) {
       setCopiado(true)
       setTimeout(() => setCopiado(false), 2000)
     } catch {
-      // Sin permiso de clipboard: el input queda seleccionable a mano.
-      inputRef.current?.select()
+      // Sin permiso de clipboard: el link se ve entero y `select-all` lo
+      // selecciona de un toque, así que igual se puede copiar a mano.
     }
   }
 
@@ -364,14 +384,16 @@ function VotacionCreada({ link }: { link: string }) {
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
-          readOnly
-          value={link}
-          onFocus={(e) => e.currentTarget.select()}
-          className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-muted-foreground outline-none"
-        />
+      {/* PBETA-R4-05 — era un `input` de una línea y mostraba
+          `https://adondesalimos.ngrok.a`: el link no se podía leer entero por
+          ningún lado. Un input no corta línea, así que pasa a ser texto con
+          `break-all`. `select-all` lo selecciona entero de un toque, que es el
+          fallback que antes daba el `.select()` del input. Copiar funcionaba y no
+          cambia: esto es poder verificar lo que estás por mandar. */}
+      <div className="flex items-start gap-2">
+        <p className="min-w-0 flex-1 select-all break-all rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-muted-foreground">
+          {link}
+        </p>
         <button
           type="button"
           onClick={copiar}

@@ -471,6 +471,8 @@ runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/negocio/corr
 puerta que escribe `name`/`address`/`locality`/`lat`/`lng` de `places` — fuera de ella solo el
 upsert del import), `lib/favoritos/planes.ts` (cuántas
 listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
+`lib/votaciones/titulo.ts` (cómo se llama una votación: `tituloDePagina` para el H1 y el
+`og:title`, `rotuloEnLista` para el panel — difieren a propósito y el porqué vive ahí),
 `lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/search/cadenas.ts`
 (quién es cadena a los efectos del orden — nadie más lee `search.cadenas`), `lib/negocio/horarios.ts`
 (`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature), `lib/navegacion/volver.ts`

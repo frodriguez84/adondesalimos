@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 
 import { auth } from '@/lib/auth'
 import { esPremium } from '@/lib/votaciones/planes'
+import { BrandHeader } from '@/components/shared/brand-header'
 import { NuevaVotacion } from './nueva-client'
 
 /**
@@ -67,6 +68,13 @@ export default async function NuevaVotacionPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
+      {/* PBETA-R4-06 — las 3 pantallas de "flujo" (esta, `/registrar-negocio` y
+          `/reclamar/[placeId]`) eran las únicas sin marca arriba: su único link
+          era «← Volver». Va sobre el header propio, sin reemplazarlo. El dueño de
+          "el wordmark linkea al inicio" es `BrandHeader` — no se escribe ese
+          `Link` a mano. */}
+      <BrandHeader />
+
       <header className="flex items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Armar votación</h1>

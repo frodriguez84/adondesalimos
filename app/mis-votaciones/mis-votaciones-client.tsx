@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 
 import { BotonCompartir } from '@/components/shared/boton-compartir'
 import type { EstadoVisible } from '@/lib/votaciones/estado'
+import { rotuloEnLista } from '@/lib/votaciones/titulo'
 import type { FilaHistorial, VotacionDelPanel } from '@/lib/votaciones/query'
 
 /**
@@ -34,15 +35,6 @@ const fecha = new Intl.DateTimeFormat('es-AR', {
   month: '2-digit',
   year: '2-digit',
 })
-
-/**
- * El título de una votación. Cuando el creador no puso uno se arma con los nombres
- * de los lugares — misma regla en la card y en la fila del historial, que ahí llega
- * ya recortada a 2 y con el "…" si había más (decisión 2 del pulido).
- */
-function tituloDeVotacion(title: string | null, nombres: string[], hayMas = false): string {
-  return title || nombres.join(' · ') + (hayMas ? ' · …' : '')
-}
 
 export function MisVotaciones({
   activas,
@@ -120,7 +112,7 @@ function Historial({
             >
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-medium text-foreground">
-                  {tituloDeVotacion(f.title, f.opciones, f.masOpciones)}
+                  {rotuloEnLista(f.title, f.opciones, f.masOpciones)}
                 </span>
                 <span className="truncate text-xs text-muted-foreground">
                   {f.ganador ? `Ganó ${f.ganador}` : 'Terminó sin ganador'} ·{' '}
@@ -176,7 +168,7 @@ function VotacionItem({
   const masVotado = [...votacion.opciones].sort((a, b) => b.votos - a.votos)[0]
   const [ganador, setGanador] = useState<string>(masVotado?.placeId ?? '')
 
-  const titulo = tituloDeVotacion(
+  const titulo = rotuloEnLista(
     votacion.title,
     votacion.opciones.map((o) => o.name),
   )
@@ -319,20 +311,32 @@ function VotacionItem({
         </label>
       )}
 
-      {/* Acciones del creador — solo si está activa y no hay otro flujo abierto */}
+      {/* Acciones del creador — solo si está activa y no hay otro flujo abierto.
+          `PBETA-R4-03`: decían «Cerrar» y «Cancelar votación», juntas en una fila
+          y sin decir qué hacía cada una. «Cerrar» se leía además como «cerrar
+          esta tarjeta». Ahora la etiqueta dice literalmente la decisión 14 de
+          `VOTACION` —terminar y elegir ganador—, que es lo único que hacía falta:
+          el flujo que sigue (elegir ganador + el aviso de que sale del panel) ya
+          estaba bien resuelto y no se toca.
+
+          Sigue siendo la primaria a propósito: terminar es el desenlace esperado
+          de una votación (decisión 4: el creador cierra cuando quiere). Lo que
+          estaba mal no era el color, era el color con una etiqueta ambigua. La
+          que anula baja a un peso visual menor y deja de compartirle la fila, así
+          que ya no compiten. Las dos llegan a 44 px de toque (`INV-A`). */}
       {activa && !cerrando && !cancelando && (
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           <button
             type="button"
             onClick={() => setCerrando(true)}
-            className="flex-1 rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Cerrar
+            Terminar y elegir ganador
           </button>
           <button
             type="button"
             onClick={() => setCancelando(true)}
-            className="flex-1 rounded-lg border border-border py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
+            className="flex min-h-11 items-center justify-center rounded-lg px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
           >
             Cancelar votación
           </button>
