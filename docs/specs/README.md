@@ -26,9 +26,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-_Vacío: no hay ningún spec escrito esperando implementación._
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [NAVEGACION](planned/NAVEGACION.md) | El botón «atrás» del celular: filtrar deja de apilar entradas (chip, zona, filtros y «limpiar» pasan a `replace`, enmendando la decisión 29 de BUSQUEDA) y ninguna pantalla tiene como única salida irse de la app. Sin interceptar `popstate` — decidido y escrito. | 🔵 Diseñado el 2026-08-14 con medición en vivo; sin implementar |
 
-_(La carpeta solo tiene stubs de redirect de specs ya movidos: la cola de v2 está completa,
+_(La carpeta tiene además stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
 implementó el 2026-08-08, sin escala en `active/`.)_
 

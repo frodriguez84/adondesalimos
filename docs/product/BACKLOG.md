@@ -1177,7 +1177,17 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 ---
 
 - [ ] **`NAV-01` — el botón «atrás» del celular hace el camino inverso completo** (observado por Fer,
-      2026-08-14; **sin especear todavía**). Recorrer *home → ficha → otra → otra → ficha → otra* y
+      2026-08-14). 📐 **Especeado el 2026-08-14** en
+      [`NAVEGACION`](../specs/planned/NAVEGACION.md) — medido en vivo con Playwright, decidido con
+      Fer y **listo para implementar**: el eje A pasa a `replace` (enmienda la decisión 29 de
+      BUSQUEDA), el «Volver» de la ficha se vuelve híbrido y **no** se intercepta `popstate`. La
+      medición destapó dos cosas que no estaban acá: el eje B **no** crece (`ficha → back → otra
+      ficha` trunca el forward, así que el problema son los filtros, no las pantallas) y 🔴 **en
+      entrada fría el «Volver» de la ficha te saca de la app** (`about:blank`), que es justo el
+      caso del link compartido por WhatsApp. Lo de abajo queda como el registro del hallazgo
+      original.
+
+      Recorrer *home → ficha → otra → otra → ficha → otra* y
       volver obliga a deshacer paso por paso. Lo natural sería subir por la **jerarquía** (ficha →
       home) y no por el **historial**. Son dos navegaciones distintas: Android las separa (`←` de la
       barra vs. gesto del sistema), pero en una PWA el botón físico **es** el history del navegador y

@@ -37,6 +37,26 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-14 · NAV-01 → spec NAVEGACION (diseño, sin código) — Opus
+
+- **Qué salió bien:** **medir antes de proponer dio vuelta el diagnóstico y encontró un bug que
+  nadie buscaba.** El planteo apuntaba a las pantallas; `history.length` toque por toque mostró que
+  el eje de pantallas **no crece** y que el que infla es el de filtros (4 de 5 backs son la misma
+  pantalla). De paso apareció que abrir una ficha en frío y tocar «Volver» deja `about:blank` — la
+  app no tiene camino hacia adentro para quien llega por un link compartido. También se pagó
+  verificar la mecánica **antes** de escribirla: `history.state` de Next solo trae internals
+  privados y `document.referrer` no cambia en navegación client-side, así que la detección de
+  «¿puedo hacer back?» se especeó sabiendo, no suponiendo.
+- **Qué frenó:** un tropiezo mío. Quise hacer los 7 backs en **un solo** `browser_evaluate` con un
+  loop, y la primera navegación destruyó el contexto de ejecución (*Execution context was
+  destroyed*): se perdió el stack medido y hubo que reconstruir el recorrido click por click.
+  Costo: ~6 turnos. **Un back cruza un document load: se mide de a uno con
+  `browser_navigate_back`, leyendo la URL de cada resultado.** Nada de método estorbó.
+- **Qué cambiar:** nada. El caso general —*todo estado que el browser mantiene y la UI no muestra
+  se mide en vivo antes de proponer*— ya quedó escrito en `LECCIONES_APRENDIDAS.md`; el detalle del
+  loop de Playwright es una cicatriz de herramienta, no una regla de método, y no vale una regla
+  nueva.
+
 ## 2026-08-14 · PBETA-R1-07 + R1-08 (cuándo abre, y los toques a 44) — Opus
 
 - **Qué salió bien:** **medir el radio antes de decidir convirtió las dos decisiones difíciles en

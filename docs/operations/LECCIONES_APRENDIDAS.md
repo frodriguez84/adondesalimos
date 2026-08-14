@@ -5,6 +5,38 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Medir antes de diseñar cambió el diagnóstico entero, y de paso destapó un bug (2026-08-14 · NAVEGACION)
+
+**Qué pasó.** El planteo era sobre **pantallas**: «recorriendo home → ficha → otra → otra, el back
+deshace paso por paso». La sesión arrancó midiendo con Playwright —`history.length` en cada toque—
+antes de proponer nada. Los números dieron vuelta el diagnóstico:
+
+- El eje de **pantallas** (ficha → back → otra ficha) **no crece nunca**: el `push` trunca el
+  forward. No era el problema.
+- Lo que inflaba el historial eran los **filtros**: en un recorrido normal, **4 de los 5 backs**
+  hasta la home eran la *misma* pantalla de búsqueda con otros tags.
+- El «toco atrás y no pasa nada visible» que se temía de una futura intercepción de `popstate`
+  **ya pasaba hoy**, causado por el `push` del chip: prender y apagar un chip deja dos entradas
+  para una URL idéntica, con un rebote intermedio a un estado que el usuario ya había descartado.
+- Y apareció algo que nadie estaba buscando: 🔴 **abrir una ficha en frío (link de WhatsApp) y
+  tocar «Volver» te saca de la app** (`about:blank`). El loop viral del producto no tenía camino
+  hacia adentro.
+
+Sin medir, la propuesta razonable hubiera sido la equivocada: tocar la navegación entre pantallas
+—que anda bien— y probablemente interceptar el botón físico, que era justo el riesgo caro.
+
+**Por qué importa.** El síntoma («muchos backs») señalaba a la causa equivocada porque la pila del
+browser no se ve. Y las dos verificaciones técnicas que se hicieron antes de escribir el spec
+—`history.state` de Next solo trae internals privados, `document.referrer` no cambia en navegación
+client-side— evitaron especear una detección sobre una suposición que no funciona.
+
+**Qué hacer distinto.** Para cualquier tema de navegación, historial, foco, scroll o cualquier
+estado que **el browser mantiene y la UI no muestra**: medirlo en vivo antes de proponer, y
+**anotar el número en el spec**. Sale barato (fue media hora de Playwright) y es lo que separa
+enmendar una decisión vigente con el dato a la vista de re-litigarla a ciegas.
+
+---
+
 ## Un DoD que enumera no ordena, y el checker no puede saber cuál de las dos leíste (2026-08-14 · HOME_ENTRADAS)
 
 **Qué pasó.** El spec decía dos cosas sobre el mismo menú, en dos secciones distintas:
