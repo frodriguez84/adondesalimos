@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
 import { MarcadorNavegacion } from '@/components/navegacion/marcador-navegacion'
 import './globals.css'
@@ -68,6 +69,12 @@ export default function RootLayout({
             (NAVEGACION, decisión 6). */}
         <MarcadorNavegacion />
         {children}
+        {/* Web Analytics de Vercel (prendido desde el panel el 2026-08-14). Cuenta
+            visitas y páginas vistas **sin cookies**: no hay banner que poner y no
+            toca `place_impressions_daily`, que es nuestro agregado de producto y
+            sigue siendo la fuente del histórico que vende el B2B. Solo corre en
+            producción — en dev el componente no manda nada. */}
+        <Analytics />
       </body>
     </html>
   )

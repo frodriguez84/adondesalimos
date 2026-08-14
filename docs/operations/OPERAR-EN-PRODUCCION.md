@@ -84,6 +84,23 @@ guardados y mails dejados para el premium. **`place_impressions_daily` es el his
 B2B y no se puede reconstruir después**, así que mirarlo también es controlar que se esté
 escribiendo.
 
+**Desde el 2026-08-14 hay una segunda fuente, y miden cosas distintas — no se comparan.** Se
+prendió **Vercel Web Analytics** (panel de Vercel → *Analytics*; en el código, `<Analytics />` en
+`app/layout.tsx`):
+
+| | `place_impressions_daily` | Vercel Web Analytics |
+|---|---|---|
+| Qué cuenta | **lugares**: impresiones en búsqueda y aperturas de ficha, por lugar y día | **visitas y páginas vistas**, por ruta |
+| Para qué | es el histórico que **vende el B2B** (spec 7) | saber si la beta la usa alguien y por dónde entra |
+| Dónde vive | nuestro Postgres, es nuestro | el panel de Vercel |
+| Retención | para siempre, y **no se reconstruye** | la del plan Hobby |
+
+Sirve para la pregunta que la nuestra no contesta: **cuánta gente llega y por qué pantalla entra**
+—sobre todo cuántos caen en `/votacion/[token]`, que es el loop viral—. Es **sin cookies**, así que
+no hay banner de consentimiento que poner. ⚠️ **No es fuente de verdad de nada del producto**: si
+alguna vez un número del panel del dueño o del B2B sale de acá, es un bug — ese dato es
+`place_impressions_daily` y nadie más.
+
 ## La rutina
 
 | Cuándo | Qué |
