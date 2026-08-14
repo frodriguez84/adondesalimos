@@ -28,11 +28,12 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| [INVITACION](planned/INVITACION.md) | Los 8 hallazgos abiertos del recorrido **R2 de `PULIDO_BETA`** (*me invitaron a votar*), que es el loop viral y por donde entran los usuarios nuevos: `og:image` de marca para toda la app, el H1 que deja de ser la lista de nombres, los toques a 44, hasta cuándo se puede votar, y **el desglose por opción oculto hasta votar** (enmienda parcial a la decisión 13 de `VOTACION`). Trae de R4 solo `R4-02`, porque su síntoma se paga acá. | 🔵 Escrito 2026-08-14 |
+| _(vacía)_ | — | Todo lo escrito está implementado |
 
 _(La carpeta tiene además stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1, y CURADURIA_POR_NOMBRE (2026-08-08),
-HOME_ENTRADAS y NAVEGACION (2026-08-14) se escribieron e implementaron sin escala en `active/`.)_
+HOME_ENTRADAS, NAVEGACION e INVITACION (2026-08-14) se escribieron e implementaron sin escala en
+`active/`.)_
 
 Los cuatro specs de **v2** —escritos en la sesión de autoría del 2026-07-29, en el orden de
 implementación decidido por Fer (momentum → impacto, IDEAS § Estado de la conversación
@@ -66,6 +67,7 @@ FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 est�
 | [ORDEN_ORGANICO](done/ORDEN_ORGANICO.md) | **`PBETA-R1-02`** — que la primera pantalla no abra con Burger King. **Enmienda la decisión 16 de BUSQUEDA**: el orden orgánico pasa a `dueño > banda > confidence > nombre`, donde la banda (0-3) combina **es cadena** (lista en `app_settings`, editable sin deploy, dueño único `lib/search/cadenas.ts`) y **está curado** (`place_tags source='admin'`), con la precedencia **cadena antes que curado** — medida, porque la curaduría curó 85 McDonald's y 41 Starbucks. Es **orden, no filtro**: `countPlaces` y el piso de los chips no se mueven (verificado con `diff` vacío de `cobertura-chips`). Una sola migración, y es un índice parcial. 29 de las 46 zonas cambiaron de #1. [Resumen](../archive/SPECS_ARCHIVO.md#orden_organico) · ✅ 2026-08-10 |
 | [HOME_ENTRADAS](done/HOME_ENTRADAS.md) | Mini-spec — `PBETA-R1-05`: que desde la home se descubra que además de buscar se puede votar y preguntarle a la IA. Dos renglones que son link entero en el hero del estado vacío (el bloque que ya se colapsa al buscar, así la pantalla de trabajo no cambia ni un nodo), landing sin login para `/votacion/nueva` con la forma de la de `/chat`, y el menú de cuenta abierto también para anónimos detrás de un ☰. [Resumen](../archive/SPECS_ARCHIVO.md#home_entradas) · ✅ 2026-08-14 |
 | [NAVEGACION](done/NAVEGACION.md) | **`NAV-01`** — que el botón «atrás» del celular deje de deshacer filtro por filtro. La medición dio vuelta el diagnóstico: el eje que infla el historial no son las pantallas (`ficha → back → otra ficha` no crece nunca) sino los **filtros**, así que chip, zona, sheet de Filtros y «Limpiar búsqueda» pasan a `replace` — **enmienda la decisión 29 de BUSQUEDA** y deja la 12 (deep link) intacta, porque `replace` escribe la URL igual. El recorrido medido pasó de 6 entradas a **2**. Y el «Volver» de la ficha se vuelve híbrido con dueño único (`lib/navegacion/volver.ts`), que cierra el 🔴 de la ficha en frío: el link de WhatsApp ya no tiene como única salida `about:blank`. **Sin interceptar `popstate`** (evaluado y descartado por escrito). [Resumen](../archive/SPECS_ARCHIVO.md#navegacion) · ✅ 2026-08-14 (único caso sin verificar: NAV-11, PWA instalada) |
+| [INVITACION](done/INVITACION.md) | **Bloque R2 de `PULIDO_BETA`** (*«me invitaron a votar»*, el loop viral): los 8 hallazgos abiertos + `PBETA-R4-02`. `og:image` de marca para toda la app —que resultó **no** poder ser un `opengraph-image.tsx`, porque Next le ignora `metadataBase` y la URL sale con `localhost`—, el H1 que deja de ser la lista de nombres (y de arrastre cierra `R2-13`), los 4 toques a 44, «Cierra en 2 días» con dueño único en `lib/votaciones/estado.ts`, el bloque de voto adentro de la card sin tocar `PlaceCard`, y **el desglose por opción recién con el voto puesto** — **enmienda parcial a la decisión 13 de `VOTACION`**. Sin migración. [Resumen](../archive/SPECS_ARCHIVO.md#invitacion) · ✅ 2026-08-14 |
 
 ---
 

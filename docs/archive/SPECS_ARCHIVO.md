@@ -1219,3 +1219,75 @@ entrada». No cambió la decisión ni la firma pura.
 **Lo que quedó abierto:** `NAV-11` — el recorrido con la **PWA instalada** (`display: standalone`).
 No se puede emular desde Playwright; el código es el mismo y no depende de la barra del navegador,
 pero **lo tiene que probar Fer en el teléfono**.
+
+## INVITACION — la pantalla por donde entran los usuarios nuevos (bloque R2 de PULIDO_BETA) {#invitacion}
+
+**Spec:** [`docs/specs/done/INVITACION.md`](../specs/done/INVITACION.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — INVITACION](../qa/AnalisisQA.md) · ✅ 2026-08-14
+
+**Qué hace:** cierra los **8 hallazgos abiertos del recorrido R2** de `PULIDO_BETA` (*«me invitaron
+a votar»*) más `PBETA-R4-02`, que vive en `/votacion/nueva` pero cuyo síntoma se paga acá. Ninguno
+rompía nada —por eso ninguno era BLOQUEANTE— y juntos hacían otra cosa: **R2 es la única pantalla
+de la app que ve un desconocido antes de decidir si la app le interesa**, y se jugaba la primera
+impresión con un link sin imagen de preview (la forma exacta que tiene el spam en un grupo de
+WhatsApp) y un H1 de 3-4 líneas que repetía los nombres que ya estaban en las cards de abajo.
+
+**Alcance:**
+
+- **`R2-02` — el link deja de verse pelado.** Una `og:image` de marca 1200×630 generada con
+  `ImageResponse`, y la home —que **no declaraba ninguna** etiqueta `og:`/`twitter:`— pasa a
+  declarar `openGraph` + `twitter:card = summary_large_image` (`app/layout.tsx`).
+- **`R2-04` — el H1 sin título propio pasa de la lista de nombres a `¿A dónde vamos?`**: de 3
+  líneas a 390 px y 4 a 360, a **una sola**. `tituloDe()` sigue siendo la **única** fuente del H1 y
+  del `og:title`. Los nombres no se pierden: siguen en la descripción del preview, que es donde
+  sirven. **Cierra de arrastre `R2-13`** (el H1 se desactualizaba al sumar un lugar): ya no se
+  compone con la lista, así que no tiene con qué desactualizarse — sin código propio.
+- **`R2-05` — los toques a 44.** «Votar» 63×34 → **324×44**, «Inicio» 35×20 → **51×44**, el `+` del
+  sheet 32×32 → **44×44** y el link del pie 106×15 → **106×44**. Se escriben las clases a mano y
+  **no** se adopta el primitivo `Button` (que ya está en 44 desde `PBETA-R1-08`): el estado «sin
+  votar» es un botón con borde y fondo transparente, variante que `Button` no tiene, y agregarle una
+  `outline` para un solo uso sería especular.
+- **`R2-06` + `R2-07` en una línea, y arriba:** «Cierra en 2 días · Podés cambiar tu voto cuando
+  quieras». El plazo tiene **dueño único** en `lib/votaciones/estado.ts` (`cierreEnPalabras`, puro,
+  5 tests) y es **relativo y sin huso horario a propósito** — una fecha absoluta habría sumado un
+  segundo consumidor a `partesEnAR` para una pregunta que es una resta. Siempre redondea para abajo:
+  nunca promete más tiempo del que hay. La frase del voto reversible **se saca del pie**, donde
+  aparecía recién después de votar, o sea cuando el miedo ya no existía.
+- **`R2-11` — el bloque de voto entra a la card.** Chip de origen + card + barra + botón quedan
+  dentro de **un** recuadro. **No se toca `PlaceCard`**: lo comparten 5 pantallas y esto es
+  agrupación local: el `li` pasa a ser la card y `PlaceCard` entra sin borde ni fondo propios.
+- **`R2-10` —** la bajada del sheet, debajo del título y no al costado.
+- **`R2-12` — el desglose por opción se ve recién con el voto puesto; el total, siempre.**
+  ⚠️ **Enmienda PARCIAL a la decisión 13 de `VOTACION`** (resultados en vivo para todos), anotada
+  inline en su fila. El que empuja el re-compartir *(«vamos 2 a 2, voten»)* **ya votó**, así que
+  conserva los resultados en vivo intactos; el único que queda sin desglose es el que llega último
+  y, viendo que uno ya ganó, vota eso o no vota. Cerrada, vencida o cancelada ⇒ se ve todo, con o
+  sin voto propio (decisión 15, intacta).
+- **`R4-02` — el nudge del título**, no un campo obligatorio: «Ponele un título» + «Es lo primero
+  que ve el grupo cuando abre el link». El creador es el lado escaso del loop viral y no se le traba
+  la pantalla para arreglar la de enfrente. El fallback del H1 se arregló **igual y aparte**: hay
+  votaciones ya creadas sin título y ningún nudge las alcanza.
+
+**Las dos cosas que la medición dio vuelta** (decisiones 2 bis y 2 ter, y la lección del cierre):
+
+1. **`app/opengraph-image.tsx` no servía**, aunque es lo idiomático. Para las imágenes **de
+   archivo**, Next arma la URL con la de su deploy —en `dev`, `localhost`— e **ignora
+   `metadataBase`**, incluso si el mismo segmento declara la imagen a mano. Con eso el preview no se
+   puede verificar desde afuera de la máquina, que es **exactamente cómo se verifica esto**. Vive en
+   **`app/og/route.tsx` + `force-static`**: como ruta común la URL sale de `metadataBase`
+   (`BETTER_AUTH_URL`, la misma de los mails) y es la misma en dev y en producción. El build lo
+   confirma: `/og` figura como `○ (Static)`.
+2. **Una página que declara `openGraph` pisa el del padre ENTERO, imagen incluida.** Con la imagen
+   en la raíz, la votación y la ficha **seguían saliendo sin `og:image`**. Se hereda del `parent` de
+   `generateMetadata`, no se escribe la ruta a mano en cada una: sigue habiendo un solo archivo que
+   la define. **La ficha entró por esto** aunque no sea de R2.
+
+**Archivos clave:** `app/og/route.tsx` (nuevo) · `app/layout.tsx` · `app/votacion/[token]/page.tsx`
+· `app/votacion/[token]/votacion-client.tsx` · `app/votacion/nueva/nueva-client.tsx` ·
+`lib/votaciones/estado.ts` (+ tests). **Sin migración y sin tocar `PlaceCard`.**
+
+**Lo que quedó anotado y no entró** (en el QA, para triaje): 5 toques siguen abajo de 44 y **ninguno
+es de `R2-05`** —tres son de `SUGERIR_EN_VOTACION`—; y el panel del creador tiene **su propia** regla
+de título (`app/mis-votaciones/mis-votaciones-client.tsx:43`), así que la misma votación ahora se
+llama distinto en cada pantalla. Puede estar bien (en una *lista* los nombres son lo que distingue),
+pero es una segunda implementación de la misma regla y va al `BACKLOG` como territorio de R4.

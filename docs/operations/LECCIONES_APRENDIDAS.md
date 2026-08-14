@@ -5,6 +5,47 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Lo que el framework hace "solo" puede estar mirando otra URL que la tuya (2026-08-14 · INVITACION)
+
+**Qué pasó.** `PBETA-R2-02` pedía una imagen de preview para el link que circula por WhatsApp. La
+forma idiomática en Next es un archivo `app/opengraph-image.tsx`: lo generás y el framework inyecta
+el `<meta property="og:image">` en todas las rutas, solo. Se hizo así. El archivo se generaba, la
+imagen se veía bien, el `<meta>` estaba en el HTML.
+
+Y el preview igual no funcionaba fuera de la máquina. La URL decía **`http://localhost:5178/…`**.
+
+Dos capas, y ninguna da error:
+
+1. **Para las imágenes de archivo, Next arma la URL absoluta con la de su deploy** —en `dev`,
+   `localhost`— e **ignora `metadataBase`**. Se probó incluso declarando la imagen a mano en el
+   mismo segmento: el archivo le gana a lo declarado. Consecuencia práctica: el preview **no se
+   podía verificar mandándose el link**, que es la única forma real de verificarlo; y en producción
+   habría colgado de la URL del deploy en vez del dominio propio.
+2. **Arriba de eso, una página que declara `openGraph` pisa el del padre ENTERO, imagen incluida.**
+   Con la imagen ya en la raíz, `/votacion/[token]` y `/lugar/[id]` —las dos que declaran su propio
+   `openGraph`— **seguían saliendo sin `og:image`**. O sea que el hallazgo se habría dado por
+   cerrado exactamente en la pantalla que lo originó.
+
+**Por qué no lo cazó nada.** Typecheck, 773 tests y build: todos verdes, y ninguno tiene por qué
+saber qué host va adentro de un `<meta>`. Un checker leyendo el código habría dicho PASS con razón:
+el código es correcto. Lo único que lo mostró fue `curl` sobre el **HTML servido** — que estaba en
+el DoD justamente porque el hallazgo original de F1 se había encontrado así.
+
+**Qué hacer distinto.**
+
+- **Cuando la salida es algo que consume un tercero** (el crawler de WhatsApp, un buscador, un
+  webhook), el criterio de listo es **el output servido, no el código que lo produce**. Ponelo en el
+  DoD con esas palabras: *«verificado sobre el HTML renderizado»* — si el criterio se puede tildar
+  leyendo el fuente, no está midiendo lo que importa.
+- **Y verificá la URL, no solo la presencia de la etiqueta.** «Existe `og:image`» pasaba. El bug
+  vivía en el valor.
+- **La convención del framework es una hipótesis, no una garantía.** Cuando la magia decide algo que
+  te importa —acá, contra qué host se resuelve una URL— mirá el resultado antes de darlo por hecho.
+  La salida fue dejar de usar el archivo mágico: `app/og/route.tsx` es una ruta común y su URL sale
+  de `metadataBase`, igual en dev y en producción. Menos idiomático, y verificable.
+
+---
+
 ## Un flag de «ya pasó algo» se prende con la acción que uno mismo dispara (2026-08-14 · NAVEGACION)
 
 **Qué pasó.** El «Volver» de la ficha tenía que decidir entre `back` y subir a la home, y la señal

@@ -1345,16 +1345,16 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       de `pr-12` a `pr-14` y el peor caso a 360 px (*Taj Mahal Cocina de la India*) deja 29 px de aire.
 
 **R2 · Me invitaron a votar**
-- [ ] **PBETA-R2-02** (MOLESTO) — el link compartido no lleva `og:image` y la home no declara ninguna `og:`/`twitter:`.
-- [ ] **PBETA-R2-04** (MOLESTO) — sin título propio, el H1 es la lista de nombres concatenada (3 líneas a 390 px, 4 a 360).
-- [ ] **PBETA-R2-05** (MOLESTO) — los toques principales miden menos de 44 px («Votar» 63×34, «Inicio» 35×20).
-- [ ] **PBETA-R2-06** (MOLESTO) — no se dice hasta cuándo se puede votar, y las votaciones vencen solas a las 72 h.
-- [ ] **PBETA-R2-07** (MOLESTO) — «Podés cambiar tu voto» aparece **después** de votar, cuando ya no hace falta.
+- [x] **PBETA-R2-02** (MOLESTO) — el link compartido no lleva `og:image` y la home no declara ninguna `og:`/`twitter:`. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): una imagen de marca 1200×630 en `app/og/route.tsx` que heredan todas las rutas, + `openGraph` y `twitter:card` en la raíz. **No pudo ser un `opengraph-image.tsx`**: Next le ignora `metadataBase` y la URL sale con `localhost`, o sea que el preview no se podía verificar mandándose el link.
+- [x] **PBETA-R2-04** (MOLESTO) — sin título propio, el H1 es la lista de nombres concatenada (3 líneas a 390 px, 4 a 360). ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): el fallback pasa a `¿A dónde vamos?` y mide **una línea a 360**. Los nombres siguen en la descripción del preview, que es donde sirven.
+- [x] **PBETA-R2-05** (MOLESTO) — los toques principales miden menos de 44 px («Votar» 63×34, «Inicio» 35×20). ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): «Votar» **324×44**, «Inicio» **51×44**, el `+` del sheet **44×44** y el link del pie **106×44**. Se escriben las clases a mano y **no** se adopta `Button`: el estado «sin votar» es un botón con borde y fondo transparente, variante que el primitivo no tiene.
+- [x] **PBETA-R2-06** (MOLESTO) — no se dice hasta cuándo se puede votar, y las votaciones vencen solas a las 72 h. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): «Cierra en 2 días», con dueño único en `lib/votaciones/estado.ts` (`cierreEnPalabras`). **Relativo y sin huso horario a propósito** — una fecha absoluta habría sumado un consumidor a `partesEnAR` para una pregunta que es una resta.
+- [x] **PBETA-R2-07** (MOLESTO) — «Podés cambiar tu voto» aparece **después** de votar, cuando ya no hace falta. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): se mudó al encabezado, pegada al plazo, y se sacó del pie para no decirla dos veces.
 - [x] **PBETA-R2-09** (MOLESTO) — el sheet «Sumá un lugar» no tiene forma visible de cerrarse. ✅ **Hecho 2026-08-08** con `FB-09`: el handle es un `<button aria-label="Cerrar">` y además se arrastra.
-- [ ] **PBETA-R2-11** (MOLESTO) — el bloque de voto queda visualmente fuera de la card del lugar.
-- [ ] **PBETA-R2-12** (MOLESTO) — los resultados se ven antes de votar (puede ser deliberado: «resultados en vivo» de `VOTACION`).
-- [ ] **PBETA-R2-10** (COSMÉTICO) — el subtítulo del sheet se alinea a la derecha del título, no debajo.
-- [ ] **PBETA-R2-13** (COSMÉTICO) — el H1 no se actualiza cuando alguien suma un lugar (se corrige al recargar).
+- [x] **PBETA-R2-11** (MOLESTO) — el bloque de voto queda visualmente fuera de la card del lugar. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): chip de origen, card, barra y botón adentro de **un** recuadro. **Sin tocar `PlaceCard`** (lo comparten 5 pantallas): el `li` pasa a ser la card.
+- [x] **PBETA-R2-12** (MOLESTO) — los resultados se ven antes de votar (puede ser deliberado: «resultados en vivo» de `VOTACION`). ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)), **decidido por Fer**: el desglose por opción se ve recién con el voto puesto; el total, siempre. ⚠️ **Enmienda PARCIAL a la decisión 13 de `VOTACION`**, anotada inline en su fila. El que re-comparte ya votó ⇒ conserva los resultados en vivo intactos.
+- [x] **PBETA-R2-10** (COSMÉTICO) — el subtítulo del sheet se alinea a la derecha del título, no debajo. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)).
+- [x] **PBETA-R2-13** (COSMÉTICO) — el H1 no se actualiza cuando alguien suma un lugar (se corrige al recargar). ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)), **sin código propio**: se disolvió con `R2-04`. El H1 ya no se compone con la lista de lugares, así que no tiene con qué desactualizarse. Verificado en vivo igual (`INV-14`).
 
 **R3 · Guardar**
 - [ ] **PBETA-R3-04** (MOLESTO) — guardar no dice dónde quedó ni cómo volver a encontrarlo (no hay toast ni link a `/mis-lugares`).
@@ -1374,7 +1374,20 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       *PULIDO_BETA F4*.
 
 **R4 · Armar una votación**
-- [ ] **PBETA-R4-02** (MOLESTO) — nada empuja a ponerle título, y sin título el invitado ve el H1 feo de R2-04. La falla se origina acá y se paga allá.
+- [x] **PBETA-R4-02** (MOLESTO) — nada empuja a ponerle título, y sin título el invitado ve el H1 feo de R2-04. La falla se origina acá y se paga allá. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): «Ponele un título» + «Es lo primero que ve el grupo cuando abre el link», y **sigue siendo opcional** — el creador es el lado escaso del loop viral y no se le traba la pantalla para arreglar la de enfrente. El fallback del H1 se arregló igual y aparte: las votaciones ya creadas sin título existen y ningún nudge las alcanza.
+- [ ] **`INV-A` — quedan 5 toques abajo de 44 px en la votación, y ninguno es de `PBETA-R2-05`**
+      (medido el 2026-08-14 al cerrar `INVITACION`, a 360 px): la **X de sacar** un lugar sumado
+      (28×28), **«¿La votás?»** (61×16) y el handle **«Cerrar»** del sheet (96×16) —los tres de
+      `SUGERIR_EN_VOTACION`—, el **wordmark** del `BrandHeader` (212×34, compartido por varias
+      pantallas) y **«Sumar un lugar»** (313×**42**, a 2 px, y el propio F1 lo llamó *«el único
+      cómodo»*). No se tocaron para no ampliar el alcance en silencio.
+- [ ] **`INV-B` — la misma votación se llama distinto en cada pantalla.** Desde `INVITACION`, al
+      invitado sin título propio se le muestra «¿A dónde vamos?» mientras el panel del creador la
+      sigue llamando «Soria Bar · Cerveceria Söt»: `tituloDeVotacion`
+      (`app/mis-votaciones/mis-votaciones-client.tsx:43`) es una **segunda implementación** de la
+      misma regla. **Puede estar bien** —en una *lista* los nombres son lo que las distingue, y
+      encabezar una *página* es otra pregunta—, pero mientras no se decida, driftea. Es territorio de
+      R4, va con el resto de ese recorrido.
 - [ ] **PBETA-R4-03** (MOLESTO) — «Cerrar» y «Cancelar votación» juntos, sin decir qué hace cada uno (la confirmación posterior sí está bien).
 - [ ] **PBETA-R4-04** (MOLESTO) — el botón de crear queda enterrado abajo de los resultados de búsqueda (y = 1.480 px).
 - [ ] **PBETA-R4-05** (COSMÉTICO) — el link a compartir se muestra cortado y no se puede leer entero.
@@ -2297,6 +2310,37 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`INVITACION` — la pantalla por donde entran los usuarios nuevos** (bloque **R2** de
+      `PULIDO_BETA` + `PBETA-R4-02`, 2026-08-14, sesión Opus). Spec
+      [`docs/specs/done/INVITACION.md`](../specs/done/INVITACION.md) ·
+      [resumen](../archive/SPECS_ARCHIVO.md#invitacion) · QA
+      [`AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — INVITACION*, **APROBADO**
+      (`INV-01..16` + `INV-03b`: tres checkers independientes con **16/16** criterios de código, más
+      el recorrido en vivo a **390×844 y 360×844** sin sesión ni cookie de voto) · typecheck ·
+      **773/773** tests · build verde con el server parado · revisión de seguridad sin hallazgos.
+      **Lo que vale más que el diff:**
+      1. **Lo idiomático no servía, y solo se vio midiendo.** El plan era `app/opengraph-image.tsx`,
+         que es *la* forma de hacer esto en Next. Para las imágenes **de archivo**, Next arma la URL
+         con la de su deploy —en `dev`, `localhost`— e **ignora `metadataBase`**, incluso si el mismo
+         segmento declara la imagen a mano. O sea: el `<meta>` existía, el archivo se generaba, y el
+         preview **no se podía verificar desde afuera de la máquina** — que es exactamente cómo se
+         verifica esto (mandándose el link). Leyendo el código estaba impecable.
+      2. **Y una segunda trampa arriba de la primera:** una página que declara `openGraph` **pisa el
+         del padre entero**, imagen incluida. Con la imagen ya puesta en la raíz, la votación y la
+         ficha **seguían saliendo sin `og:image`**. Las dos juntas explican por qué el DoD pedía
+         mirar el **HTML servido** y no el código.
+      3. **Un hallazgo se cerró sin escribirle una línea.** `R2-13` (el H1 se desactualizaba al sumar
+         un lugar) solo existía porque el H1 *era* la lista de nombres. Arreglado `R2-04`, se
+         disolvió. Se verificó igual en vivo antes de tildarlo: si todavía se desactualizara, el
+         arreglo de `R2-04` estaría incompleto y el bug sería ese, no este.
+      4. **La única decisión de producto se llevó su enmienda al spec que la contradecía.** `R2-12`
+         (esconder el desglose hasta votar) enmienda **parcialmente** la decisión 13 de `VOTACION`, y
+         quedó anotada inline en su fila — no solo acá. Lo que la enmienda no toca es a quién le
+         sirve esa decisión: el que re-comparte ya votó.
+      5. **Dos cosas se vieron y NO se tocaron**, y están anotadas arriba como `INV-A` e `INV-B`:
+         quedan 5 toques abajo de 44 que no son de `R2-05`, y el panel del creador tiene su propia
+         regla de título. Ampliar el alcance en silencio habría sido más barato que escribirlas.
 
 - [x] **`NAVEGACION` — el botón «atrás» deja de deshacer filtro por filtro, y la ficha en frío tiene
       salida** (`NAV-01`, 2026-08-14, sesión Opus). Spec
