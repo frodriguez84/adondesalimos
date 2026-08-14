@@ -1176,6 +1176,28 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ---
 
+- [ ] **`NAV-01` — el botón «atrás» del celular hace el camino inverso completo** (observado por Fer,
+      2026-08-14; **sin especear todavía**). Recorrer *home → ficha → otra → otra → ficha → otra* y
+      volver obliga a deshacer paso por paso. Lo natural sería subir por la **jerarquía** (ficha →
+      home) y no por el **historial**. Son dos navegaciones distintas: Android las separa (`←` de la
+      barra vs. gesto del sistema), pero en una PWA el botón físico **es** el history del navegador y
+      no hay API para «subir un nivel» — la única palanca es qué navegación mete una entrada.
+      **Medido al anotarlo (2026-08-14), hay DOS fuentes y conviene no mezclarlas:**
+      **(A) estados de la misma pantalla.** Tocar un chip de ocasión hace `push`
+      (`components/search/occasion-chips.tsx:72`), igual que aplicar zona o tags desde los sheets
+      (`search-shell.tsx:387,399`) y «limpiar búsqueda` (`:137`). O sea: explorar tocando 4 chips
+      deja 4 backs **sin haber cambiado de pantalla**. No está descuidado —buscar por texto, las
+      sugerencias y quitar un filtro desde las píldoras ya usan `replace` (`:231,246,261,467-498`)—
+      y el `push` del chip es **deliberado**: hoy el back deshace el último chip, que para parte de
+      los usuarios es justo lo esperado. Cambiarlo NO es gratis.
+      **(B) pantallas de verdad** (home → ficha → mis-lugares → votación → ficha): un `push` por
+      `<Link>`, legítimo. Es el planteo original y el tema de fondo.
+      ⚠️ **Puerta de ida en UX percibida:** interceptar el botón físico mal calibrado **atrapa** al
+      usuario (toca atrás, no pasa nada visible, toca otra vez y se va de la app). Es de los pocos
+      lugares donde una mejora a medias se siente como que la app está rota. Antes de diseñar nada,
+      **medir un recorrido real** con `history.length` en vivo y ver cuántas entradas son (A) y
+      cuántas (B).
+
 ## Mejoras futuras (fuera de v1)
 
 ### Deuda técnica señalada, no tocada
