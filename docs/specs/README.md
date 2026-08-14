@@ -28,11 +28,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| [NAVEGACION](planned/NAVEGACION.md) | El botón «atrás» del celular: filtrar deja de apilar entradas (chip, zona, filtros y «limpiar» pasan a `replace`, enmendando la decisión 29 de BUSQUEDA) y ninguna pantalla tiene como única salida irse de la app. Sin interceptar `popstate` — decidido y escrito. | 🔵 Diseñado el 2026-08-14 con medición en vivo; sin implementar |
+| _(vacía)_ | — | Todo lo escrito está implementado |
 
 _(La carpeta tiene además stubs de redirect de specs ya movidos: la cola de v2 está completa,
-PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
-implementó el 2026-08-08, sin escala en `active/`.)_
+PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1, y CURADURIA_POR_NOMBRE (2026-08-08),
+HOME_ENTRADAS y NAVEGACION (2026-08-14) se escribieron e implementaron sin escala en `active/`.)_
 
 Los cuatro specs de **v2** —escritos en la sesión de autoría del 2026-07-29, en el orden de
 implementación decidido por Fer (momentum → impacto, IDEAS § Estado de la conversación
@@ -65,6 +65,7 @@ FAVORITOS, SUGERIR_EN_VOTACION y CHIPS_ROTACION a ⚫ Done. **La cola de v2 est�
 | [CORRECCION_DATOS](done/CORRECCION_DATOS.md) | **Ítem 6 de la cola post-v2** — corregir los datos base cuando Overture quedó viejo (el caso Matienzo: se mudó y el catálogo tenía la sede vieja, o sea el pin equivocado). La corrección se escribe en `places` y el re-import la respeta **campo por campo** (`places.locked_fields`, `text[]`); dueño único `lib/negocio/correcciones.ts`, que en **una transacción** escribe, une la marca, deja bitácora, re-asigna zonas e **invalida el match con Google** (que apuntaba al negocio de la dirección vieja — confirmado en vivo). Admin edita directo desde la **7ª tab «Lugares»**, el dueño **propone** por la cola que ya existía. Suma `formattedAddress` al field mask, costo marginal **US$0**. [Resumen](../archive/SPECS_ARCHIVO.md#correccion_datos) · ✅ 2026-08-09 |
 | [ORDEN_ORGANICO](done/ORDEN_ORGANICO.md) | **`PBETA-R1-02`** — que la primera pantalla no abra con Burger King. **Enmienda la decisión 16 de BUSQUEDA**: el orden orgánico pasa a `dueño > banda > confidence > nombre`, donde la banda (0-3) combina **es cadena** (lista en `app_settings`, editable sin deploy, dueño único `lib/search/cadenas.ts`) y **está curado** (`place_tags source='admin'`), con la precedencia **cadena antes que curado** — medida, porque la curaduría curó 85 McDonald's y 41 Starbucks. Es **orden, no filtro**: `countPlaces` y el piso de los chips no se mueven (verificado con `diff` vacío de `cobertura-chips`). Una sola migración, y es un índice parcial. 29 de las 46 zonas cambiaron de #1. [Resumen](../archive/SPECS_ARCHIVO.md#orden_organico) · ✅ 2026-08-10 |
 | [HOME_ENTRADAS](done/HOME_ENTRADAS.md) | Mini-spec — `PBETA-R1-05`: que desde la home se descubra que además de buscar se puede votar y preguntarle a la IA. Dos renglones que son link entero en el hero del estado vacío (el bloque que ya se colapsa al buscar, así la pantalla de trabajo no cambia ni un nodo), landing sin login para `/votacion/nueva` con la forma de la de `/chat`, y el menú de cuenta abierto también para anónimos detrás de un ☰. [Resumen](../archive/SPECS_ARCHIVO.md#home_entradas) · ✅ 2026-08-14 |
+| [NAVEGACION](done/NAVEGACION.md) | **`NAV-01`** — que el botón «atrás» del celular deje de deshacer filtro por filtro. La medición dio vuelta el diagnóstico: el eje que infla el historial no son las pantallas (`ficha → back → otra ficha` no crece nunca) sino los **filtros**, así que chip, zona, sheet de Filtros y «Limpiar búsqueda» pasan a `replace` — **enmienda la decisión 29 de BUSQUEDA** y deja la 12 (deep link) intacta, porque `replace` escribe la URL igual. El recorrido medido pasó de 6 entradas a **2**. Y el «Volver» de la ficha se vuelve híbrido con dueño único (`lib/navegacion/volver.ts`), que cierra el 🔴 de la ficha en frío: el link de WhatsApp ya no tiene como única salida `about:blank`. **Sin interceptar `popstate`** (evaluado y descartado por escrito). [Resumen](../archive/SPECS_ARCHIVO.md#navegacion) · ✅ 2026-08-14 (único caso sin verificar: NAV-11, PWA instalada) |
 
 ---
 

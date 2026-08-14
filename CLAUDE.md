@@ -473,9 +473,10 @@ upsert del import), `lib/favoritos/planes.ts` (cuántas
 listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
 `lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/search/cadenas.ts`
 (quién es cadena a los efectos del orden — nadie más lee `search.cadenas`), `lib/negocio/horarios.ts`
-(`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature) y `lib/geo/amba.ts`
-(el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta — **sin imports**, para
-que el script de import no arrastre `lib/claims`).
+(`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature), `lib/navegacion/volver.ts`
+(¿el «Volver» de una pantalla hace `back` o sube a la home? — nadie llama `router.back()` suelto) y
+`lib/geo/amba.ts` (el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta —
+**sin imports**, para que el script de import no arrastre `lib/claims`).
 
 - Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
 - Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de

@@ -1160,3 +1160,62 @@ un `<LandingSinSesion>` obliga a tocar `/chat`, que este spec declara fuera de s
 como paso aparte, según la regla de duplicación de CLAUDE.md. Son 25 líneas de layout, no una regla
 de negocio duplicada. Y el control ☰ mide 36×36 a propósito —hereda el `size-9` del avatar con
 sesión, para que el header tenga el mismo control en las dos ramas—: subirlo a 44 es `PBETA-R2-05`.
+
+---
+
+## NAVEGACION — que el botón «atrás» del celular deje de deshacer filtro por filtro (NAV-01) {#navegacion}
+
+**Spec:** [`docs/specs/done/NAVEGACION.md`](../specs/done/NAVEGACION.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — NAVEGACION](../qa/AnalisisQA.md) · ✅ 2026-08-14
+
+**Qué hace:** el botón físico deshacía **paso por paso** en vez de subir por la jerarquía. La
+medición dio vuelta el diagnóstico: el eje que infla el historial **no** son las pantallas —`ficha →
+back → otra ficha` no crece nunca, el `push` trunca el forward— sino los **filtros**. El recorrido
+`home → zona → chip → chip → destildar chip → ficha` dejaba `history.length` en 6 y **5 backs hasta
+la home, 4 de ellos la misma pantalla de búsqueda**. Ahora ese mismo recorrido no mueve el contador:
+queda en **2**, y un back devuelve el listado con los filtros puestos. De paso cierra un bug que
+nadie estaba buscando: la ficha abierta en frío —el link de WhatsApp, que es el loop viral— tenía
+como única salida `about:blank`.
+
+**Alcance:**
+
+- **El eje de filtros pasa a `replace`** (decisión 1): chip de ocasión
+  (`components/search/occasion-chips.tsx:73`), confirmar zona (`search-shell.tsx:390`), aplicar el
+  sheet de Filtros (`:402`) y «Limpiar búsqueda» (`:140`). Son **estados de la misma pantalla**, no
+  pantallas. **Enmienda la decisión 29 de BUSQUEDA**, que hacía `push` al confirmar un sheet: aquella
+  resolvía *cuánto* inundaba cada toque suelto, y la medición mostró que incluso una tanda por gesto
+  deja 4 de 5 backs en el mismo listado — y que prender y apagar un chip apilaba **dos** entradas
+  para una URL **idéntica**.
+- **La URL no se toca**: `replace` la escribe igual, así que la decisión 12 de BUSQUEDA (la URL es el
+  estado, el deep link se comparte) queda intacta — verificado pegando `/?z=…&t=…` en una pestaña
+  nueva. Lo único que cambia es que no queda entrada en el historial.
+- **Deshacer un filtro es trabajo de la UI visible** (decisión 3): el chip queda `[pressed]` y se
+  toca de nuevo, la píldora «Quitar Bar ×» y «Limpiar búsqueda». El back era la cuarta affordance,
+  la invisible y la cara.
+- **El «Volver» de la ficha se vuelve híbrido** (decisiones 5 y 8): con historia propia hace `back` y
+  vuelve al listado **con los filtros puestos** —que es el contexto que subir siempre perdería—; sin
+  ella sube a `/` con **push**, que no atrapa (el back devuelve a la ficha y el siguiente sale de la
+  app, el contrato normal del browser).
+- **Una regla, un dueño:** `lib/navegacion/volver.ts`. `decidirVolver({ navegoEnLaApp, historyLength })`
+  es **pura** y se testea sin browser; el marcador vive en un client component del layout raíz
+  (`components/navegacion/marcador-navegacion.tsx`). `grep -rn "router.back()"` devuelve **un solo**
+  llamador y pasa por acá.
+- **La detección tiene guardia doble y las alternativas están descartadas por medición** (decisión 6):
+  `history.state` de Next solo trae `__NA` y `__PRIVATE_NEXTJS_INTERNALS_TREE` (internals privados) y
+  `document.referrer` da `""` en entrada fría y no cambia en navegación client-side. El marcador vive
+  en `sessionStorage`, que se **clona** al abrir una pestaña desde un link, así que solo puede venir
+  mentido: por eso además se exige `history.length > 1`.
+- **No se intercepta `popstate`** (decisión 7), y queda escrito para que no se re-abra sin datos
+  nuevos: con el eje de filtros en `replace` el stack queda en 2-3 entradas y el back se comporta
+  solo. Interceptarlo es el riesgo caro —tocar atrás, no ver nada, tocar de nuevo y irse de la app—,
+  que en `standalone` no tiene escape.
+
+**Lo que el QA en vivo destapó y no se veía leyendo código:** con un marcador **booleano** («hubo
+alguna navegación en esta pestaña»), el recorrido `ficha en frío → Volver → home → back físico →
+Volver` volvía a dejar `about:blank`: la subida del propio botón prendía el flag. El marcador guarda
+**la pantalla por la que entró la pestaña** y «hay historia propia» pasa a ser «la actual no es la de
+entrada». No cambió la decisión ni la firma pura.
+
+**Lo que quedó abierto:** `NAV-11` — el recorrido con la **PWA instalada** (`display: standalone`).
+No se puede emular desde Playwright; el código es el mismo y no depende de la barra del navegador,
+pero **lo tiene que probar Fer en el teléfono**.

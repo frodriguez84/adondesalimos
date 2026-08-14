@@ -5,6 +5,37 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un flag de «ya pasó algo» se prende con la acción que uno mismo dispara (2026-08-14 · NAVEGACION)
+
+**Qué pasó.** El «Volver» de la ficha tenía que decidir entre `back` y subir a la home, y la señal
+elegida —especeada así— era un flag por pestaña: «hubo al menos una navegación dentro de la app».
+La función pura (`decidirVolver`) quedó con sus tests, los 6 en verde, y el DoD entero verificado.
+
+El agujero apareció recién midiendo el caso NAV-09 en vivo, en un recorrido de **tres toques**:
+ficha en frío → «Volver» (sube a la home, `push`) → back físico (vuelve a la ficha) → «Volver» otra
+vez. En ese punto el flag ya estaba prendido **por la subida del propio botón**, así que la segunda
+vez decidía `back` y el back devolvía a lo que había antes de la ficha: `about:blank`. O sea, el
+mismo bug que el spec venía a cerrar, reabierto tres toques más tarde por el arreglo mismo.
+
+**Por qué los tests no lo veían.** Porque el error no estaba en la función: estaba en **qué se le
+pasaba**. `decidirVolver(true, 3) → 'atras'` es correcto; lo incorrecto era que ese `true` se
+hubiera prendido solo. Una función pura testea la regla, no la señal que la alimenta — y la señal
+vivía en un `useEffect` de un componente del layout, que ningún test unitario ejercita.
+
+**La regla que queda.** Cuando una decisión se apoya en un flag de «ya pasó algo», preguntarse
+**quién más lo prende** — y muy en particular si lo prende la acción que la decisión misma dispara.
+Si la respuesta es sí, el flag es un contador de sus propios efectos y no una observación del
+mundo. El arreglo fue cambiar la señal, no la regla: en vez de un booleano acumulativo, guardar la
+**pantalla por la que entró la pestaña** y preguntar «¿la actual es distinta?», que es una propiedad
+del estado y no del historial de lo que hizo el botón. La firma pura, la guardia doble y la decisión
+del spec quedaron intactas.
+
+**Y el corolario de método:** el caso no salía de leer el código ni del DoD, que estaba 100%
+verificado. Salió de **medir el recorrido que sigue después del caso feliz**. Un botón que arregla
+una salida hay que tocarlo dos veces, no una.
+
+---
+
 ## Medir antes de diseñar cambió el diagnóstico entero, y de paso destapó un bug (2026-08-14 · NAVEGACION)
 
 **Qué pasó.** El planteo era sobre **pantallas**: «recorriendo home → ficha → otra → otra, el back

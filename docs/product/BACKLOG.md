@@ -1176,16 +1176,16 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ---
 
-- [ ] **`NAV-01` — el botón «atrás» del celular hace el camino inverso completo** (observado por Fer,
-      2026-08-14). 📐 **Especeado el 2026-08-14** en
-      [`NAVEGACION`](../specs/planned/NAVEGACION.md) — medido en vivo con Playwright, decidido con
-      Fer y **listo para implementar**: el eje A pasa a `replace` (enmienda la decisión 29 de
-      BUSQUEDA), el «Volver» de la ficha se vuelve híbrido y **no** se intercepta `popstate`. La
-      medición destapó dos cosas que no estaban acá: el eje B **no** crece (`ficha → back → otra
-      ficha` trunca el forward, así que el problema son los filtros, no las pantallas) y 🔴 **en
-      entrada fría el «Volver» de la ficha te saca de la app** (`about:blank`), que es justo el
-      caso del link compartido por WhatsApp. Lo de abajo queda como el registro del hallazgo
-      original.
+- [x] **`NAV-01` — el botón «atrás» del celular hace el camino inverso completo** (observado por Fer,
+      2026-08-14). ✅ **Implementado y cerrado el 2026-08-14** —
+      [`NAVEGACION`](../specs/done/NAVEGACION.md) ·
+      [resumen](../archive/SPECS_ARCHIVO.md#navegacion) · QA **APROBADO**
+      ([`AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — NAVEGACION*). El eje de filtros pasa
+      a `replace` (enmienda la decisión 29 de BUSQUEDA), el «Volver» de la ficha se vuelve híbrido
+      con dueño único y **no** se intercepta `popstate`. Medido: el recorrido que daba 5 backs hasta
+      la home ahora da 2, y la ficha en frío ya no deja `about:blank`. **Queda `NAV-11`**: el mismo
+      recorrido con la **PWA instalada**, que no se puede emular desde Playwright y lo tiene que
+      probar Fer en el teléfono. Lo de abajo queda como el registro del hallazgo original.
 
       Recorrer *home → ficha → otra → otra → ficha → otra* y
       volver obliga a deshacer paso por paso. Lo natural sería subir por la **jerarquía** (ficha →
@@ -2297,6 +2297,30 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`NAVEGACION` — el botón «atrás» deja de deshacer filtro por filtro, y la ficha en frío tiene
+      salida** (`NAV-01`, 2026-08-14, sesión Opus). Spec
+      [`docs/specs/done/NAVEGACION.md`](../specs/done/NAVEGACION.md) ·
+      [resumen](../archive/SPECS_ARCHIVO.md#navegacion) · QA
+      [`AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — NAVEGACION*, **APROBADO**
+      (`NAV-QA-01..11` con tres checkers independientes + `NAV-01..10` en vivo) · typecheck ·
+      **768/768** tests · build verde con el server parado · revisión de seguridad sin hallazgos.
+      **Lo que vale más que el diff:**
+      1. **Medir dio vuelta el diagnóstico, y el spec ya lo había hecho.** El pedido apuntaba a las
+         pantallas (*ficha → home*); el `history.length` toque por toque dijo que el eje de pantallas
+         **no crece nunca** y que el que infla es el de filtros. La implementación terminó siendo un
+         argumento en **cuatro** llamadas — porque la sesión de diseño se pagó antes.
+      2. **El bug que arregla no estaba en el pedido.** La ficha abierta en frío —el link de
+         WhatsApp, que es el loop viral— tenía como única salida `about:blank`. Salió de medir el
+         caso que nadie había mirado, no de leer el título del ítem.
+      3. **El QA en vivo encontró lo que los tests no, otra vez, y en el módulo nuevo.** Con un
+         marcador booleano («hubo alguna navegación en esta pestaña») el recorrido *ficha en frío →
+         Volver → home → back físico → Volver* **reabría el mismo `about:blank`**: la subida del
+         propio botón prendía el flag. Los 6 tests unitarios pasaban igual, porque el error no estaba
+         en la función pura sino en **qué se le pasaba**. Se arregló guardando la pantalla de entrada
+         de la pestaña en vez de un booleano, sin tocar la decisión ni la firma.
+      **Lo que quedó abierto:** `NAV-11` — el recorrido con la **PWA instalada** (`display:
+      standalone`). No se emula desde Playwright: lo tiene que probar Fer en el teléfono.
 
 - [x] **`HOME_ENTRADAS` — la home dice que además de buscar se puede votar y preguntarle a la IA**
       (`PBETA-R1-05`, 2026-08-14, sesión Opus). Spec
