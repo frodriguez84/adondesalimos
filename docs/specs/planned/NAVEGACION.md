@@ -1,6 +1,6 @@
 # Spec: Navegación «atrás» en móvil
 
-**Estado:** 🔵 Planned — decidido, sin código
+**Estado:** ✅ Implementado (2026-08-14)
 **Prioridad:** Media-Alta — hay un bug **medido** que rompe el loop viral: quien abre un link
 compartido y toca «Volver» se va de la app (ver Problema, hallazgo 3)
 **Gate:** Ninguno
@@ -120,9 +120,9 @@ pantalla de la app tenga como única salida irse de la app.
 | NAV-03 | Elegir zona con «Ver N lugares» | El listado carga con la zona y `history.length` no cambia |
 | NAV-04 | Aplicar 2 filtros desde el sheet | Igual que NAV-03 |
 | NAV-05 | «Limpiar búsqueda» | Vuelve al listado sin filtros y sin sumar entrada |
-| NAV-06 | `home → zona → 2 chips → ficha` y volver con el botón **físico** | **2 backs** hasta la home (era 5); el primero devuelve el listado con los filtros puestos |
+| NAV-06 | `home → zona → 2 chips → ficha` y volver con el botón **físico** | **2 backs** para salir del recorrido (eran 5): el primero devuelve el listado con los filtros puestos y el segundo sale del stack de la app. Precisión medida al implementar: la home limpia **no** es una entrada aparte —el listado filtrado la reemplaza, que es exactamente lo que busca la decisión 1—, así que ese segundo back es «estoy en la primera pantalla, atrás sale», el contrato normal del browser. A la home limpia se vuelve con «Limpiar búsqueda» (decisión 3) |
 | NAV-07 | Ficha abierta desde el listado, botón «Volver» de la app | Vuelve al listado con los filtros, igual que hoy |
 | NAV-08 | 🔴 Ficha abierta **en frío** (pestaña nueva / link de WhatsApp), botón «Volver» | Lleva a la home. **No** `about:blank`, **no** salir de la app |
-| NAV-09 | Ficha en frío: «Volver» → home → botón físico | Devuelve a la ficha (no atrapa); el siguiente sale de la app |
+| NAV-09 | Ficha en frío: «Volver» → home → botón físico | Devuelve a la ficha (no atrapa); el siguiente sale de la app. **Y tocar «Volver» de nuevo ahí vuelve a subir a la home**: medido al implementar, un marcador booleano («hubo alguna navegación») se prende con la subida misma y reabría el `about:blank` del hallazgo 3 tres toques más tarde. Por eso el marcador guarda la **pantalla de entrada** de la pestaña y no un booleano |
 | NAV-10 | Deep link con filtros (`/?z=…&t=…`) abierto en pestaña nueva | Mismo resultado que en la sesión original |
 | NAV-11 | PWA instalada (standalone), recorrido de NAV-06 | Mismo comportamiento, sin barra de navegador |

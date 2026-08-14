@@ -42,11 +42,14 @@ const MapView = dynamic(() => import('./map-view').then((m) => m.MapView), {
  * URL, que sigue siendo el estado (decisión 12): este componente **no** consulta
  * la base — eso lo hace el server component de `/` al re-renderizar.
  *
- * Historial (resuelve la tensión entre la decisión 12 y el DoD): tocar chips
- * dentro de un sheet no navega, y quitar un chip activo o aceptar una sugerencia
- * hace `replace` — gestos incrementales que no merecen una entrada cada uno.
- * **Confirmar un sheet con "Ver N lugares" hace `push`**, porque es un gesto
- * deliberado: el back deshace esa tanda de filtros y no cinco toques sueltos.
+ * Historial (NAVEGACION, decisiones 1 y 2 — enmienda a la 29 de BUSQUEDA):
+ * **filtrar no apila**. Todo el eje de filtros —texto, sugerencias, quitar una
+ * píldora, confirmar zona, aplicar el sheet de Filtros, chips de Ocasión y
+ * "Limpiar búsqueda"— navega con `replace`: son estados de la misma pantalla,
+ * no pantallas. `replace` escribe la URL igual (la decisión 12 queda intacta):
+ * lo único que cambia es que no deja entrada en el historial. Deshacer un filtro
+ * es trabajo de la UI visible —el chip se toca de nuevo, la píldora "Quitar ×",
+ * "Limpiar búsqueda"—, no del botón físico de atrás.
  */
 
 type Props = {
@@ -126,15 +129,15 @@ export function SearchShell({
    * FB-05: volver al home limpio de una (zona + tags + q + gps). El "Limpiar
    * todo" que ya existía vive dentro del sheet de filtros y limpia **solo** los
    * tags — por eso este se llama distinto y se muestra en la pantalla.
-   * `push` (no `replace`) porque tirar la búsqueda entera es deliberado: el back
-   * la devuelve.
+   * `replace` (NAVEGACION, decisión 1): dejar el listado sin filtros es un
+   * estado más de la misma pantalla. El botón deshace lo que el back deshacía.
    */
   const limpiarBusqueda = React.useCallback(() => {
     setTexto('')
     setEnfocado(false)
     setCoords(null)
     setGpsError(null)
-    navegar({ zones: [], tags: [], q: null, gps: false }, 'push')
+    navegar({ zones: [], tags: [], q: null, gps: false }, 'replace')
   }, [navegar])
 
   /**
@@ -384,7 +387,7 @@ export function SearchShell({
         onPedirUbicacion={pedirUbicacion}
         onApply={({ zones, gps }) => {
           setZonaAbierta(false)
-          navegar({ zones, gps }, 'push')
+          navegar({ zones, gps }, 'replace')
         }}
       />
 
@@ -396,7 +399,7 @@ export function SearchShell({
         coords={coords}
         onApply={({ tags }) => {
           setFiltrosAbiertos(false)
-          navegar({ tags }, 'push')
+          navegar({ tags }, 'replace')
         }}
       />
     </>

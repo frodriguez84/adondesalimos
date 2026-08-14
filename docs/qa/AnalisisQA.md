@@ -4557,3 +4557,63 @@ aparte**, no de prepo en medio de otra tarea. Queda anotado en el BACKLOG.
 header tiene el mismo control en las dos ramas — que es justo lo que pide la decisión 6. Subirlo a 44
 es un cambio de los dos a la vez y cae en `PBETA-R2-05`, el pase de tamaños de toque, que sigue
 abierto con ID propio.
+
+---
+
+## QA /qa-spec — NAVEGACION (2026-08-14)
+
+**Veredicto:** APROBADO — con NAV-11 (PWA instalada) declarado no verificable desde Playwright
+**Verificación técnica:** typecheck limpio · tests **768/768** (68 archivos, +3 nuevos) · build
+**verde** con el dev server parado (`✓ Compiled successfully in 6.2s`, 14/14 páginas, exit 0)
+**Método:** tres checkers independientes (Explore/haiku, maker≠checker) contra el DoD de
+`docs/specs/planned/NAVEGACION.md` → **todos PASS**, más los casos NAV-01..10 medidos en vivo con
+Playwright sobre `https://adondesalimos.ngrok.app` a 390×844, leyendo `history.length` con
+`browser_evaluate` **antes y después de cada toque** y haciendo los backs **de a uno**.
+
+**El número que resume el spec:** el recorrido `home → zona → chip → chip → destildar chip` dejaba
+`history.length` en **6** y ahora lo deja en **2** — o sea, no lo mueve. Con la ficha encima son 3
+entradas y **un** back devuelve al listado con los filtros puestos.
+
+### DoD — checkers independientes
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| NAV-QA-01 | Tocar un chip de ocasión no aumenta `history.length` | PASS | `components/search/occasion-chips.tsx:73` pasa `'replace'`. En vivo: 3 chips seguidos (`Tomar algo` → `Cenar afuera` → `Un café`) con `len` = 2 · 2 · 2 · 2, y la URL acumulando `t=bar,cerveceria` → `+restaurante` → `+cafe` |
+| NAV-QA-02 | Confirmar zona con «Ver N lugares» no aumenta `history.length` | PASS | `components/search/search-shell.tsx:390` (`onApply` del `ZoneSheet`). En vivo: «Ver 1.094 lugares» → `len` 2 → 2, URL `/?z=palermo-soho` |
+| NAV-QA-03 | Aplicar el sheet de Filtros no aumenta `history.length` | PASS | `components/search/search-shell.tsx:402` (`onApply` del `FiltersSheet`). En vivo: 2 tags desde el sheet («Wine bar / vinoteca» + «Club de juegos») → `len` 2 → 2, URL con los 5 tags |
+| NAV-QA-04 | «Limpiar búsqueda» no aumenta `history.length`, y su JSDoc ya no justifica un `push` | PASS | `search-shell.tsx:140` + comentario reescrito en `:128-133`. En vivo: `len` 2 → 2, URL `/` |
+| NAV-QA-05 | La URL sigue reflejando zona/tags/q/gps y un deep link abre el mismo resultado (BUSQUEDA dec. 12 sin regresión) | PASS | `navegar` serializa con `serializeSearchParams` **en los dos modos** (`search-shell.tsx:117-126`, `lib/search/params.ts:109-117`). En vivo (NAV-10): `/?z=palermo-soho&t=bar,cerveceria` pegado en pestaña nueva → mismos 4 controles pintados (`Tomar algo`, `Palermo Soho`, `Bar`, `Cervecería`) y 20 cards |
+| NAV-QA-06 | Desde una ficha abierta del listado: un back devuelve al listado **con los filtros**, y el segundo sale del recorrido | PASS | En vivo, backs de a uno: #1 → `/?z=palermo-soho&t=bar,cerveceria` con los 4 pintados · #2 → fuera del stack. **Precisión medida**: la home limpia no es una entrada aparte —el listado filtrado la reemplaza, que es lo que busca la decisión 1—, así que el 2º back es «estoy en la primera pantalla, atrás sale». Eran **5 backs**, son **2** |
+| NAV-QA-07 | Con la ficha abierta en frío, «Volver» lleva a la home y no deja `about:blank` | PASS | Pestaña nueva → `/lugar/0fef76e0…` → `sessionStorage['ads:pantalla-de-entrada']` = `/lugar/0fef76e0…` ⇒ `decidirVolver` = `subir` → `router.push('/')`. En vivo la URL final es `https://adondesalimos.ngrok.app/` (antes: `about:blank`) |
+| NAV-QA-08 | `grep -rn "router.back()" app/ components/` devuelve solo el llamador que pasa por `lib/navegacion/volver.ts` | PASS | Única ocurrencia: `components/lugar/ficha-actions.tsx:40`, dentro de la rama `'atras'` de `decidirVolver` |
+| NAV-QA-09 | Tests unitarios de `decidirVolver`: navegó / no navegó / flag clonado con `historyLength = 1` | PASS | `lib/navegacion/__tests__/volver.test.ts:7-25` (los tres casos) + 3 casos de `hayPantallaDetras` |
+| NAV-QA-10 | La decisión 29 de `BUSQUEDA` queda con la nota de enmienda apuntando a este spec | PASS | `docs/specs/done/BUSQUEDA.md:82` — «⚠️ **ENMENDADA el 2026-08-14 por `NAVEGACION` (decisión 2)**…» |
+| NAV-QA-11 | No se interceptó `popstate` (decisión 7) ni se tocó mapa/lista ni el scroll infinito | PASS | `grep popstate` en `app/`, `components/`, `lib/`: **0 matches**. `map-view.tsx` y `results-list.tsx` no aparecen en `git diff --stat` |
+
+### QA en vivo — casos del spec
+
+| ID | Resultado | Medición |
+|----|-----------|----------|
+| NAV-01 | PASS | 3 chips seguidos: `history.length` 2 → 2 → 2; la URL sí acumula los tags |
+| NAV-02 | PASS | Prender y apagar «Un café»: `len` 2 en los dos toques; la URL vuelve al estado previo sin dejar las **dos** entradas que dejaba antes |
+| NAV-03 | PASS | Zona con «Ver 1.094 lugares»: carga el listado, `len` sin cambio |
+| NAV-04 | PASS | 2 filtros desde el sheet: `len` sin cambio, URL con los 5 tags |
+| NAV-05 | PASS | «Limpiar búsqueda»: vuelve a `/` sin sumar entrada |
+| NAV-06 | PASS | Recorrido completo: `len` **2** al final del eje de filtros (era 6) y 3 con la ficha. Back #1 = listado con filtros, back #2 = fuera del stack |
+| NAV-07 | PASS | Ficha abierta desde el listado, «Volver» → `/?z=palermo-soho&t=bar,cerveceria` con los 4 controles pintados |
+| NAV-08 | PASS 🔴→🟢 | Ficha en pestaña nueva, «Volver» → `/`. Antes dejaba `about:blank` |
+| NAV-09 | PASS | «Volver» → home → back físico → ficha. **Y el «Volver» siguiente vuelve a subir a la home** (ver hallazgo abajo) |
+| NAV-10 | PASS | Deep link con filtros en pestaña nueva: mismo resultado que en la sesión original |
+| NAV-11 | **Pendiente — Fer** | Requiere la PWA instalada en un teléfono; no se puede emular `standalone` desde Playwright. El código es idéntico y no depende de la barra del navegador (`display: standalone` no cambia el `history` ni el `sessionStorage`), pero **queda sin verificar hasta que lo pruebe Fer**. Es el único ítem abierto del spec |
+
+### El hallazgo del QA: el marcador booleano se prendía solo
+
+Con un flag «hubo alguna navegación en esta pestaña», el recorrido **ficha en frío → «Volver» →
+home → back físico → «Volver»** volvía a dejar `about:blank`: la subida del propio botón contaba
+como navegación, así que el segundo toque decidía `atras` y el back salía de la app. Es el mismo
+agujero del hallazgo 3 del spec, tres toques más tarde, y solo aparece midiendo NAV-09 en vivo.
+
+El arreglo no cambia la decisión ni la firma pura: el marcador guarda **la pantalla por la que entró
+la pestaña** (`ads:pantalla-de-entrada`) en vez de un booleano, y «hay historia propia» pasa a ser
+«la pantalla actual no es la de entrada». La guardia doble de la decisión 6 sigue igual
+(`historyLength > 1`), y sigue siendo la que salva el caso del `sessionStorage` clonado.

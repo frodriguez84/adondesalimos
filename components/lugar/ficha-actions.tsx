@@ -1,17 +1,24 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Share2 } from 'lucide-react'
 
 import { compartirLink } from '@/components/shared/boton-compartir'
 import { Button } from '@/components/ui/button'
+import { decidirVolver, huboNavegacionEnLaApp } from '@/lib/navegacion/volver'
 
 /**
- * Volver y compartir (FICHA, § Diseño). Cliente porque `router.back()` y la Web
+ * Volver y compartir (FICHA, § Diseño). Cliente porque el historial y la Web
  * Share API viven en el browser. La regla de compartir (nativo con fallback a
  * copiar) ya no vive acá: es `compartirLink`, que comparten esta ficha y las dos
  * pantallas de votación (PBETA-R4-01). Acá queda solo la presentación de ícono.
+ *
+ * El «Volver» es híbrido (NAVEGACION, decisión 5) y **la regla no vive acá**: la
+ * decide `lib/navegacion/volver.ts`, su dueño único. Con historia propia vuelve
+ * al listado con los filtros puestos; en frío —el link de WhatsApp— sube a la
+ * home con `push`, que no atrapa: el back físico devuelve a la ficha y el
+ * siguiente sale de la app, el contrato normal del browser (decisión 8).
  */
 export function FichaActions({
   nombre,
@@ -22,7 +29,17 @@ export function FichaActions({
   accion?: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [copiado, setCopiado] = React.useState(false)
+
+  function volver() {
+    const modo = decidirVolver({
+      navegoEnLaApp: huboNavegacionEnLaApp(pathname),
+      historyLength: window.history.length,
+    })
+    if (modo === 'atras') router.back()
+    else router.push('/')
+  }
 
   async function compartir() {
     const resultado = await compartirLink(window.location.href, nombre)
@@ -37,7 +54,7 @@ export function FichaActions({
         variant="ghost"
         size="icon"
         aria-label="Volver"
-        onClick={() => router.back()}
+        onClick={volver}
       >
         <ArrowLeft className="size-5" />
       </Button>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
+import { MarcadorNavegacion } from '@/components/navegacion/marcador-navegacion'
 import './globals.css'
 
 const inter = Inter({
@@ -35,6 +36,10 @@ export default function RootLayout({
         {/* No pinta nada: retoma el guardado que quedó pendiente del otro lado
             del login, aterrice donde aterrice el usuario (PBETA-R3-03). */}
         <ReanudarGuardado />
+        {/* Tampoco pinta nada: anota por qué pantalla entró la pestaña, que es
+            lo que decide si el "Volver" de la ficha hace back o sube a la home
+            (NAVEGACION, decisión 6). */}
+        <MarcadorNavegacion />
         {children}
       </body>
     </html>

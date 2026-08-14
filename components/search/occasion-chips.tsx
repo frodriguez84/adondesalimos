@@ -14,8 +14,9 @@ import { chipsPintados, tagsAlTocar } from '@/lib/search/pintado'
  * Tocar un chip **aplica sus tags a la vista** (decisión 18) — no es un modo
  * opaco: los tags entran como chips removibles en `ChipsActivos`, así el usuario
  * ve qué activó y aprende el sistema. Por eso navega igual que cualquier otro
- * gesto de filtro, con `push`: es una tanda deliberada, y el back la deshace
- * entera (decisión 29).
+ * gesto de filtro, con `replace` (NAVEGACION, decisión 1): es un estado más de
+ * la misma pantalla y no merece una entrada en el historial. Medido: prender y
+ * apagar el mismo chip dejaba **dos** entradas para una URL idéntica.
  *
  * **Qué chip se pinta y qué escribe un toque no vive acá**: es
  * `lib/search/pintado.ts`, su dueño único (subconjunto maximal de FB-02 y las
@@ -69,7 +70,7 @@ export function OccasionChipsRow({ chips, params, onNavegar, compacto = false }:
           <button
             key={chip.slug}
             type="button"
-            onClick={() => onNavegar({ tags: tagsAlTocar(todos, params.tags, chip) }, 'push')}
+            onClick={() => onNavegar({ tags: tagsAlTocar(todos, params.tags, chip) }, 'replace')}
             aria-pressed={aplicado}
             className={cn(
               'inline-flex h-9 items-center rounded-full border px-4 text-sm transition-colors',
