@@ -180,10 +180,72 @@ export function estaAbierto(h: HorariosSemana, now: Date): boolean {
   return false
 }
 
+/** Lo que devuelve `proximaApertura`: cuándo vuelve a abrir, y en cuántos días. */
+export type ProximaApertura = {
+  /** Día de la apertura (índice de `DIAS`, 0 = lunes). */
+  dia: number
+  /** Minutos desde medianoche de la apertura. */
+  minutos: number
+  /** 0 = hoy más tarde · 1 = mañana · 2-6 = esta semana. Nunca 7. */
+  enDias: number
+}
+
+/**
+ * La próxima apertura a partir de `now` (hora de AR), mirando hasta **6 días**
+ * adelante. `null` si no abre en esa ventana — incluye el caso "abre recién dentro
+ * de 7 días" (un lugar que solo abre los lunes, mirado un lunes ya cerrado): decir
+ * "abre el lunes" un lunes confunde más de lo que informa, así que la ficha se
+ * queda con «Cerrado ahora» (PBETA-R1-07).
+ *
+ * Solo mira **aperturas**: si el lugar está abierto ahora mismo, quien pregunta ya
+ * lo sabe por `estaAbierto` y no llama a esto. Hoy cuenta únicamente lo que abre
+ * **más tarde** que `now`; los rangos ya pasados no vuelven.
+ */
+export function proximaApertura(h: HorariosSemana, now: Date): ProximaApertura | null {
+  const { dia, minutos } = partesEnAR(now)
+
+  for (let enDias = 0; enDias < 7; enDias++) {
+    const idx = (dia + enDias) % 7
+    const aperturas = (h[DIAS[idx]] ?? [])
+      .map((r) => minutosDe(r.abre))
+      // Hoy solo sirve lo que todavía no abrió; el resto de los días, todo.
+      .filter((a) => enDias > 0 || a > minutos)
+      .sort((a, b) => a - b)
+    if (aperturas.length > 0) return { dia: idx, minutos: aperturas[0], enDias }
+  }
+
+  return null
+}
+
+/**
+ * La hora en castellano rioplatense: «a las 19», «a las 19:30», «a la 1» (la una
+ * lleva artículo singular) y «a la medianoche» en punto.
+ */
+function textoHora(minutos: number): string {
+  const hora = Math.floor(minutos / 60)
+  const min = minutos % 60
+  if (hora === 0 && min === 0) return 'a la medianoche'
+  const reloj = min === 0 ? `${hora}` : `${hora}:${String(min).padStart(2, '0')}`
+  return `a la${hora === 1 ? '' : 's'} ${reloj}`
+}
+
+/**
+ * La próxima apertura como frase para la ficha: «abre a las 19» (hoy), «abre
+ * mañana a las 19», «abre el jueves a las 19». El día se nombra con `NOMBRE_DIA`
+ * —el dueño de los rótulos— en minúscula, que es como cae en la oración.
+ */
+export function textoProximaApertura(p: ProximaApertura): string {
+  const cuando =
+    p.enDias === 0 ? '' : p.enDias === 1 ? ' mañana' : ` el ${NOMBRE_DIA[DIAS[p.dia]].toLowerCase()}`
+  return `abre${cuando} ${textoHora(p.minutos)}`
+}
+
 /**
  * Una línea por día para el acordeón de la ficha ("Lunes: 20:00–02:00", "Martes:
  * Cerrado"). Determinista: no depende de la hora, así se puede renderizar en el
- * server sin desincronizar la hidratación.
+ * server sin desincronizar la hidratación. El orden es el de `DIAS`, así que el
+ * índice de una línea **es** su día: con eso la ficha marca el de hoy sin parsear
+ * el texto.
  */
 export function lineasSemana(h: HorariosSemana): string[] {
   return DIAS.map((dia) => {

@@ -13,11 +13,14 @@ const buttonVariants = cva(
         ghost: 'hover:bg-secondary hover:text-foreground',
         destructive: 'bg-destructive/10 text-destructive hover:bg-destructive/20',
       },
+      // 44 px es el piso de un toque cómodo en mobile (PBETA-R1-08): `default` e
+      // `icon` estaban en 40 y ninguno llegaba. `sm` queda abajo a propósito —es
+      // para controles secundarios— y hoy no lo usa nadie.
       size: {
-        default: 'h-10 px-4 py-2',
+        default: 'h-11 px-4 py-2',
         sm: 'h-9 px-3',
         lg: 'h-11 px-6',
-        icon: 'size-10',
+        icon: 'size-11',
       },
     },
     defaultVariants: {

@@ -10,6 +10,8 @@
  * la misma request que ya se pagó y se descartan al terminar el render.
  */
 
+import type { HorariosSemana } from '@/lib/negocio/horarios'
+
 /** SKUs pagos que se cuentan contra los topes de `app_settings` (decisión 19). */
 export type GoogleSku = 'details' | 'photos'
 
@@ -19,6 +21,14 @@ export type GoogleHorarios = {
   abierto: boolean | null
   /** `weekdayDescriptions` en español: una línea por día para el acordeón. */
   semana: string[]
+  /**
+   * Los mismos horarios habituales pero **estructurados** (PBETA-R1-07), sacados de
+   * los `periods` que ya vienen en la respuesta — sin tocar el field mask. Con esto
+   * la ficha puede decir *cuándo* abre y marcar el día de hoy, reusando
+   * `lib/negocio/horarios.ts`. `null` cuando Google no manda `periods` o el caso no
+   * es representable (24 h): ahí la ficha se queda con las frases de `semana`.
+   */
+  dias: HorariosSemana | null
 }
 
 /**

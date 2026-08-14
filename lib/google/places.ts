@@ -1,3 +1,10 @@
+import {
+  DIAS,
+  semanaVacia,
+  tieneAlgunHorario,
+  type HorariosSemana,
+} from '@/lib/negocio/horarios'
+
 import type { GoogleEnriquecimiento, GoogleFoto } from './types'
 
 /**
@@ -127,7 +134,10 @@ export function mapPriceLevel(priceLevel: unknown): string | null {
 }
 
 /** Lo que la ficha usa de la respuesta de Place Details; el resto se ignora. */
-type RawOpeningHours = { openNow?: unknown; weekdayDescriptions?: unknown }
+type RawOpeningHours = { openNow?: unknown; weekdayDescriptions?: unknown; periods?: unknown }
+/** Un extremo de un `period` de Google: `{day: 0-6 (0 = domingo), hour, minute}`. */
+type RawPeriodPoint = { day?: unknown; hour?: unknown; minute?: unknown }
+type RawPeriod = { open?: RawPeriodPoint; close?: RawPeriodPoint }
 type RawAuthorAttribution = { displayName?: unknown; uri?: unknown }
 type RawPhoto = { name?: unknown; authorAttributions?: unknown }
 type RawPlaceDetails = {
@@ -167,6 +177,65 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
 }
 
+/** Google numera 0 = domingo; `DIAS` arranca en lunes. `null` si no es un día. */
+function diaDeGoogle(day: unknown): number | null {
+  if (typeof day !== 'number' || !Number.isInteger(day) || day < 0 || day > 6) return null
+  return (day + 6) % 7
+}
+
+/** Un extremo `{hour, minute}` → `hh:mm`, o `null` si viene fuera de rango. */
+function horaDePunto(p: RawPeriodPoint | undefined): string | null {
+  if (!p || typeof p !== 'object') return null
+  const hora = typeof p.hour === 'number' ? p.hour : null
+  const min = typeof p.minute === 'number' ? p.minute : 0
+  if (hora === null || !Number.isInteger(hora) || hora < 0 || hora > 23) return null
+  if (!Number.isInteger(min) || min < 0 || min > 59) return null
+  return `${String(hora).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+}
+
+/**
+ * Los `periods` de Google → la `HorariosSemana` propia (PBETA-R1-07). **Es dato que
+ * ya llega**: `regularOpeningHours` está en el field mask desde F2 y trae `periods`
+ * junto con `weekdayDescriptions`, así que esto no agrega ni una request ni un campo
+ * al mask (que es la línea entre $0 y la factura, decisión 11).
+ *
+ * Traducir a la estructura propia —en vez de parsear las frases de Google— es lo que
+ * permite reusar `lib/negocio/horarios.ts`, que ya es dueño de "¿abre?" y "¿qué día
+ * es hoy en AR?", en lugar de escribir una segunda regla horaria contra un texto
+ * localizado.
+ *
+ * **Todo o nada**: cualquier `period` que el modelo propio no representa (un día
+ * abierto 24 h viene **sin `close`**; un rango que cierra dos días después) devuelve
+ * `null` y la ficha cae a las frases de Google, que esos casos sí los dicen bien. Es
+ * degradación honesta: media semana traducida sería peor que ninguna.
+ */
+export function parseSemanaDePeriodos(raw: RawOpeningHours | undefined): HorariosSemana | null {
+  const periods = raw?.periods
+  if (!Array.isArray(periods) || periods.length === 0) return null
+
+  const semana = semanaVacia()
+  for (const p of periods as RawPeriod[]) {
+    if (!p || typeof p !== 'object' || !p.open || !p.close) return null
+
+    const dia = diaDeGoogle(p.open.day)
+    const abre = horaDePunto(p.open)
+    const cierra = horaDePunto(p.close)
+    if (dia === null || abre === null || cierra === null) return null
+    // `abre === cierra` es la otra forma de decir "24 h": el modelo propio lo lee
+    // como rango vacío (`estaAbierto` no lo abre nunca), así que tampoco se traduce.
+    if (abre === cierra) return null
+
+    // Un rango pertenece al día en que abre y cierra, como mucho, la madrugada
+    // siguiente (`20:00–02:00`). Si cierra más allá, no entra en el modelo.
+    const diaCierre = diaDeGoogle(p.close.day)
+    if (diaCierre !== null && diaCierre !== dia && diaCierre !== (dia + 1) % 7) return null
+
+    semana[DIAS[dia]].push({ abre, cierra })
+  }
+
+  return tieneAlgunHorario(semana) ? semana : null
+}
+
 /**
  * Respuesta cruda de Place Details → DTO propio (decisión 11). Puro: se testea con
  * un JSON de ejemplo, sin red. Degrada campo por campo — un lugar sin rating o sin
@@ -185,7 +254,12 @@ export function parseDetails(raw: RawPlaceDetails): GoogleEnriquecimiento {
   // La semana la da `regularOpeningHours` (horario habitual); `current` cubre
   // feriados y es fallback. Ya vienen como frases en español por el `languageCode`.
   const semana = stringArray(reg?.weekdayDescriptions ?? cur?.weekdayDescriptions)
-  const horarios = semana.length > 0 || abierto !== null ? { abierto, semana } : null
+  // La semana estructurada sale de los **mismos** `periods` que ya viajan en la
+  // respuesta: habitual primero (es lo que promete "Ver horarios de la semana") y
+  // `current` de respaldo, el mismo orden que las frases de arriba.
+  const dias = parseSemanaDePeriodos(reg) ?? parseSemanaDePeriodos(cur)
+  const horarios =
+    semana.length > 0 || dias !== null || abierto !== null ? { abierto, semana, dias } : null
 
   return {
     horarios,

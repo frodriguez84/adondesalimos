@@ -8,7 +8,9 @@ import {
   minutosDe,
   normalizarSemana,
   partesEnAR,
+  proximaApertura,
   semanaVacia,
+  textoProximaApertura,
   tieneAlgunHorario,
   type HorariosSemana,
 } from '../horarios'
@@ -148,6 +150,90 @@ describe('lineasSemana', () => {
     expect(lineas).toHaveLength(7)
     expect(lineas[4]).toBe('Viernes: 20:00–02:00')
     expect(lineas[0]).toBe('Lunes: Cerrado')
+  })
+})
+
+/**
+ * PBETA-R1-07: «Cerrado ahora» no respondía la única pregunta que importa cuando
+ * estás por salir. Los `Date` siguen siendo fijos en UTC (2024-01-01 = lunes).
+ */
+describe('proximaApertura', () => {
+  it('abre hoy más tarde: lunes 15:00 con rango 19:00–02:00', () => {
+    const semana = soloDia('lunes', [{ abre: '19:00', cierra: '02:00' }])
+    expect(proximaApertura(semana, new Date('2024-01-01T18:00:00Z'))).toEqual({
+      dia: 0,
+      minutos: 19 * 60,
+      enDias: 0,
+    })
+  })
+
+  it('el rango de hoy ya pasó: salta al día siguiente', () => {
+    const semana = {
+      ...semanaVacia(),
+      lunes: [{ abre: '09:00', cierra: '18:00' }],
+      martes: [{ abre: '09:00', cierra: '18:00' }],
+    }
+    // Lunes 20:00 AR = 23:00Z del lunes.
+    expect(proximaApertura(semana, new Date('2024-01-01T23:00:00Z'))).toEqual({
+      dia: 1,
+      minutos: 9 * 60,
+      enDias: 1,
+    })
+  })
+
+  it('elige la apertura más temprana de las que quedan en el día', () => {
+    const semana = soloDia('lunes', [
+      { abre: '19:00', cierra: '23:00' },
+      { abre: '09:00', cierra: '12:00' },
+    ])
+    // Lunes 13:00 AR: la de las 09:00 ya pasó.
+    expect(proximaApertura(semana, new Date('2024-01-01T16:00:00Z'))?.minutos).toBe(19 * 60)
+  })
+
+  it('cruza el fin de semana: sábado 22:00 → domingo', () => {
+    const semana = soloDia('domingo', [{ abre: '20:00', cierra: '23:00' }])
+    // Sábado 2024-01-06 22:00 AR = 01:00Z del domingo 07.
+    expect(proximaApertura(semana, new Date('2024-01-07T01:00:00Z'))).toEqual({
+      dia: 6,
+      minutos: 20 * 60,
+      enDias: 1,
+    })
+  })
+
+  it('si recién abre dentro de 7 días ⇒ null (decir "abre el lunes" un lunes confunde)', () => {
+    const semana = soloDia('lunes', [{ abre: '10:00', cierra: '14:00' }])
+    // Lunes 15:00 AR: la próxima es el lunes que viene, fuera de la ventana.
+    expect(proximaApertura(semana, new Date('2024-01-01T18:00:00Z'))).toBeNull()
+  })
+
+  it('una semana sin horarios no abre nunca', () => {
+    expect(proximaApertura(semanaVacia(), new Date('2024-01-01T18:00:00Z'))).toBeNull()
+  })
+})
+
+describe('textoProximaApertura — la frase de la ficha', () => {
+  it('hoy, mañana y el resto de la semana', () => {
+    expect(textoProximaApertura({ dia: 0, minutos: 19 * 60, enDias: 0 })).toBe('abre a las 19')
+    expect(textoProximaApertura({ dia: 1, minutos: 9 * 60, enDias: 1 })).toBe('abre mañana a las 9')
+    expect(textoProximaApertura({ dia: 3, minutos: 19 * 60, enDias: 3 })).toBe(
+      'abre el jueves a las 19',
+    )
+  })
+
+  it('el día lleva su acento y va en minúscula dentro de la oración', () => {
+    expect(textoProximaApertura({ dia: 2, minutos: 20 * 60, enDias: 2 })).toBe(
+      'abre el miércoles a las 20',
+    )
+  })
+
+  it('la una lleva artículo singular, y la medianoche se dice con todas las letras', () => {
+    expect(textoProximaApertura({ dia: 0, minutos: 60, enDias: 0 })).toBe('abre a la 1')
+    expect(textoProximaApertura({ dia: 0, minutos: 90, enDias: 0 })).toBe('abre a la 1:30')
+    expect(textoProximaApertura({ dia: 0, minutos: 0, enDias: 0 })).toBe('abre a la medianoche')
+  })
+
+  it('los minutos van con dos dígitos', () => {
+    expect(textoProximaApertura({ dia: 0, minutos: 19 * 60 + 5, enDias: 0 })).toBe('abre a las 19:05')
   })
 })
 

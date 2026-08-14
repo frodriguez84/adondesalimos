@@ -1263,8 +1263,31 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       puerta de ida y vuelta (`TECHO_CARDS` en `results-list.tsx`): se mueve cuando haya uso real.
 - [ ] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat. Espejo de R2-03.
 - [x] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. ✅ **Hecho el 2026-08-08** con [`MAPA`](../specs/done/MAPA.md) ([resumen](../archive/SPECS_ARCHIVO.md#mapa)), junto con `FB-04` (mismo archivo, misma pantalla). Medido en vivo antes y después a 390×844: **67% → 100%** y `document.body.scrollHeight` 1.127 → **844 = `innerHeight`**. El bloque de búsqueda pasó de 332 a 188 px (el buscador se esconde y los chips van de 3 filas a 1 que scrollea, 124 → 42 px). En 390×667 el mapa entra entero pero la página gana 60 px de scroll por el piso `min-h-80`: degradación declarada en la decisión 9.
-- [ ] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
-- [ ] **PBETA-R1-08** (COSMÉTICO) — toques de la ficha en 36–40 px (Guardar 36×36), abajo de los 44.
+- [x] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
+      ✅ **Hecho el 2026-08-14**. Ahora dice «**Cerrado · abre a las 20**» (verificado en vivo en Congo,
+      viernes 14:20 AR) y, cuando la próxima apertura no es hoy, nombra el día («abre mañana a las 9»
+      / «abre el jueves a las 19»). En el acordeón, la fila de hoy va en negrita, con el color de
+      texto normal y `aria-current="date"`.
+      **Costo de Google: cero.** `regularOpeningHours` ya venía en el field mask desde `FICHA` F2 y
+      trae `periods` **además** de las frases: es cálculo puro sobre datos que ya llegaban. El diff no
+      toca `PLACE_DETAILS_FIELD_MASK` ni persiste un horario.
+      **Una regla, un dueño:** los `periods` se **traducen** a `HorariosSemana`
+      (`parseSemanaDePeriodos`) y el cálculo lo hace `lib/negocio/horarios.ts` (`proximaApertura`),
+      al lado de `partesEnAR` y `estaAbierto` — en vez de parsear las frases localizadas de Google,
+      que habría sido una segunda regla horaria. Efecto lateral: las dos ramas de la ficha (horarios
+      de dueño y de Google) por fin muestran la semana con el mismo formato.
+      **Degradación honesta en dos casos:** un lugar **abierto 24 h** llega sin `close` y no entra en
+      el modelo ⇒ se descarta la semana entera y quedan las frases de Google, que eso sí lo dicen
+      bien; y si el `openNow` de Google (que contempla feriados) contradice a la semana habitual,
+      **no se promete hora**. QA `docs/qa/AnalisisQA.md` § *PBETA-R1-07 y PBETA-R1-08*, `HOR-01..14`.
+- [x] **PBETA-R1-08** (COSMÉTICO) — toques de la ficha en 36–40 px (Guardar 36×36), abajo de los 44.
+      ✅ **Hecho el 2026-08-14**. Los seis toques de la ficha miden **44** (`TAP-01..06`): Guardar
+      36→44, Volver / Compartir / Llamar / Sitio web 40→44 y «Cómo llegar» 262×40 → 239×44.
+      **El radio se midió antes de tocar:** el primitivo `Button` lo usan **3 archivos y los 3 son la
+      ficha**, así que subir `default` e `icon` no se derrama al resto de la app (que escribe sus
+      clases a mano y ya usa `h-11` donde importa). **Guardar sube en las cinco pantallas** que lo
+      comparten —decisión de Fer— porque el listado es más denso en toques que la ficha; la card pasó
+      de `pr-12` a `pr-14` y el peor caso a 360 px (*Taj Mahal Cocina de la India*) deja 29 px de aire.
 
 **R2 · Me invitaron a votar**
 - [ ] **PBETA-R2-02** (MOLESTO) — el link compartido no lleva `og:image` y la home no declara ninguna `og:`/`twitter:`.
@@ -2219,6 +2242,31 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`PBETA-R1-07` y `PBETA-R1-08` — la ficha dice cuándo abre, y los toques llegan a 44**
+      (2026-08-14, sesión Opus; sin spec, como `R1-03`/`R1-04`). QA
+      [`AnalisisQA.md`](../qa/AnalisisQA.md) § *PBETA-R1-07 y PBETA-R1-08*, **APROBADO**
+      (`HOR-01..14` + `TAP-01..09`) · typecheck · **762/762** tests · build verde con el server parado.
+      **Lo que vale más que el diff:**
+      1. **El dato ya estaba pago.** El hallazgo parecía pedir horarios y los horarios son el SKU
+         caro: `regularOpeningHours` **ya venía en el field mask** y trae `periods` junto con las
+         frases. Mirar qué llega antes de pedir algo nuevo convirtió una feature "cara" en cálculo
+         puro. El mask no se tocó y sus tests de igualdad exacta lo defienden.
+      2. **Traducir en vez de parsear.** Los `periods` de Google se convierten a la
+         `HorariosSemana` propia, así el "¿cuándo abre?" lo contesta `lib/negocio/horarios.ts` —el
+         dueño de la regla— y no una segunda implementación leyendo texto localizado. De yapa, la
+         semana de Google y la del dueño ahora se ven iguales, que es lo que permitió marcar hoy
+         **por índice** en vez de adivinar qué línea es qué día.
+      3. **El radio de un cambio "global" se mide, no se supone.** `Button` parecía app-wide y
+         resultó vivir **solo en la ficha** (3 archivos): con eso, subir el piso a 44 dejó de ser
+         una decisión riesgosa y pasó a ser una línea. Lo que sí era compartido —el botón Guardar,
+         5 pantallas— se subió igual **a propósito** (decisión de Fer): el listado es más denso en
+         toques, y un `variante` para divergir habría sido una segunda definición de "cuánto mide
+         un toque".
+      4. **Dos casos se declararon no vistos en pantalla** (`HOR-09`/`HOR-10`, «abre mañana» y «abre
+         el jueves»): dependen del reloj y a las 14:20 no se pueden reproducir sin mover la fecha
+         del sistema. Quedan cubiertos por test y **declarados**, con el precedente de
+         `AHORA-02`/`AHORA-03`, en vez de darlos por verificados.
 
 - [x] **`PBETA-R1-02` — que la primera pantalla no abra con Burger King** (2026-08-10, sesión
       Opus; spec escrito y ratificado por Fer esa misma mañana). Cerrado entero con

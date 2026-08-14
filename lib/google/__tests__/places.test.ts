@@ -4,6 +4,7 @@ import {
   mapPriceLevel,
   parseDetails,
   parseFotoCandidata,
+  parseSemanaDePeriodos,
   rectanguloAlrededor,
   PLACE_DETAILS_FIELD_MASK,
   TEXT_SEARCH_FIELD_MASK,
@@ -126,6 +127,8 @@ describe('parseDetails — respuesta cruda → DTO (degrada campo por campo)', (
     expect(dto.horarios).toEqual({
       abierto: true,
       semana: ['lunes: 9:00–18:00', 'martes: 9:00–18:00'],
+      // Sin `periods` no hay semana estructurada: quedan las frases de Google.
+      dias: null,
     })
     expect(dto.rating).toBe(4.3)
     expect(dto.userRatingCount).toBe(128)
@@ -146,11 +149,112 @@ describe('parseDetails — respuesta cruda → DTO (degrada campo por campo)', (
     expect(parseDetails({ currentOpeningHours: { openNow: false } }).horarios).toEqual({
       abierto: false,
       semana: [],
+      dias: null,
     })
+  })
+
+  it('traduce los `periods` que ya vienen a la semana estructurada (PBETA-R1-07)', () => {
+    const dto = parseDetails({
+      regularOpeningHours: {
+        openNow: false,
+        weekdayDescriptions: ['lunes: 19:00–2:00'],
+        periods: [{ open: { day: 1, hour: 19, minute: 0 }, close: { day: 2, hour: 2, minute: 0 } }],
+      },
+    })
+    expect(dto.horarios?.dias?.lunes).toEqual([{ abre: '19:00', cierra: '02:00' }])
+    // Las frases de Google siguen viajando: son el respaldo si `dias` es null.
+    expect(dto.horarios?.semana).toEqual(['lunes: 19:00–2:00'])
   })
 
   it('la foto no la resuelve parseDetails (queda null; la trae parseFotoCandidata)', () => {
     expect(parseDetails({}).foto).toBeNull()
+  })
+})
+
+/**
+ * `periods` es dato que **ya llega** con `regularOpeningHours` (field mask intacto,
+ * costo $0). Traducirlo a la estructura propia es lo que deja reusar
+ * `lib/negocio/horarios.ts` en vez de parsear las frases localizadas de Google.
+ */
+describe('parseSemanaDePeriodos — periods de Google → HorariosSemana', () => {
+  it('Google numera 0 = domingo; acá la semana arranca el lunes', () => {
+    const semana = parseSemanaDePeriodos({
+      periods: [{ open: { day: 0, hour: 11, minute: 0 }, close: { day: 0, hour: 16, minute: 0 } }],
+    })
+    expect(semana?.domingo).toEqual([{ abre: '11:00', cierra: '16:00' }])
+    expect(semana?.lunes).toEqual([])
+  })
+
+  it('un rango que cruza la medianoche queda en el día que abre', () => {
+    const semana = parseSemanaDePeriodos({
+      periods: [{ open: { day: 5, hour: 20, minute: 30 }, close: { day: 6, hour: 2, minute: 0 } }],
+    })
+    expect(semana?.viernes).toEqual([{ abre: '20:30', cierra: '02:00' }])
+    expect(semana?.sabado).toEqual([])
+  })
+
+  it('dos turnos en el mismo día se acumulan', () => {
+    const semana = parseSemanaDePeriodos({
+      periods: [
+        { open: { day: 3, hour: 9, minute: 0 }, close: { day: 3, hour: 13, minute: 0 } },
+        { open: { day: 3, hour: 20, minute: 0 }, close: { day: 3, hour: 23, minute: 0 } },
+      ],
+    })
+    expect(semana?.miercoles).toEqual([
+      { abre: '09:00', cierra: '13:00' },
+      { abre: '20:00', cierra: '23:00' },
+    ])
+  })
+
+  it('`minute` ausente se lee como :00', () => {
+    const semana = parseSemanaDePeriodos({
+      periods: [{ open: { day: 1, hour: 9 }, close: { day: 1, hour: 18 } }],
+    })
+    expect(semana?.lunes).toEqual([{ abre: '09:00', cierra: '18:00' }])
+  })
+
+  it('abierto 24 h (period SIN close) ⇒ null: se degrada a las frases de Google', () => {
+    expect(parseSemanaDePeriodos({ periods: [{ open: { day: 1, hour: 0, minute: 0 } }] })).toBeNull()
+  })
+
+  it('un solo period no representable tira TODA la semana (media semana sería peor)', () => {
+    expect(
+      parseSemanaDePeriodos({
+        periods: [
+          { open: { day: 1, hour: 9, minute: 0 }, close: { day: 1, hour: 18, minute: 0 } },
+          { open: { day: 2, hour: 9, minute: 0 } },
+        ],
+      }),
+    ).toBeNull()
+  })
+
+  it('un rango que cierra dos días después no entra en el modelo ⇒ null', () => {
+    expect(
+      parseSemanaDePeriodos({
+        periods: [{ open: { day: 5, hour: 20, minute: 0 }, close: { day: 0, hour: 2, minute: 0 } }],
+      }),
+    ).toBeNull()
+  })
+
+  it('apertura y cierre iguales (la otra forma de decir 24 h) ⇒ null', () => {
+    expect(
+      parseSemanaDePeriodos({
+        periods: [{ open: { day: 1, hour: 0, minute: 0 }, close: { day: 1, hour: 0, minute: 0 } }],
+      }),
+    ).toBeNull()
+  })
+
+  it('sin periods, vacío o basura ⇒ null, nunca rompe', () => {
+    expect(parseSemanaDePeriodos({})).toBeNull()
+    expect(parseSemanaDePeriodos(undefined)).toBeNull()
+    expect(parseSemanaDePeriodos({ periods: [] })).toBeNull()
+    expect(parseSemanaDePeriodos({ periods: 'x' })).toBeNull()
+    expect(
+      parseSemanaDePeriodos({ periods: [{ open: { day: 9, hour: 9 }, close: { day: 9, hour: 18 } }] }),
+    ).toBeNull()
+    expect(
+      parseSemanaDePeriodos({ periods: [{ open: { day: 1, hour: 30 }, close: { day: 1, hour: 31 } }] }),
+    ).toBeNull()
   })
 })
 

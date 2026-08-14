@@ -17,7 +17,7 @@ import type { DetailsResult, FotoCandidata } from '@/lib/google/places'
  */
 
 const DETALLE: GoogleEnriquecimiento = {
-  horarios: { abierto: true, semana: ['lunes: 9–18'] },
+  horarios: { abierto: true, semana: ['lunes: 9–18'], dias: null },
   formattedAddress: 'Av. Juan B. Justo 2959, Buenos Aires',
   rating: 4.3,
   userRatingCount: 128,

@@ -8,8 +8,12 @@ import { fotoPrincipal } from '@/lib/lugar/ficha'
 import {
   estaAbierto,
   lineasSemana,
+  partesEnAR,
+  proximaApertura,
+  textoProximaApertura,
   tieneAlgunHorario,
   type HorariosSemana,
+  type ProximaApertura,
 } from '@/lib/negocio/horarios'
 
 /**
@@ -33,6 +37,21 @@ type Estado = 'cargando' | 'ok' | 'vacio'
 /** Rating con coma decimal, como se escribe en español (4,3 y no 4.3). */
 function formatearRating(rating: number): string {
   return rating.toFixed(1).replace('.', ',')
+}
+
+/**
+ * El "ahora" **después de montar**, no en el render: el HTML del server y la
+ * hidratación ocurren en instantes distintos y un `new Date()` inline los
+ * desincroniza. `null` hasta que monta ⇒ lo que dependa de la hora no se pinta.
+ * Uno solo para toda la ficha: el estado abierto/cerrado, el "cuándo abre" y el
+ * día resaltado tienen que hablar del mismo momento.
+ */
+function useAhora(): Date | null {
+  const [ahora, setAhora] = React.useState<Date | null>(null)
+  React.useEffect(() => {
+    setAhora(new Date())
+  }, [])
+  return ahora
 }
 
 export function FichaGoogle({
@@ -149,6 +168,9 @@ function BloqueDatos({
   tienePrecioPropio: boolean
   horariosDueno: HorariosSemana | null
 }) {
+  // Antes de cualquier `return`: los hooks no pueden quedar detrás de una rama.
+  const ahora = useAhora()
+
   // El dueño le gana a Google. Sus horarios se muestran SIEMPRE, sin esperar ni
   // depender del enriquecimiento (que solo aporta el rating en ese caso).
   if (tieneAlgunHorario(horariosDueno)) {
@@ -158,6 +180,7 @@ function BloqueDatos({
         data={data}
         tienePrecioPropio={tienePrecioPropio}
         horarios={horariosDueno as HorariosSemana}
+        ahora={ahora}
       />
     )
   }
@@ -181,11 +204,29 @@ function BloqueDatos({
 
   const precioGoogle = !tienePrecioPropio ? data.priceLevel : null
 
+  // La semana estructurada, si Google mandó `periods` traducibles (PBETA-R1-07).
+  // Con ella la lista sale con el formato propio y el día de hoy marcado por
+  // índice; sin ella quedan las frases de Google, que no se parsean.
+  const dias = data.horarios?.dias ?? null
+  const abierto = data.horarios?.abierto ?? null
+
+  // El abierto/cerrado lo sigue diciendo Google (su `openNow` contempla feriados,
+  // el horario habitual no). El "cuándo abre" sale del habitual, así que solo se
+  // promete cuando los dos coinciden en que está cerrado: un feriado en el que
+  // Google dice "cerrado" y la semana habitual dice "abre a las 19" no se anuncia.
+  const proxima =
+    dias && ahora && abierto === false && !estaAbierto(dias, ahora)
+      ? proximaApertura(dias, ahora)
+      : null
+
   return (
     <section className="flex flex-col gap-2 text-sm">
       <LineaRating rating={data.rating} userRatingCount={data.userRatingCount} precio={precioGoogle} />
-      <EstadoAbierto abierto={data.horarios?.abierto ?? null} />
-      <SemanaAcordeon semana={data.horarios?.semana ?? []} />
+      <EstadoAbierto abierto={abierto} proxima={proxima} />
+      <SemanaAcordeon
+        semana={dias ? lineasSemana(dias) : (data.horarios?.semana ?? [])}
+        diaHoy={dias && ahora ? partesEnAR(ahora).dia : null}
+      />
       {/* Atribución (decisión 5): el logo de Google sobre los datos en vivo. */}
       <AtribucionGoogle texto="Horarios y calificación" />
     </section>
@@ -194,28 +235,29 @@ function BloqueDatos({
 
 /**
  * Bloque cuando el dueño cargó sus horarios (decisión 20). El estado abierto/
- * cerrado se calcula en TZ AR, y **después de montar** para no divergir entre el
- * HTML del server y la hidratación (el "ahora" es distinto en cada uno). La semana
- * es determinista y se puede pintar de una. Google, si respondió, solo suma rating.
+ * cerrado se calcula en TZ AR, con el "ahora" que baja ya montado (`useAhora`) para
+ * no divergir entre el HTML del server y la hidratación. La semana es determinista
+ * y se puede pintar de una. Google, si respondió, solo suma rating.
  */
 function DatosConHorariosDueno({
   estado,
   data,
   tienePrecioPropio,
   horarios,
+  ahora,
 }: {
   estado: Estado
   data: GoogleEnriquecimiento | null
   tienePrecioPropio: boolean
   horarios: HorariosSemana
+  /** El "ahora" ya montado, o `null` mientras no montó. Lo resuelve `BloqueDatos`. */
+  ahora: Date | null
 }) {
-  const [ahora, setAhora] = React.useState<Date | null>(null)
-  React.useEffect(() => {
-    setAhora(new Date())
-  }, [])
-
   const abierto = ahora ? estaAbierto(horarios, ahora) : null
   const semana = lineasSemana(horarios)
+  // Acá el abierto/cerrado y el "cuándo abre" salen de la MISMA semana, así que no
+  // pueden contradecirse: no hace falta el resguardo que sí necesita el de Google.
+  const proxima = ahora && abierto === false ? proximaApertura(horarios, ahora) : null
 
   const rating = estado === 'ok' && data ? data.rating : null
   const userRatingCount = estado === 'ok' && data ? data.userRatingCount : null
@@ -224,8 +266,8 @@ function DatosConHorariosDueno({
   return (
     <section className="flex flex-col gap-2 text-sm">
       <LineaRating rating={rating} userRatingCount={userRatingCount} precio={precioGoogle} />
-      <EstadoAbierto abierto={abierto} />
-      <SemanaAcordeon semana={semana} />
+      <EstadoAbierto abierto={abierto} proxima={proxima} />
+      <SemanaAcordeon semana={semana} diaHoy={ahora ? partesEnAR(ahora).dia : null} />
       {/* Los horarios son del local; Google, si aportó rating o precio, se atribuye. */}
       {(rating !== null || precioGoogle) && <AtribucionGoogle texto="Calificación" />}
     </section>
@@ -264,22 +306,41 @@ function LineaRating({
   )
 }
 
-/** Punto + "Abierto/Cerrado ahora". `null` (no se sabe todavía) ⇒ no se pinta. */
-function EstadoAbierto({ abierto }: { abierto: boolean | null }) {
+/**
+ * Punto + estado. Cerrado dice **cuándo abre** (PBETA-R1-07): «Cerrado · abre a
+ * las 19» es la única pregunta que importa cuando estás por salir, y obligaba a
+ * desplegar los 7 días. Sin próxima apertura conocida queda «Cerrado ahora».
+ * `abierto === null` (no se sabe todavía) ⇒ no se pinta.
+ */
+function EstadoAbierto({
+  abierto,
+  proxima,
+}: {
+  abierto: boolean | null
+  proxima: ProximaApertura | null
+}) {
   if (abierto === null) return null
+  const detalle = !abierto && proxima ? textoProximaApertura(proxima) : null
   return (
     <p className="flex items-center gap-2 text-foreground">
       <span
         aria-hidden
         className={abierto ? 'size-2 rounded-full bg-emerald-500' : 'size-2 rounded-full bg-muted-foreground'}
       />
-      {abierto ? 'Abierto ahora' : 'Cerrado ahora'}
+      {abierto ? 'Abierto ahora' : detalle ? `Cerrado · ${detalle}` : 'Cerrado ahora'}
     </p>
   )
 }
 
-/** Acordeón nativo con la semana (una línea por día). */
-function SemanaAcordeon({ semana }: { semana: string[] }) {
+/**
+ * Acordeón nativo con la semana (una línea por día), con **hoy resaltado**
+ * (PBETA-R1-07): siete líneas iguales obligan a acordarse de qué día es y buscar
+ * la fila a mano. `diaHoy` es el índice de `DIAS` —las líneas vienen en ese
+ * orden— o `null` cuando no se puede saber cuál es (todavía no montó, o son las
+ * frases de Google, que no se parsean). El peso no llega a un lector de pantalla:
+ * eso lo dice `aria-current`.
+ */
+function SemanaAcordeon({ semana, diaHoy }: { semana: string[]; diaHoy: number | null }) {
   if (semana.length === 0) return null
   return (
     <details className="group">
@@ -288,8 +349,14 @@ function SemanaAcordeon({ semana }: { semana: string[] }) {
         <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
       </summary>
       <ul className="mt-2 flex flex-col gap-1 text-muted-foreground">
-        {semana.map((linea) => (
-          <li key={linea}>{linea}</li>
+        {semana.map((linea, i) => (
+          <li
+            key={linea}
+            aria-current={i === diaHoy ? 'date' : undefined}
+            className={i === diaHoy ? 'font-medium text-foreground' : undefined}
+          >
+            {linea}
+          </li>
         ))}
       </ul>
     </details>

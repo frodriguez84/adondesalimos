@@ -60,13 +60,14 @@ function PlaceCard({
       )}
       {...props}
     >
-      {/* Fuera del `<Link>` a propósito (decisión 6). El `pr-12` de abajo le hace
-          lugar para que no se monte sobre el nombre ni sobre la distancia. */}
+      {/* Fuera del `<Link>` a propósito (decisión 6). El `pr-14` de abajo le hace
+          lugar para que no se monte sobre el nombre ni sobre la distancia: son los
+          8 px del `right-2` más los 44 del botón (PBETA-R1-08 lo subió de 36). */}
       {accion && <div className="absolute right-2 top-2 z-10">{accion}</div>}
 
       <Link
         href={`/lugar/${id}`}
-        className={cn('flex flex-col gap-2 p-4 outline-none', accion && 'pr-12')}
+        className={cn('flex flex-col gap-2 p-4 outline-none', accion && 'pr-14')}
       >
         {destacado && (
           <span className="inline-flex w-fit items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">

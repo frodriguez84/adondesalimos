@@ -151,7 +151,11 @@ export function BotonGuardar({
         aria-label={etiqueta}
         title={etiqueta}
         className={cn(
-          'inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
+          // 44 px, el piso de un toque (PBETA-R1-08). Sube en las cinco pantallas
+          // que usan este botón, no solo en la ficha: el listado es más denso en
+          // toques que ninguna. El círculo solo se ve al hover, así que lo único
+          // que cambia a la vista es el ícono corriéndose ~4 px hacia adentro.
+          'inline-flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
           guardado && 'text-primary hover:text-primary',
           className,
         )}

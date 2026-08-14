@@ -37,6 +37,25 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-14 · PBETA-R1-07 + R1-08 (cuándo abre, y los toques a 44) — Opus
+
+- **Qué salió bien:** **medir el radio antes de decidir convirtió las dos decisiones difíciles en
+  fáciles.** `Button` parecía app-wide y un `grep` mostró que lo usan 3 archivos y los 3 son la
+  ficha: la pregunta "¿subo el primitivo o parcheo la ficha?" se disolvió sola. Lo mismo del lado
+  del dato: el prompt ya traía verificado que `regularOpeningHours` estaba en el field mask, y al
+  abrir la respuesta apareció que trae **`periods`** además de las frases — o sea que el fix "caro"
+  era cálculo puro sobre algo ya pago. La pregunta a Fer quedó reducida a lo que de verdad era suyo
+  (¿Guardar sube en las 5 pantallas? ¿se nombra el día?), con el radio ya medido en cada opción.
+- **Qué frenó:** nada de método, y el único tropiezo fue mío: corrí `npm run typecheck` dando por
+  hecho que existía y volvió *Missing script*. **No lo nombra ningún doc** — el hook
+  (`.claude/hooks/pre-commit-gate.sh:45`) y `/check` siempre usaron `npx tsc --noEmit`; lo inventé
+  por costumbre de otros repos. Costo: un turno. Es el mismo patrón que el slug tipeado de la
+  sesión del 10: **en este repo los comandos se leen del `package.json`, no se recuerdan.**
+- **Qué cambiar:** nada. Lo que sí quedó anotado —y es del producto, no del método— es que traducir
+  los `periods` en vez de parsear las frases de Google **unificó sin querer** cómo se ve la semana
+  en las dos ramas de la ficha (dueño y Google). No estaba pedido; salió de negarse a escribir una
+  segunda regla horaria. Registrado en el BACKLOG para que no se lea como cambio arbitrario.
+
 ## 2026-08-10 · PBETA-R1-03 + R1-04 (buffer explicado y techo del scroll) — Opus
 
 - **Qué salió bien:** **decidir las tres cosas de producto antes de abrir un archivo hizo que el

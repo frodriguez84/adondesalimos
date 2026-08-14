@@ -4407,3 +4407,83 @@ pantalla, la conclusión habría sido «ya está arreglado» y el aviso no se es
 Palermo*): el último lugar que se ve en `/?z=palermo-soho` es de otra zona. Es el argumento a favor
 de la decisión 1 medido sin querer — la explicación tiene que estar arriba, porque abajo también hay
 cards del buffer.
+
+---
+
+## QA — PBETA-R1-07 y PBETA-R1-08 (2026-08-14)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck ✅ (`npx tsc --noEmit`; no hay script `typecheck` en
+`package.json`) · tests ✅ **762/762** (+21 nuevos: 10 en `lib/negocio/__tests__/horarios.test.ts`,
+11 en `lib/google/__tests__/places.test.ts`) · build ✅ con el dev server **parado** (puerto 5178
+verificado libre antes de correrlo)
+**Método:** QA en vivo con Playwright contra `https://adondesalimos.ngrok.app`, 390×844 y 360×844,
+midiendo el DOM. Los dos hallazgos venían de `PULIDO_BETA F1` y viven en la misma pantalla.
+**Reloj del QA:** viernes 2026-08-14, 14:20 AR — importa, porque el copy de R1-07 depende de la hora.
+
+**Costo de Google: cero adicional.** `regularOpeningHours` ya estaba en el field mask desde FICHA F2
+y trae `periods` **junto con** `weekdayDescriptions`: R1-07 es cálculo puro sobre datos que ya
+llegaban. El diff **no toca** `PLACE_DETAILS_FIELD_MASK` (verificado con `git diff | grep FIELD_MASK`
+= sin coincidencias) y sus dos tests de igualdad exacta siguen verdes.
+
+**Las dos decisiones tomadas con Fer antes de tocar código (2026-08-14):**
+
+| # | Decisión | Por qué |
+|---|----------|---------|
+| 1 | El botón Guardar sube a 44 px en **las cinco** pantallas, no solo en la ficha | El listado es más denso en toques que la ficha, así que es donde más duele un target de 36. Divergir exigía un prop `variante` = una segunda implementación de «cuánto mide un toque». Costo real: una clase + `pr-12`→`pr-14` en la card |
+| 2 | Cuando la próxima apertura no es hoy, **se nombra el día** («abre mañana a las 19» / «abre el jueves a las 19») | El caso más común de una app de salidas es mirar a las 23, cuando ya no abre más hoy. Limitarlo a «abre hoy a las X» dejaba sin respuesta justo ese momento |
+
+**Radio de explosión de R1-08, medido antes de tocar:** el primitivo `Button` lo usan **3 archivos y
+los 3 son la ficha** (`app/lugar/[id]/page.tsx`, `components/lugar/ficha-actions.tsx` y su propia
+definición); el resto de la app escribe sus clases a mano y ya usa `h-11` donde importa
+(`results-list.tsx`, `search-input.tsx`). Por eso subir `default` e `icon` de 40 a 44 **no se
+derrama** fuera de la ficha. `sm` (36) queda abajo a propósito: es para controles secundarios y hoy
+no lo usa nadie.
+
+### R1-07 — «Cerrado» ahora dice cuándo abre, y hoy se distingue
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| HOR-01 | Cerrado dice cuándo abre, hoy | ✅ PASS | `/lugar/59b44cb5…` (Congo Club Cultural), viernes 14:20 AR → «**Cerrado · abre a las 20**». Antes: «Cerrado ahora» y nada más. Coincide con su propia semana (`Viernes: 20:00–03:00`). Captura: `.playwright-mcp/pbeta-r1-07-cerrado-abre.png` |
+| HOR-02 | El día de hoy se distingue en la lista de los 7 | ✅ PASS | Congo, acordeón abierto: la fila `Viernes` sale en `fontWeight 500` y color `rgb(245,245,245)`; las otras 6 en `400` y `rgb(136,136,136)`. Los 7 días ya no son idénticos |
+| HOR-03 | El resaltado también le llega a un lector de pantalla | ✅ PASS | El `<li>` de hoy —y **solo** ese— lleva `aria-current="date"`. El peso tipográfico no viaja por accesibilidad; el atributo sí |
+| HOR-04 | Los `periods` de Google se traducen bien a la semana propia | ✅ PASS | Congo → `Miércoles: 19:00–02:00 · Jueves: 19:00–01:00 · Viernes: 20:00–03:00 · Sábado: 20:00–03:00 · Domingo: 19:00–01:00`, con lunes y martes «Cerrado». Los cruces de medianoche caen en el día que **abre**, no en el siguiente |
+| HOR-05 | No hay regresión en la rama «abierto» | ✅ PASS | `/lugar/4626624e…` (Mulata Café), misma hora → «**Abierto ahora**» a secas, sin cola. Su viernes también queda marcado (`aria-current="date"`, `08:30–20:00`) |
+| HOR-06 | El estado y la semana hablan del mismo instante | ✅ PASS | Un solo `useAhora()` en `BloqueDatos` baja a las dos ramas: el «abre a las 20», el punto de estado y el día resaltado salen del mismo `Date`, resuelto **después de montar** (si se calculara en el render, server e hidratación darían horas distintas) |
+| HOR-07 | El field mask no se tocó ni se agregó un SKU | ✅ PASS | `git diff lib/google/places.ts \| grep FIELD_MASK` → sin coincidencias. Los tests de igualdad exacta del mask (decisiones 7 y 11) siguen verdes |
+| HOR-08 | Nada de Google se persiste | ✅ PASS | El diff no toca schema, migraciones ni queries de escritura: `dias` viaja en el DTO de la respuesta y muere con el render, igual que el resto del bloque |
+| HOR-09 | Abre mañana → «abre mañana a las 9» | ⚠️ **Solo por test** | `horarios.test.ts` («el rango de hoy ya pasó: salta al día siguiente» + la frase exacta). **No verificado en pantalla**: exigiría un lugar que hoy ya no abra más, o mover el reloj. Mismo criterio y precedente que `AHORA-02`/`AHORA-03` |
+| HOR-10 | Abre en 2-6 días → «abre el jueves a las 19» | ⚠️ **Solo por test** | Ídem. El test cubre además que el día vaya **con acento y en minúscula** dentro de la oración («abre el miércoles a las 20») |
+| HOR-11 | No abre en la ventana de 7 días ⇒ no se inventa nada | ✅ PASS (test) | `proximaApertura` devuelve `null` cuando la próxima apertura cae recién dentro de 7 días (decir «abre el lunes» un lunes confunde) y la ficha queda en «Cerrado ahora», el copy viejo |
+| HOR-12 | Un lugar abierto 24 h no rompe ni miente | ✅ PASS (test) | Google manda esos `periods` **sin `close`**, que el modelo propio no representa: `parseSemanaDePeriodos` devuelve `null` para **toda** la semana y la ficha cae a las frases de Google, que ese caso sí lo dicen bien. Media semana traducida sería peor que ninguna |
+| HOR-13 | Un feriado no produce una promesa falsa | ✅ PASS (código) | El `openNow` de Google contempla feriados y la semana habitual no. Si se contradicen, no se promete hora: la frase solo sale si `abierto === false` **y** `estaAbierto(dias, ahora)` también dice cerrado. Un 1° de enero muestra «Cerrado ahora», no «abre a las 19» |
+| HOR-14 | La regla horaria no se duplicó | ✅ PASS | `proximaApertura`/`textoProximaApertura` viven en `lib/negocio/horarios.ts`, al lado de `partesEnAR` y `estaAbierto`. Google se **traduce** a `HorariosSemana` en vez de parsear sus frases localizadas: una sola regla, dos fuentes |
+
+### R1-08 — los toques llegan a 44 px
+
+| ID | Criterio | Resultado | Evidencia (`getBoundingClientRect`, 390×844) |
+|----|----------|-----------|---------------------------------------------|
+| TAP-01 | Guardar | ✅ PASS | **44×44** (era 36×36, el más chico de la ficha y la puerta de entrada de R3) |
+| TAP-02 | Volver | ✅ PASS | **44×44** (era 40×40) |
+| TAP-03 | Compartir | ✅ PASS | **44×44** (era 40×40) |
+| TAP-04 | Llamar | ✅ PASS | **44×44** (era 40×40) |
+| TAP-05 | Sitio web | ✅ PASS | **44×44** (era 40×40) |
+| TAP-06 | Cómo llegar | ✅ PASS | **239×44** (era 262×40). Se angostó porque ahora convive con dos botones de 44 en la barra fija; sigue siendo el más ancho y el `flex-1` lo resuelve solo |
+| TAP-07 | El botón más grande no tapa el nombre en la card | ✅ PASS | 80 cards de `/?z=palermo-soho` a **360 px**: el peor caso (*Taj Mahal Cocina de la India*, el nombre más largo) deja **29 px** de aire entre el título y el botón, y el título sigue en una sola línea (22 px de alto). El `pr-12` estaba calculado para 36 px; con 44 pasa a `pr-14` |
+| TAP-08 | Sin desborde horizontal | ✅ PASS | Ficha a 390: `scrollWidth` = `clientWidth` = 375. Listado a 360: 345 = 345 |
+| TAP-09 | El botón de la card no cambió de aspecto | ✅ PASS | El círculo solo se pinta al hover, así que lo único que se mueve a la vista es el ícono ~4 px hacia adentro. Las 80 cards miden 44×44 sin excepción |
+
+### Lo que el QA dejó a la vista (y no era el hallazgo)
+
+**El acordeón de la semana cambió de fuente sin cambiar de contenido.** Antes mostraba las frases
+que arma Google (`lunes: 19:00–2:00`); ahora, cuando los `periods` se pueden traducir, arma las
+líneas con `lineasSemana` — el **mismo** formato que ya usaban los horarios cargados por un dueño
+(`Viernes: 20:00–03:00`, con mayúscula y horas de dos dígitos). No estaba pedido en el hallazgo, pero
+era la condición para marcar hoy: sobre las frases de Google habría que adivinar qué línea es qué día
+parseando texto localizado. Efecto lateral bienvenido: las dos ramas de la ficha —dueño y Google— por
+fin se ven iguales.
+
+**Los dos casos de borde que no se pueden ver a las 14:20 son los mismos que ya tenían precedente.**
+`AHORA-02` y `AHORA-03` quedaron cubiertos por test y no verificados en pantalla por depender del
+reloj; `HOR-09` y `HOR-10` caen en la misma categoría, y se declaran igual en vez de darlos por
+vistos.
