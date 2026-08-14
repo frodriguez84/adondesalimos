@@ -5,8 +5,8 @@
 compartido y toca «Volver» se va de la app (ver Problema, hallazgo 3)
 **Gate:** Ninguno
 **Bloquea:** nada
-**Depende de:** [`BUSQUEDA`](../active/BUSQUEDA.md) (decisiones 12 y 29 — esta última se
-**enmienda** acá), [`FICHA`](../active/FICHA.md) (§ Diseño, botón Volver)
+**Depende de:** [`BUSQUEDA`](../done/BUSQUEDA.md) (decisiones 12 y 29 — esta última se
+**enmienda** acá), [`FICHA`](../done/FICHA.md) (§ Diseño, botón Volver)
 
 ---
 
