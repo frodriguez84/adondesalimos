@@ -1,6 +1,6 @@
 # Spec: HOME_ENTRADAS — que desde la home se pueda descubrir que la app hace algo más que buscar
 
-**Estado:** 🔵 Planned — en diseño
+**Estado:** ✅ Implementado (2026-08-14)
 **Prioridad:** Media — `PBETA-R1-05`, el hallazgo abierto más caro de los 33: la home es la
 pantalla más vista y hoy un usuario puede usar la app entera creyendo que es un buscador de bares.
 No es bloqueante porque nada está roto: está **escondido**.

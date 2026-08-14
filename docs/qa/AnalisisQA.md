@@ -4487,3 +4487,74 @@ fin se ven iguales.
 `AHORA-02` y `AHORA-03` quedaron cubiertos por test y no verificados en pantalla por depender del
 reloj; `HOR-09` y `HOR-10` caen en la misma categoría, y se declaran igual en vez de darlos por
 vistos.
+
+---
+
+## QA /qa-spec — HOME_ENTRADAS (2026-08-14)
+
+**Veredicto:** APROBADO
+**Verificación técnica:** typecheck limpio · tests **762/762** (67 archivos) · build **pendiente**
+(el dev server de Fer está levantado; `next build` comparte `.next` y rompe — lección BUSQUEDA. Se
+corre con el server parado antes del PR)
+**Método:** tres checkers independientes (Explore/haiku, maker≠checker) contra el DoD de
+`docs/specs/active/HOME_ENTRADAS.md` → **8/8 PASS**, más los 11 casos ENTR en vivo con Playwright
+sobre `https://adondesalimos.ngrok.app`, medidos a 390 y 360 px con `getBoundingClientRect()` y con
+las dos sesiones (anónima y con cuenta).
+
+**Lo que originó el spec quedó cerrado donde se veía.** La home sin sesión pasó de tener dos links
+—`/login` y `/legales`— a anunciar las dos features que la diferencian de un buscador, y el volcado
+de `a[href]` en la primera pantalla ahora trae `/votacion/nueva` y `/chat`. Con búsqueda activa la
+pantalla no cambió **ni un nodo**: el bloque nuevo vive adentro del `!tieneBusqueda(params)` que ya
+se colapsaba.
+
+### DoD — checkers independientes
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| HENT-QA-01 | En `/` sin sesión y sin búsqueda, el volcado de `a[href]` trae una entrada a la votación y una a `/chat`, además de `/legales` y del control de cuenta | PASS | `app/page.tsx:133-155`. En vivo, anónimo: `['/', '/votacion/nueva', '/chat', '/legales', '/legales']` + el `button[aria-haspopup=menu]` del header |
+| HENT-QA-02 | Las dos entradas viven dentro del bloque `!tieneBusqueda(params)`; con búsqueda activa no se renderizan y el DOM no cambia | PASS | `app/page.tsx:126` abre y `:158` cierra el condicional; el `<nav>` está en 132-157. En vivo `/?z=palermo-soho`: 0 nodos con `a[href="/chat"]`, 0 con `/votacion/nueva`, y el HTML tampoco contiene el copy. `components/search/search-shell.tsx` sin cambios (`git diff` vacío) |
+| HENT-QA-03 | Las dos entradas miden ≥ 44 px de alto a 390 px y a 360 px | PASS | `min-h-11` = 2,75rem = **44 px** (`app/page.tsx:135,147`). Medido con `getBoundingClientRect()`: a **390 px** → 56 y 44 · a **360 px** → 56 y 44. Gap entre las dos áreas = 0 px, sin solape (que era el bug que `R1-08`/`R2-05` cierran) |
+| HENT-QA-04 | `/votacion/nueva` sin sesión responde 200 con la landing, no un redirect, y tiene CTA a `/login?callbackUrl=/votacion/nueva` | PASS | Ya no queda ningún `redirect(...)` en la ruta (el import de `next/navigation` se fue, `app/votacion/nueva/page.tsx:1-3`); la landing es `:33-62` y el CTA `:48`. En vivo, anónimo: la URL final es `/votacion/nueva` (no `/login`), `h1` = «Dejá que elija el grupo», `a[href]` = `['/login?callbackUrl=/votacion/nueva', '/']`. **Ver observación abajo sobre el reuso** |
+| HENT-QA-05 | `/votacion/nueva` con sesión sigue igual; el gate «1 activa» sigue server-side en `crearVotacion` y la pantalla no lo pre-chequea | PASS | La pantalla solo pre-chequea `esPremium()` (`app/votacion/nueva/page.tsx:66`); el gate vive en `lib/votaciones/acciones.ts:84-101`, dentro de la transacción y con `FOR UPDATE` sobre la fila del usuario — sin cambios. En vivo, con sesión: `h1` = «Armar votación» y el formulario completo (shortlist 0/5, buscador, sugerencias, botón de IA) |
+| HENT-QA-06 | El header sin sesión muestra un control con `aria-haspopup="menu"` que abre *Armar votación · Chat IA · Ingresar* | PASS | `components/shared/account-menu.tsx:59` (`aria-haspopup`), `:68` (`role="menu"`), items en `:73,81,89`. Ya no existe el link suelto "Ingresar" en el header. En vivo, anónimo: control con `aria-label="Menú"`, `aria-expanded` pasa a `true` y abre los tres items, de 45/44/44 px |
+| HENT-QA-07 | Ningún string de la UI nueva está en español neutro (voseo) y ninguna línea se lee como nombre de sección | PASS | «Decidí sin dar mil vueltas» · «¿Van varios? **Armá** una votación y que elija el grupo» · «¿No **sabés** qué pinta? **Contale** a la IA» · «**Dejá** que elija el grupo» · «**Elegí** 2 a 5 lugares, **mandá** el link al grupo … para armarla sí **necesitás** una». Las dos líneas del hero abren con el motivo (`¿Van varios?` / `¿No sabés qué pinta?`) antes de la puerta, así que ninguna se lee como item de índice |
+| HENT-QA-08 | `npm run typecheck` y `npm test` en verde; `next build` con el dev server parado | PARCIAL | `npx tsc --noEmit` limpio · **762/762** tests. El build **queda pendiente**: el dev server está levantado y compartir `.next` lo rompe |
+
+### QA en vivo — los 11 casos del spec
+
+Playwright sobre `https://adondesalimos.ngrok.app`, catálogo real. Los casos anónimos se corrieron
+tras cerrar sesión de verdad (no con un flag), y `ENTR-06` incluye el login completo.
+
+| ID | Caso | Resultado | Qué se vio |
+|----|------|-----------|------------|
+| ENTR-01 | `/` sin sesión, 390×844 | ✅ PASS | Las dos líneas arrancan en `y=208` y terminan en `y=308`, contra un viewport de 844: entran en la primera pantalla con margen de sobra, sin scrollear |
+| ENTR-02 | `/` sin sesión → volcado de `a[href]` | ✅ PASS | `/votacion/nueva` y `/chat` presentes |
+| ENTR-03 | `/?z=palermo-soho` | ✅ PASS | 0 nodos de las dos entradas; el copy tampoco está en el HTML |
+| ENTR-04 | Toques a 390 y 360 px | ✅ PASS | **56** y **44** px en las dos anchuras. Sin solape |
+| ENTR-05 | Tocar «Armá una votación» sin sesión | ✅ PASS | Cae en la landing, **no** en `/login` pelado |
+| ENTR-06 | Landing → CTA ingresar | ✅ PASS | Va a `/login?callbackUrl=/votacion/nueva`; tras loguearse (`pepe@gmail.com`) vuelve a `/votacion/nueva` con el formulario armado |
+| ENTR-07 | Tocar «Contale a la IA» sin sesión | ✅ PASS | Llega a la landing de `/chat` que **ya existía** («Chat IA para salir»), no a una segunda |
+| ENTR-08 | `/votacion/nueva` con sesión | ✅ PASS | Pantalla idéntica a la de antes; el gate «1 activa» no se tocó (sigue en `crearVotacion`) |
+| ENTR-09 | Header sin sesión | ✅ PASS | ☰ abre *Ingresar · Armar votación · Chat IA* |
+| ENTR-10 | Header con sesión | ✅ PASS | Los 7 items de siempre + Salir, en el mismo orden, con la cabecera de nombre y mail |
+| ENTR-11 | Copy | ✅ PASS | Voseo en las cinco líneas nuevas; ninguna se lee como nombre de sección |
+
+### Lo que el QA dejó a la vista (y no era el hallazgo)
+
+**«Ingresar» va primero en el menú y resaltado, no último.** El DoD enumera los items como *Armar
+votación · Chat IA · Ingresar* y la decisión 6 dice que «Ingresar» **pasa a ser el primer item del
+menú, resaltado**. Se implementó según la decisión 6 —es la que explica la posición y la que paga el
+costo declarado de que ingresar deje de estar a un toque— y la enumeración del DoD se leyó como
+conjunto, no como orden. Los tres items están; el orden es el de la decisión.
+
+**La landing nueva reusa la forma de `/chat`, pero como markup repetido, no como componente.** El
+checker de `HENT-QA-04` lo marcó PARCIAL por eso. La decisión 4 pide «reusar **la forma** de
+`app/chat/page.tsx:37-52`» y eso es lo que hay: mismo `<main>`, misma jerarquía, mismas clases. No se
+extrajo un componente compartido porque hacerlo obliga a tocar `/chat`, que este spec declara fuera
+de scope, y la regla del proyecto para duplicación real es señalarla y unificarla **como paso
+aparte**, no de prepo en medio de otra tarea. Queda anotado en el BACKLOG.
+
+**El control ☰ mide 36×36, no 44.** Es deliberado: hereda el `size-9` del avatar con sesión, así el
+header tiene el mismo control en las dos ramas — que es justo lo que pide la decisión 6. Subirlo a 44
+es un cambio de los dos a la vez y cae en `PBETA-R2-05`, el pase de tamaños de toque, que sigue
+abierto con ID propio.

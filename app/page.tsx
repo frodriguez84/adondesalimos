@@ -115,13 +115,45 @@ export default async function Home({
 
       {/* Estado vacío = mini-landing: hero de marca (headline rotativo + frase de
           valor) que se colapsa apenas hay búsqueda. El hint funcional ("elegí
-          zona") lo da el propio SearchShell, no se duplica acá. */}
+          zona") lo da el propio SearchShell, no se duplica acá.
+
+          HOME_ENTRADAS (decisiones 1 a 3): las dos puertas que la home escondía
+          —votación y chat IA— viven **acá adentro**, así con búsqueda activa la
+          pantalla de trabajo no cambia ni un píxel. Son texto, no tarjetas, y
+          cada una ocupa un renglón entero porque es la forma de llegar a los
+          44 px de toque sin inventar un componente (decisión 3). Solo estas dos
+          (decisión 2): "Mis lugares" y "Registrá tu negocio" siguen en el menú. */}
       {!tieneBusqueda(params) && (
         <section className="flex flex-col gap-2 pt-2">
           <RotatingHeadline />
           <p className="text-base text-muted-foreground">
             Bares, restos, shows y birras cerca tuyo. Decidí sin dar mil vueltas.
           </p>
+          <nav className="mt-1 flex flex-col">
+            <Link
+              href="/votacion/nueva"
+              className="flex min-h-11 items-center justify-between gap-3 rounded-lg py-2 text-sm text-foreground transition-colors hover:text-primary"
+            >
+              <span>
+                <span className="text-muted-foreground">¿Van varios?</span> Armá una votación y que
+                elija el grupo
+              </span>
+              <span aria-hidden className="shrink-0 text-muted-foreground">
+                →
+              </span>
+            </Link>
+            <Link
+              href="/chat"
+              className="flex min-h-11 items-center justify-between gap-3 rounded-lg py-2 text-sm text-foreground transition-colors hover:text-primary"
+            >
+              <span>
+                <span className="text-muted-foreground">¿No sabés qué pinta?</span> Contale a la IA
+              </span>
+              <span aria-hidden className="shrink-0 text-muted-foreground">
+                →
+              </span>
+            </Link>
+          </nav>
         </section>
       )}
 

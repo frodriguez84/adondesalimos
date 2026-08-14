@@ -23,14 +23,13 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 |------|--------|--------|
 | [ABIERTO_AHORA](active/ABIERTO_AHORA.md) | Mini-spec — el chip «Para ahora»: filtra por la franja horaria actual (TZ AR) con los tags de Momento curados, y retira el tag `abierto-ahora` que miente. | **Parcial** — F1 ✅ 2026-07-30 · F2 (abierto **real** desde horarios de dueño) escrita y **gateada** en ≥ 50 lugares con horarios propios (hoy 1) |
 | [DEPLOY](active/DEPLOY.md) | Poner la app en `adondesalimos.com.ar` con Neon (São Paulo) + Vercel Hobby, **US$0/mes**, con el cobro apagado (Hobby prohíbe el uso comercial) y el premium anunciado como "en camino" midiendo interés. Incluye la migración de datos —catálogo, zonas y la curaduría que **no están en el seed**— y su punto de no retorno. 4 fases; F3 (encender el cobro + Pro) gateada por interés medido. | **Parcial** — § *El premium apagado* ✅ 2026-08-01 (primer tramo de código de F1) · F0, el resto de F1, F2 y F3 pendientes |
+| [HOME_ENTRADAS](active/HOME_ENTRADAS.md) | Mini-spec — `PBETA-R1-05`: que desde la home se descubra que hay votaciones y chat IA. Dos líneas de texto en el hero del estado vacío (el bloque que ya se colapsa al buscar), landing sin login para `/votacion/nueva` con el patrón de `/chat`, y el menú de cuenta abierto también para anónimos. | 🟢 En implementación — decisiones cerradas con Fer el 2026-08-14 |
 
 ## 🔵 Planned (`planned/`)
 
-| Spec | Qué es | Estado |
-|------|--------|--------|
-| [HOME_ENTRADAS](planned/HOME_ENTRADAS.md) | Mini-spec — `PBETA-R1-05`: que desde la home se descubra que hay votaciones y chat IA. Dos líneas de texto en el hero del estado vacío (el bloque que ya se colapsa al buscar), landing sin login para `/votacion/nueva` con el patrón de `/chat`, y el menú de cuenta abierto también para anónimos. | 🔵 Planned — decisiones cerradas con Fer el 2026-08-14, sin código |
+_Vacío: no hay ningún spec escrito esperando implementación._
 
-_(El resto de la carpeta son stubs de redirect de specs ya movidos: la cola de v2 está completa,
+_(La carpeta solo tiene stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1 y CURADURIA_POR_NOMBRE se escribió e
 implementó el 2026-08-08, sin escala en `active/`.)_
 

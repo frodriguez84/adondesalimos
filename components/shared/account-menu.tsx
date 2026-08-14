@@ -2,14 +2,21 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Sparkles } from 'lucide-react'
+import { Menu, Sparkles } from 'lucide-react'
 import { signOut } from '@/lib/auth/client'
 
 type Props = { user: { name: string | null; email: string } | null }
 
 /**
- * Entrada de cuenta del header de la home (spec AUTH F1). Sin sesión: link a
- * ingresar. Con sesión: menú con las rutas del usuario.
+ * Entrada de cuenta del header de la home (spec AUTH F1). Con sesión: menú con
+ * las rutas del usuario.
+ *
+ * HOME_ENTRADAS (decisiones 5 y 6): **sin sesión el menú también se abre**, con
+ * los items públicos. El control del header deja de ser el link "Ingresar" y
+ * pasa a ser ☰ — no conviven los dos: en 390 px el header ya lleva el wordmark
+ * y con sesión el patrón ya es *un solo control a la derecha*. El costo está
+ * aceptado y declarado en el spec (ingresar deja de estar a un toque), y se
+ * mitiga poniendo "Ingresar" **primero y resaltado** en el menú.
  *
  * F2 suma "Registrá tu negocio": es la única puerta al alta de un lugar nuevo
  * (el botón de la ficha solo cubre reclamar lo que ya existe). F3 suma "Mi
@@ -45,12 +52,50 @@ export function AccountMenu({ user }: Props) {
 
   if (!user) {
     return (
-      <Link
-        href="/login"
-        className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-      >
-        Ingresar
-      </Link>
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Menú"
+          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <Menu className="size-5" />
+        </button>
+        {open && (
+          <div
+            role="menu"
+            className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+          >
+            <Link
+              href="/login"
+              role="menuitem"
+              className="block border-b border-border px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-secondary"
+              onClick={() => setOpen(false)}
+            >
+              Ingresar
+            </Link>
+            <Link
+              href="/votacion/nueva"
+              role="menuitem"
+              className="block px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+              onClick={() => setOpen(false)}
+            >
+              Armar votación
+            </Link>
+            <Link
+              href="/chat"
+              role="menuitem"
+              className="flex items-center gap-1.5 px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+              onClick={() => setOpen(false)}
+            >
+              <Sparkles className="size-4 text-primary" />
+              Chat IA
+            </Link>
+          </div>
+        )}
+      </div>
     )
   }
 
