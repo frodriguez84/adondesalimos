@@ -4493,9 +4493,8 @@ vistos.
 ## QA /qa-spec — HOME_ENTRADAS (2026-08-14)
 
 **Veredicto:** APROBADO
-**Verificación técnica:** typecheck limpio · tests **762/762** (67 archivos) · build **pendiente**
-(el dev server de Fer está levantado; `next build` comparte `.next` y rompe — lección BUSQUEDA. Se
-corre con el server parado antes del PR)
+**Verificación técnica:** typecheck limpio · tests **762/762** (67 archivos) · build **verde**
+(corrido con el dev server parado, lección BUSQUEDA)
 **Método:** tres checkers independientes (Explore/haiku, maker≠checker) contra el DoD de
 `docs/specs/active/HOME_ENTRADAS.md` → **8/8 PASS**, más los 11 casos ENTR en vivo con Playwright
 sobre `https://adondesalimos.ngrok.app`, medidos a 390 y 360 px con `getBoundingClientRect()` y con
@@ -4518,7 +4517,7 @@ se colapsaba.
 | HENT-QA-05 | `/votacion/nueva` con sesión sigue igual; el gate «1 activa» sigue server-side en `crearVotacion` y la pantalla no lo pre-chequea | PASS | La pantalla solo pre-chequea `esPremium()` (`app/votacion/nueva/page.tsx:66`); el gate vive en `lib/votaciones/acciones.ts:84-101`, dentro de la transacción y con `FOR UPDATE` sobre la fila del usuario — sin cambios. En vivo, con sesión: `h1` = «Armar votación» y el formulario completo (shortlist 0/5, buscador, sugerencias, botón de IA) |
 | HENT-QA-06 | El header sin sesión muestra un control con `aria-haspopup="menu"` que abre *Armar votación · Chat IA · Ingresar* | PASS | `components/shared/account-menu.tsx:59` (`aria-haspopup`), `:68` (`role="menu"`), items en `:73,81,89`. Ya no existe el link suelto "Ingresar" en el header. En vivo, anónimo: control con `aria-label="Menú"`, `aria-expanded` pasa a `true` y abre los tres items, de 45/44/44 px |
 | HENT-QA-07 | Ningún string de la UI nueva está en español neutro (voseo) y ninguna línea se lee como nombre de sección | PASS | «Decidí sin dar mil vueltas» · «¿Van varios? **Armá** una votación y que elija el grupo» · «¿No **sabés** qué pinta? **Contale** a la IA» · «**Dejá** que elija el grupo» · «**Elegí** 2 a 5 lugares, **mandá** el link al grupo … para armarla sí **necesitás** una». Las dos líneas del hero abren con el motivo (`¿Van varios?` / `¿No sabés qué pinta?`) antes de la puerta, así que ninguna se lee como item de índice |
-| HENT-QA-08 | `npm run typecheck` y `npm test` en verde; `next build` con el dev server parado | PARCIAL | `npx tsc --noEmit` limpio · **762/762** tests. El build **queda pendiente**: el dev server está levantado y compartir `.next` lo rompe |
+| HENT-QA-08 | `npm run typecheck` y `npm test` en verde; `next build` con el dev server parado | PASS | `npx tsc --noEmit` limpio · **762/762** tests · `npm run build` **verde** con el server parado (`✓ Compiled successfully in 6.4s`, 14/14 páginas estáticas, exit 0). `/votacion/nueva` sigue listada como `ƒ` (dynamic), que es lo que corresponde con su `force-dynamic` — la landing nueva no la volvió estática |
 
 ### QA en vivo — los 11 casos del spec
 

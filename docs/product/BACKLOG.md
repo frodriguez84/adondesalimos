@@ -1262,7 +1262,7 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       y una card no — 200 cards son ~26.000 px, el mismo problema dividido por 1,4. El número es
       puerta de ida y vuelta (`TECHO_CARDS` en `results-list.tsx`): se mueve cuando haya uso real.
 - [x] **PBETA-R1-05** (MOLESTO) — la home tiene 2 links (`/login`, `/legales`): nada anuncia votaciones ni chat.
-      ✅ **Hecho el 2026-08-14** con [`HOME_ENTRADAS`](../specs/active/HOME_ENTRADAS.md) (QA
+      ✅ **Hecho el 2026-08-14** con [`HOME_ENTRADAS`](../specs/done/HOME_ENTRADAS.md) ([resumen](../archive/SPECS_ARCHIVO.md#home_entradas), QA
       `HENT-QA-01..08` + `ENTR-01..11`, todos PASS). El hero del estado vacío suma dos líneas que son
       link entero —«¿Van varios? Armá una votación y que elija el grupo» y «¿No sabés qué pinta?
       Contale a la IA»—, de **56 y 44 px** de toque medidos a 390 y a 360; `/votacion/nueva` sin
@@ -1270,7 +1270,7 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       sesión pasó de un link «Ingresar» a un **☰** que abre *Ingresar · Armar votación · Chat IA*.
       Con búsqueda activa la pantalla **no cambió ni un nodo**: todo lo nuevo vive adentro del
       `!tieneBusqueda(params)` que ya se colapsaba.
-      📄 **Especeado el 2026-08-14**: [`HOME_ENTRADAS`](../specs/active/HOME_ENTRADAS.md) (4 decisiones
+      📄 **Especeado el 2026-08-14**: [`HOME_ENTRADAS`](../specs/done/HOME_ENTRADAS.md) (4 decisiones
       cerradas con Fer). Al leer el código el hallazgo se achicó: no falta
       navegación, falta **anuncio para el anónimo** — con sesión las 7 rutas ya están en el
       `AccountMenu`, y `/chat` ya recibe anónimos con landing propia. Solo `/votacion/nueva` redirige.
@@ -1282,7 +1282,8 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       con emoji + `h1` + párrafo + CTA + «← Volver», con las mismas clases. Es lo que la decisión 4
       pedía —«reusar **la forma**»— pero repetido, no compartido: si mañana cambia el alto del CTA o
       el `max-w`, hay que acordarse de los dos. Unificar en un componente (`<LandingSinSesion>`)
-      obliga a tocar `/chat`, que HOME_ENTRADAS declara fuera de scope, así que va como paso aparte.
+      obliga a tocar `/chat`, que [`HOME_ENTRADAS`](../specs/done/HOME_ENTRADAS.md) declara fuera de
+      scope, así que va como paso aparte.
       **No es urgente:** son 25 líneas de layout, no una regla de negocio duplicada.
 - [x] **PBETA-R1-06** (MOLESTO) — el mapa ocupa el 67% del viewport y el bloque de búsqueda no colapsa en modo mapa. ✅ **Hecho el 2026-08-08** con [`MAPA`](../specs/done/MAPA.md) ([resumen](../archive/SPECS_ARCHIVO.md#mapa)), junto con `FB-04` (mismo archivo, misma pantalla). Medido en vivo antes y después a 390×844: **67% → 100%** y `document.body.scrollHeight` 1.127 → **844 = `innerHeight`**. El bloque de búsqueda pasó de 332 a 188 px (el buscador se esconde y los chips van de 3 filas a 1 que scrollea, 124 → 42 px). En 390×667 el mapa entra entero pero la página gana 60 px de scroll por el piso `min-h-80`: degradación declarada en la decisión 9.
 - [x] **PBETA-R1-07** (MOLESTO) — «Cerrado ahora» no dice cuándo abre, y en la lista de horarios el día de hoy no se distingue.
@@ -2264,6 +2265,31 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`HOME_ENTRADAS` — la home dice que además de buscar se puede votar y preguntarle a la IA**
+      (`PBETA-R1-05`, 2026-08-14, sesión Opus). Spec
+      [`docs/specs/done/HOME_ENTRADAS.md`](../specs/done/HOME_ENTRADAS.md) ·
+      [resumen](../archive/SPECS_ARCHIVO.md#home_entradas) · QA
+      [`AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — HOME_ENTRADAS*, **APROBADO**
+      (`HENT-QA-01..08` con tres checkers independientes + `ENTR-01..11` en vivo) · typecheck ·
+      **762/762** tests · build verde con el server parado · revisión de seguridad sin hallazgos.
+      **Lo que vale más que el diff:**
+      1. **Leer el código achicó el hallazgo y lo hizo implementable.** El título decía «la home
+         tiene 2 links» y sonaba a que faltaba navegación. No faltaba: con sesión las 7 rutas ya
+         estaban en el `AccountMenu` y `/chat` ya recibía anónimos. Lo que faltaba era **anuncio
+         para el anónimo**, y el único que redirigía era `/votacion/nueva`. El pedido original
+         además venía atado a `R2-03` —que **ya se había arreglado en F3**—: cerrar eso antes de
+         empezar evitó reimplementar algo que estaba hecho.
+      2. **El costo de una feature se paga donde la pantalla se usa, no donde se anuncia.** Todo lo
+         nuevo entró al bloque que ya se colapsaba al buscar, así que en el 90% del uso —buscando—
+         la home **no cambió ni un nodo**. Eso es lo que dejó descartar la tab bar sin discutir:
+         56 px en *todas* las pantallas para algo que le habla a la primera visita.
+      3. **Sacar un `redirect()` obliga a ir a mirar el boundary de verdad.** El redirect era UX y
+         nunca fue control de acceso, pero eso hay que **confirmarlo**, no suponerlo: el 401 de
+         `app/api/votaciones/route.ts` y el gate «1 activa» de `crearVotacion` siguen intactos, y
+         la revisión de seguridad lo verificó explícitamente.
+      **Lo que quedó abierto:** la landing nueva y la de `/chat` son el mismo markup repetido (no
+      compartido) — anotado arriba como ítem propio, porque unificarlo obliga a tocar `/chat`.
 
 - [x] **`PBETA-R1-07` y `PBETA-R1-08` — la ficha dice cuándo abre, y los toques llegan a 44**
       (2026-08-14, sesión Opus; sin spec, como `R1-03`/`R1-04`). QA

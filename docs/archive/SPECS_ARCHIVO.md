@@ -1107,3 +1107,56 @@ destacados pagos, que son una query aparte · descartó la «riqueza de perfil»
 **contraproducente**: 88,8 % de las cadenas tienen website contra 44,1 % de los únicos.
 
 **Efecto medido:** 29 de las 46 zonas cambiaron de #1 y ninguna perdió un lugar.
+
+---
+
+## HOME_ENTRADAS — que la home diga que además de buscar se puede votar y preguntarle a la IA (PBETA-R1-05) {#home_entradas}
+
+**Spec:** [`docs/specs/done/HOME_ENTRADAS.md`](../specs/done/HOME_ENTRADAS.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — HOME_ENTRADAS](../qa/AnalisisQA.md) · ✅ 2026-08-14
+
+**Qué hace:** la home sin sesión tenía **dos** links —`/login` y `/legales`—, así que se podía usar
+la app entera creyendo que era un buscador de bares: nada anunciaba las votaciones ni el chat IA.
+Ahora el hero del estado vacío suma dos renglones que son link entero, «¿Van varios? **Armá una
+votación** y que elija el grupo» y «¿No sabés qué pinta? **Contale a la IA**». Al leer el código el
+hallazgo se achicó y se volvió más preciso: **no faltaba navegación, faltaba anuncio para el
+anónimo** — con sesión las 7 rutas ya vivían en el `AccountMenu`.
+
+**Alcance:**
+
+- **Todo lo nuevo vive adentro del bloque `!tieneBusqueda(params)`** (decisión 1), el mismo que ya
+  se colapsaba al buscar. Por eso el costo en la pantalla de trabajo es **cero**: con una búsqueda
+  activa la home no cambia **ni un nodo**, verificado en vivo (0 elementos y el copy tampoco está en
+  el HTML). Descartadas las tarjetas bajo el buscador (empujan la búsqueda abajo del pliegue en
+  390 px) y la tab bar (56 px en **todas** las pantallas, y pelea con el mapa a pantalla completa
+  que MAPA se acababa de ganar).
+- **Cada puerta es un renglón entero y el renglón entero es el link** (decisión 3). No es estética:
+  es la forma de llegar a **44 px** de toque sin inventar un componente. Dos links inline en un
+  párrafo que se parte a 360 px terminan apilados y con las áreas de toque **solapadas**, que es el
+  bug que `R1-08` y `R2-05` vienen a cerrar. Medido con `getBoundingClientRect()`: **56 y 44 px** a
+  390 y a 360, con 0 px de solape.
+- **Se anuncian dos y solo dos** (decisión 2). *Mis lugares* sin sesión y sin nada guardado lleva a
+  una pantalla vacía —es una feature de vuelta, no de primera visita— y *Registrá tu negocio* le
+  habla a otro rol: en el hero es ruido para el 99%. Las dos siguen en el menú.
+- **`/votacion/nueva` sin sesión dejó de redirigir a `/login`** y muestra una landing con la forma de
+  la de `/chat` (decisión 4): anunciar algo y que la puerta sea un formulario de login sin contexto
+  es peor que no anunciarlo, y CHAT_IA (decisión 20) ya había justificado el patrón. **El redirect
+  era UX, nunca el boundary**: el gate real sigue intacto en `app/api/votaciones/route.ts` (401
+  antes de parsear el body) y en `crearVotacion` (el gate «1 activa» dentro de la transacción, con
+  `FOR UPDATE`). La revisión de seguridad lo confirmó — cero hallazgos.
+- **El menú de cuenta se abre también sin sesión** y el control del header pasa de «Ingresar» a un
+  **☰** (decisiones 5 y 6), con *Ingresar* primero y resaltado. No conviven los dos controles: en
+  390 px el header ya lleva el wordmark y con sesión el patrón ya era *un solo control a la derecha*.
+  **Costo declarado y aceptado:** ingresar deja de estar a un toque — se acepta porque buscar, la
+  ficha y votar no piden cuenta, y las dos pantallas que sí la piden traen su propio CTA. Las rutas
+  privadas (`/mis-votaciones`, `/mis-lugares`, `/mi-negocio`, `/cuenta`) **no** aparecen en la rama
+  anónima.
+- **De paso cerró el segundo agujero del hallazgo**, el que el título no nombraba: con sesión las 7
+  rutas vivían detrás de una inicial redonda que no se lee como menú.
+
+**Lo que quedó anotado y no se hizo acá:** la landing nueva y la de `/chat` son el **mismo markup
+repetido**, no compartido. Es lo que pedía la decisión 4 —«reusar **la forma**»— pero unificarlas en
+un `<LandingSinSesion>` obliga a tocar `/chat`, que este spec declara fuera de scope: va al BACKLOG
+como paso aparte, según la regla de duplicación de CLAUDE.md. Son 25 líneas de layout, no una regla
+de negocio duplicada. Y el control ☰ mide 36×36 a propósito —hereda el `size-9` del avatar con
+sesión, para que el header tenga el mismo control en las dos ramas—: subirlo a 44 es `PBETA-R2-05`.

@@ -5,6 +5,43 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un DoD que enumera no ordena, y el checker no puede saber cuál de las dos leíste (2026-08-14 · HOME_ENTRADAS)
+
+**Qué pasó.** El spec decía dos cosas sobre el mismo menú, en dos secciones distintas:
+
+- **Decisión 6** (normativa): «"Ingresar" pasa a ser el **primer** item del menú, resaltado» — con su
+  motivo, que es pagar el costo declarado de que ingresar deje de estar a un toque.
+- **DoD**: «un control de menú … que abre *Armar votación · Chat IA · Ingresar*».
+
+Las dos son verdad y no dicen lo mismo: una fija la posición, la otra enumera el conjunto. Se
+implementó según la decisión 6, que es la que trae el porqué. El checker independiente no tenía
+forma de saberlo — le tocó verificar contra una enumeración que podía leer como orden.
+
+Pasó lo mismo con el copy: el DoD decía «voseo en **las tres líneas**» pensando en las tres del
+hero, pero la implementación agregó **cinco** strings (el hero más la landing nueva). El checker lo
+leyó como «toda línea nueva debe llevar una forma de voseo» y marcó FAIL en un `h1` que no era
+español neutro —«Que elija el grupo» no tiene segunda persona en absoluto, así que no puede ser
+tuteo—. El hallazgo era discutible; el arreglo costaba una palabra, así que se hizo («Dejá que elija
+el grupo») en vez de discutirlo. **La discusión hubiera costado más que el fix.**
+
+**Por qué importa.** Un DoD se escribe para que otro —un checker que no estuvo en la conversación—
+pueda decir PASS/FAIL sin interpretar. Cuando una decisión fija algo que el DoD después enumera de
+otra forma, el criterio deja de ser verificable y el resultado depende de cuál de los dos leyó
+primero quien verifica. No es un problema del checker: es ambigüedad en el árbitro.
+
+**Qué hacer distinto.**
+
+1. **Si el orden importa, el DoD lo dice con la palabra «en este orden».** Si no importa, decir «los
+   tres items, en cualquier orden». Una lista separada por `·` no comunica ninguna de las dos.
+2. **Contar los ítems del DoD contra lo que la implementación realmente agrega.** «Las tres líneas»
+   envejece mal apenas el spec suma una pantalla; «ningún string nuevo de la UI» no.
+3. **Cuando un checker marca FAIL sobre una lectura estricta y el arreglo es barato y reversible,
+   arreglar y seguir.** El copy es puerta de ida y vuelta (decisión 7 del propio spec): defender la
+   redacción original hubiera costado más turnos que cambiar una palabra. Guardar el desacuerdo para
+   donde revertir sea caro.
+
+---
+
 ## Deployar un feature de datos es dos deploys, y el segundo no lo hace Vercel (2026-08-10 · ORDEN_ORGANICO en producción)
 
 **Qué pasó.** El push a `main` deployó el código nuevo, y hasta ahí todo bien. Pero al ir a
