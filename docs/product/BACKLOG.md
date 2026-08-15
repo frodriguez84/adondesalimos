@@ -208,6 +208,27 @@ son trabajo acotado con criterio de "listo" objetivo.
         (`premium_interest` de DEPLOY, 20 votaciones del historial), y las de `premium_interest`
         **disparan el gatillo de prender el cobro**. **F0 no arranca hasta que el bloque F cierre
         en verde.** El plan deja 4 decisiones abiertas para Fer (§ 12).
+- [ ] **`TITULARIDAD` — cómo sé que el dueño de X es realmente el dueño de X.** Planteado por Fer el
+      2026-08-14; **la conversación queda pendiente a propósito**, esto es solo el ancla para que no
+      se pierda. **Dónde estamos hoy:** el reclamo pide nombre, teléfono y rol
+      (`applicantName` / `applicantPhone` / `applicantRole` + comentario libre, `lib/claims/validacion.ts`)
+      y **la única verificación es que Fer lo lee a mano**, una por una — no hay ninguna prueba
+      documental, ni un canal que confirme el vínculo con el local. Es decir: hoy el control es
+      *«suena razonable»*, y eso alcanzó porque los reclamos son poquísimos y los mira una persona
+      que conoce el rubro.
+      **Por qué importa antes de crecer:** aprobar un reclamo entrega el contenido de la ficha
+      (nombre, descripción, fotos, horarios) y, con `owner_plan='paid'`, los campos pagos. Un
+      reclamo falso aprobado deja a un tercero **editando el negocio de otro** y, del otro lado, a un
+      dueño real sin poder recuperarlo. Es **puerta de ida en reputación** aunque en la base sea
+      reversible (revocar **oculta**, no borra — `AUTH` F3).
+      **Qué habría que decidir cuando lo hablemos** (no está decidido nada): qué prueba se pide y de
+      qué tipo —documental (constancia de AFIP/monotributo, habilitación municipal), de control del
+      canal (mail con el dominio del negocio, llamada al teléfono **que ya está publicado** en el
+      catálogo de Overture, código por WhatsApp al número del local), o presencial—; si la exigencia
+      **escala con lo que se desbloquea** (gratis vs. plan pago vs. B2B); qué se hace con los
+      **conflictos** (dos reclamos del mismo lugar) y con la **transferencia** cuando el local cambia
+      de manos; y qué queda registrado como evidencia de la decisión. Ojo con el costo del lado del
+      dueño: cada prueba que se pide es fricción en el lado que ya es escaso.
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
       al Tipo**.
