@@ -37,6 +37,19 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-16 · PBETA-R3-04..07 (guardo un lugar) — Opus
+
+- **Qué salió bien:** los dos hallazgos que chocaban con una decisión escrita en el código se
+  llevaron a triaje **antes** de tocar nada, con el texto de esa decisión delante. Los dos se
+  resolvieron leyendo el motivo entero en vez de la conclusión: el «no hay toasts» era contra el
+  inline en una card, y el «la URL no, que un tercero te guarda un lugar» lo tapa pedir un toque.
+  Ninguno de los dos hacía falta revertirlo de prepo.
+- **Qué frenó:** parchear `window.fetch` para espiar el alta sin crearla **no funciona con
+  better-auth** (usa su propia referencia de fetch): el sign-up salió de verdad y hubo que borrar la
+  cuenta. La evidencia buena estaba a un paso — el body del request en la red — y era más simple.
+- **Qué cambiar:** nada del método. La lección es de herramienta y ya quedó anotada acá: para ver
+  qué manda un cliente que usa su propio fetch, mirar la **red**, no parchear `window.fetch`.
+
 ## 2026-08-14 · NAV-01 → spec NAVEGACION (diseño, sin código) — Opus
 
 - **Qué salió bien:** **medir antes de proponer dio vuelta el diagnóstico y encontró un bug que

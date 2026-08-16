@@ -32,6 +32,11 @@ function LoginForm() {
   // PBETA-R3-01: el que llega acá desde "Guardar" no pidió iniciar sesión, así
   // que la pantalla tiene que decirle por qué está parado en un formulario.
   const vinoAGuardar = searchParams.get('motivo') === 'guardar'
+  // PBETA-R3-07: el que no tiene cuenta se va a `/registro`, y hasta acá el link
+  // iba pelado — el registro perdía a dónde volver y por qué el usuario llegó.
+  const registro = vinoAGuardar
+    ? `/registro?callbackUrl=${encodeURIComponent(callbackUrl)}&motivo=guardar`
+    : `/registro?callbackUrl=${encodeURIComponent(callbackUrl)}`
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
@@ -121,7 +126,7 @@ function LoginForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         ¿No tenés cuenta?{' '}
-        <Link href="/registro" className="text-primary transition-colors hover:text-primary/80">
+        <Link href={registro} className="text-primary transition-colors hover:text-primary/80">
           Registrate
         </Link>
       </p>

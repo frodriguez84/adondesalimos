@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signUp } from '@/lib/auth/client'
 import { authErrorMessage } from '@/lib/auth/errorMessages'
 import { PasswordInput } from '@/components/ui/password-input'
+import { destinoConPendiente, leerPendiente } from '@/lib/favoritos/pendiente'
 
 const schema = z
   .object({
@@ -24,6 +26,17 @@ const schema = z
 type FormData = z.infer<typeof schema>
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  )
+}
+
+function RegisterForm() {
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/'
+  const vinoAGuardar = searchParams.get('motivo') === 'guardar'
   const [sent, setSent] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -36,8 +49,19 @@ export default function RegisterPage() {
   async function onSubmit(data: FormData) {
     setServerError(null)
     let result
+    // PBETA-R3-07: en un alta nueva la vuelta es por el link del mail, que suele
+    // abrir otra pestaña — y ahí el pendiente de `sessionStorage` no existe. Se lo
+    // cuelga al `callbackURL` que better-auth pone en ese link, que es lo único de
+    // esta cadena que cruza de pestaña. Sin pendiente, el destino no cambia.
+    const pendiente = vinoAGuardar ? leerPendiente() : null
+    const callbackURL = pendiente ? destinoConPendiente(callbackUrl, pendiente) : callbackUrl
     try {
-      result = await signUp.email({ email: data.email, password: data.password, name: data.name })
+      result = await signUp.email({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        callbackURL,
+      })
     } catch {
       setServerError('No pudimos conectarnos. Revisá tu conexión y probá de nuevo.')
       return

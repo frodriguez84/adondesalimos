@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm'
-import { db } from '@/lib/db'
+import { db, type DbOrTx } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placeImpressionsDaily, placeTags, placeZones, places, tags, zones } from '@/lib/db/schema'
 import { publishedWhere } from '@/lib/db/visibility'
@@ -555,12 +555,19 @@ export async function buscarDestacados(params: SearchParams): Promise<SearchedPl
   }))
 }
 
-/** Los tags de la página en una query, no una por card. */
-async function tagsDeLugares(ids: string[]) {
+/**
+ * Los tags de la página en una query, no una por card.
+ *
+ * **Exportada** (`PBETA-R3-06`): `/mis-lugares` dibuja las mismas cards y necesita
+ * los mismos tags. Se comparte esta lectura en vez de clonarla en favoritos — el
+ * motor de búsqueda sigue sin saber nada de guardados, que es lo que el spec de
+ * FAVORITOS prometió no tocar.
+ */
+export async function tagsDeLugares(ids: string[], database: DbOrTx = db) {
   const mapa = new Map<string, SearchedPlace['tags']>()
   if (ids.length === 0) return mapa
 
-  const filas = await db
+  const filas = await database
     .select({
       placeId: placeTags.placeId,
       slug: tags.slug,

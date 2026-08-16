@@ -9,7 +9,7 @@ import { BotonGuardar } from '@/components/favoritos/boton-guardar'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { PlaceCard } from '@/components/shared/place-card'
 import type { ListaConLugares, LugarDeLista } from '@/lib/favoritos/query'
-import { ubicacionDeCard } from '@/lib/search/card'
+import { tagsDestacados, ubicacionDeCard } from '@/lib/search/card'
 
 /**
  * `/mis-lugares` del lado del cliente (FAVORITOS F2).
@@ -101,7 +101,7 @@ export function MisLugares({
       ) : (
         <div className="flex flex-col gap-6">
           {listas.map((lista) => (
-            <Lista key={lista.id} lista={lista} />
+            <Lista key={lista.id} lista={lista} unicaLista={listas.length === 1} />
           ))}
         </div>
       )}
@@ -116,7 +116,7 @@ export function MisLugares({
   )
 }
 
-function Lista({ lista }: { lista: ListaConLugares }) {
+function Lista({ lista, unicaLista }: { lista: ListaConLugares; unicaLista: boolean }) {
   const router = useRouter()
   const [renombrando, setRenombrando] = React.useState(false)
   const [borrando, setBorrando] = React.useState(false)
@@ -145,12 +145,22 @@ function Lista({ lista }: { lista: ListaConLugares }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate text-base font-semibold text-foreground">
-          {lista.name}
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            {lista.lugares.length}
-          </span>
-        </h2>
+        {/* `PBETA-R3-05`: la lista por defecto se llama igual que la página, así
+            que su encabezado repetía «Mis lugares» tres líneas abajo del H1 y se
+            leía como un error de render. Con varias listas el nombre vuelve: ahí
+            distingue una de otra, que es para lo que está. */}
+        {unicaLista && lista.isDefault ? (
+          <p className="text-sm text-muted-foreground">
+            {lista.lugares.length} {lista.lugares.length === 1 ? 'lugar' : 'lugares'}
+          </p>
+        ) : (
+          <h2 className="min-w-0 truncate text-base font-semibold text-foreground">
+            {lista.name}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              {lista.lugares.length}
+            </span>
+          </h2>
+        )}
 
         {/* La default no se renombra ni se borra (decisión 15). El server lo
             valida igual: esconder los botones es cosmética. */}
@@ -280,7 +290,15 @@ function ItemGuardado({ lugar, listId }: { lugar: LugarDeLista; listId: string }
   }
 
   return (
-    <PlaceCard id={lugar.placeId} name={lugar.name} location={ubicacion} accion={accion} />
+    <PlaceCard
+      id={lugar.placeId}
+      name={lugar.name}
+      // `PBETA-R3-06`: la misma card del listado, con los mismos tags y por la
+      // misma regla — sin esto, lo guardado se veía más pobre que lo encontrado.
+      tags={tagsDestacados(lugar.tags)}
+      location={ubicacion}
+      accion={accion}
+    />
   )
 }
 

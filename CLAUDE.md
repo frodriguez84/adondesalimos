@@ -293,6 +293,14 @@ Cicatrices reales — gotchas que sorprenden:
   depurando paginación, el cursor está bien. El cierre de «100 de 1.094» y el de «Eso es todo lo que
   tenemos por acá» son **dos bloques distintos** — el segundo es el final de verdad y solo sale con
   la lista agotada antes del techo.
+- **La app tiene UN solo aviso flotante y es el de guardar** (`components/ui/aviso.tsx`,
+  `PBETA-R3-04`). El resto del feedback sigue siendo **inline**: la regla vieja —*«no hay toasts en
+  el proyecto»*— se **enmendó por un motivo acotado** (guardar es la única acción cuyo resultado
+  vive en otra pantalla), no se derogó. Antes de sumar un toast, leé el comentario de ese archivo.
+  Y ojo con el pendiente de guardado: tiene **dos fuentes y no se tratan igual** —`sessionStorage`
+  guarda solo (lo dejó un toque real en esta pestaña); `?guardar=<id>`, que llega del link del mail
+  de verificación, **pide un toque** antes de escribir. Esa asimetría es lo que evita que un link
+  ajeno guarde en la lista de otro; el dueño de las dos es `lib/favoritos/pendiente.ts`.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o

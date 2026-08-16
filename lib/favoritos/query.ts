@@ -3,6 +3,8 @@ import { db, type DbOrTx } from '@/lib/db'
 import { placeListItems, placeZones, places, zones, type PlaceList } from '@/lib/db/schema'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { isPlacePublished } from '@/lib/db/visibility'
+import { tagsDeLugares } from '@/lib/search/query'
+import type { SearchedPlace } from '@/lib/search/query'
 import { listasVisibles } from './planes'
 
 /**
@@ -100,6 +102,13 @@ export type LugarDeLista = {
   zone: string | null
   locality: string | null
   /**
+   * Los mismos tags que muestra el listado (`PBETA-R3-06`): lo guardado se veía
+   * más pobre que lo encontrado, y los tags son los que te recuerdan **por qué**
+   * lo guardaste. Cuáles se dibujan lo decide `tagsDestacados`, como en todas las
+   * cards; acá vienen todos.
+   */
+  tags: SearchedPlace['tags']
+  /**
    * `false` = el lugar se despublicó después de guardarlo (decisión 11). **Sigue
    * en la lista**: se muestra atenuado y sin link, porque la ficha le daría 404.
    */
@@ -154,6 +163,12 @@ export async function listasDelUsuario(
     getConfidenceThreshold(),
   ])
 
+  // Los tags de todo lo guardado en una query, como hace el motor con su página.
+  const tagsPorLugar = await tagsDeLugares(
+    [...new Set(filas.map((f) => f.placeId))],
+    database,
+  )
+
   const porLista = new Map<string, LugarDeLista[]>()
   for (const f of filas) {
     const actual = porLista.get(f.listId) ?? []
@@ -162,6 +177,7 @@ export async function listasDelUsuario(
       name: f.name,
       zone: f.zone,
       locality: f.locality,
+      tags: tagsPorLugar.get(f.placeId) ?? [],
       publicado: isPlacePublished(f, threshold),
     })
     porLista.set(f.listId, actual)

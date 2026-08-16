@@ -1378,21 +1378,49 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 - [x] **PBETA-R2-13** (COSMÉTICO) — el H1 no se actualiza cuando alguien suma un lugar (se corrige al recargar). ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)), **sin código propio**: se disolvió con `R2-04`. El H1 ya no se compone con la lista de lugares, así que no tiene con qué desactualizarse. Verificado en vivo igual (`INV-14`).
 
 **R3 · Guardar**
-- [ ] **PBETA-R3-04** (MOLESTO) — guardar no dice dónde quedó ni cómo volver a encontrarlo (no hay toast ni link a `/mis-lugares`).
-- [ ] **PBETA-R3-05** (COSMÉTICO) — en `/mis-lugares` el título aparece dos veces (la lista default se llama igual que la página).
-- [ ] **PBETA-R3-06** (COSMÉTICO) — la card de un lugar guardado pierde los tags que sí muestra en el listado.
-- [ ] **PBETA-R3-07** (MOLESTO propuesto — **hallazgo nuevo del alta end-to-end, F4, sin triar por
-      Fer todavía**) — en un **alta nueva** el guardado pendiente se pierde si el link del mail abre
-      otra pestaña. El pendiente vive en `sessionStorage`, que es **por pestaña**: en la misma
-      funciona (medido: la fila de `place_list_items` entra en el mismo segundo de la verificación),
-      pero el cliente de correo casi siempre abre otra pestaña/app/navegador y ahí arranca vacío —
-      aterrizás logueado en la home, sin el lugar y sin explicación.
-      **El arreglo obvio no sirve:** `localStorage` cruzaría pestañas del mismo navegador pero no el
+- [x] **PBETA-R3-04** (MOLESTO) — guardar no dice dónde quedó ni cómo volver a encontrarlo (no hay
+      toast ni link a `/mis-lugares`). ✅ **Hecho 2026-08-16**: aviso «Guardado en Mis lugares · Ver»
+      al pie, con link a la pantalla donde quedó. **Estrena un patrón que el código decía no tener**
+      (`boton-guardar.tsx`: *«no hay toasts en el proyecto»*) y por eso el motivo vive escrito en
+      `components/ui/aviso.tsx`: el argumento original era *«en una card no hay dónde ponerlo»*, o
+      sea contra el inline, y guardar es la única acción de la app cuyo **resultado vive en otra
+      pantalla**. Un aviso a la vez, dueño único, sin apilado. Medido en vivo a 390×844: 343×58 en
+      `y=770`, dentro del viewport, «Ver» y «Cerrar» a **44 px** (subir el ancho de «Ver» de 39 a 44
+      salió del propio QA en vivo, criterio de `PBETA-R1-08`).
+- [x] **PBETA-R3-05** (COSMÉTICO) — en `/mis-lugares` el título aparece dos veces (la lista default
+      se llama igual que la página). ✅ **Hecho 2026-08-16**: con **una sola lista** y default, el
+      encabezado de la lista pasa a ser el conteo («1 lugar») y el nombre desaparece. Con varias
+      listas el nombre **vuelve**: ahí distingue una de otra, que es para lo que está. Verificado en
+      vivo: un solo `h1`, cero `h2`.
+- [x] **PBETA-R3-06** (COSMÉTICO) — la card de un lugar guardado pierde los tags que sí muestra en
+      el listado. ✅ **Hecho 2026-08-16**: `listasDelUsuario` trae los tags y la card los dibuja con
+      `tagsDestacados`, **la misma regla del listado**. La lectura no se clonó: se **exportó**
+      `tagsDeLugares` del motor (`lib/search/query.ts`) con `DbOrTx` opcional — el motor sigue sin
+      saber nada de guardados, que es lo que prometió el spec de FAVORITOS. Verificado en vivo: «70
+      30 Bar» muestra `Bar` · `Música en vivo` en las dos pantallas.
+- [x] **PBETA-R3-07** (MOLESTO — **hallazgo nuevo del alta end-to-end, F4**) — en un **alta nueva**
+      el guardado pendiente se pierde si el link del mail abre otra pestaña. El pendiente vive en
+      `sessionStorage`, que es **por pestaña**: en la misma funciona (medido: la fila de
+      `place_list_items` entra en el mismo segundo de la verificación), pero el cliente de correo
+      casi siempre abre otra pestaña/app/navegador y ahí arranca vacío — aterrizás logueado en la
+      home, sin el lugar y sin explicación.
+      **El arreglo obvio no servía:** `localStorage` cruzaría pestañas del mismo navegador pero no el
       webview del mail, y rompe la razón de elegir `sessionStorage` (que el pendiente muera con la
-      pestaña en vez de quedar colgado). Es una decisión de diseño, no un typo.
-      **De paso, contribuye:** «Registrate» en `/login` va a `/registro` pelado, sin arrastrar
-      `callbackUrl` ni `motivo`. Evidencia y las dos ramas medidas: `docs/qa/AnalisisQA.md` §
-      *PULIDO_BETA F4*.
+      pestaña en vez de quedar colgado). Era una decisión de diseño, no un typo.
+      ✅ **Hecho 2026-08-16, decidido por Fer**: el pendiente viaja **en el link del mail** —el
+      registro con `motivo=guardar` le cuelga `?guardar=<id>` al `callbackURL` que better-auth pone
+      en el mail—, así cruza pestaña, app y hasta navegador. **Enmienda a `lib/favoritos/pendiente.ts`**
+      (que había descartado la URL a propósito) y el porqué queda anotado ahí, con su límite: al
+      aterrizar con ese parámetro **no se guarda nada solo**, se pide **un toque**. Ese toque es lo
+      que sigue cubriendo el vector original —un link ajeno no le escribe la lista a nadie— y de paso
+      el parámetro se saca de la URL apenas se lee, así ni un refresh ni un link compartido lo
+      repiten. **Se arregló también lo que contribuía:** «Registrate» en `/login` ya arrastra
+      `callbackUrl` y `motivo`.
+      Verificado en vivo a 390×844, cada efecto por su consecuencia: aterrizaje en
+      `/?z=palermo-soho&guardar=<id>` ⇒ URL limpia (`/?z=palermo-soho`), aviso «Te faltaba guardar un
+      lugar · Guardar» y la card **todavía sin guardar**; con el toque, la fila entra en
+      `place_list_items` (confirmada en la base) y el marcador se pinta. Y el `callbackURL` que sale
+      del alta se leyó del **request real**: `{"callbackURL":"/?z=palermo-soho&guardar=b994632e-…"}`.
 
 **R4 · Armar una votación**
 - [x] **PBETA-R4-02** (MOLESTO) — nada empuja a ponerle título, y sin título el invitado ve el H1 feo de R2-04. La falla se origina acá y se paga allá. ✅ **Hecho 2026-08-14** con `INVITACION` ([resumen](../archive/SPECS_ARCHIVO.md#invitacion)): «Ponele un título» + «Es lo primero que ve el grupo cuando abre el link», y **sigue siendo opcional** — el creador es el lado escaso del loop viral y no se le traba la pantalla para arreglar la de enfrente. El fallback del H1 se arregló igual y aparte: las votaciones ya creadas sin título existen y ningún nudge las alcanza.
@@ -2431,6 +2459,35 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`R3` — guardo un lugar, el recorrido donde la app pide algo por primera vez** (los 4
+      hallazgos abiertos del bloque R3 de `PULIDO_BETA`: `PBETA-R3-04..07`; 2026-08-16, sesión Opus).
+      **Fix directo con IDs, sin spec**, igual que R4 y R6 — pero con una diferencia: **dos de los
+      cuatro chocaban contra una decisión escrita en el código**, así que se triaron con Fer antes de
+      tocar una línea, no después. Verificado **en vivo a 390×844** con `element.click()` y cada
+      efecto por su consecuencia (URL, request real, fila en la base) · typecheck · **777/777** tests
+      (4 nuevos, `lib/favoritos/__tests__/pendiente.test.ts`). **Lo que vale más que el diff:**
+      1. **Un comentario que dice «esto no se hace» no siempre dice por qué no.** `boton-guardar.tsx`
+         cerraba el tema con *«no hay toasts en el proyecto: el criterio vigente es feedback inline, y
+         en una card no hay dónde ponerlo»*. Leído entero, el motivo era contra el **inline en una
+         card**, no contra el aviso — y guardar es la única acción de la app cuyo resultado **vive en
+         otra pantalla**. El patrón se estrenó con el porqué escrito en `components/ui/aviso.tsx`,
+         incluida la parte que lo limita: no es permiso para llenar la app de toasts.
+      2. **Al vector que temía la decisión original no lo tapó un candado: lo tapó pedir un toque.**
+         `pendiente.ts` había descartado la URL para que *«un link de un tercero no pueda guardarle un
+         lugar a nadie»*, y el mail —única forma de cruzar de pestaña— obligaba a usarla igual. En vez
+         de firmar el parámetro o resignar el arreglo, el aterrizaje con `?guardar=<id>` **no escribe
+         nada**: propone. Con intención explícita el link ajeno deja de ser un problema, y la pieza que
+         lo propone es la misma que ya hacía falta para `R3-04`.
+      3. **El cosmético volvió a ser el que tenía la deuda adentro** (como `R6-05`). `R3-06` entró como
+         «la card guardada se ve más pobre» y lo que pedía era una segunda copia de la lectura de tags.
+         Se **exportó** `tagsDeLugares` del motor con `DbOrTx` opcional en vez de clonarla: `/mis-lugares`
+         dibuja las mismas cards con la misma regla, y el motor sigue sin saber que existen los guardados.
+      4. **La verificación falló donde no la esperaba y eso también es dato**: parchear `window.fetch`
+         para espiar el alta **no intercepta a better-auth** (usa su propia referencia), así que el
+         sign-up salió de verdad y creó una cuenta. Se leyó el body por la red —que era la evidencia
+         buena— y se borró la cuenta. **La base quedó como estaba**: usuario de prueba eliminado y los
+         2 guardados del recorrido sacados (Pepe vuelve a 0), verificado por conteo.
 
 - [x] **`R6` — soy dueño, el recorrido del que va a pagar** (los 5 hallazgos del bloque R6 de
       `PULIDO_BETA`: `PBETA-R6-01..05`; 2026-08-15, sesión Opus). **Fix directo con IDs, sin spec**,

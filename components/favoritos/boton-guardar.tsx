@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Bookmark } from 'lucide-react'
 
 import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { useAviso } from '@/components/ui/aviso'
 import { dejarPendiente } from '@/lib/favoritos/pendiente'
 import type { ListaDestino } from '@/lib/favoritos/query'
 import { cn } from '@/lib/utils'
@@ -20,8 +21,10 @@ import { cn } from '@/lib/utils'
  * basura el único momento en que un consumidor tiene motivo para registrarse.
  *
  * **Estado optimista**: el ícono cambia en el tap y se revierte si el server dice
- * que no. El revert *es* el feedback (no hay toasts en el proyecto: el criterio
- * vigente es feedback inline, y en una card no hay dónde ponerlo).
+ * que no. El revert *es* el feedback de que algo salió mal; el de que salió bien
+ * es el aviso flotante (`PBETA-R3-04`), porque lo guardado vive en otra pantalla
+ * y el ícono naranja no dice cuál. El porqué de estrenar ese patrón —y por qué no
+ * se extiende al resto de la app— está en `components/ui/aviso.tsx`.
  *
  * **Sheet de destino (F2, decisión 8)**: con más de una lista visible, el tap abre
  * el sheet en vez de guardar derecho. Con una sola —el caso de todo usuario free—
@@ -63,6 +66,7 @@ export function BotonGuardar({
   className,
 }: Props) {
   const router = useRouter()
+  const mostrarAviso = useAviso()
   const [guardado, setGuardado] = React.useState(guardadoInicial)
   const [enVuelo, setEnVuelo] = React.useState(false)
   const [sheetAbierto, setSheetAbierto] = React.useState(false)
@@ -87,14 +91,25 @@ export function BotonGuardar({
         })
         // Revertir es el feedback: si el botón vuelve solo, no se guardó.
         if (!res.ok) setGuardado(!siguiente)
-        else onCambio?.()
+        else {
+          onCambio?.()
+          // Solo al guardar: sacar no manda a ningún lado, así que no hay
+          // adónde ofrecer ir (`PBETA-R3-04`).
+          if (siguiente) {
+            const lista = listas.find((l) => l.id === (destino ?? listId))
+            mostrarAviso({
+              texto: `Guardado en ${lista?.name ?? 'Mis lugares'}`,
+              accion: { texto: 'Ver', href: '/mis-lugares' },
+            })
+          }
+        }
       } catch {
         setGuardado(!siguiente)
       } finally {
         setEnVuelo(false)
       }
     },
-    [enVuelo, listId, onCambio, placeId],
+    [enVuelo, listId, listas, mostrarAviso, onCambio, placeId],
   )
 
   // Con más de una lista hay que elegir destino (decisión 8). No aplica cuando el
