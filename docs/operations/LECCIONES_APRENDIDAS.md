@@ -5,6 +5,32 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Verificar un formulario en vivo lo guarda, y lo guardado pisa el dato de QA (2026-08-15 · R6)
+
+**Qué pasó.** Para verificar la barra fija de guardar (`PBETA-R6-03`) había que tocar un campo y
+apretar «Guardar cambios». Se tocó el teléfono de *Kansas Grill & Bar* —el único lugar con dueño
+aprobado de la base de dev— con un valor de prueba, y el `PATCH` hizo exactamente lo que tiene que
+hacer: escribió `place_owner_content.phone`. El dato original (`11 4776 4100`) no estaba anotado en
+ningún lado; se recuperó del dump del 2026-08-10, que por suerte existía.
+
+Ojo con el otro tramo: el mismo `PATCH` manda **todo** el formulario, así que un guardado de prueba
+también reescribe tags y horarios. Ahí no hubo pérdida porque el estado del cliente venía cargado de
+la base, pero si la verificación hubiera tocado un tag el resultado sería el mismo y menos visible.
+
+**Qué se hizo.** Se restauró el valor previo desde el backup y se contrastaron las tags contra el
+dump (5 `owner`, iguales). El reclamo `pending` que hacía falta sembrar sí se anotó desde el
+principio, con su ID, para poder borrarlo — la escritura *planeada* estuvo cuidada; la que se coló
+fue la del gesto de verificar.
+
+**Qué hacer distinto.** Antes de apretar «Guardar» en un QA en vivo, **leer y anotar el valor que se
+va a pisar** (un `select` de una línea), igual que ya se anota lo que se siembra. La regla mental que
+faltaba: en una pantalla de edición, *verificar* y *escribir* son el mismo gesto — no hay modo
+lectura. Vale para todo lo que la base tenga y el seed no regenere (misma familia que la curaduría y
+que el test de cupo que borra `ai_api_usage` del mes real). Y si el gesto es inevitable, que el valor
+de prueba sea el valor real de vuelta: se puede tipear el original en vez de uno inventado.
+
+---
+
 ## «Una regla, un dueño» no dice que la regla devuelva siempre lo mismo (2026-08-14 · R4)
 
 **Qué pasó.** `INV-B`: la misma votación se llamaba distinto en dos pantallas. Al invitado sin

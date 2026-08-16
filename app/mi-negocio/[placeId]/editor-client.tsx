@@ -46,6 +46,12 @@ type Estado = {
 /** Rango por defecto al agregar uno: una franja de tarde/noche razonable. */
 const RANGO_NUEVO: RangoHorario = { abre: '18:00', cierra: '23:00' }
 
+/** El botón de guardar vive fuera del `<form>` (ver la barra fija): lo ata esto. */
+const FORM_ID = 'editor-negocio'
+
+/** Cuánto queda el «Listo» antes de devolverle el pie de la pantalla al dueño. */
+const MS_AVISO_OK = 4000
+
 export function EditorClient({ lugar }: { lugar: PanelLugar }) {
   const pago = lugar.plan === 'paid'
 
@@ -65,10 +71,13 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
   const [error, setError] = useState<string | null>(null)
   const [guardado, setGuardado] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  /** Hay algo sin guardar: es lo que hace aparecer la barra fija. */
+  const [sucio, setSucio] = useState(false)
 
   const set = (cambio: Partial<Estado>) => {
     setDatos((d) => ({ ...d, ...cambio }))
     setGuardado(false)
+    setSucio(true)
   }
 
   function alternarTag(slug: string) {
@@ -79,6 +88,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
       return proximo
     })
     setGuardado(false)
+    setSucio(true)
   }
 
   function setSocial(i: number, valor: string) {
@@ -129,6 +139,10 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
         return
       }
       setGuardado(true)
+      setSucio(false)
+      // El aviso vive en la barra fija: si se quedara, taparía el pie de la
+      // pantalla hasta la próxima edición.
+      window.setTimeout(() => setGuardado(false), MS_AVISO_OK)
     } catch {
       setError('No pudimos conectarnos. Revisá tu conexión y probá de nuevo.')
     } finally {
@@ -138,7 +152,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <form onSubmit={guardar} className="flex flex-col gap-6">
+      <form id={FORM_ID} onSubmit={guardar} className="flex flex-col gap-6">
         {/* --- Contacto: pisa lo de Overture, sin tocar sus columnas (dec. 13) --- */}
         <Seccion titulo="Datos de contacto">
           <Campo
@@ -288,12 +302,6 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           </Campo>
         </Seccion>
 
-        {error && <Aviso tipo="error">{error}</Aviso>}
-        {guardado && <Aviso tipo="ok">Listo, guardamos los cambios.</Aviso>}
-
-        <button type="submit" disabled={guardando} className={btnClass}>
-          {guardando ? 'Guardando…' : 'Guardar cambios'}
-        </button>
       </form>
 
       {/* Ubicación aparte: no se guarda, se **propone** (CORRECCION_DATOS, dec. 11). */}
@@ -306,6 +314,36 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
         cap={lugar.capFotos}
         plan={lugar.plan}
       />
+
+      {/* PBETA-R6-03 — el único «Guardar cambios» estaba al final del formulario,
+          medido a 390×844 en y = 2.536 de una página de 3.174: cambiar el teléfono
+          obligaba a scrollear cinco secciones para poder guardar. Y como abajo
+          seguían «Dónde estás» y «Fotos», el botón parecía cerrar la pantalla y
+          esos dos bloques quedaban «afuera» de lo que se guarda.
+
+          Ahora el botón no está en el medio de nada: aparece pegado al pie **solo
+          cuando hay algo sin guardar** (mismo criterio que PBETA-R4-04 — una barra
+          fija con un botón que no hace nada es alto ocupado para nada). Vive fuera
+          del `<form>`, atado con `form={FORM_ID}`, para que siga pegado también
+          mientras se scrollean ubicación y fotos, que son hermanos del formulario.
+          El `-mx-4` cancela el padding del `main`. */}
+      {(sucio || guardando || guardado) && (
+        <div className="sticky bottom-0 -mx-4 flex flex-col gap-2 border-t border-border bg-background px-4 pb-4 pt-3">
+          {error && <Aviso tipo="error">{error}</Aviso>}
+          {guardado && !sucio ? (
+            <Aviso tipo="ok">Listo, guardamos los cambios.</Aviso>
+          ) : (
+            <button
+              type="submit"
+              form={FORM_ID}
+              disabled={guardando}
+              className={`w-full ${btnClass}`}
+            >
+              {guardando ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -565,7 +603,10 @@ function Ubicacion({ lugar }: { lugar: PanelLugar }) {
   }
 
   return (
-    <Seccion titulo="Dónde estás" bajada="Lo que ve todo el mundo: tu dirección y tu punto en el mapa.">
+    <Seccion
+      titulo="Dónde estás"
+      bajada="Lo que ve todo el mundo: tu dirección y tu punto en el mapa. Va aparte: esto se propone y lo revisamos, no entra en «Guardar cambios»."
+    >
       <p className="text-sm text-foreground">
         {[lugar.address, lugar.locality].filter(Boolean).join(', ') || 'Sin dirección cargada'}
       </p>

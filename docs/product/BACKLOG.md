@@ -1461,6 +1461,10 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       estaba en `INV-A` (que contó los de `/votacion/[token]`, otra pantalla) ni en R4, y ampliar el
       alcance en silencio es justo lo que este bloque evitó dos veces. Faltaría medir en la misma
       pasada «Ver», «Compartir», «Volver» y el «Ver más» del historial.
+      **Medido de paso el 2026-08-15** (durante R6, sin tocar nada): en el listado, **«Armar
+      votación» = 36** px y **«← Volver» = 20** px; las filas de votación dan 58 y están bien. O sea
+      que el ítem ya no es solo el botón de la confirmación: son **tres** toques cortos en la misma
+      pantalla. Sigue sin arreglarse a propósito — el fix es de `R4-C`, no de R6.
 
 **R5 · Chat + premium apagado**
 - [ ] **PBETA-R5-01 (causa raíz)** — **el síntoma está tapado, el diagnóstico no se hizo.** Las 4 sugerencias ya no caen sobre tags flacos, pero sigue sin saberse **por qué** el motor devolvió Palermo Soho para «una birra con amigos por Villa Crespo» y afirmó que el barrio no tiene carga (tiene 207 lugares con `bar`). Los tool-inputs no se persisten: se diagnostica con `npm run eval:chat`, **que cuesta tokens reales de Sonnet**. Decisión de Fer del 2026-08-03: primero el síntoma, la causa cuando se justifique el gasto.
@@ -1469,11 +1473,59 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 - [ ] **PBETA-R5-05** (MOLESTO) — con el cobro apagado, «Contenido destacado» sigue diciendo «Activá el plan acá arriba», donde ya no hay nada que activar. **Es el hermano de R5-04**, que sí se arregló: mismo patrón (copy escrito para el mundo con cobro prendido), pero acá el dueño ya está adentro del panel y no se pierde.
 
 **R6 · Soy dueño**
-- [ ] **PBETA-R6-01** (MOLESTO) — un reclamo enviado es invisible: `/mi-negocio` dice «Todavía no tenés lugares» e invita a mandarlo otra vez.
-- [ ] **PBETA-R6-02** (MOLESTO) — el panel de un lugar con reclamo pendiente da 404. **Mejoró solo** con el `app/not-found.tsx` de R2-01 (ya no es la pantalla cruda de Next); lo que falta es el mensaje bueno («en revisión»).
-- [ ] **PBETA-R6-03** (MOLESTO) — el panel del dueño mide 2.941 px, «Guardar cambios» no queda fijo y las fotos van **debajo** del botón.
-- [ ] **PBETA-R6-04** (MOLESTO) — «¿No está en la lista? Registralo vos» usa el lenguaje visual de los estados vacíos y se lee como cartel, no como botón.
-- [ ] **PBETA-R6-05** (COSMÉTICO) — el buscador de negocios trae ruido (5 de 8 resultados ajenos) y corta las direcciones, que es el dato que distingue dos locales del mismo nombre.
+- [x] **PBETA-R6-01** (MOLESTO) — un reclamo enviado es invisible: `/mi-negocio` dice «Todavía no tenés lugares» e invita a mandarlo otra vez.
+      ✅ **Hecho 2026-08-15**: `/mi-negocio` abre con las solicitudes `pending` del usuario — el
+      lugar, dónde queda, un badge que dice **qué** mandó («Reclamo» / «Alta») y el cierre que
+      faltaba: *«Las miramos a mano, una por una. Te avisamos por mail cuando estén resueltas — no
+      hace falta que las mandes de nuevo»*. El estado vacío que invitaba a mandarla de nuevo quedó
+      **solo para el que no mandó nada**. La lectura nueva es `solicitudesPendientesDelUsuario`
+      (`lib/claims/query.ts`), la contracara de `placeIdsDelUsuario`: **ser dueño sigue siendo un
+      claim aprobado** y ese dueño único no se tocó — lo que no existía era quién leyera lo
+      pendiente.
+- [x] **PBETA-R6-02** (MOLESTO) — el panel de un lugar con reclamo pendiente da 404. **Mejoró solo** con el `app/not-found.tsx` de R2-01 (ya no es la pantalla cruda de Next); lo que falta es el mensaje bueno («en revisión»).
+      ✅ **Hecho 2026-08-15**: `/mi-negocio/[placeId]` con una solicitud **propia** en revisión sobre
+      ese lugar deja de responder 404 y muestra *«Tu solicitud está en revisión»*, con el nombre del
+      lugar y qué va a poder editar cuando se apruebe. **El 404 de un lugar ajeno no se movió** —es
+      el criterio de F2: la ruta no existe para quien no es el dueño— y se verificó en vivo, hugo
+      sobre el panel de Kansas sigue dando **404**. La puerta la abre un `pending` de **ese** usuario
+      sobre **ese** lugar, o sea algo que él ya sabe porque lo mandó: no filtra nada. Y sigue sin
+      poder editar: hasta que el claim no esté aprobado no hay panel.
+- [x] **PBETA-R6-03** (MOLESTO) — el panel del dueño mide 2.941 px, «Guardar cambios» no queda fijo y las fotos van **debajo** del botón.
+      ✅ **Hecho 2026-08-15**, y **medido antes de tocar** justamente para decidir si era fix o
+      rediseño: hoy la página da **3.174 px**, no 2.941 — los 233 px de diferencia son la sección
+      «Dónde estás» que sumó `CORRECCION_DATOS` después del QA. El botón estaba en y = **2.536** con
+      **638 px** de contenido debajo. **Salió como reordenar, no como rediseñar**: no se plegó ni se
+      reagrupó ninguna sección, se movió una pieza. El botón deja el medio del formulario y aparece
+      **pegado al pie solo cuando hay algo sin guardar** (mismo criterio que `PBETA-R4-04`: una barra
+      fija con un botón que no hace nada es alto ocupado para nada), atado con `form={FORM_ID}` para
+      seguir pegado también mientras se scrollean ubicación y fotos, que son **hermanas** del
+      `<form>` y con un `sticky` adentro lo habrían perdido. Medido en vivo a 390×844: sin cambios no
+      hay barra; tocando el teléfono arriba de todo, «Guardar cambios» queda **a 48 px de alto dentro
+      del viewport** (y = 780) y **sigue ahí** al pie, sobre «Fotos». El «Listo, guardamos los
+      cambios» pasó a la barra —donde se ve aunque hayas guardado desde arriba— y se va a los 4 s
+      para devolver el pie. Los dos bloques que **no** entran en el botón ahora lo dicen: *«Se suben
+      al toque: no hace falta guardar»* (Fotos) y *«Va aparte: esto se propone y lo revisamos, no
+      entra en "Guardar cambios"»* (Dónde estás).
+- [x] **PBETA-R6-04** (MOLESTO) — «¿No está en la lista? Registralo vos» usa el lenguaje visual de los estados vacíos y se lee como cartel, no como botón.
+      ✅ **Hecho 2026-08-15**: era un `<button>` con `border-dashed` y texto gris centrado, que es
+      **exactamente** cómo la app pinta sus estados vacíos. Pasa al lenguaje de una fila accionable:
+      borde sólido sobre `card`, texto a la izquierda, la acción en color (*«Registralo vos, te lleva
+      un minuto»*) y un chevrón a la derecha. Sigue siendo el mismo `<button>` y el mismo flujo —
+      cambió cómo se lee, no qué hace. Medido en vivo: **76 px** de alto a 390 y a 360.
+- [x] **PBETA-R6-05** (COSMÉTICO) — el buscador de negocios trae ruido (5 de 8 resultados ajenos) y corta las direcciones, que es el dato que distingue dos locales del mismo nombre.
+      ✅ **Hecho 2026-08-15**. Al abrirlo apareció lo de fondo: **`lib/claims/query.ts` tenía su
+      propia copia del match por nombre** (`word_similarity` + `<%` escritos a mano) cuando eso ya
+      tiene dueño único en `lib/search/nombre.ts` desde `CURADURIA_POR_NOMBRE`. Se unificó hacia el
+      dueño —que es el cleanup de máxima prioridad de la convención, no un extra— y el dueño ganó un
+      parámetro `minimo`: **la misma regla con el piso como argumento**, no una segunda regla. El
+      buscador de negocios pide **0,65**, medido el 2026-08-15 con «La Choppería»: los 3 aciertos dan
+      1,000 / 0,692 / 0,692 y las 5 pizzerías que se colaban dan **0,615 todas**, así que el corte
+      pasa por el medio de esa banda. La tolerancia a typos no se toca («parrila» → «Parrila El
+      Juanca» = 1,000) y **la búsqueda pública no cambia**: llama sin piso. Verificado en vivo: **3
+      resultados y los 3 correctos**, contra 3 de 8. La dirección dejó de truncarse: se lee entera
+      aunque ocupe dos líneas. Ser más exigente acá que en el listado público es a propósito — al
+      lado de cada fila hay un «Es mío», y tocar el equivocado arranca el reclamo del local de
+      otro.
 
 - [x] **El contador de interés premium se congela en 200** — hallazgo de `INT2-28` (QA integral #2,
       sesión 2, 2026-08-02). **Resuelto ✅ 2026-08-03**: `contarInteresados()` cableada en
@@ -2379,6 +2431,40 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`R6` — soy dueño, el recorrido del que va a pagar** (los 5 hallazgos del bloque R6 de
+      `PULIDO_BETA`: `PBETA-R6-01..05`; 2026-08-15, sesión Opus). **Fix directo con IDs, sin spec**,
+      igual que R4 — pero la decisión se tomó **con el número en la mano**, no de entrada: `R6-03`
+      podía ser rediseño de la pantalla más densa de la app, así que se midió antes de tocar nada.
+      Verificado **en vivo a 390×844 y 360×844** con `getBoundingClientRect()` y con sesión de las
+      dos cuentas (la del dueño aprobado y la del solicitante pendiente) · typecheck ·
+      **773/773** tests. **Lo que vale más que el diff:**
+      1. **Medir primero cambió el veredicto de «rediseño» a «mover una pieza».** La página no medía
+         2.941 px sino **3.174** —`CORRECCION_DATOS` le sumó «Dónde estás» después del QA— pero el
+         problema real nunca fue el alto: era que el único «Guardar cambios» vivía en y = 2.536 con
+         638 px de contenido abajo. Plegar secciones habría sido rediseñar la pantalla; sacar el
+         botón del medio y pegarlo al pie **solo cuando hay algo sin guardar** lo resuelve sin tocar
+         una sola sección. El alto sigue en 3.138 y está bien que siga.
+      2. **El hallazgo cosmético era el que tenía la deuda estructural adentro.** `R6-05` entró como
+         «el buscador trae ruido» y lo que había abajo era **una segunda implementación del match por
+         nombre** en `lib/claims/query.ts`, con dueño único ya declarado en `lib/search/nombre.ts`.
+         Se unificó hacia el dueño y el piso más exigente se sumó **como parámetro de esa misma
+         regla**, no como regla nueva: la búsqueda pública llama sin piso y no cambió. El de menor
+         severidad fue el de mayor valor de mantenimiento.
+      3. **Lo que estaba roto en `R6-01` y `R6-02` no era la pantalla, era que nadie leía lo
+         pendiente.** Ser dueño = claim aprobado, y eso tiene dueño único hace rato; el agujero era
+         que **ningún módulo leía los `pending`**, así que una solicitud enviada no existía en toda
+         la app. Una lectura nueva (`solicitudesPendientesDelUsuario`) tapó los dos hallazgos a la
+         vez, sin tocar el gate de propiedad — y el 404 del lugar ajeno se verificó **después** de
+         abrirle la puerta al solicitante, porque abrir una ruta que antes era 404 es exactamente
+         donde se filtra algo sin querer.
+      4. **Un aviso que se ve tiene que poder irse.** Al mudar el «Listo, guardamos los cambios» a la
+         barra fija —donde por fin se ve aunque hayas guardado desde arriba— pasó a ocupar el pie de
+         la pantalla para siempre. Se va solo a los 4 s. El bug que no se cometió: en la posición
+         vieja, en el flujo del formulario, quedarse era gratis.
+      5. **De paso se midió `R4-C` y se dejó anotado, no arreglado.** «Armar votación» son 36 px y
+         «← Volver» 20 px, así que el ítem son **tres** toques cortos y no uno. Medir es barato y no
+         amplía el alcance; arreglarlo acá sí lo habría ampliado.
 
 - [x] **`R4` — armar una votación, el lado emisor del loop viral** (los 4 hallazgos abiertos del
       recorrido R4 de `PULIDO_BETA` + `INV-A` e `INV-B`, que dejó el cierre de `INVITACION`;

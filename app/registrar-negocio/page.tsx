@@ -87,10 +87,11 @@ export default async function RegistrarNegocioPage({
                 className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-4"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{r.name}</p>
-                  {ubicacion && (
-                    <p className="truncate text-xs text-muted-foreground">{ubicacion}</p>
-                  )}
+                  <p className="text-sm font-medium text-foreground">{r.name}</p>
+                  {/* PBETA-R6-05: la dirección es el dato que distingue dos
+                      locales del mismo nombre, y se cortaba con «…». Acá se lee
+                      entera aunque ocupe dos líneas. */}
+                  {ubicacion && <p className="text-xs text-muted-foreground">{ubicacion}</p>}
                   {/* Un lugar cargado pero invisible es exactamente el que este
                       flujo rescata: decirlo evita que el dueño crea que no está. */}
                   {!r.publicado && !r.reclamado && (

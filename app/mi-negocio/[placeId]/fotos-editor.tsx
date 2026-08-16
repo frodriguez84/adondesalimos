@@ -115,6 +115,11 @@ export function FotosEditor({
           {fotos.length} de {cap} · jpg, png o webp, hasta 5 MB.
           {plan === 'free' && ' El plan pago llega a 15.'}
         </p>
+        {/* PBETA-R6-03: quedaban abajo del botón de guardar y se leían como si
+            estuvieran afuera del formulario. Están afuera, y por eso se dice. */}
+        <p className="text-xs text-muted-foreground">
+          Se suben al toque: no hace falta guardar.
+        </p>
         {fotos.length > 0 && (
           <p className="text-xs text-muted-foreground">
             La primera es la que se ve en tu ficha.

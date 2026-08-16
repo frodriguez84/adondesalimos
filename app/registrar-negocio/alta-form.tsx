@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
 
 import {
   Aviso,
@@ -108,15 +109,25 @@ export function AltaForm({ nombreSugerido }: { nombreSugerido: string }) {
     )
   }
 
+  // PBETA-R6-04: era un botón pintado como los estados vacíos de la app (borde
+  // punteado, texto gris centrado), así que se leía como cartel y no como la
+  // acción que es — y es el camino de todo dueño que no está en Overture, o sea
+  // el alta entera. Ahora usa el lenguaje de una fila accionable: borde sólido
+  // sobre `card`, texto a la izquierda, la acción en color y un chevrón.
   if (!abierto) {
     return (
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="rounded-xl border border-dashed border-border p-5 text-center transition-colors hover:border-primary/50"
+        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
       >
-        <p className="text-sm font-medium text-foreground">¿No está en la lista?</p>
-        <p className="mt-1 text-sm text-muted-foreground">Registralo vos, te lleva un minuto.</p>
+        <span>
+          <span className="block text-sm text-muted-foreground">¿No está en la lista?</span>
+          <span className="mt-0.5 block text-sm font-semibold text-primary">
+            Registralo vos, te lleva un minuto
+          </span>
+        </span>
+        <ChevronRight className="size-5 shrink-0 text-primary" />
       </button>
     )
   }

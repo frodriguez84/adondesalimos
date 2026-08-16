@@ -26,7 +26,17 @@ export function simKey(q: string) {
   return sql<number>`word_similarity(${normalizado(sql`${q}`)}, ${normalizado(places.name)})`
 }
 
-/** El predicado del match: "el término aparece, con tolerancia, en el nombre". */
-export function coincideNombre(q: string): SQL {
-  return sql`${normalizado(sql`${q}`)} <% ${normalizado(places.name)}`
+/**
+ * El predicado del match: "el término aparece, con tolerancia, en el nombre".
+ *
+ * `minimo` sube la exigencia por encima del umbral de `<%` (0,6 por default en
+ * Postgres) para las pantallas donde un match flojo cuesta caro. **No es una
+ * segunda regla**: es la misma, con el piso como parámetro — el día que el match
+ * cambie, cambia acá para todos.
+ */
+export function coincideNombre(q: string, minimo?: number): SQL {
+  const predicado = sql`${normalizado(sql`${q}`)} <% ${normalizado(places.name)}`
+  // Con paréntesis: devuelve UN predicado, no dos pegados. Sin ellos, el día que
+  // alguien lo meta dentro de un `or()` el `and` se le escapa y el filtro se cae.
+  return minimo === undefined ? predicado : sql`(${predicado} and ${simKey(q)} >= ${minimo})`
 }

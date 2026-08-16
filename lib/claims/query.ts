@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { placeClaims, placeZones, places, users, zones } from '@/lib/db/schema'
 import { isPlacePublished } from '@/lib/db/visibility'
+import { coincideNombre, simKey } from '@/lib/search/nombre'
 import { tieneDuenoAprobado } from './ownership'
 import type { ClaimKind, ClaimStatus } from '@/lib/db/schema'
 
@@ -20,6 +21,21 @@ import type { ClaimKind, ClaimStatus } from '@/lib/db/schema'
  */
 
 const MAX_RESULTADOS = 10
+
+/**
+ * Piso de similitud del buscador de negocios — más exigente que el 0,6 con el
+ * que sale `<%` (PBETA-R6-05).
+ *
+ * Acá un match flojo no es ruido nomás: al lado de cada resultado hay un «Es
+ * mío», y tocar el equivocado arranca el reclamo del local de otro. Medido el
+ * 2026-08-15 con «La Choppería»: los 3 aciertos dan 1,000 / 0,692 / 0,692 y las
+ * 5 pizzerías que se colaban («Pizzería La Chacha», «La Chispa»…) dan 0,615
+ * todas. El corte pasa por el medio de esa banda y no toca la tolerancia a
+ * typos, que sigue midiendo alto («parrila» → «Parrila El Juanca» = 1,000).
+ *
+ * La **búsqueda pública no cambia**: llama a `coincideNombre` sin piso.
+ */
+const MIN_SIMILITUD = 0.65
 
 /**
  * Los lugares con dueño, como subconsulta para joinear.
@@ -58,16 +74,15 @@ export type ResultadoCatalogo = {
 }
 
 /**
- * Busca por nombre en el catálogo completo. Mismo motor de similitud que la
- * búsqueda pública (`word_similarity` sobre el nombre sin acentos), para que
- * "parrila" encuentre "Parrilla El Juanca" también acá.
+ * Busca por nombre en el catálogo completo. **El match no se reimplementa**: es
+ * el de `lib/search/nombre.ts`, el mismo que usan la búsqueda pública y el
+ * buscador de la curaduría, para que "parrila" encuentre "Parrilla El Juanca"
+ * también acá. Lo único propio de esta pantalla es el piso (ver `MIN_SIMILITUD`).
  */
 export async function buscarCatalogoCompleto(q: string): Promise<ResultadoCatalogo[]> {
   const termino = q.trim()
   if (termino.length < 2) return []
 
-  const normalizado = sql`immutable_unaccent(lower(${places.name}))`
-  const consulta = sql`immutable_unaccent(lower(${termino}))`
   const conDueno = lugaresConDueno()
 
   const filas = await db
@@ -83,8 +98,8 @@ export async function buscarCatalogoCompleto(q: string): Promise<ResultadoCatalo
     })
     .from(places)
     .leftJoin(conDueno, eq(conDueno.placeId, places.id))
-    .where(sql`${consulta} <% ${normalizado}`)
-    .orderBy(desc(sql`word_similarity(${consulta}, ${normalizado})`), asc(places.name))
+    .where(coincideNombre(termino, MIN_SIMILITUD))
+    .orderBy(desc(simKey(termino)), asc(places.name))
     .limit(MAX_RESULTADOS)
 
   const umbral = await getConfidenceThreshold()
@@ -144,6 +159,60 @@ export async function getLugarAReclamar(id: string): Promise<LugarAReclamar | nu
     tieneDuenoAprobado(fila.id),
   ])
   return { ...fila, zone: zonaPorLugar.get(fila.id) ?? null, reclamado }
+}
+
+// ---------------------------------------------------------------------------
+// Mis solicitudes en revisión
+// ---------------------------------------------------------------------------
+
+/** Una solicitud del usuario esperando decisión, con el lugar que reclama. */
+export type SolicitudPendiente = {
+  id: string
+  kind: ClaimKind
+  createdAt: Date
+  placeId: string
+  placeName: string
+  address: string | null
+  locality: string | null
+  zone: string | null
+}
+
+/**
+ * Las solicitudes `pending` de un usuario — **la contracara de
+ * `placeIdsDelUsuario`** (PBETA-R6-01).
+ *
+ * Ser dueño es tener un claim aprobado (decisión 8) y eso ya tiene dueño único en
+ * `ownership.ts`. Esto no es propiedad: es "lo que mandaste y todavía no
+ * resolvimos", y hasta ahora no lo leía nadie — por eso una solicitud enviada era
+ * invisible en toda la app. Lo consumen la lista de `/mi-negocio` y el panel de un
+ * lugar todavía no aprobado, que son las dos pantallas donde el dueño vuelve a
+ * mirar.
+ *
+ * Incluye los dos `kind`: reclamar un lugar que ya estaba y dar de alta uno
+ * nuevo se esperan igual.
+ */
+export async function solicitudesPendientesDelUsuario(
+  userId: string,
+): Promise<SolicitudPendiente[]> {
+  const filas = await db
+    .select({
+      id: placeClaims.id,
+      kind: placeClaims.kind,
+      createdAt: placeClaims.createdAt,
+      placeId: places.id,
+      placeName: places.name,
+      address: places.address,
+      locality: places.locality,
+    })
+    .from(placeClaims)
+    .innerJoin(places, eq(places.id, placeClaims.placeId))
+    .where(and(eq(placeClaims.userId, userId), eq(placeClaims.status, 'pending')))
+    .orderBy(desc(placeClaims.createdAt))
+
+  if (filas.length === 0) return []
+
+  const zonaPorLugar = await zonaPrimariaDeLugares(filas.map((f) => f.placeId))
+  return filas.map((f) => ({ ...f, zone: zonaPorLugar.get(f.placeId) ?? null }))
 }
 
 // ---------------------------------------------------------------------------
