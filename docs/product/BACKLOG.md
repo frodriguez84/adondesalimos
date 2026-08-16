@@ -1496,9 +1496,40 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
 
 **R5 · Chat + premium apagado**
 - [ ] **PBETA-R5-01 (causa raíz)** — **el síntoma está tapado, el diagnóstico no se hizo.** Las 4 sugerencias ya no caen sobre tags flacos, pero sigue sin saberse **por qué** el motor devolvió Palermo Soho para «una birra con amigos por Villa Crespo» y afirmó que el barrio no tiene carga (tiene 207 lugares con `bar`). Los tool-inputs no se persisten: se diagnostica con `npm run eval:chat`, **que cuesta tokens reales de Sonnet**. Decisión de Fer del 2026-08-03: primero el síntoma, la causa cuando se justifique el gasto.
-- [ ] **PBETA-R5-02** (MOLESTO) — el header del chat se parte en dos líneas con el badge largo, y come alto en todos los mensajes.
-- [ ] **PBETA-R5-03** (MOLESTO) — el gate no dice el precio ni que el cupo se renueva el 1º del mes.
-- [ ] **PBETA-R5-05** (MOLESTO) — con el cobro apagado, «Contenido destacado» sigue diciendo «Activá el plan acá arriba», donde ya no hay nada que activar. **Es el hermano de R5-04**, que sí se arregló: mismo patrón (copy escrito para el mundo con cobro prendido), pero acá el dueño ya está adentro del panel y no se pierde.
+- [x] **PBETA-R5-02** (MOLESTO) — el header del chat se parte en dos líneas con el badge largo, y come alto en todos los mensajes.
+      ✅ **Hecho 2026-08-16**: el badge dice **«3 mensajes»** en vez de «Te quedan 3 mensajes» y el
+      detalle completo («Te quedan 3 de 3 mensajes») queda en el `title`, que ya existía. Con
+      `whitespace-nowrap` + `shrink-0` en el badge y en el título, la fila no puede volver a
+      partirse aunque el texto crezca. **Medido en vivo** con `getBoundingClientRect()`: badge
+      **145×40 → 85×24**, título **76×48 → 57×24**, header **una sola línea de 61 px** a 390 y a
+      360 (`.playwright-mcp/pbeta-r5-02-header-360-fix.png`).
+- [x] **PBETA-R5-03** (MOLESTO) — el gate no dice el precio ni que el cupo se renueva el 1º del mes.
+      ✅ **Hecho 2026-08-16**, con una corrección al hallazgo: **la mitad de lo que pedía era
+      falsa.** El QA dio por hecho que la probadita se renueva porque `chat_usage_monthly` es
+      mensual, pero **esa tabla es la del premium**: el trial se cuenta en `users.chat_trial_used`
+      (`lib/ai/cupo.ts`), que es un contador **de por vida** y no vuelve el 1º. Prometerle al que
+      choca el muro que espere al mes que viene habría sido exactamente el criterio «miente» de la
+      decisión 5, arreglando un hallazgo con una mentira nueva. El copy dice la verdad: *«La prueba
+      va una sola vez, no se renueva. Con Premium ($ 7.000 por mes) seguís chateando todos los
+      meses.»* El precio **no está hardcodeado**: sale de `getPrecioB2cArs()` —dueño único del
+      precio— leído en `app/chat/page.tsx` y pasado como prop, igual que hace `/cuenta`; un cambio
+      en `app_settings` mueve los dos a la vez. La rama con `cobroApagado()` (la que arregló
+      `R5-04`) **no muestra precio** y suma la misma verdad del trial, sin ofrecer un pago que no
+      existe. **De arrastre**: con el gate puesto las 4 sugerencias **ya no se pintan** —atenuadas
+      no alcanzaba: invitaban a tocar justo arriba del cartel que dice que no se puede—.
+      Verificado en vivo con `hugo@gmail.com` (probadita 3/3 agotada, sin gastar un mensaje ni
+      tocar la base) a 390 y 360: `.playwright-mcp/pbeta-r5-03-gate-precio-390.png` y `…-360.png`.
+- [x] **PBETA-R5-05** (MOLESTO) — con el cobro apagado, «Contenido destacado» sigue diciendo «Activá el plan acá arriba», donde ya no hay nada que activar. **Es el hermano de R5-04**, que sí se arregló: mismo patrón (copy escrito para el mundo con cobro prendido), pero acá el dueño ya está adentro del panel y no se pierde.
+      ✅ **Hecho 2026-08-16**: el candado de los campos pagos consulta `cobroApagado()` —el mismo
+      dueño único que ya leían `/cuenta`, `/mi-negocio` y `suscripcion-panel.tsx`; el editor era el
+      que faltaba— y con el cobro cerrado dice *«Todavía no abrimos los pagos: estos campos se
+      desbloquean cuando salga el plan del lugar»*. **No repite el CTA de arriba a propósito**: el
+      botón que anota el interés tiene un solo lugar (el panel de la suscripción) y el dueño ya lo
+      pasó al llegar acá; mandarlo de nuevo a «acá arriba» era justo el defecto del hallazgo.
+      Verificado en vivo con el cobro **realmente apagado** (Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY`
+      y Next tomó el cambio solo, como ya decía el QA) sobre *Kansas Grill & Bar* (`owner_plan`
+      free), a 390 y a 360, sin desborde horizontal (`docScroll` 375/345 = ancho del viewport):
+      `.playwright-mcp/pbeta-r5-05-candado-apagado-390.png` y `…-360.png`.
 
 **R6 · Soy dueño**
 - [x] **PBETA-R6-01** (MOLESTO) — un reclamo enviado es invisible: `/mi-negocio` dice «Todavía no tenés lugares» e invita a mandarlo otra vez.
@@ -2459,6 +2490,38 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`R5` — el chat IA y el premium apagado, el recorrido donde la app promete más** (los 3
+      hallazgos abiertos del bloque R5 de `PULIDO_BETA`: `PBETA-R5-02`, `-03` y `-05`; 2026-08-16,
+      sesión Opus). **Fix directo con IDs, sin spec**, igual que R3, R4 y R6. `R5-01` (la causa raíz
+      del motor) **queda abierto a propósito**: cuesta tokens reales de Sonnet y la decisión de Fer
+      del 2026-08-03 sigue en pie. Verificado **en vivo a 390×844 y 360×844**, incluidas las dos
+      ramas con el cobro apagado (Fer comentó `NEXT_PUBLIC_MP_PUBLIC_KEY`) · typecheck ·
+      **777/777** tests. **Lo que vale más que el diff:**
+      1. **Un hallazgo del QA pedía arreglar una mentira con otra.** `R5-03` decía «el gate no dice
+         el precio **ni que el cupo se renueva el 1º**», razonando desde `chat_usage_monthly`. Pero
+         esa tabla es la del **premium**: el trial vive en `users.chat_trial_used`, un contador **de
+         por vida** (`lib/ai/cupo.ts`). Escribir el copy que pedía el hallazgo habría puesto a la app
+         a prometer una renovación que no existe — el criterio «miente» de la decisión 5, esta vez
+         introducido por el arreglo. **Se verificó el dato antes de escribir el copy**, y lo que se
+         corrigió fue el hallazgo: *«La prueba va una sola vez, no se renueva»*. Un QA es una
+         hipótesis con evidencia de pantalla, no una orden.
+      2. **El precio se pide prestado, no se copia.** El gate podía resolverse con un `$ 7.000` en
+         el string y nadie lo habría notado hasta el primer aumento. Sale de `getPrecioB2cArs()`
+         —dueño único— leído en el server component y pasado como prop, **el mismo camino que ya
+         usaba `/cuenta`**: un `UPDATE` en `app_settings` mueve las dos pantallas a la vez y ninguna
+         puede quedar mintiendo sobre la otra.
+      3. **El fix de layout más chico fue sacar palabras, no agregar CSS.** El header se partía
+         porque el badge decía «Te quedan 3 mensajes» (145 px) en una fila que no daba: el arreglo
+         fue dejar **«3 mensajes»** (85 px) y mandar la frase entera al `title` que ya existía. El
+         `whitespace-nowrap`/`shrink-0` que lo acompaña no es lo que lo arregló — es lo que impide
+         que vuelva a pasar si el texto crece.
+      4. **`R5-05` era el tercer lugar que leía el interruptor, no una redacción.** El copy «Activá
+         el plan acá arriba» estaba mal **solo cuando el cobro está apagado**, así que el editor
+         pasó a consultar `cobroApagado()` como ya hacían `/cuenta`, `/mi-negocio` y el panel de
+         suscripción. La lección del hermano `R5-04` se confirmó: cuando un interruptor cambia el
+         mundo, el copy que no lo consulta miente hasta que alguien lo mira con el interruptor puesto
+         **en la posición rara** — que en beta es la única real.
 
 - [x] **`R3` — guardo un lugar, el recorrido donde la app pide algo por primera vez** (los 4
       hallazgos abiertos del bloque R3 de `PULIDO_BETA`: `PBETA-R3-04..07`; 2026-08-16, sesión Opus).

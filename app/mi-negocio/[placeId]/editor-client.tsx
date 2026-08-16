@@ -12,6 +12,7 @@ import {
   inputClass,
   type Errores,
 } from '@/components/negocio/campos'
+import { cobroApagado } from '@/lib/billing/apagado'
 import { contenidoSchema, MAX_RANGOS_POR_DIA, MAX_SOCIALS } from '@/lib/negocio/validacion'
 import {
   DIAS,
@@ -253,7 +254,9 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           ))}
         </Seccion>
 
-        {/* --- Campos pagos: existen siempre, se editan solo con plan (dec. 18) --- */}
+        {/* --- Campos pagos: existen siempre, se editan solo con plan (dec. 18) ---
+             PBETA-R5-05: con el cobro apagado no hay nada que "activar acá arriba"
+             (ahí vive «Avisame cuando abra»), así que el candado dice la verdad. --- */}
         <Seccion
           titulo="Contenido destacado"
           bajada={
@@ -265,7 +268,9 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           {!pago && (
             <p className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
               <Lock className="size-3.5 shrink-0" />
-              Activá el plan del lugar acá arriba para editar estos campos.
+              {cobroApagado()
+                ? 'Todavía no abrimos los pagos: estos campos se desbloquean cuando salga el plan del lugar.'
+                : 'Activá el plan del lugar acá arriba para editar estos campos.'}
             </p>
           )}
 

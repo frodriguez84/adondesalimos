@@ -37,6 +37,21 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-16 · PBETA-R5-02/03/05 (chat IA + premium apagado) — Opus
+
+- **Qué salió bien:** el prompt de arranque llegó con el hallazgo **ya desmentido en su mitad
+  falsa** (`R5-03` daba por hecho que la probadita se renueva el 1º; `users.chat_trial_used` es de
+  por vida), y eso ahorró escribir un copy que mentía. Confirmarlo costó leer 40 líneas de
+  `lib/ai/cupo.ts`. **Verificar el dato del hallazgo antes de escribir el copy tendría que ser el
+  default, no la excepción**: un QA es una hipótesis con evidencia de pantalla, no una orden.
+- **Qué frenó:** dos ramas del fix solo se ven con `cobroApagado() === true` y **no puedo tocar el
+  `.env`** (lo bloquea el clasificador, con razón). Se resolvió pidiéndoselo a Fer, pero el pedido
+  llegó **a mitad de sesión**, cuando ya había código escrito: con el cobro apagado desde el
+  arranque se verificaba todo de una pasada.
+- **Qué cambiar:** nada del método. Lo único anotable es de ritmo y ya está dicho arriba: cuando el
+  bloque a arreglar toca copy que depende del interruptor del cobro, pedir el apagado **al empezar**
+  y no al ir a verificar.
+
 ## 2026-08-16 · PBETA-R3-04..07 (guardo un lugar) — Opus
 
 - **Qué salió bien:** los dos hallazgos que chocaban con una decisión escrita en el código se

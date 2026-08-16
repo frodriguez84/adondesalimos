@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 
 import { auth } from '@/lib/auth'
+import { getPrecioB2cArs } from '@/lib/billing/settings'
 import { esPremium } from '@/lib/votaciones/planes'
 import { resumenCupo } from '@/lib/ai/cupo'
 import { ChatClient } from './chat-client'
@@ -64,13 +65,19 @@ export default async function ChatPage({
   }
 
   const premium = await esPremium(session.user.id)
-  const cupo = await resumenCupo(session.user.id, premium)
+  // El precio lo pinta el gate del cupo agotado (PBETA-R5-03). Se lee de
+  // `lib/billing/settings` —dueño único del precio— igual que `/cuenta`.
+  const [cupo, precioB2c] = await Promise.all([
+    resumenCupo(session.user.id, premium),
+    getPrecioB2cArs(),
+  ])
 
   return (
     <ChatClient
       plan={premium ? 'premium' : 'trial'}
       restantesIniciales={cupo.restantes}
       cupoTotal={cupo.cupo}
+      precioB2cArs={precioB2c}
       modo={modoChat}
     />
   )

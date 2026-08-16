@@ -64,9 +64,17 @@ type Props = {
   plan: 'premium' | 'trial'
   restantesIniciales: number
   cupoTotal: number
+  /** Precio B2C vigente en ARS: lo pinta el gate del cupo agotado (PBETA-R5-03). */
+  precioB2cArs: number
   /** 'shortlist' cuando se entra desde el botón de VOTACION (decisión 21). */
   modo: 'chat' | 'shortlist'
 }
+
+const pesos = new Intl.NumberFormat('es-AR', {
+  style: 'currency',
+  currency: 'ARS',
+  maximumFractionDigits: 0,
+})
 
 /** Saca los marcadores `[[lugar:id]]` del texto visible (completos y el parcial del final del stream). */
 function limpiarMarcadores(texto: string): string {
@@ -101,7 +109,7 @@ const SUGERENCIAS = [
   'Algo con música en vivo por San Telmo',
 ]
 
-export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props) {
+export function ChatClient({ plan, restantesIniciales, cupoTotal, precioB2cArs, modo }: Props) {
   const router = useRouter()
   const [mensajes, setMensajes] = React.useState<Mensaje[]>([])
   const [conversationId, setConversationId] = React.useState<string | null>(null)
@@ -184,12 +192,17 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
               // («Avisame cuando abra»); dos copias de un copy driftean igual que
               // dos copias de una regla.
               titulo: 'Usaste tus mensajes de prueba',
-              detalle: 'Todavía no abrimos los pagos. Te avisamos apenas se pueda.',
+              detalle:
+                'La prueba va una sola vez, no se renueva. Todavía no abrimos los pagos: te avisamos apenas se pueda.',
               cta: { href: '/cuenta', label: 'Avisame cuando abra' },
             }
           : {
+              // PBETA-R5-03: el que choca el muro decide acá, sin tener que tocar y
+              // caer en /cuenta para enterarse de cuánto sale. Y la probadita del
+              // trial NO se renueva: `users.chat_trial_used` es un contador de por
+              // vida (lib/ai/cupo.ts), no la tabla mensual del premium.
               titulo: 'Usaste tus mensajes de prueba',
-              detalle: 'Hacete premium para seguir chateando con la IA todo el mes.',
+              detalle: `La prueba va una sola vez, no se renueva. Con Premium (${pesos.format(precioB2cArs)} por mes) seguís chateando todos los meses.`,
               cta: { href: '/cuenta', label: 'Hacerme premium' },
             }
         : sinCupo && plan === 'premium'
@@ -410,15 +423,19 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <Sparkles className="size-4 text-primary" />
-          <h1 className="text-base font-semibold text-foreground">Chat IA</h1>
+          <h1 className="whitespace-nowrap text-base font-semibold text-foreground">Chat IA</h1>
         </div>
+        {/* PBETA-R5-02: el badge en su texto largo («Te quedan N mensajes») no entra
+            en la fila a 390 ni a 360 y partía en dos el header entero —que es barra
+            permanente, así que se comía alto en toda la conversación—. El detalle
+            completo queda en el `title`. */}
         <span
-          className="ml-auto rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"
+          className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground"
           title={`Te quedan ${restantes} de ${cupoTotal} mensajes`}
         >
-          {restantes === 1 ? 'Te queda 1 mensaje' : `Te quedan ${restantes} mensajes`}
+          {restantes === 1 ? '1 mensaje' : `${restantes} mensajes`}
         </span>
         <button
           type="button"
@@ -453,19 +470,24 @@ export function ChatClient({ plan, restantesIniciales, cupoTotal, modo }: Props)
                   : 'Describilo con tus palabras y te tiro lugares reales.'}
               </p>
             </div>
-            <div className="flex flex-col gap-2">
-              {SUGERENCIAS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  disabled={inputBloqueado}
-                  onClick={() => enviar(s)}
-                  className="rounded-full border border-border bg-card px-4 py-2 text-sm text-foreground transition-colors hover:border-muted-foreground/50 disabled:opacity-50"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {/* PBETA-R5-03 (de arrastre): con el gate puesto las sugerencias seguían
+                a la vista invitando a tocar, justo arriba del cartel que dice que no
+                se puede. Atenuadas no alcanza: no hay nada que ofrecer. */}
+            {gate === null && (
+              <div className="flex flex-col gap-2">
+                {SUGERENCIAS.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={inputBloqueado}
+                    onClick={() => enviar(s)}
+                    className="rounded-full border border-border bg-card px-4 py-2 text-sm text-foreground transition-colors hover:border-muted-foreground/50 disabled:opacity-50"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           mensajes.map((m, i) => (
