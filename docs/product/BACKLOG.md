@@ -136,6 +136,10 @@ son trabajo acotado con criterio de "listo" objetivo.
       bucket de R2 aparte para producción, y el aviso «Estamos en beta» en las 3 superficies. QA
       `DEPLOY-01..21`: **20 PASS + 1 con salvedad**. **Faltan F2** (rate-limit a Upstash + botón de
       Google OAuth) **y F3** (Vercel Pro + encender el cobro, gateada por la decisión 18).
+      **📊 El disparador de F2 no ocurrió — medido el 2026-08-17.** Su gatillo anotado es «primer
+      pico de altas basura»: en 9 días de producción hay **0 altas, 0 reclamos y 3 usuarios** (uno
+      es Fer), y el rate-limit en memoria de proceso no se rozó. **No proponer F2 hasta que haya
+      volumen**; el gatillo del botón de Google OAuth sigue igual de lejos (3 signups en total).
       Lo que se resolvió, con los porqués completos en el spec:
       - **El dominio no había que decidirlo: `adondesalimos.com.ar` ya está registrado** (zona
         vacía en Cloudflare, mismo patrón que turnia). La puerta de ida ya estaba cruzada. Libres
@@ -229,9 +233,109 @@ son trabajo acotado con criterio de "listo" objetivo.
       **conflictos** (dos reclamos del mismo lugar) y con la **transferencia** cuando el local cambia
       de manos; y qué queda registrado como evidencia de la decisión. Ojo con el costo del lado del
       dueño: cada prueba que se pide es fricción en el lado que ya es escaso.
+      **📊 Medido contra producción el 2026-08-17 (sesión de decisión de cola), y tumbó dos
+      caminos antes de escribirlos.** Todo read-only sobre Neon:
+      - **La verificación NO puede anclarse en el catálogo de Overture.** El código por
+        WhatsApp/SMS al teléfono publicado parecía cubrir 82,8%; medido el **formato**, solo
+        **1.324 de 15.730 son móviles (8,4%)** —11.865 son fijos de AMBA— y en los 200 lugares
+        más vistos hay **13 móviles**: el canal cubre **6,5%** de lo que importa. Las redes
+        tampoco: de 18.035, **17.744 son Facebook** y solo **725 Instagram**, así que "publicá un
+        código en tu IG" no existe. Dominio propio: 40,7% (de 9.322 "webs", 1.597 son
+        linktr/IG/wa.me disfrazadas). **Objeción de Fer, confirmada con números.**
+      - **Un dato viejo falla cerrado, no abierto**: si el teléfono murió, el dueño legítimo no
+        puede probar (fricción) pero el impostor tampoco pasa. El riesgo de los datos viejos es de
+        **cobertura**, no de seguridad — por eso la respuesta no podía ser solo "una puerta mejor".
+      - **Jurisdicciones: hay que resolver CABA, no 390 localidades.** El catálogo tiene 390
+        `locality` distintas, pero **164 de los 200 más vistos son CABA**. Dirección presente en
+        **97,8%** de los publicados ⇒ el cruce "domicilio del documento vs dirección del catálogo"
+        es viable y es la única verificación que podemos hacer gratis.
+      - **Estado del abuso, hoy: 0 reclamos y 0 altas** en producción (9 días, 3 usuarios).
+
+      **Marco regulatorio, relevado en la conversación (⚠️ confirmar contra fuente actual antes
+      de escribirlo en el spec — no se buscó en la web en esta sesión):**
+      - **ARCA (ex-AFIP, renombrada en 2024) NO autoriza a abrir un local**: es el fisco. Quien
+        autoriza es la **habilitación comercial** — en CABA el GCBA (AGC, por TAD), en PBA **cada
+        municipio** con su propio certificado.
+      - **⚠️ La constancia de inscripción de ARCA es PÚBLICA** (cualquiera la baja con un CUIT
+        ajeno) y el **Formulario 960 "Data Fiscal"** está exhibido a la vista del público en el
+        local, fotografiable por cualquier cliente. **Pedir "la constancia de AFIP" NO prueba
+        titularidad.** Lo que sí califica es lo que solo se obtiene **con clave fiscal** y liga el
+        CUIT al domicilio de ESE local (domicilios de locales y establecimientos, Sistema Registral).
+      - **Menú de documentos candidatos** (todos ligan persona/razón social ↔ domicilio del local):
+        certificado de **habilitación comercial** (CABA: AGC · PBA: municipio) · **Ingresos Brutos**
+        con domicilio del local (**AGIP** en CABA, **ARBA** en PBA) · domicilios de local del Sistema
+        Registral de ARCA · contrato de locación · factura de servicios del local.
+      - **No podemos verificar la autenticidad de ningún PDF** (no hay API de ARCA ni de AGC). El
+        valor de pedir un documento oficial **no es que sea infalsificable: es que mueve el acto de
+        "mentir en un formulario" a "falsificar un instrumento público"**, que es un delito con
+        nombre propio. Disuade sin que nosotros verifiquemos nada.
+      - **⚠️ Recibir documentación es un pasivo nuevo**: CUIT, domicilio y a veces DNI de terceros
+        caen bajo la **Ley 25.326 de Protección de Datos Personales**. Hay que decidir dónde se
+        guarda, cuánto tiempo, quién lo ve y cuándo se borra. `lib/storage/r2.ts` hoy guarda fotos
+        **públicas** de locales, que es otra categoría de dato. **Puerta de ida en un eje nuevo** —
+        se decide junto con la prueba, no después.
+
+      **Decidido por Fer el 2026-08-17 (queda escribir el spec):**
+      1. **La exigencia escala con lo que se desbloquea, Y se recorta el peldaño sin verificar.**
+         Sin verificación: fotos, tags, horarios. Los datos de contacto —`phone`, `website`,
+         `socials` de `place_owner_content`— **salen del peldaño gratis**, porque son el activo
+         peligroso: un reclamo falso aprobado hoy **desvía las llamadas y el tráfico web a un
+         competidor** con el nombre del negocio real arriba. No le agrega un paso al dueño legítimo
+         que solo quiere cargar fotos.
+      2. **Alcance: decidir entero, implementar solo el recorte.** Las cuatro decisiones (prueba,
+         escalera, conflictos, transferencia) se escriben porque no se pudren y son puerta de ida;
+         de código entra únicamente el recorte, que no depende de volumen.
+      3. **La prueba documental NO se pide todavía.** Se deja como está (Fer lee cada reclamo) y
+         en su lugar van **copy disuasorio + declaración afirmativa** en `/reclamar/[placeId]` y en
+         `/registrar-negocio` — hoy **ninguna de las dos tiene una sola línea legal** (verificado en
+         `reclamo-form.tsx` y `alta-form.tsx`).
+         ⚠️ **Cicatriz a respetar al escribir ese copy**: es el mismo error del aviso de beta
+         (DEPLOY decisión 21), que empezó como letra chica defensiva y se corrigió porque **"no nos
+         cubre legalmente de nada; escrito así es peor que no ponerlo"**. Reclamar falsamente en una
+         app **no es un delito tipificado por sí solo** — lo son la falsificación de instrumento
+         público o el fraude, según el caso. Un cartel que dice "esto es un delito" a secas afirma
+         algo inexacto y el que sabe lo detecta. **Lo que funciona es la declaración afirmativa
+         antes de la amenaza**: un checkbox de *"Declaro que soy el dueño o estoy autorizado a
+         gestionar este negocio"* deja registrado que la persona **afirmó** algo concreto, y eso es
+         lo que sostiene revocar, dar de baja la cuenta y cualquier acción posterior. La advertencia
+         va después, en tono de **consecuencia real** (se revoca, se pierde la cuenta, queda
+         registrado), no de amenaza penal genérica.
+
+      **Verificado en el código, para que no vuelva como folclore:** **no existe ningún mecanismo de
+      "si muchos usuarios reportan que no existe, se da de baja"** — no hay tabla de reportes ni
+      endpoint. Lo que sí existe y es la protección real del alta: **un lugar dado de alta por un
+      dueño nace invisible** (`lib/claims/acciones.ts:85-109` — `source='owner'`, `confidence=null`,
+      `publishOverride=false`), así que **el que da de alta un lugar falso no publica nada** hasta
+      que el admin apruebe; revocar lo devuelve a invisible. El costo de un alta basura es una fila
+      en la cola, no una ficha falsa en la calle.
+
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
       al Tipo**.
+      **📊 ⚠️ Medido contra producción el 2026-08-17: la premisa de este ítem ya está cumplida en
+      la parte que importa, y todavía no hay señal para el resto.** El plan era "curar los ~200
+      lugares que la gente ve, no los 14.458". Cruzando `place_impressions_daily` contra
+      `place_tags source='admin'` en Neon:
+
+      | Tramo por impresiones | Lugares | Ya curados |
+      |---|---|---|
+      | top 1-50 | 50 | **50 (100%)** |
+      | top 51-200 | 150 | 120 (80%) |
+      | 201-500 | 300 | 165 (55%) |
+      | 501-975 | 475 | 100 (21%) |
+
+      **169 de los 200 más vistos ya están curados** y no es casualidad: la cuota de julio filtró
+      por Tipo relevante a los chips, y los chips son lo que la gente ve — el solapamiento es
+      **estructural**, no suerte. De los **31 que faltan, 10 son Burger King**, más Subway y
+      Havanna: cadenas que `ORDEN_ORGANICO` justamente hunde, así que curarlas no mueve nada
+      (rinde real: ~15 lugares).
+      **Y el resto de la cola no tiene señal todavía**: en 9 días de producción hubo **3 usuarios**
+      (uno es Fer), **63 aperturas de ficha** y **8 taps**; el 83% de las 9.172 impresiones cae en
+      dos días. El tramo 501-975 son lugares con 1-5 impresiones — el "uso real" que los elegiría
+      es ruido de tres personas. **El prerrequisito de este ítem nunca fue el filtro de skip: son
+      usuarios.** No re-medir hasta que haya tráfico; la query está en § *Cómo se midió* del doc de
+      cobertura.
+
       - 📊 **La medición completa está en
         [`docs/product/cobertura-tags-2026-08-01.md`](cobertura-tags-2026-08-01.md)** (2026-08-01):
         cobertura por faceta sobre los 18.993 publicados (Ambiente **5,0%** · Momento **6,1%** ·
@@ -1232,6 +1336,24 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 ## Mejoras futuras (fuera de v1)
 
 ### Deuda técnica señalada, no tocada
+
+- [ ] **Sincronizar los tags de «El Ombú» de prod → dev (el drift que marca `prod:check`).**
+      Detectado el 2026-08-17 al medir producción: `prod:check` reporta `place_tags` dev=43637 ·
+      prod=43635 y "falta curaduría en prod" (3.965 vs 3.967). **Diffeado: es un solo lugar.**
+      Prod tiene `abre-domingos` (momento) y `precio-2` (precio); dev tiene `tematico` (ambiente),
+      `musica-en-vivo`, `pena-folclorica` y `pool-metegol-dardos` (actividad) que prod no.
+      **Resuelto quién gana: PRODUCCIÓN.** Lo corrigió Fer a mano en el `/admin` de prod porque
+      los tags de la curaduría estaban mal, y le faltó replicarlo en dev — o sea que el mensaje de
+      `prod:check` ("falta curaduría en prod") es **exactamente al revés** en este caso: lo que
+      falta es la corrección en dev.
+      **Qué hacer**: `npm run backup:db` primero (la curaduría vive solo en dev y no está en git),
+      después aplicar en dev los 6 cambios para dejarlo igual que prod. Es chico pero conviene
+      cerrarlo: mientras siga abierto, **`prod:check` lo reporta en cada corrida** y una red de
+      seguridad que avisa siempre lo mismo deja de leerse.
+      ⚠️ **Lección de más alcance**: una edición a mano en el `/admin` de producción **no vuelve a
+      dev por ningún camino** — no hay sincronización inversa. Cada corrección hecha en prod es
+      drift permanente hasta que alguien la replique. Vale para tags, `app_settings` y correcciones
+      de datos.
 
 - [x] **`sembrarChips` ya re-sincroniza los tags de un chip que existe** ✅ **2026-08-10** — `scripts/seed-chips.ts` (extraído de `seed.ts` para poder testearlo, mismo criterio que `scripts/overture/upsert.ts`) borra los tags que sobran e inserta los que faltan, y **solo escribe si hay diferencia**: un re-seed sobre una base al día informa «tags al día» y no toca una fila. Cubierto por `scripts/__tests__/seed-chips.integration.test.ts` (7 casos), incluido el que reproduce el bug: *redefinir los tags de un chip que ya existe los reemplaza de verdad* — verificado por mutación, devolverle el `if (n === 0)` lo hace fallar. `active` sigue sin tocarse: es curaduría. 
       <details><summary>Por qué existía la deuda (registro)</summary>

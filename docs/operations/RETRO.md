@@ -37,6 +37,23 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-17 · Decisión de cola con datos de producción (+ TITULARIDAD) — Opus
+
+- **Qué salió bien.** Medir antes de proponer pagó dos veces en la misma sesión, y la segunda dolió:
+  la sesión **recomendó** verificar al dueño con un código al teléfono del catálogo apoyándose en un
+  número real pero incompleto (82,8% *tiene* teléfono) — y al medir el **formato** resultó que solo
+  el **8,4% son móviles**, 13 de los 200 lugares más vistos. La objeción de Fer llegó antes que la
+  medición. También tumbó el ítem de curaduría por uso real (169 de los 200 más vistos ya estaban
+  curados; 10 de los 31 restantes son Burger King) y confirmó que el gatillo de DEPLOY F2 no ocurrió.
+- **Qué frenó.** Nada del método. Una fricción de entorno, chica y repetida: un script de consulta a
+  prod en el scratchpad **no resuelve `dotenv` ni `postgres`** (están en `node_modules` del proyecto)
+  y `tsx` compila a CJS, así que el top-level `await` falla. Se resolvió copiando el script a la raíz
+  del repo y borrándolo al terminar — tres intentos perdidos antes de darse cuenta.
+- **Qué cambiar.** Una sola cosa, y es la lección de contenido, no de método: **una cobertura alta no
+  es un canal utilizable — hay que medir el formato del dato, no su presencia.** «82,8% tiene
+  teléfono» y «8,4% puede recibir un SMS» son la misma columna y decisiones opuestas. Quedó escrito
+  en el BACKLOG § TITULARIDAD junto al resto de la medición. No amerita regla nueva.
+
 ## 2026-08-16 · PBETA-R5-02/03/05 (chat IA + premium apagado) — Opus
 
 - **Qué salió bien:** el prompt de arranque llegó con el hallazgo **ya desmentido en su mitad
