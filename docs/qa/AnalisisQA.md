@@ -4716,5 +4716,10 @@ contra `https://adondesalimos.ngrok.app`, 390×844, con el dev server que levant
 3. **El recorrido completo del reclamo** — `/reclamar/[placeId]` y `/registrar-negocio`: el submit
    sin tildar no pasa y señala el checkbox; tildando, el claim se crea con su versión.
 
-**Nota de operación:** la columna `declaracion_version` está aplicada **solo en dev**. Producción
-(Neon) la recibe con el próximo deploy — hasta entonces la app desplegada no tiene esta F1.
+**Nota de operación:** la columna `declaracion_version` está aplicada en **dev y en producción**.
+La `0018` se corrió contra Neon (endpoint direct) el **2026-08-17**, después del commit y **antes**
+del deploy: ese es el orden que importa, porque el código nuevo lee y escribe la columna y deployar
+primero tiraba 500 en la cola de `/admin` y en todo alta o reclamo. Backup previo
+`NEON_prod_2026-08-17_205245.sql.gz` · `prod:check` confirma **19 de 19** · 0 claims en prod, así
+que no hubo backfill. **Falta el `git push`**: hasta que el deploy salga, la app en línea no tiene
+esta F1 (la columna está, nadie la usa — que es el lado seguro).
