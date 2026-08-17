@@ -1,0 +1,1 @@
+ALTER TABLE "place_claims" ADD COLUMN "declaracion_version" text;

@@ -7,6 +7,7 @@ import { getConfidenceThreshold } from '@/lib/db/settings'
 import { isPlacePublished, publishedWhere } from '@/lib/db/visibility'
 import { tagsForCategory } from '@/lib/overture/tag-map'
 import { crearAlta, crearReclamo, decidirClaim } from '../acciones'
+import { DECLARACION_VERSION } from '../declaracion'
 import { tieneDuenoAprobado } from '../ownership'
 import { buscarCatalogoCompleto, getLugarAReclamar } from '../query'
 
@@ -31,6 +32,8 @@ const solicitante = {
   applicantName: 'Fer',
   applicantPhone: '11 5555 5555',
   applicantRole: 'Dueño',
+  // TITULARIDAD decisión 5: el schema la exige y la acción la persiste.
+  declaracion: true as const,
 }
 
 let hayDb = true
@@ -334,6 +337,38 @@ describe.runIf(process.env.DATABASE_URL)('búsqueda del catálogo completo', () 
     if (!hayDb) return
     expect(await buscarCatalogoCompleto('b')).toEqual([])
     expect(await buscarCatalogoCompleto('  ')).toEqual([])
+  })
+})
+
+describe.runIf(process.env.DATABASE_URL)('la declaración (TITULARIDAD decisión 6)', () => {
+  it('el reclamo guarda con qué versión del texto se comprometió', async () => {
+    if (!hayDb) return
+    const creado = await crearReclamo(userA, { kind: 'claim', placeId, ...solicitante })
+    if (!creado.ok) throw new Error('no se creó el claim')
+
+    const [claim] = await db
+      .select({ version: placeClaims.declaracionVersion })
+      .from(placeClaims)
+      .where(eq(placeClaims.id, creado.data.claimId))
+    expect(claim.version).toBe(DECLARACION_VERSION)
+  })
+
+  it('el alta también: es la misma declaración por las dos entradas', async () => {
+    if (!hayDb) return
+    const alta = await crearAlta(userA, {
+      kind: 'new',
+      name: `${PREFIJO} bar declarado`,
+      lat: OBELISCO.lat,
+      lng: OBELISCO.lng,
+      ...solicitante,
+    })
+    if (!alta.ok) throw new Error('no se creó el alta')
+
+    const [claim] = await db
+      .select({ version: placeClaims.declaracionVersion })
+      .from(placeClaims)
+      .where(eq(placeClaims.id, alta.data.claimId))
+    expect(claim.version).toBe(DECLARACION_VERSION)
   })
 })
 

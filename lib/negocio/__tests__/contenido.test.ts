@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { CAMPOS_PAGOS, capDeFotos, resolverContenidoDueno } from '../contenido'
+import {
+  CAMPOS_DE_CONTACTO,
+  CAMPOS_PAGOS,
+  capDeFotos,
+  puedeEditarContacto,
+  resolverContenidoDueno,
+} from '../contenido'
 
 /**
  * Las dos reglas de F3 que tienen que estar bien: el COALESCE dueño → Overture
@@ -107,5 +113,28 @@ describe('caps de fotos (decisiones 5 y 17)', () => {
 
   it('los campos pagos son exactamente los tres del spec', () => {
     expect([...CAMPOS_PAGOS]).toEqual(['description', 'menuUrl', 'news'])
+  })
+})
+
+describe('recorte del contacto (TITULARIDAD decisiones 1 y 7)', () => {
+  it('solo un lugar que nació del dueño deja editar el contacto', () => {
+    expect(puedeEditarContacto('owner')).toBe(true)
+    // En Overture el contacto es de un negocio preexistente: pisarlo desvía sus
+    // llamadas a un competidor.
+    expect(puedeEditarContacto('overture')).toBe(false)
+  })
+
+  it('los campos recortados son exactamente los tres del spec', () => {
+    expect([...CAMPOS_DE_CONTACTO]).toEqual(['phone', 'website', 'socials'])
+  })
+
+  it('el recorte es sobre ESCRIBIR: la ficha sigue mostrando lo ya cargado', () => {
+    // Un lugar de Overture cuyo dueño cargó su teléfono antes del recorte: la
+    // resolución no cambia (decisión: apagar lo cargado sería quitarle un dato
+    // correcto a un dueño legítimo por una regla que no existía).
+    const r = resolverContenidoDueno({ base: BASE, owner: OWNER, plan: 'free' })
+    expect(r.phone).toBe('11 5555 5555')
+    expect(r.website).toBe('https://propio.example')
+    expect(r.socials).toEqual(['https://instagram.com/nueva'])
   })
 })

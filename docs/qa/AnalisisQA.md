@@ -4671,3 +4671,50 @@ Verificado: `status=open · expires_at` original · **2 opciones · 0 votos**, i
   votaciones los nombres son lo que las distingue, y encabezar una *página* es otra pregunta. Se
   anota porque es una segunda implementación de la misma regla y `CLAUDE.md` § *Una regla, un
   dueño* manda señalarla apenas se ve. Es territorio de R4 → `BACKLOG`.
+
+
+## QA /qa-spec — TITULARIDAD F1 (2026-08-17)
+
+**Veredicto:** PARCIAL — pendiente QA en vivo
+**Verificación técnica:** typecheck ✅ · tests **788/788** ✅ · build ⏸️ **no corrido** (el dev
+server de Fer está levantado y comparte `.next` — convención de `CLAUDE.md` § *Notas importantes*)
+**Método:** 3 checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD de
+`docs/specs/active/TITULARIDAD.md`. **Se verifica SOLO la F1**: F2 (transferencia y disputa) y F3
+(prueba documental) están escritas y **gateadas por volumen** a propósito (decisión 2) — no cuentan
+como gaps. Los criterios de pantalla quedan **pendientes de verificación en vivo** con el MCP de
+Playwright contra `https://adondesalimos.ngrok.app`.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| TIT-QA-01 | `lib/negocio/contenido.ts` exporta `CAMPOS_DE_CONTACTO` y `puedeEditarContacto`, con tests unitarios | **PASS** | `contenido.ts:44` y `:56-58` · tests en `__tests__/contenido.test.ts:119-140` |
+| TIT-QA-02 | La regla no está reimplementada fuera del dueño único | **PASS** | `grep -rn "source === 'owner'" lib app components` → única ocurrencia real `contenido.ts:57`. Las de `place_tags.source` son **otra columna** con el mismo valor |
+| TIT-QA-03 | `guardarContenido` rechaza `CONTACTO_VERIFICADO` con contacto no vacío sobre `source='overture'` | **PASS** | `acciones.ts:115-128` · test `panel.integration.test.ts:208-226` (los tres campos) |
+| TIT-QA-04 | El mismo `PATCH` sobre `source='owner'` **sí guarda** (decisión 7) | **PASS** | `panel.integration.test.ts:258-263` |
+| TIT-QA-05 | El route mapea `CONTACTO_VERIFICADO` a **403** | **PASS** | `app/api/mi-negocio/[placeId]/content/route.ts:26-32` |
+| TIT-QA-06 | `PATCH` con los tres campos **vacíos** no falla y **no borra** lo cargado antes del recorte | **PASS** | `acciones.ts:132-143` bifurca a `contactoGuardado()` (`:187-199`), que **lee lo guardado y lo reescribe dentro de la misma transacción** · test `panel.integration.test.ts:228-256` verifica la fila **y** la ficha |
+| TIT-QA-07 | `resolverContenidoDueno` sin cambios de comportamiento (el recorte es sobre escribir, no sobre mostrar) | **PASS** | Función intacta (`contenido.ts:98-116`) · test explícito «el recorte es sobre ESCRIBIR» en `contenido.test.ts:131-139` |
+| TIT-QA-08 | El editor muestra los tres campos **disabled** (no ocultos) con el dato actual y una línea que explica por qué y a dónde escribir, **solo** en Overture | **PASS (código)** · **pendiente en vivo** | `editor-client.tsx:182-189` (el aviso), `:193-268` (los tres `disabled`) · el `source` llega vía `query.ts:121,162`. Falta verlo renderizado a 390×844 |
+| TIT-QA-09 | `POST /api/claims` devuelve **400** sin `declaracion`, en los dos `kind` | **PASS** | `validacion.ts:30` (`z.literal(true)` en el `solicitante` **compartido**) · `app/api/claims/route.ts:50-56` |
+| TIT-QA-10 | El checkbox aparece en los dos formularios, definido **una sola vez** | **PASS** | `components/negocio/campos.tsx:168-188` · consumido por `reclamo-form.tsx:85-89` y `alta-form.tsx:127-131` |
+| TIT-QA-11 | El copy dice la declaración **antes** que la consecuencia y **no afirma que sea un delito** (decisión 4) | **PASS** | `lib/claims/declaracion.ts:22-27`, en ese orden. La consecuencia enumera lo que de verdad pasa (se da de baja el reclamo y la cuenta, queda registrado); cero mención de delito ni de sanción penal |
+| TIT-QA-12 | Todo el copy nuevo de cara al usuario, en argentino rioplatense | **PASS (tras fix)** | ⚠️ El checker lo marcó **PARCIAL**: `DECLARACION_CONSECUENCIA` decía *«damos de baja **el** reclamo y **la** cuenta… quién lo pidió»* —impersonal— mientras el resto del copy vosea (*«Tildá»*, *«Escribinos»*, *«sos vos»*). **Corregido en la misma sesión** a *«damos de baja **tu** reclamo y **tu** cuenta… que lo **pediste vos**»*. La versión **no se bumpeó**: `DECLARACION_VERSION` es la fecha `'2026-08-17'`, el texto nunca se persistió con la redacción vieja (0 claims, sin deploy) |
+| TIT-QA-13 | `place_claims.declaracion_version` se persiste en reclamo **y** en alta, con migración aditiva y nullable | **PASS** | `schema.ts:678` · `drizzle/0018_titularidad.sql` (`ADD COLUMN … text`, sin `NOT NULL`) · `claims/acciones.ts:81` y `:129` |
+| TIT-QA-14 | La cola de `/admin` muestra la declaración y su versión | **PASS (código)** · **pendiente en vivo** | `claims/query.ts:235,266,300` · `app/admin/cola-client.tsx:133-140` |
+| TIT-QA-15 | Sin regresión: el alta sigue naciendo **invisible** y revocar sigue devolviendo la ficha a Overture (AUTH F2/F3) | **PASS** | Cubierto por la suite existente de `claims.integration.test.ts` y `panel.integration.test.ts`, verde en 788/788 |
+
+### Qué falta para APROBADO
+
+Tres casos **de pantalla**, que por regla no se declaran PASS leyendo código (MCP de Playwright
+contra `https://adondesalimos.ngrok.app`, 390×844, con el dev server que levanta Fer):
+
+1. **TIT-QA-08 en vivo** — `/mi-negocio/[placeId]` de un lugar de Overture: los tres campos se ven
+   apagados, con el dato actual y el aviso; y en un lugar `source='owner'` se ven editables.
+   Guardar tags/fotos en el lugar de Overture **tiene que funcionar** (el editor manda el contacto
+   vacío justamente para no auto-403earse).
+2. **TIT-QA-14 en vivo** — `/admin` con un claim recién creado: la ficha muestra «Declaró ser dueño
+   o estar autorizado (2026-08-17)».
+3. **El recorrido completo del reclamo** — `/reclamar/[placeId]` y `/registrar-negocio`: el submit
+   sin tildar no pasa y señala el checkbox; tildando, el claim se crea con su versión.
+
+**Nota de operación:** la columna `declaracion_version` está aplicada **solo en dev**. Producción
+(Neon) la recibe con el próximo deploy — hasta entonces la app desplegada no tiene esta F1.

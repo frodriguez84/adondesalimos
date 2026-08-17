@@ -2,6 +2,8 @@
 
 import type { z } from 'zod'
 
+import { DECLARACION_CONSECUENCIA, DECLARACION_TEXTO } from '@/lib/claims/declaracion'
+
 /**
  * Piezas compartidas por los dos formularios del flujo dueño (AUTH F2): el
  * reclamo de un lugar existente y el alta de uno nuevo. Los dos piden los mismos
@@ -88,6 +90,8 @@ export type DatosSolicitante = {
   applicantPhone: string
   applicantRole: string
   comment: string
+  /** La declaración de titularidad (TITULARIDAD): el server la exige igual. */
+  declaracion: boolean
 }
 
 export const SOLICITANTE_VACIO: DatosSolicitante = {
@@ -95,7 +99,15 @@ export const SOLICITANTE_VACIO: DatosSolicitante = {
   applicantPhone: '',
   applicantRole: '',
   comment: '',
+  declaracion: false,
 }
+
+/**
+ * El mensaje de la declaración es propio y no el genérico de `erroresDeZod`: un
+ * "Revisá este dato" sobre un checkbox no dice qué hacer. El mapa de errores se
+ * sigue usando para saber **cuál** campo falló.
+ */
+const FALTA_DECLARACION = 'Tildá esto para mandar la solicitud.'
 
 export function CamposSolicitante({
   valores,
@@ -151,6 +163,25 @@ export function CamposSolicitante({
           rows={3}
           className={inputClass}
         />
+      </Campo>
+
+      {/* La declaración va acá, una sola vez, porque este componente lo comparten
+          el reclamo y el alta (TITULARIDAD). Primero lo que la persona afirma y
+          después lo que pasa si no era así (decisión 4); el texto y su versión
+          viven en `lib/claims/declaracion.ts`. */}
+      <Campo label="Confirmá que sos vos" error={errores.declaracion && FALTA_DECLARACION}>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3">
+          <input
+            type="checkbox"
+            checked={valores.declaracion}
+            onChange={(e) => onChange({ declaracion: e.target.checked })}
+            className="mt-0.5 size-4 shrink-0 accent-primary"
+          />
+          <span className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-foreground">{DECLARACION_TEXTO}</span>
+            <span className="text-xs text-muted-foreground">{DECLARACION_CONSECUENCIA}</span>
+          </span>
+        </label>
       </Campo>
     </>
   )

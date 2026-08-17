@@ -669,6 +669,13 @@ export const placeClaims = pgTable(
     applicantPhone: text('applicant_phone'),
     applicantRole: text('applicant_role'),
     comment: text('comment'),
+    /**
+     * Qué versión del texto de la declaración tildó el solicitante
+     * (TITULARIDAD decisión 6). Nullable porque los claims anteriores al spec no
+     * la tienen: sin versión, dentro de un año no se puede decir a qué se
+     * comprometió alguien que reclamó hoy.
+     */
+    declaracionVersion: text('declaracion_version'),
 
     decidedAt: timestamp('decided_at'),
     /** Email del admin que decidió (no hay tabla de roles que referenciar). */
@@ -1313,6 +1320,7 @@ export const placeListItems = pgTable(
 
 export type Place = typeof places.$inferSelect
 export type NewPlace = typeof places.$inferInsert
+export type PlaceSource = (typeof placeSourceEnum.enumValues)[number]
 export type Tag = typeof tags.$inferSelect
 export type NewTag = typeof tags.$inferInsert
 export type PlaceTag = typeof placeTags.$inferSelect

@@ -37,6 +37,27 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-17 · TITULARIDAD — autoría del spec + F1 (el recorte y la declaración) — Opus
+
+- **Qué salió bien.** Buscar en la web lo que la sesión anterior había relevado de memoria: el
+  relevamiento listaba la **constancia de IIBB de AGIP** como documento candidato y resulta que
+  **se baja con solo el CUIT** —tan pública como la de ARCA—, así que no prueba nada. No era un
+  detalle: **164 de los 200 lugares más vistos son CABA**, o sea que se caía justo la mitad que
+  importaba, y el spec la habría dejado escrita como el camino. La instrucción de confirmar contra
+  fuente actual venía en el prompt de arranque y se pagó sola. También apareció que la habilitación
+  de CABA en bajo riesgo resuelve como *Declaración Responsable*, no como certificado: pedir «el
+  certificado» a secas habría dejado afuera al rubro más común.
+- **Qué frenó.** Nada del método. Una fricción de entorno chica: `python -` con un `print` de
+  emojis al final **falla por la consola cp1252 de Windows aunque el archivo se haya escrito bien**
+  — el traceback parece decir que falló la escritura y no es así. Cuesta un `head` de verificación,
+  no una sesión.
+- **Qué cambiar.** Nada de método. La lección de contenido, que ya está en el spec: **«documento
+  oficial» no es sinónimo de «prueba de titularidad»** — lo que separa a los que sirven de los que
+  no es si hace falta **clave** para obtenerlo (ARBA pide CIT y el Sistema Registral pide clave
+  fiscal: sirven; ARCA, AGIP y el F960 se consiguen con el CUIT ajeno o sacándole una foto a la
+  pared: no sirven). Es el mismo error de forma que la lección de la sesión pasada (*«tiene
+  teléfono» ≠ «puede recibir un SMS»*): el dato existe y parece alcanzar, y no alcanza.
+
 ## 2026-08-17 · Decisión de cola con datos de producción (+ TITULARIDAD) — Opus
 
 - **Qué salió bien.** Medir antes de proponer pagó dos veces en la misma sesión, y la segunda dolió:
@@ -52,7 +73,8 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 - **Qué cambiar.** Una sola cosa, y es la lección de contenido, no de método: **una cobertura alta no
   es un canal utilizable — hay que medir el formato del dato, no su presencia.** «82,8% tiene
   teléfono» y «8,4% puede recibir un SMS» son la misma columna y decisiones opuestas. Quedó escrito
-  en el BACKLOG § TITULARIDAD junto al resto de la medición. No amerita regla nueva.
+  en `docs/specs/active/TITULARIDAD.md` § *Lo medido* junto al resto de la medición
+  (nació en el BACKLOG y se mudó al spec el mismo día, al escribirlo). No amerita regla nueva.
 
 ## 2026-08-16 · PBETA-R5-02/03/05 (chat IA + premium apagado) — Opus
 

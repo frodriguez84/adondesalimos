@@ -22,13 +22,14 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 | Spec | Qué es | Estado |
 |------|--------|--------|
 | [ABIERTO_AHORA](active/ABIERTO_AHORA.md) | Mini-spec — el chip «Para ahora»: filtra por la franja horaria actual (TZ AR) con los tags de Momento curados, y retira el tag `abierto-ahora` que miente. | **Parcial** — F1 ✅ 2026-07-30 · F2 (abierto **real** desde horarios de dueño) escrita y **gateada** en ≥ 50 lugares con horarios propios (hoy 1) |
+| [TITULARIDAD](active/TITULARIDAD.md) | Cómo sé que el dueño de X es realmente el dueño de X. Saca **el contacto** (`phone`/`website`/`socials`) del peldaño gratis —es el activo peligroso: un reclamo falso desvía llamadas y tráfico web a un competidor— y suma **declaración afirmativa versionada** en los dos formularios del flujo dueño. Decide entero (prueba · escalera · conflictos · transferencia) porque las cuatro son puerta de ida; implementa **solo F1**. | **Parcial** — F1 ✅ 2026-08-17 (el recorte + la declaración) · F2 (transferencia y disputa en la app) y F3 (prueba documental) escritas y **gateadas por volumen** — hoy hay 0 reclamos en producción |
 | [DEPLOY](active/DEPLOY.md) | Poner la app en `adondesalimos.com.ar` con Neon (São Paulo) + Vercel Hobby, **US$0/mes**, con el cobro apagado (Hobby prohíbe el uso comercial) y el premium anunciado como "en camino" midiendo interés. Incluye la migración de datos —catálogo, zonas y la curaduría que **no están en el seed**— y su punto de no retorno. 4 fases; F3 (encender el cobro + Pro) gateada por interés medido. | **Parcial** — § *El premium apagado* ✅ 2026-08-01 (primer tramo de código de F1) · F0 ✅ 2026-08-03 (la base en Neon) · F1 ✅ 2026-08-07 (**la app está en línea**) · F2 (rate-limit a Upstash + botón de Google OAuth) y F3 (Pro + encender el cobro, gateada) pendientes |
 
 ## 🔵 Planned (`planned/`)
 
 | Spec | Qué es | Estado |
 |------|--------|--------|
-| _(vacía)_ | — | Todo lo escrito está implementado |
+| _(vacía)_ | — | Todo lo escrito está implementado o en `active/` |
 
 _(La carpeta tiene además stubs de redirect de specs ya movidos: la cola de v2 está completa,
 PULIDO_BETA pasó a `active/` el 2026-08-03 al arrancar su F1, y CURADURIA_POR_NOMBRE (2026-08-08),

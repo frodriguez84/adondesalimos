@@ -11,6 +11,8 @@ const solicitante = {
   applicantName: 'Fernando Rodríguez',
   applicantPhone: '11 5555 5555',
   applicantRole: 'Dueño',
+  // TITULARIDAD decisión 5: sin la declaración no hay reclamo ni alta.
+  declaracion: true as const,
 }
 
 const altaValida = {
@@ -69,6 +71,32 @@ describe('altaSchema', () => {
     const ok = altaSchema.safeParse({ ...altaValida, name: '  Bar  ' })
     expect(ok.success && ok.data.name).toBe('Bar')
     expect(altaSchema.safeParse({ ...altaValida, name: '   ' }).success).toBe(false)
+  })
+})
+
+describe('la declaración de titularidad (TITULARIDAD decisión 5)', () => {
+  it('sin declaración no pasa, ni en reclamo ni en alta', () => {
+    const { declaracion: _omitida, ...sinDeclarar } = solicitante
+    expect(
+      claimPayloadSchema.safeParse({
+        kind: 'claim',
+        placeId: '11111111-2222-4333-8444-555555555555',
+        ...sinDeclarar,
+      }).success,
+    ).toBe(false)
+    expect(altaSchema.safeParse({ ...altaValida, ...sinDeclarar, declaracion: undefined }).success).toBe(
+      false,
+    )
+  })
+
+  it('tildarla en falso tampoco pasa: es una afirmación, no un opcional', () => {
+    expect(altaSchema.safeParse({ ...altaValida, declaracion: false }).success).toBe(false)
+  })
+
+  it('el error señala el campo del checkbox', () => {
+    const r = altaSchema.safeParse({ ...altaValida, declaracion: false })
+    expect(r.success).toBe(false)
+    expect(r.success === false && r.error.issues[0].path).toEqual(['declaracion'])
   })
 })
 

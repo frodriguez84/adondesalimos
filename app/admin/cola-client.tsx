@@ -128,6 +128,16 @@ function Fila({ claim }: { claim: ClaimEnCola }) {
         <Dato termino="Teléfono" valor={claim.applicantPhone} />
         <Dato termino="Cuenta" valor={claim.userEmail} />
         <Dato termino="Comentario" valor={claim.comment} />
+        {/* TITULARIDAD decisión 6: es el dato que sostiene la revocación — sin
+            verlo, el admin no sabe con qué texto se comprometió esta persona. */}
+        <Dato
+          termino="Declaración"
+          valor={
+            claim.declaracionVersion
+              ? `Declaró ser dueño o estar autorizado (${claim.declaracionVersion})`
+              : 'Sin declaración: es anterior a que la pidiéramos'
+          }
+        />
         {aprobado && <Dato termino="Aprobado por" valor={claim.decidedBy} />}
       </dl>
 

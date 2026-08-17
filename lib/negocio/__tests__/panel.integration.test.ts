@@ -69,6 +69,15 @@ async function setPlan(plan: 'free' | 'paid') {
   await db.update(places).set({ ownerPlan: plan }).where(eq(places.id, placeId))
 }
 
+/**
+ * El fixture nace `overture`, que es el caso común. Desde TITULARIDAD, escribir
+ * el contacto exige un lugar que haya nacido del dueño (decisión 7): los casos
+ * que usan el teléfono como vehículo para probar otra cosa lo pasan a `owner`.
+ */
+async function setSource(source: 'overture' | 'owner') {
+  await db.update(places).set({ source }).where(eq(places.id, placeId))
+}
+
 beforeAll(async () => {
   try {
     await getConfidenceThreshold()
@@ -171,6 +180,7 @@ describe.runIf(process.env.DATABASE_URL)('gating por plan — server-side (decis
   })
 
   it('con free, los campos pagos VACÍOS no molestan (el form manda el estado entero)', async () => {
+    await setSource('owner')
     const r = await guardarContenido(duenoId, placeId, payload({ phone: '11 5555 5555' }))
     expect(r.ok).toBe(true)
   })
@@ -192,8 +202,71 @@ describe.runIf(process.env.DATABASE_URL)('gating por plan — server-side (decis
   })
 })
 
+describe.runIf(process.env.DATABASE_URL)(
+  'recorte del contacto — server-side (TITULARIDAD decisiones 1 y 7)',
+  () => {
+    it('en un lugar de Overture, un campo de contacto con contenido rebota', async () => {
+      const casos = [
+        payload({ phone: '11 5555 5555' }),
+        payload({ website: 'https://propio.example' }),
+        payload({ socials: ['https://instagram.com/nueva'] }),
+      ]
+      for (const caso of casos) {
+        const r = await guardarContenido(duenoId, placeId, caso)
+        expect(r.ok).toBe(false)
+        expect(r.ok === false && r.code).toBe('CONTACTO_VERIFICADO')
+      }
+
+      // Y no escribió nada: el rechazo es antes de la transacción.
+      const filas = await db
+        .select({ phone: placeOwnerContent.phone })
+        .from(placeOwnerContent)
+        .where(eq(placeOwnerContent.placeId, placeId))
+      expect(filas).toHaveLength(0)
+    })
+
+    it('el contacto VACÍO no falla y PRESERVA lo que el dueño cargó antes del recorte', async () => {
+      // Lo que había antes de que la regla existiera: se carga a mano porque hoy
+      // ya no hay forma de escribirlo desde el editor.
+      await db.insert(placeOwnerContent).values({
+        placeId,
+        phone: '11 5555 5555',
+        website: 'https://propio.example',
+        socials: ['https://instagram.com/nueva'],
+      })
+
+      // El form mandando su estado: los tres vacíos porque están apagados.
+      const r = await guardarContenido(duenoId, placeId, payload({ tags: ['bar'] }))
+      expect(r.ok).toBe(true)
+
+      const [fila] = await db
+        .select({
+          phone: placeOwnerContent.phone,
+          website: placeOwnerContent.website,
+          socials: placeOwnerContent.socials,
+        })
+        .from(placeOwnerContent)
+        .where(eq(placeOwnerContent.placeId, placeId))
+      expect(fila.phone).toBe('11 5555 5555')
+      expect(fila.website).toBe('https://propio.example')
+      expect(fila.socials).toEqual(['https://instagram.com/nueva'])
+
+      // Y la ficha lo sigue mostrando: el recorte es sobre escribir.
+      expect((await getPlaceDetail(placeId))!.phone).toBe('11 5555 5555')
+    })
+
+    it('en un lugar que nació del dueño (alta), el contacto SÍ se guarda', async () => {
+      await setSource('owner')
+      const r = await guardarContenido(duenoId, placeId, payload({ phone: '11 5555 5555' }))
+      expect(r.ok).toBe(true)
+      expect((await getPlaceDetail(placeId))!.phone).toBe('11 5555 5555')
+    })
+  },
+)
+
 describe.runIf(process.env.DATABASE_URL)('la ficha consume el contenido del dueño', () => {
   it('el teléfono del dueño le gana al de Overture, y borrarlo devuelve el de Overture', async () => {
+    await setSource('owner')
     const antes = await getPlaceDetail(placeId)
     expect(antes!.phone).toBe('11 4000 0000')
 
@@ -206,6 +279,7 @@ describe.runIf(process.env.DATABASE_URL)('la ficha consume el contenido del due�
   })
 
   it('las redes del dueño reemplazan a las de Overture', async () => {
+    await setSource('owner')
     await guardarContenido(duenoId, placeId, payload({ socials: ['https://instagram.com/nueva'] }))
     expect((await getPlaceDetail(placeId))!.socials).toEqual(['https://instagram.com/nueva'])
   })
@@ -510,6 +584,7 @@ describe.runIf(process.env.DATABASE_URL)('desglose pago — gate server-side (de
 
 describe.runIf(process.env.DATABASE_URL)('el panel arma el editor', () => {
   it('trae la base de Overture aparte de lo del dueño, para poder comparar', async () => {
+    await setSource('owner')
     await guardarContenido(duenoId, placeId, payload({ phone: '11 5555 5555' }))
     const panel = await getPanelLugar(placeId, duenoId)
     expect(panel!.base.phone).toBe('11 4000 0000')
@@ -536,6 +611,7 @@ describe.runIf(process.env.DATABASE_URL)('el panel arma el editor', () => {
 
 describe.runIf(process.env.DATABASE_URL)('el contenido del dueño sobrevive al re-import', () => {
   it('actualizar las columnas base de places no toca place_owner_content', async () => {
+    await setSource('owner')
     await guardarContenido(duenoId, placeId, payload({ phone: '11 5555 5555' }))
 
     // Lo que hace el import: pisa las columnas base con lo de Overture.
@@ -557,6 +633,7 @@ describe.runIf(process.env.DATABASE_URL)('el contenido del dueño sobrevive al r
 
 describe.runIf(process.env.DATABASE_URL)('sin dueño aprobado, el contenido deja de aplicarse', () => {
   it('revocar el reclamo devuelve la ficha a los datos de Overture, sin borrar nada', async () => {
+    await setSource('owner')
     await guardarContenido(duenoId, placeId, payload({ phone: '11 5555 5555' }))
     expect((await getPlaceDetail(placeId))!.phone).toBe('11 5555 5555')
 
@@ -653,6 +730,7 @@ describe.runIf(process.env.DATABASE_URL)('borrado destructivo de las fotos de un
 
 describe.runIf(process.env.DATABASE_URL)('limpieza en cascada', () => {
   it('borrar el lugar se lleva su contenido de dueño', async () => {
+    await setSource('owner')
     await guardarContenido(duenoId, placeId, payload({ phone: '11 5555 5555' }))
     await db.delete(places).where(eq(places.id, placeId))
 

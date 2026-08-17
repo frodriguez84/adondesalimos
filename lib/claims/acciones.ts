@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { placeClaims, places, users } from '@/lib/db/schema'
 import { asignarZonasDeLugar } from '@/lib/zones/persistir'
 import { cancelarSuscripcionDeLugar } from '@/lib/billing/baja'
+import { DECLARACION_VERSION } from './declaracion'
 import { revertirTagsAOverture, tieneDuenoAprobado } from './ownership'
 import type { AltaPayload, Decision, ReclamoPayload } from './validacion'
 
@@ -75,6 +76,9 @@ export async function crearReclamo(
       applicantPhone: payload.applicantPhone,
       applicantRole: payload.applicantRole,
       comment: payload.comment || null,
+      // Queda registrado QUÉ se declaró, no solo QUE se declaró (TITULARIDAD
+      // decisión 6): el texto va a cambiar y la versión lo ata.
+      declaracionVersion: DECLARACION_VERSION,
     })
     .returning({ id: placeClaims.id })
 
@@ -122,6 +126,7 @@ export async function crearAlta(
         applicantPhone: payload.applicantPhone,
         applicantRole: payload.applicantRole,
         comment: payload.comment || null,
+        declaracionVersion: DECLARACION_VERSION,
       })
       .returning({ id: placeClaims.id })
 

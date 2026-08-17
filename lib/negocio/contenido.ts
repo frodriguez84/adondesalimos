@@ -1,7 +1,7 @@
-import type { OwnerPlan } from '@/lib/db/schema'
+import type { OwnerPlan, PlaceSource } from '@/lib/db/schema'
 
 /**
- * Las dos reglas de negocio de F3, puras y sin DB:
+ * Las reglas de negocio de "qué del dueño se aplica y qué no", puras y sin DB:
  *
  * 1. **COALESCE dueño → base** (decisión 13): lo que el dueño cargó gana sobre lo
  *    que trajo Overture; lo que dejó vacío cae a la base. Nunca se escribe sobre
@@ -9,6 +9,9 @@ import type { OwnerPlan } from '@/lib/db/schema'
  * 2. **Gating por plan** (decisiones 17 y 18): los tres campos pagos existen
  *    siempre en la base pero solo se muestran (y se escriben) con `owner_plan =
  *    'paid'`. Volver a `free` los **oculta**, no los borra.
+ * 3. **El contacto fuera del peldaño gratis** (TITULARIDAD decisión 1): en un
+ *    lugar de Overture, `phone`/`website`/`socials` no se editan sin
+ *    verificación. Es un gate de escritura: la ficha no cambia.
  *
  * Vive acá y no en la query porque es la parte que tiene que estar bien: un
  * `null` mal resuelto muestra el teléfono viejo de Overture en la ficha de un
@@ -31,6 +34,27 @@ export function capDeFotos(plan: OwnerPlan): number {
 
 export function esPlanPago(plan: OwnerPlan): boolean {
   return plan === 'paid'
+}
+
+/**
+ * Los tres campos que salen del peldaño gratis (TITULARIDAD decisión 1): el
+ * activo peligroso, porque pisarlos desvía las llamadas y el tráfico web de un
+ * negocio real a un competidor. El peldaño verificado los va a habilitar (F3).
+ */
+export const CAMPOS_DE_CONTACTO = ['phone', 'website', 'socials'] as const
+export type CampoDeContacto = (typeof CAMPOS_DE_CONTACTO)[number]
+
+/**
+ * ¿Este lugar deja editar el contacto sin verificación? Solo los que nacieron
+ * del dueño (TITULARIDAD decisión 7): ahí el contacto nunca fue de nadie más y
+ * el admin ya lo leyó al aprobar. En un lugar de Overture, en cambio, editarlo
+ * es pisar el contacto de un negocio ajeno preexistente.
+ *
+ * **Es sobre escribir, no sobre mostrar**: `resolverContenidoDueno` sigue
+ * aplicando lo que un dueño cargó antes del recorte.
+ */
+export function puedeEditarContacto(source: PlaceSource): boolean {
+  return source === 'owner'
 }
 
 /** La fila de `place_owner_content`, o `null` si el lugar no tiene ninguna. */

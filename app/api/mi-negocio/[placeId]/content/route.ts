@@ -26,6 +26,9 @@ export const dynamic = 'force-dynamic'
 const STATUS_POR_CODIGO: Record<string, number> = {
   NO_AUTORIZADO: 403,
   CAMPO_PAGO: 403,
+  // El contacto de un lugar de Overture no se edita sin verificación
+  // (TITULARIDAD decisión 1): es permiso, no forma.
+  CONTACTO_VERIFICADO: 403,
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ placeId: string }> }) {

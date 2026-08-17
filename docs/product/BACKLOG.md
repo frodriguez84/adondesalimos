@@ -212,102 +212,25 @@ son trabajo acotado con criterio de "listo" objetivo.
         (`premium_interest` de DEPLOY, 20 votaciones del historial), y las de `premium_interest`
         **disparan el gatillo de prender el cobro**. **F0 no arranca hasta que el bloque F cierre
         en verde.** El plan deja 4 decisiones abiertas para Fer (§ 12).
-- [ ] **`TITULARIDAD` — cómo sé que el dueño de X es realmente el dueño de X.** Planteado por Fer el
-      2026-08-14; **la conversación queda pendiente a propósito**, esto es solo el ancla para que no
-      se pierda. **Dónde estamos hoy:** el reclamo pide nombre, teléfono y rol
-      (`applicantName` / `applicantPhone` / `applicantRole` + comentario libre, `lib/claims/validacion.ts`)
-      y **la única verificación es que Fer lo lee a mano**, una por una — no hay ninguna prueba
-      documental, ni un canal que confirme el vínculo con el local. Es decir: hoy el control es
-      *«suena razonable»*, y eso alcanzó porque los reclamos son poquísimos y los mira una persona
-      que conoce el rubro.
-      **Por qué importa antes de crecer:** aprobar un reclamo entrega el contenido de la ficha
-      (nombre, descripción, fotos, horarios) y, con `owner_plan='paid'`, los campos pagos. Un
-      reclamo falso aprobado deja a un tercero **editando el negocio de otro** y, del otro lado, a un
-      dueño real sin poder recuperarlo. Es **puerta de ida en reputación** aunque en la base sea
-      reversible (revocar **oculta**, no borra — `AUTH` F3).
-      **Qué habría que decidir cuando lo hablemos** (no está decidido nada): qué prueba se pide y de
-      qué tipo —documental (constancia de AFIP/monotributo, habilitación municipal), de control del
-      canal (mail con el dominio del negocio, llamada al teléfono **que ya está publicado** en el
-      catálogo de Overture, código por WhatsApp al número del local), o presencial—; si la exigencia
-      **escala con lo que se desbloquea** (gratis vs. plan pago vs. B2B); qué se hace con los
-      **conflictos** (dos reclamos del mismo lugar) y con la **transferencia** cuando el local cambia
-      de manos; y qué queda registrado como evidencia de la decisión. Ojo con el costo del lado del
-      dueño: cada prueba que se pide es fricción en el lado que ya es escaso.
-      **📊 Medido contra producción el 2026-08-17 (sesión de decisión de cola), y tumbó dos
-      caminos antes de escribirlos.** Todo read-only sobre Neon:
-      - **La verificación NO puede anclarse en el catálogo de Overture.** El código por
-        WhatsApp/SMS al teléfono publicado parecía cubrir 82,8%; medido el **formato**, solo
-        **1.324 de 15.730 son móviles (8,4%)** —11.865 son fijos de AMBA— y en los 200 lugares
-        más vistos hay **13 móviles**: el canal cubre **6,5%** de lo que importa. Las redes
-        tampoco: de 18.035, **17.744 son Facebook** y solo **725 Instagram**, así que "publicá un
-        código en tu IG" no existe. Dominio propio: 40,7% (de 9.322 "webs", 1.597 son
-        linktr/IG/wa.me disfrazadas). **Objeción de Fer, confirmada con números.**
-      - **Un dato viejo falla cerrado, no abierto**: si el teléfono murió, el dueño legítimo no
-        puede probar (fricción) pero el impostor tampoco pasa. El riesgo de los datos viejos es de
-        **cobertura**, no de seguridad — por eso la respuesta no podía ser solo "una puerta mejor".
-      - **Jurisdicciones: hay que resolver CABA, no 390 localidades.** El catálogo tiene 390
-        `locality` distintas, pero **164 de los 200 más vistos son CABA**. Dirección presente en
-        **97,8%** de los publicados ⇒ el cruce "domicilio del documento vs dirección del catálogo"
-        es viable y es la única verificación que podemos hacer gratis.
-      - **Estado del abuso, hoy: 0 reclamos y 0 altas** en producción (9 días, 3 usuarios).
-
-      **Marco regulatorio, relevado en la conversación (⚠️ confirmar contra fuente actual antes
-      de escribirlo en el spec — no se buscó en la web en esta sesión):**
-      - **ARCA (ex-AFIP, renombrada en 2024) NO autoriza a abrir un local**: es el fisco. Quien
-        autoriza es la **habilitación comercial** — en CABA el GCBA (AGC, por TAD), en PBA **cada
-        municipio** con su propio certificado.
-      - **⚠️ La constancia de inscripción de ARCA es PÚBLICA** (cualquiera la baja con un CUIT
-        ajeno) y el **Formulario 960 "Data Fiscal"** está exhibido a la vista del público en el
-        local, fotografiable por cualquier cliente. **Pedir "la constancia de AFIP" NO prueba
-        titularidad.** Lo que sí califica es lo que solo se obtiene **con clave fiscal** y liga el
-        CUIT al domicilio de ESE local (domicilios de locales y establecimientos, Sistema Registral).
-      - **Menú de documentos candidatos** (todos ligan persona/razón social ↔ domicilio del local):
-        certificado de **habilitación comercial** (CABA: AGC · PBA: municipio) · **Ingresos Brutos**
-        con domicilio del local (**AGIP** en CABA, **ARBA** en PBA) · domicilios de local del Sistema
-        Registral de ARCA · contrato de locación · factura de servicios del local.
-      - **No podemos verificar la autenticidad de ningún PDF** (no hay API de ARCA ni de AGC). El
-        valor de pedir un documento oficial **no es que sea infalsificable: es que mueve el acto de
-        "mentir en un formulario" a "falsificar un instrumento público"**, que es un delito con
-        nombre propio. Disuade sin que nosotros verifiquemos nada.
-      - **⚠️ Recibir documentación es un pasivo nuevo**: CUIT, domicilio y a veces DNI de terceros
-        caen bajo la **Ley 25.326 de Protección de Datos Personales**. Hay que decidir dónde se
-        guarda, cuánto tiempo, quién lo ve y cuándo se borra. `lib/storage/r2.ts` hoy guarda fotos
-        **públicas** de locales, que es otra categoría de dato. **Puerta de ida en un eje nuevo** —
-        se decide junto con la prueba, no después.
-
-      **Decidido por Fer el 2026-08-17 (queda escribir el spec):**
-      1. **La exigencia escala con lo que se desbloquea, Y se recorta el peldaño sin verificar.**
-         Sin verificación: fotos, tags, horarios. Los datos de contacto —`phone`, `website`,
-         `socials` de `place_owner_content`— **salen del peldaño gratis**, porque son el activo
-         peligroso: un reclamo falso aprobado hoy **desvía las llamadas y el tráfico web a un
-         competidor** con el nombre del negocio real arriba. No le agrega un paso al dueño legítimo
-         que solo quiere cargar fotos.
-      2. **Alcance: decidir entero, implementar solo el recorte.** Las cuatro decisiones (prueba,
-         escalera, conflictos, transferencia) se escriben porque no se pudren y son puerta de ida;
-         de código entra únicamente el recorte, que no depende de volumen.
-      3. **La prueba documental NO se pide todavía.** Se deja como está (Fer lee cada reclamo) y
-         en su lugar van **copy disuasorio + declaración afirmativa** en `/reclamar/[placeId]` y en
-         `/registrar-negocio` — hoy **ninguna de las dos tiene una sola línea legal** (verificado en
-         `reclamo-form.tsx` y `alta-form.tsx`).
-         ⚠️ **Cicatriz a respetar al escribir ese copy**: es el mismo error del aviso de beta
-         (DEPLOY decisión 21), que empezó como letra chica defensiva y se corrigió porque **"no nos
-         cubre legalmente de nada; escrito así es peor que no ponerlo"**. Reclamar falsamente en una
-         app **no es un delito tipificado por sí solo** — lo son la falsificación de instrumento
-         público o el fraude, según el caso. Un cartel que dice "esto es un delito" a secas afirma
-         algo inexacto y el que sabe lo detecta. **Lo que funciona es la declaración afirmativa
-         antes de la amenaza**: un checkbox de *"Declaro que soy el dueño o estoy autorizado a
-         gestionar este negocio"* deja registrado que la persona **afirmó** algo concreto, y eso es
-         lo que sostiene revocar, dar de baja la cuenta y cualquier acción posterior. La advertencia
-         va después, en tono de **consecuencia real** (se revoca, se pierde la cuenta, queda
-         registrado), no de amenaza penal genérica.
-
-      **Verificado en el código, para que no vuelva como folclore:** **no existe ningún mecanismo de
-      "si muchos usuarios reportan que no existe, se da de baja"** — no hay tabla de reportes ni
-      endpoint. Lo que sí existe y es la protección real del alta: **un lugar dado de alta por un
-      dueño nace invisible** (`lib/claims/acciones.ts:85-109` — `source='owner'`, `confidence=null`,
-      `publishOverride=false`), así que **el que da de alta un lugar falso no publica nada** hasta
-      que el admin apruebe; revocar lo devuelve a invisible. El costo de un alta basura es una fila
-      en la cola, no una ficha falsa en la calle.
+- [x] **`TITULARIDAD` — cómo sé que el dueño de X es realmente el dueño de X.** Planteado por Fer
+      el 2026-08-14, medido contra producción el 2026-08-17 y **escrito como spec el 2026-08-17**:
+      → **[`docs/specs/active/TITULARIDAD.md`](../specs/active/TITULARIDAD.md)**, que es desde ahora
+      la fuente de verdad. Todo lo que estaba acá —los números medidos contra Neon, el marco
+      regulatorio, el menú de documentos y las decisiones— vive allá; no se duplica para que no
+      driftee.
+      **F1 ✅ 2026-08-17** (el único tramo que se implementa): **`phone`, `website` y `socials` salen
+      del peldaño gratis** en lugares de Overture —son el activo peligroso: un reclamo falso desvía
+      llamadas y tráfico web a un competidor— y los dos formularios del flujo dueño estrenan
+      **declaración afirmativa versionada** (`place_claims.declaracion_version`), que hasta hoy no
+      tenían una sola línea legal.
+      **F2** (transferencia y disputa en la app) y **F3** (prueba documental) quedan **escritas y
+      gateadas por volumen**: hoy hay **0 reclamos y 0 altas** en producción, así que cualquier
+      mecanismo construido ahora se diseñaría contra casos imaginados. Se implementan con el primer
+      caso real. Los tres hallazgos que conviene no re-descubrir están en el spec:
+      **la constancia de IIBB de AGIP es pública** (se baja con solo el CUIT ⇒ no prueba nada, y CABA
+      es 164 de los 200 más vistos) · **el pago NO dispara la prueba** (el B2B ya pasó el KYC de
+      Mercado Pago) · **la evidencia no se guarda**: se mira y se registra el veredicto, sin CUIT ni
+      DNI ni archivo (Ley 25.326).
 
 - [ ] **3 · Curaduría de datos — la cobertura, guiada por uso real.** Era el #2. Sigue siendo
       cierto que **Precio tiene ~0 filas** (1 sola, cargada a mano) y que **Actividad está pegada
@@ -1336,6 +1259,14 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 ## Mejoras futuras (fuera de v1)
 
 ### Deuda técnica señalada, no tocada
+
+- [ ] **La dirección de contacto está escrita dos veces, como const local en cada archivo.**
+      `contacto@adondesalimos.com.ar` vive en `app/legales/page.tsx` y, desde TITULARIDAD F1, también
+      en `app/mi-negocio/[placeId]/editor-client.tsx`. Señalado apenas se vio (`CLAUDE.md` § *Una regla,
+      un dueño*): son dos copias de un dato de contacto que el día que cambie va a cambiar en un lado
+      solo. **No es una regla de negocio**, así que no urge — pero el arreglo es un `lib/` de tres
+      líneas con dueño único. No se unificó en la sesión de TITULARIDAD por ser refactor fuera del
+      encargo (cambios quirúrgicos).
 
 - [ ] **Sincronizar los tags de «El Ombú» de prod → dev (el drift que marca `prod:check`).**
       Detectado el 2026-08-17 al medir producción: `prod:check` reporta `place_tags` dev=43637 ·
@@ -2612,6 +2543,39 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`TITULARIDAD` — spec escrito entero + F1 implementada** (2026-08-17, sesión de autoría Opus;
+      código delegado al subagente `implementador`). Spec:
+      [`docs/specs/active/TITULARIDAD.md`](../specs/active/TITULARIDAD.md) · QA:
+      [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — TITULARIDAD F1* — **PARCIAL,
+      pendiente QA en vivo** (13 criterios de código PASS con 3 checkers independientes · typecheck ·
+      **788/788** tests · build **no corrido**: el dev server comparte `.next`).
+      **F1 = el recorte + la declaración.** `phone`/`website`/`socials` salen del peldaño gratis en
+      lugares de Overture (403 `CONTACTO_VERIFICADO`, campos **apagados y visibles** en el editor), y
+      los dos formularios del flujo dueño estrenan **declaración afirmativa versionada**
+      (`place_claims.declaracion_version`, migración `0018`). **F2 y F3 escritas y gateadas por
+      volumen** — hay 0 reclamos en producción.
+      **Lo que vale más que el diff:**
+      1. **Buscar en la web corrigió el spec antes de escribirlo.** El relevamiento de la sesión
+         anterior se hizo de memoria y listaba la **constancia de IIBB de AGIP** como documento
+         candidato: se baja con **solo el CUIT**, así que es tan pública como la de ARCA y no prueba
+         nada. Como **164 de los 200 más vistos son CABA**, se caía justo la mitad que importaba.
+         **ARBA sí califica** (pide CIT). Apareció además que la habilitación de CABA en bajo riesgo
+         resuelve como **Declaración Responsable**, no como certificado: pedir «el certificado» a
+         secas dejaría afuera al rubro más común.
+      2. **El recorte no podía ser «no escribas»: tenía que preservar.** Un `PATCH` con el contacto
+         vacío es el caso normal —es el form mandando su estado—, así que escribir el payload habría
+         **borrado** el teléfono que un dueño cargó *antes* de que la regla existiera. `guardarContenido`
+         lee lo guardado y lo reescribe dentro de la misma transacción. Y el recorte es sobre
+         **escribir, no sobre mostrar**: la ficha sigue mostrando lo ya cargado.
+      3. **El checker independiente cazó una mezcla de registro que el implementador no vio.** El copy
+         de la declaración decía *«damos de baja el reclamo y la cuenta… quién lo pidió»* —impersonal—
+         mientras el resto de la pantalla vosea. Corregido a *«tu reclamo y tu cuenta… lo pediste vos»*.
+         Es exactamente lo que `maker≠checker` existe para encontrar.
+      4. **El copy legal no repitió el error del aviso de beta** (`DEPLOY` decisión 21): la
+         **declaración va antes** que la advertencia, y la advertencia enumera consecuencias reales
+         (se revoca, se pierde la cuenta, queda registrado) en vez de afirmar un delito que **no está
+         tipificado** por reclamar en falso en una app.
 
 - [x] **`R5` — el chat IA y el premium apagado, el recorrido donde la app promete más** (los 3
       hallazgos abiertos del bloque R5 de `PULIDO_BETA`: `PBETA-R5-02`, `-03` y `-05`; 2026-08-16,

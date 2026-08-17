@@ -231,6 +231,8 @@ export type ClaimEnCola = {
   applicantPhone: string | null
   applicantRole: string | null
   comment: string | null
+  /** Qué versión de la declaración tildó, o `null` si el claim es anterior. */
+  declaracionVersion: string | null
   userEmail: string
   place: {
     id: string
@@ -261,6 +263,7 @@ export async function claimsPorEstado(status: ClaimStatus): Promise<ClaimEnCola[
       applicantPhone: placeClaims.applicantPhone,
       applicantRole: placeClaims.applicantRole,
       comment: placeClaims.comment,
+      declaracionVersion: placeClaims.declaracionVersion,
       userEmail: users.email,
       placeId: places.id,
       placeName: places.name,
@@ -294,6 +297,7 @@ export async function claimsPorEstado(status: ClaimStatus): Promise<ClaimEnCola[
     applicantPhone: f.applicantPhone,
     applicantRole: f.applicantRole,
     comment: f.comment,
+    declaracionVersion: f.declaracionVersion,
     userEmail: f.userEmail,
     place: {
       id: f.placeId,

@@ -21,6 +21,13 @@ const solicitante = z.object({
   applicantPhone: texto(6, 40),
   applicantRole: texto(2, 120),
   comment: texto(0, 1000).optional(),
+  /**
+   * La declaración de titularidad (TITULARIDAD decisión 5): sin ella no hay
+   * reclamo ni alta, y un POST que no la trae es 400. Un checkbox que solo vive
+   * en el cliente no es una declaración, es una decoración. El texto y su
+   * versión están en `lib/claims/declaracion.ts`.
+   */
+  declaracion: z.literal(true),
 })
 
 export const reclamoSchema = solicitante.extend({

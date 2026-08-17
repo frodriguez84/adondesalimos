@@ -13,6 +13,7 @@ import {
   type Errores,
 } from '@/components/negocio/campos'
 import { cobroApagado } from '@/lib/billing/apagado'
+import { puedeEditarContacto } from '@/lib/negocio/contenido'
 import { contenidoSchema, MAX_RANGOS_POR_DIA, MAX_SOCIALS } from '@/lib/negocio/validacion'
 import {
   DIAS,
@@ -53,8 +54,25 @@ const FORM_ID = 'editor-negocio'
 /** Cuánto queda el «Listo» antes de devolverle el pie de la pantalla al dueño. */
 const MS_AVISO_OK = 4000
 
+/** A dónde escribe el dueño cuando algo del contacto está mal (TITULARIDAD). */
+const CONTACTO = 'contacto@adondesalimos.com.ar'
+
+/** Las redes que hoy salen en la ficha: las del dueño si cargó, si no las de la base. */
+function redesVisibles(lugar: PanelLugar): string[] {
+  return lugar.contenido.socials.length > 0 ? lugar.contenido.socials : lugar.base.socials
+}
+
 export function EditorClient({ lugar }: { lugar: PanelLugar }) {
   const pago = lugar.plan === 'paid'
+  /**
+   * TITULARIDAD decisión 1: en un lugar de Overture el contacto no se edita sin
+   * verificación. Los campos quedan **visibles y apagados** —ocultarlos manda al
+   * dueño a buscar dónde estaban y termina en soporte igual, sin haber entendido
+   * nada—. Es UI: el `PATCH` los rechaza igual (el cliente no es boundary).
+   */
+  const contactoEditable = puedeEditarContacto(lugar.source)
+  /** Lo que hoy se ve en la ficha: las del dueño si cargó, si no las de la base. */
+  const redesQueSeVen = redesVisibles(lugar)
 
   const [datos, setDatos] = useState<Estado>({
     phone: lugar.contenido.phone,
@@ -108,10 +126,12 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
 
     // En free los campos pagos ni se mandan: el endpoint los rechazaría con 403,
     // y el estado local puede tener lo que se cargó cuando el plan estaba activo.
+    // Ídem el contacto recortado: vacío el server lo ignora y preserva lo que el
+    // dueño hubiera cargado antes del recorte (TITULARIDAD).
     const payload = {
-      phone: datos.phone,
-      website: datos.website,
-      socials: datos.socials.filter((s) => s.trim().length > 0),
+      phone: contactoEditable ? datos.phone : '',
+      website: contactoEditable ? datos.website : '',
+      socials: contactoEditable ? datos.socials.filter((s) => s.trim().length > 0) : [],
       tags: [...elegidos],
       openingHours: datos.horarios,
       description: pago ? datos.description : '',
@@ -156,6 +176,20 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
       <form id={FORM_ID} onSubmit={guardar} className="flex flex-col gap-6">
         {/* --- Contacto: pisa lo de Overture, sin tocar sus columnas (dec. 13) --- */}
         <Seccion titulo="Datos de contacto">
+          {!contactoEditable && (
+            <p className="flex items-start gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs text-muted-foreground">
+              <Lock className="mt-0.5 size-3.5 shrink-0" />
+              <span>
+                Estos tres los verificamos a mano: son por donde te llaman y te visitan. Si hay algo
+                mal, escribinos a{' '}
+                <a href={`mailto:${CONTACTO}`} className="text-primary underline underline-offset-2">
+                  {CONTACTO}
+                </a>{' '}
+                y lo cambiamos nosotros.
+              </span>
+            </p>
+          )}
+
           <Campo
             label="Teléfono"
             error={errores.phone}
@@ -166,6 +200,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
               value={datos.phone}
               onChange={(e) => set({ phone: e.target.value })}
               placeholder={lugar.base.phone ?? '11 5555 5555'}
+              disabled={!contactoEditable}
               className={inputClass}
             />
           </Campo>
@@ -180,6 +215,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
               value={datos.website}
               onChange={(e) => set({ website: e.target.value })}
               placeholder="https://…"
+              disabled={!contactoEditable}
               className={inputClass}
             />
           </Campo>
@@ -187,29 +223,38 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           <Campo
             label="Redes"
             error={errores.socials}
-            hint="Instagram, Facebook, lo que uses. Si cargás alguna, reemplazan a las que teníamos."
+            hint={
+              contactoEditable
+                ? 'Instagram, Facebook, lo que uses. Si cargás alguna, reemplazan a las que teníamos.'
+                : redesQueSeVen.length === 0
+                  ? 'No hay redes cargadas.'
+                  : undefined
+            }
           >
             <div className="flex flex-col gap-2">
-              {datos.socials.map((social, i) => (
+              {(contactoEditable ? datos.socials : redesQueSeVen).map((social, i) => (
                 <div key={i} className="flex gap-2">
                   <input
                     type="url"
                     value={social}
                     onChange={(e) => setSocial(i, e.target.value)}
                     placeholder="https://instagram.com/…"
+                    disabled={!contactoEditable}
                     className={inputClass}
                   />
-                  <button
-                    type="button"
-                    aria-label="Quitar red"
-                    onClick={() => set({ socials: datos.socials.filter((_, j) => j !== i) })}
-                    className="shrink-0 rounded-xl border border-border px-3 text-muted-foreground transition-colors hover:text-destructive"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  {contactoEditable && (
+                    <button
+                      type="button"
+                      aria-label="Quitar red"
+                      onClick={() => set({ socials: datos.socials.filter((_, j) => j !== i) })}
+                      className="shrink-0 rounded-xl border border-border px-3 text-muted-foreground transition-colors hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  )}
                 </div>
               ))}
-              {datos.socials.length < MAX_SOCIALS && (
+              {contactoEditable && datos.socials.length < MAX_SOCIALS && (
                 <button
                   type="button"
                   onClick={() => set({ socials: [...datos.socials, ''] })}

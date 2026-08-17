@@ -1,13 +1,19 @@
 import { and, eq, inArray, ne, notInArray, or, sql } from 'drizzle-orm'
-import { db } from '@/lib/db'
+import { db, type DbOrTx } from '@/lib/db'
 import { placeOwnerContent, placePhotos, placeTags, places, tags } from '@/lib/db/schema'
 import { esDuenoDe, placeIdsDelUsuario } from '@/lib/claims/ownership'
 import { borrarFoto, claveDeFoto, claveDeUrl, subirFoto, type TipoFoto } from '@/lib/storage/r2'
-import { CAMPOS_PAGOS, capDeFotos, esPlanPago } from './contenido'
+import {
+  CAMPOS_DE_CONTACTO,
+  CAMPOS_PAGOS,
+  capDeFotos,
+  esPlanPago,
+  puedeEditarContacto,
+} from './contenido'
 import { tieneAlgunHorario } from './horarios'
 import { listaANull, vacioANull, type ContenidoPayload } from './validacion'
 import type { Resultado } from '@/lib/claims/acciones'
-import type { OwnerPlan } from '@/lib/db/schema'
+import type { OwnerPlan, PlaceSource } from '@/lib/db/schema'
 
 /**
  * Escrituras del panel del dueño (AUTH F3). Mismo reparto que F2: acá vive todo
@@ -19,6 +25,9 @@ import type { OwnerPlan } from '@/lib/db/schema'
  *   muestre bloqueado. El cliente no es un boundary de seguridad.
  * - **Cap de fotos**: 3 free / 15 pago, verificado con la fila del lugar tomada
  *   `FOR UPDATE` — dos uploads simultáneos no pueden colarse por la ventana.
+ * - **Recorte del contacto** (TITULARIDAD decisión 1): en un lugar de Overture,
+ *   mandar `phone`/`website`/`socials` con contenido es 403. La regla vive en
+ *   `contenido.ts` (`puedeEditarContacto`), acá solo se aplica.
  *
  * Nada de esto toca las columnas base de `places` (decisión 13): el re-import de
  * Overture las pisa. Todo va a `place_owner_content` y a `place_tags`.
@@ -30,28 +39,29 @@ const fallo = (code: string, message: string) => ({ ok: false as const, code, me
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
- * El lugar existe y es de este usuario. Devuelve el plan, que decide todo lo
- * demás. Exportada (PULIDO, INT-14): el route de `/content` la llama ANTES de
- * validar la forma del payload, para que un no-dueño reciba 403 siempre, sin
- * importar si mandó datos bien formados.
+ * El lugar existe y es de este usuario. Devuelve el plan y el `source`, que
+ * deciden todo lo demás (el plan, los campos pagos; el source, el contacto —
+ * TITULARIDAD decisión 7). Exportada (PULIDO, INT-14): el route de `/content` la
+ * llama ANTES de validar la forma del payload, para que un no-dueño reciba 403
+ * siempre, sin importar si mandó datos bien formados.
  */
 export async function verificarDueno(
   userId: string,
   placeId: string,
-): Promise<Resultado<{ plan: OwnerPlan }>> {
+): Promise<Resultado<{ plan: OwnerPlan; source: PlaceSource }>> {
   if (!UUID_RE.test(placeId) || !(await esDuenoDe(userId, placeId))) {
     // Mismo mensaje para "no existe" y "no es tuyo": un lugar ajeno no tiene por
     // qué distinguirse de uno inexistente.
     return fallo('NO_AUTORIZADO', 'No podés editar este lugar.')
   }
   const [place] = await db
-    .select({ ownerPlan: places.ownerPlan })
+    .select({ ownerPlan: places.ownerPlan, source: places.source })
     .from(places)
     .where(eq(places.id, placeId))
     .limit(1)
 
   if (!place) return fallo('NO_AUTORIZADO', 'No podés editar este lugar.')
-  return { ok: true, data: { plan: place.ownerPlan } }
+  return { ok: true, data: { plan: place.ownerPlan, source: place.source } }
 }
 
 // ---------------------------------------------------------------------------
@@ -88,7 +98,7 @@ export async function guardarContenido(
   const dueno = await verificarDueno(userId, placeId)
   if (!dueno.ok) return dueno
 
-  const { plan } = dueno.data
+  const { plan, source } = dueno.data
 
   // Gating por plan (decisión 17): en free, un campo pago con contenido es 403.
   // Vacío se ignora — no es un intento de editar, es el form mandando el estado.
@@ -99,13 +109,40 @@ export async function guardarContenido(
     }
   }
 
+  // Recorte del contacto (TITULARIDAD decisiones 1 y 7): en un lugar de Overture
+  // el contacto no se edita sin verificación. Mismo criterio que el gate de
+  // plan: con contenido es 403, vacío se ignora.
+  const contactoEditable = puedeEditarContacto(source)
+  if (!contactoEditable) {
+    const intento = CAMPOS_DE_CONTACTO.find((campo) =>
+      campo === 'socials'
+        ? listaANull(payload.socials) !== null
+        : vacioANull(payload[campo]) !== null,
+    )
+    if (intento) {
+      return fallo(
+        'CONTACTO_VERIFICADO',
+        'El teléfono, el sitio y las redes los verificamos a mano. Escribinos y lo cambiamos.',
+      )
+    }
+  }
+
   const tagIds = await resolverTags(payload.tags)
 
   await db.transaction(async (tx) => {
+    // Con el contacto recortado no se escribe el payload —que llega vacío, ver
+    // arriba—, sino lo que ya estaba: el recorte no puede borrar lo que un dueño
+    // cargó antes de que existiera.
+    const contacto = contactoEditable
+      ? {
+          phone: vacioANull(payload.phone),
+          website: vacioANull(payload.website),
+          socials: listaANull(payload.socials),
+        }
+      : await contactoGuardado(placeId, tx)
+
     const valores = {
-      phone: vacioANull(payload.phone),
-      website: vacioANull(payload.website),
-      socials: listaANull(payload.socials),
+      ...contacto,
       // Horarios: son free (decisión 20), no pasan por el gate de plan. Una semana
       // sin ningún rango se guarda como null ⇒ la ficha vuelve a los de Google.
       openingHours: tieneAlgunHorario(payload.openingHours) ? payload.openingHours : null,
@@ -141,6 +178,24 @@ export async function guardarContenido(
   })
 
   return { ok: true, data: { placeId, tagsGuardados: tagIds.length } }
+}
+
+/**
+ * El contacto que el dueño ya tenía guardado, o vacío si nunca cargó nada. Se usa
+ * cuando el contacto está recortado: se reescribe tal cual (TITULARIDAD).
+ */
+async function contactoGuardado(placeId: string, tx: DbOrTx = db) {
+  const [fila] = await tx
+    .select({
+      phone: placeOwnerContent.phone,
+      website: placeOwnerContent.website,
+      socials: placeOwnerContent.socials,
+    })
+    .from(placeOwnerContent)
+    .where(eq(placeOwnerContent.placeId, placeId))
+    .limit(1)
+
+  return fila ?? { phone: null, website: null, socials: null }
 }
 
 /** Slugs → ids de tags **activos**. Lo que no matchea, no entra. */

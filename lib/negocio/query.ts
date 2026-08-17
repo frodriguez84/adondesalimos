@@ -22,7 +22,7 @@ import { TAP_KINDS, type TapKind } from '@/lib/lugar/tap-kinds'
 import { capDeFotos } from './contenido'
 import { normalizarSemana, type HorariosSemana } from './horarios'
 import type { CambioDeCampo } from './correcciones'
-import type { ClaimStatus, Facet, OwnerPlan, PlaceEditOrigin } from '@/lib/db/schema'
+import type { ClaimStatus, Facet, OwnerPlan, PlaceEditOrigin, PlaceSource } from '@/lib/db/schema'
 
 /**
  * Lecturas del panel del dueño (AUTH F3).
@@ -117,6 +117,8 @@ export type PanelLugar = {
   zone: string | null
   publicado: boolean
   plan: OwnerPlan
+  /** De dónde salió el lugar: decide si el contacto se edita (TITULARIDAD dec. 7). */
+  source: PlaceSource
   visitasDelMes: number
   /** Contacto de Overture: se muestra como "lo que se ve hoy" bajo cada campo. */
   base: { phone: string | null; website: string | null; socials: string[] }
@@ -157,6 +159,7 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
       locality: places.locality,
       lat: places.lat,
       lng: places.lng,
+      source: places.source,
       phones: places.phones,
       websites: places.websites,
       socials: places.socials,
@@ -198,6 +201,7 @@ export async function getPanelLugar(placeId: string, userId: string): Promise<Pa
       umbral,
     ),
     plan: place.ownerPlan,
+    source: place.source,
     visitasDelMes: visitas.get(place.id) ?? 0,
     base: {
       phone: place.phones?.[0] ?? null,
