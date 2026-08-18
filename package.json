@@ -24,7 +24,8 @@
     "backup:db": "bash scripts/backup-db.sh",
     "backup:check": "bash scripts/backup-check.sh",
     "backup:prod": "bash scripts/backup-prod.sh",
-    "prod:check": "tsx scripts/prod-check.ts"
+    "prod:check": "tsx scripts/prod-check.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

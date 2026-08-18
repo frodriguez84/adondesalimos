@@ -52,10 +52,11 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
   informe no se puede aplicar tal cual: ya no es mala suerte, es que un informe propone y el código
   decide. (2) `npm run typecheck` **no existe** —el gate lo nombra en tres lugares y hay que
   acordarse de que es `npx tsc --noEmit`—.
-- **Qué cambiar.** Una sola: agregar `"typecheck": "tsc --noEmit"` a `package.json`. Una línea, y
-  deja de haber un comando del gate que se nombra en los docs y no se puede tipear. Lo de los
-  informes **no** se convierte en regla nueva: verificar el repro antes de aplicar el fix ya es la
-  regla de "objetivos verificables", y agregar una segunda que diga lo mismo no la haría más cierta.
+- **Qué cambiar.** Una sola: agregar `"typecheck": "tsc --noEmit"` a `package.json` — **hecho en esta
+  misma sesión**. Una línea, y deja de haber un comando del gate que se nombra en los docs y no se
+  puede tipear. Lo de los informes **no** se convierte en regla nueva: verificar el repro antes de
+  aplicar el fix ya es la regla de "objetivos verificables", y agregar una segunda que diga lo mismo
+  no la haría más cierta.
 
 ## 2026-08-18 · Seguridad: SEC-05, SEC-06 y SEC-07 — Opus
 
