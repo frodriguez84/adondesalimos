@@ -897,6 +897,34 @@ backup. `SEC-09` va **en un commit aparte** por tocar dependencias.
 > reporta son el drift viejo dev↔prod (la curaduría vive solo en dev), no de esta cola.
 > **Los 25 hallazgos están evaluados contra código que hoy corre en producción.**
 
+### Verificación en vivo **contra producción** (2026-08-18, con Fer presente y su sesión)
+
+La auditoría se hizo con la regla de *cero payloads contra producción*; esto es otra cosa y por eso
+se pudo hacer: **uso normal de la app por su dueño**, autorizado en el momento. Nada de lo que sigue
+escribió una fila — se confirmó con un `count(*)` sobre Neon antes y después.
+
+| Qué se probó | Resultado |
+|---|---|
+| `SEC-14` · los 4 cursores manoseados (string donde va entero, array, objeto anidado, basura) | **200 + primera página** en los 4. En dev, antes del fix, los dos primeros daban **500** |
+| `SEC-14` · la contracara: ¿el fix rompió la paginación legítima? | **No.** Página 2 arranca justo después de la 1, **cero solapamiento** |
+| `SEC-21` · alta con `frodriguez.este+sec21@gmail.com` y con `frodriguezeste@gmail.com` | **400 `USER_ALREADY_EXISTS`** en las dos, sin crear usuario. `users` sigue en **3**, los mismos del 08/08 |
+| `SEC-22` · 140 GETs en 11 s contra un token inexistente | **Cortó en la request 121**: 120 × 404 + 20 × 429. El cupo de 120/min se comportó exacto |
+
+**Dos cosas que solo se aprenden probando en producción:**
+
+1. **El cursor real de prod decodificado es `{o:0, b:3, c:0.9932036, n:"Oh No Lulu", i:"e991b009-…"}`.**
+   Los tipos que `clavesDeOrden` declara (tres números, dos textos) son los que Postgres devuelve de
+   verdad, no los que la sesión supuso al escribir el fix.
+2. **Que `SEC-22` cortara en 121 *exacto* significa que las 140 requests cayeron en la misma instancia
+   de Vercel.** Con este tráfico no se reparte, así que el cupo en memoria de proceso hoy **funciona
+   como si fuera global**. No cambia la prioridad de Upstash (`DEPLOY` F2) —cambia el día que haya
+   concurrencia— pero sí explica por qué hasta ahora nadie lo notó.
+
+**`SEC-13` no se pudo verificar en producción y no es un olvido:** la cuenta no tiene ningún lugar
+con reclamo aprobado (`/mi-negocio` dice *«Todavía no tenés lugares»*), que es la precondición del
+vector. Habría que crear un reclamo y aprobarlo desde `/admin` —varias escrituras en prod— para
+probar algo que ya cubren 5 tests unitarios. Queda para verificar en dev.
+
 | ID | Qué se cambió | Archivos | Verificación |
 |---|---|---|---|
 | `SEC-14` | El cursor se valida **contra el tipo de cada clave del orden**, no solo contra la forma | [`lib/search/query.ts`](../../lib/search/query.ts) | Los dos cursores que daban 500 (`"o":"abc"` y `"o":[1,2]`) ahora caen a la primera página |
