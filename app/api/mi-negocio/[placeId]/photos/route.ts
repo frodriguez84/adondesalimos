@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { agregarFoto, quitarFoto } from '@/lib/negocio/acciones'
 import { checkFotosRateLimit } from '@/lib/middleware/rate-limit'
-import { esTipoPermitido, MAX_BYTES, TIPOS_PERMITIDOS } from '@/lib/storage/r2'
+import { esTipoPermitido, MAX_BYTES, tipoRealDeFoto, TIPOS_PERMITIDOS } from '@/lib/storage/r2'
 
 /**
  * `POST` / `DELETE /api/mi-negocio/[placeId]/photos` — fotos del dueño
@@ -10,8 +10,9 @@ import { esTipoPermitido, MAX_BYTES, TIPOS_PERMITIDOS } from '@/lib/storage/r2'
  *
  * Validación en el boundary (regla global): tipo y tamaño se chequean sobre los
  * bytes leídos, no sobre lo que declara el `FormData` — el `type` de un `File`
- * lo pone el cliente y se puede mentir. El cap por plan y el orden PUT→fila los
- * resuelve `agregarFoto`.
+ * lo pone el cliente y se puede mentir. Del tamaño eso fue siempre cierto; del
+ * tipo, recién desde `SEC-13` (`tipoRealDeFoto`). El cap por plan y el orden
+ * PUT→fila los resuelve `agregarFoto`.
  */
 
 export const dynamic = 'force-dynamic'
@@ -59,13 +60,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ pla
     return errorJson('MUY_GRANDE', 'La foto no puede pesar más de 5 MB.', 413)
   }
 
-  const tipo = archivo.type
-  if (!esTipoPermitido(tipo)) {
-    return errorJson(
-      'TIPO_INVALIDO',
-      `Formato no soportado. Aceptamos ${TIPOS_PERMITIDOS.map((t) => t.replace('image/', '')).join(', ')}.`,
-      415,
-    )
+  const formatos = TIPOS_PERMITIDOS.map((t) => t.replace('image/', '')).join(', ')
+
+  // Corte barato: el `type` que declara el cliente sirve para no leer 5 MB al
+  // pedo, pero no es prueba de nada — se verifica sobre los bytes más abajo.
+  if (!esTipoPermitido(archivo.type)) {
+    return errorJson('TIPO_INVALIDO', `Formato no soportado. Aceptamos ${formatos}.`, 415)
   }
 
   const bytes = new Uint8Array(await archivo.arrayBuffer())
@@ -74,6 +74,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ pla
     return errorJson('MUY_GRANDE', 'La foto no puede pesar más de 5 MB.', 413)
   }
   if (bytes.byteLength === 0) return errorJson('SIN_ARCHIVO', 'El archivo está vacío.', 400)
+
+  // `SEC-13`: el tipo que se guarda sale de la firma de los bytes, no del header
+  // que puso el cliente. Sin esto, un `Content-Type: image/jpeg` alcanzaba para
+  // dejar cualquier archivo en el bucket.
+  const tipo = tipoRealDeFoto(bytes)
+  if (!tipo) {
+    return errorJson('TIPO_INVALIDO', `Eso no es una imagen. Aceptamos ${formatos}.`, 415)
+  }
 
   try {
     const resultado = await agregarFoto(user.id, placeId, { bytes, tipo })

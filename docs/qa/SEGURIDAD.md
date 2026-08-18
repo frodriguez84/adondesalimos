@@ -65,22 +65,22 @@ alcance cambiaron · **CONDICIONAL** = depende de V-1/V-2/V-3.
 | `SEC-06` | Cortar el SSE devuelve el cupo del chat ya pagado | 1 cuenta free | chat apagado para todos | **CON CORRECCIONES** · ✅ **ARREGLADO** |
 | `SEC-07` | Inyección de prompt en la curaduría → tags auto-aplicados → orden | dueño de un sitio | manipulación del ranking | **CON CORRECCIONES** (hoy teórico) · ✅ **ARREGLADO** |
 | `SEC-08` | `.env.example` versionado con la contraseña real del Postgres de dev | quien lea el repo | credencial en el historial | **CONFIRMADO EN VIVO** · 🤝 **riesgo ACEPTADO** (ambiente privado; se reabre si el repo deja de ser privado) |
-| `SEC-09` | `shadcn` en `dependencies` arrastra 10 de 15 vulnerabilidades; `next` con 9 advisories | — | superficie de dependencias | **CONFIRMADO EN VIVO** |
+| `SEC-09` | `shadcn` en `dependencies` arrastra 10 de 15 vulnerabilidades; `next` con 9 advisories | — | superficie de dependencias | **CONFIRMADO EN VIVO** · ✅ **ARREGLADO** (commit aparte) |
 | `SEC-10` | El tope del chat cuenta mensajes, no tokens: ~US$96 contra ≤US$20 declarados | logueado | 5× el presupuesto | **CON CORRECCIONES** |
 | `SEC-11` | Cero headers de seguridad en toda la app | — | sin segunda línea de defensa | **CONFIRMADO EN VIVO** |
 | `SEC-12` | `DISABLE_RATE_LIMIT` no mira `NODE_ENV`, y `.env.example` lo trae en `true` | — | apaga todo el rate-limit | **CONFIRMADO** · ✅ **ARREGLADO** |
-| `SEC-13` | El tipo de las fotos se cree, nunca se comprueba (sin magic bytes) | dueño aprobado | abuso de hosting | **CONFIRMADO** |
-| `SEC-14` | Cursor manipulado devuelve 500 en vez de degradar | anónimo | ruido de logs | **CONFIRMADO EN VIVO** |
-| `SEC-15` | El tope de Google se lee y se incrementa sin lock (TOCTOU) | anónimo | overshoot de pocos dólares | **CONFIRMADO** |
+| `SEC-13` | El tipo de las fotos se cree, nunca se comprueba (sin magic bytes) | dueño aprobado | abuso de hosting | **CONFIRMADO** · ✅ **ARREGLADO** |
+| `SEC-14` | Cursor manipulado devuelve 500 en vez de degradar | anónimo | ruido de logs | **CONFIRMADO EN VIVO** · ✅ **ARREGLADO** |
+| `SEC-15` | El tope de Google se lee y se incrementa sin lock (TOCTOU) | anónimo | overshoot de pocos dólares | **CONFIRMADO** · ✅ **ARREGLADO** |
 | `SEC-16` | `MAX_BUCKETS` no es un tope: dispara una poda O(n) por request | anónimo | CPU, depende de `SEC-03` | **CONFIRMADO** |
-| `SEC-17` | `maxDuration` declarado en una sola ruta; el resto queda en 300 s | anónimo | concurrencia y GB-horas | **CONFIRMADO** |
-| `SEC-18` | El webhook de MP no valida la ventana temporal de la firma (replay) | requiere firma capturada | bajo (es idempotente) | **CONFIRMADO** |
-| `SEC-19` | `payer_email` sale del body y nunca se compara con la sesión | logueado | dato de identidad no verificado | **CONFIRMADO** |
-| `SEC-20` | SSRF en el crawler de curaduría (sigue redirects sin allowlist) | dueño de un sitio | preventivo, no alcanzable por HTTP | **CONFIRMADO** |
-| `SEC-21` | Sin normalización de email: `+N@gmail.com` son cuentas distintas | anónimo | granja de trials del chat | **CONFIRMADO** |
-| `SEC-22` | `GET /api/votaciones/[token]` es público, hace 5 queries y no tiene cupo | anónimo | suma a `SEC-01` | **CONFIRMADO** |
+| `SEC-17` | `maxDuration` declarado en una sola ruta; el resto queda en 300 s | anónimo | concurrencia y GB-horas | **CONFIRMADO** · ✅ **ARREGLADO** |
+| `SEC-18` | El webhook de MP no valida la ventana temporal de la firma (replay) | requiere firma capturada | bajo (es idempotente) | **CONFIRMADO** · ✅ **ARREGLADO** |
+| `SEC-19` | `payer_email` sale del body y nunca se compara con la sesión | logueado | dato de identidad no verificado | **CONFIRMADO** · ✅ **ARREGLADO** |
+| `SEC-20` | SSRF en el crawler de curaduría (sigue redirects sin allowlist) | dueño de un sitio | preventivo, no alcanzable por HTTP | **CONFIRMADO** · 🔧 **la validación duplicada, unificada**; el SSRF sigue abierto (no alcanzable) |
+| `SEC-21` | Sin normalización de email: `+N@gmail.com` son cuentas distintas | anónimo | granja de trials del chat | **CONFIRMADO** · ✅ **ARREGLADO** (de otra forma: ver § *tercera sesión*) |
+| `SEC-22` | `GET /api/votaciones/[token]` es público, hace 5 queries y no tiene cupo | anónimo | suma a `SEC-01` | **CONFIRMADO** · ✅ **ARREGLADO** |
 | `SEC-23` | Las 9 rutas `/api/admin/*` devuelven 403; las páginas devuelven 404 | anónimo | enumeración, cosmético | **CONFIRMADO** |
-| `SEC-24` | El buscador de usuarios de `/admin` no escapa `%` ni `_` en el `ilike` | admin | ~nulo | **CONFIRMADO** |
+| `SEC-24` | El buscador de usuarios de `/admin` no escapa `%` ni `_` en el `ilike` | admin | ~nulo | **CONFIRMADO** · ✅ **ARREGLADO** |
 | `SEC-25` | `chat_messages` guarda el prompt literal sin política de retención | — | deuda de datos, no vulnerabilidad | **CONFIRMADO** |
 
 ---
@@ -881,6 +881,119 @@ anotado.
 **El reporte de `npm run curar` ahora cuenta lo frenado** (`sin cita real` / `pasadas del tope`) y
 avisa si hubo citas que no aparecen en la evidencia: un tope que recorta en silencio se lee como
 *«entró todo»*.
+
+---
+
+## Fixes aplicados en la tercera sesión (2026-08-18) — la cola larga
+
+Diez hallazgos: los siete del lote barato más `SEC-13`, `SEC-18` y `SEC-21`, que Fer aprobó al
+principio de la sesión. Gate completo: **typecheck limpio + 837 tests en verde** (819 de base + 18
+nuevos) **+ `build` verde con el dev server parado**. Ninguna migración, así que no hizo falta
+backup. `SEC-09` va **en un commit aparte** por tocar dependencias.
+
+| ID | Qué se cambió | Archivos | Verificación |
+|---|---|---|---|
+| `SEC-14` | El cursor se valida **contra el tipo de cada clave del orden**, no solo contra la forma | [`lib/search/query.ts`](../../lib/search/query.ts) | Los dos cursores que daban 500 (`"o":"abc"` y `"o":[1,2]`) ahora caen a la primera página |
+| `SEC-15` | `contarUso` + `incrementarUso` se colapsan en **una** reserva atómica, con el patrón de `lib/ai/cupo.ts` | [`lib/google/usage.ts`](../../lib/google/usage.ts), [`lib/lugar/enrichment.ts`](../../lib/lugar/enrichment.ts) | Test de **concurrencia** contra la base: 8 reservas simultáneas con tope 3 ⇒ pasan 3 |
+| `SEC-17` | `export const maxDuration = 15` en las 10 rutas de lectura | `app/api/search/*`, `admin/*` (GET), `lugar/[id]/google`, `votaciones/[token]`, `votaciones/historial`, `chat/conversaciones` | Build verde; `/api/chat` (60) y el upload de fotos quedan intactos a propósito |
+| `SEC-18` | El `ts` de la firma del webhook se compara contra el reloj: ventana de 5 min | [`lib/billing/mercadopago.ts`](../../lib/billing/mercadopago.ts) | 5 tests: una firma legítima capturada no sirve una hora después; ±4 min sí entran |
+| `SEC-19` | El pagador sale de `session.user.email`, no del body | [`app/api/billing/checkout/route.ts`](../../app/api/billing/checkout/route.ts) | 1 línea |
+| `SEC-20` (parcial) | El link del alta usa el **dueño único** de la regla en vez de su copia driftada | [`lib/negocio/validacion.ts`](../../lib/negocio/validacion.ts), [`lib/claims/validacion.ts`](../../lib/claims/validacion.ts) | El alta ahora exige `http(s)` para `website`, igual que el panel |
+| `SEC-22` | Cupo propio para el polling de resultados: 120/min por IP | [`lib/middleware/rate-limit.ts`](../../lib/middleware/rate-limit.ts), `app/api/votaciones/[token]/route.ts` | El número sale de `POLL_MS = 4000` (15/min por pestaña) |
+| `SEC-24` | `escaparLike` sobre el buscador de usuarios de `/admin` | [`lib/billing/admin.ts`](../../lib/billing/admin.ts) | Por completitud; el que escribe ya es admin |
+| `SEC-13` | El tipo de una foto sale de **la firma de los bytes**, no del header del cliente | [`lib/storage/r2.ts`](../../lib/storage/r2.ts), `app/api/mi-negocio/[placeId]/photos/route.ts` | 5 tests: HTML/PHP/ELF/GIF/SVG disfrazados de jpeg dan `null`; un `.wav` no pasa por webp |
+| `SEC-21` | Una bandeja de Gmail, una cuenta | [`lib/auth/canonico.ts`](../../lib/auth/canonico.ts) (nuevo), `app/api/auth/[...all]/route.ts` | 6 tests contra Postgres + verificación contra los datos reales de dev |
+
+### `SEC-21` — la forma aprobada no se podía aplicar: **2 de los 3 usuarios de producción** quedaban afuera
+
+El plan era *«normalizar el local-part de Gmail antes del alta, y también en el login»*. Antes de
+escribirlo se midió quién quedaba afectado, y ahí se cayó:
+
+```
+PROD total usuarios: 3
+PROD afectados: 2   →  frodriguez.este@gmail.com · sol.tripoliazcurra@gmail.com
+```
+
+Los dos tienen **un punto en el local-part**, que para Gmail es la misma bandeja que sin él. Canonizar
+lo que se guarda —o canonizar el mail en el login— los dejaba **sin poder entrar a su propia cuenta**,
+que es un precio absurdo para cerrar una granja de trials que hoy nadie explotó.
+
+**Lo que se hizo en su lugar cierra el mismo agujero sin tocar a nadie**: el mail se sigue guardando
+tal como lo escribieron y el login no cambia; lo que cambia es que **el alta rechaza un mail que caiga
+en la misma bandeja que una cuenta existente**. `fer+1@` … `+999@` y `f.e.r@` colisionan todos contra
+`fer@` ⇒ **una cuenta por bandeja**, que era el objetivo. Sin migración y sin ventana de transición.
+
+**La regla se escribe una sola vez** (`emailCanonico`, un fragmento SQL que se aplica igual a la
+columna y al valor nuevo). Comparar una normalización de TypeScript contra otra de Postgres sería
+plantar el mismo drift que `SEC-20` acaba de cerrar en otra columna. Solo `gmail.com`/`googlemail.com`:
+en el resto de los dominios `+etiqueta` no es necesariamente un alias y colapsarlo rechazaría altas
+legítimas.
+
+Verificado contra los datos reales de dev — las cuatro variantes de la misma bandeja colisionan y otra
+persona no:
+
+```
+true   frodriguez.este@gmail.com            false  otra.persona.distinta@gmail.com
+true   frodriguezeste@gmail.com
+true   frodriguez.este+1@gmail.com
+true   f.rodriguez.este+999@googlemail.com
+```
+
+### `SEC-14` — el fix del informe no alcanzaba
+
+El informe proponía *«validar que cada valor sea `string|number`»*, pero el 500 que él mismo
+reprodujo era `{"s":1,"o":"abc"}`: un **string** donde va un entero, que esa validación deja pasar. El
+tipo correcto depende de **qué clave** es (`d`/`s`/`o`/`b`/`c` son números; `n`/`i`, texto), así que la
+clave de orden ahora declara su tipo y el cursor se valida contra él. Si una sola no cierra se
+descarta el cursor entero, que es lo que el comentario del código venía prometiendo.
+
+### `SEC-15` — el par `contar` + `incrementar` **era** el agujero
+
+No se podía arreglar dejando las dos funciones: entre el SELECT y el upsert, N requests leen el mismo
+valor bajo el tope y pasan todas. Quedó una sola `reservarUsoMensual(sku, tope)` con TX +
+`onConflictDoNothing` + `FOR UPDATE`, calcada de `lib/ai/cupo.ts`.
+
+**Consecuencia de diseño que hay que saber:** la comparación `usados >= tope` **se mudó** del
+orquestador puro (`resolverEnriquecimiento`) a adentro de la transacción, que es el único lugar donde
+puede ser atómica. Los tests de enrichment ahora fijan que el tope de `app_settings` **llegue tal cual
+a la reserva**; que un tope en 0 apague el SKU lo sigue cubriendo `hayCuota`, que dejó de ser código
+muerto y pasó a ser lo que usa la TX.
+
+### `SEC-18` — el `ts` no siempre viene en milisegundos
+
+MP lo manda en ms (13 dígitos) pero documenta el mismo campo en segundos en más de un lado, y elegir
+mal **rechazaría todos los webhooks en silencio** — que es justo el modo de falla que el CLAUDE.md
+marca como peligroso (el webhook es idempotente y fail-closed: no se ve un error, se caen
+acreditaciones). Se normaliza por magnitud en vez de asumir. La ventana es de 5 minutos y tolera
+desfase de reloj hacia los dos lados: el `ts` lo pone el reloj de MP, no el nuestro.
+
+### `SEC-09` — commit aparte, y el número de `npm audit` engaña
+
+`shadcn` pasó a `devDependencies` (**nunca se importa**: cero `import` en `app/`, `lib/`, `components/`
+y `scripts/`) y `next` subió de `16.2.6` a `16.3.1`. Va en su propio commit por tocar
+`package.json`/`package-lock.json`.
+
+**El total bajó de 15 a 12, y ese número dice menos de lo que parece.** Lo que importa es qué llega
+al árbol de **producción**:
+
+- **Los 9 advisories de `next` se cerraron**: ya no aparece en el reporte.
+- **`shadcn` quedó `dev:true` en el lockfile**, así que sus 7 (`undici`, `js-yaml`, `ip-address`,
+  `fast-uri`, `brace-expansion`, `hono`, `@hono/node-server`) **dejaron de viajar al runtime** aunque
+  `npm audit` sin flags los siga contando.
+- **Lo que queda en el árbol de producción no se arregla desde acá**: la cadena
+  `drizzle-kit → @esbuild-kit → esbuild` (moderate) y `nanoid` (high) entran como dependencia de
+  **`better-auth`**, no por nuestra declaración. `npm ls drizzle-kit --omit=dev` lo muestra colgando
+  de `better-auth@1.6.23`. Se cierra cuando better-auth actualice; no hay nada que mover.
+
+Testigo: typecheck limpio, **837 tests** y `build` verde con Next 16.3.1 y el dev server parado.
+
+### `SEC-17` — qué quedó afuera y por qué
+
+Las 10 rutas con `maxDuration = 15` son las de lectura. **No se tocó** `/api/chat` (necesita sus 60)
+ni el upload de fotos (sube a R2 y 15 s puede quedar corto). Tampoco `chat/conversaciones/[id]`, que
+mezcla GET con un DELETE que cascadea filas. El `maxDuration` es por archivo, no por método, así que
+en `votaciones/[token]` cubre también el PATCH del creador — que es un UPDATE chico.
+
 ---
 
 ## Método y cobertura
@@ -914,19 +1027,40 @@ arriba, en dos sesiones posteriores del mismo día.
 1. ~~Las tres verificaciones V-1/V-2/V-3~~ — **hechas**; falta solo el hostname de R2 en producción.
 2. ~~Triaje con Fer~~ — **hecho**: se aplicaron los 4 fixes de una línea (§ *Fixes aplicados*).
 3. ~~`SEC-05`, `SEC-06` y `SEC-07`~~ — **hechos** (§ *Fixes aplicados en la segunda sesión*).
-   **Lo que sigue abierto, por costo/beneficio**: `SEC-09` (mover `shadcn` a `devDependencies` + subir
-   Next a 16.3.1, con build de testigo) · `SEC-10` (el tope del chat cuenta mensajes, no tokens) ·
-   `SEC-01` estructural (`middleware.ts` + los 18 `count(*)`) · y la cola larga `SEC-11`..`SEC-25`.
-   Del propio `SEC-05` queda **el pre-hijacking**, que `(a)`+`(b)`+`(c)` acotan pero no cierran.
-4. **`DEPLOY` F2 (Upstash) queda confirmado como prioridad, no como ítem nuevo** — tal como el
+4. ~~La cola larga barata + `SEC-13`, `SEC-18`, `SEC-21` y `SEC-09`~~ — **hechos** (§ *Fixes aplicados
+   en la tercera sesión*). **De los 25, quedan 6 abiertos y ninguno es una sorpresa:**
+
+   | ID | Por qué sigue abierto |
+   |---|---|
+   | `SEC-01` estructural + `SEC-11` | Los dos piden `middleware.ts` y van **juntos, en su propia sesión**. Es el trabajo más grande que queda |
+   | `SEC-16` | Lo resuelve Upstash (`DEPLOY` F2). Arreglarlo aparte es escribir código para tirarlo |
+   | `SEC-10` | Decisión de Fer: **medir antes de tocar** (punto 7) |
+   | `SEC-20` (el SSRF) | Preventivo y **no alcanzable desde ninguna ruta HTTP**; el script corre en la máquina de Fer, no en Vercel. Se cierra solo el día que la curaduría sea un cron en Vercel. La validación duplicada que sí era un drift ya se unificó |
+   | `SEC-23` | Cosmético (403 vs 404). Sin bypass |
+   | `SEC-25` | Política de retención de datos, no vulnerabilidad |
+
+   Fuera de la tabla quedan dos que no son ítems nuevos: el **pre-hijacking** de `SEC-05`, que
+   `(a)`+`(b)`+`(c)` acotan pero no cierran —pide rediseñar el alta, invalidando la contraseña previa
+   al verificar—, y `SEC-08`, **riesgo aceptado**.
+
+   **Geo-bloqueo de países** (Fer lo pidió el 2026-08-18): decidido **esperar a `middleware.ts`**. No
+   cierra ninguno de los 25 —un proxy residencial cuesta centavos y el escaneo automatizado sale de
+   IPs de nube en EE.UU./DE/NL—, así que baja el ruido del log y no el riesgo; y sumarlo al
+   `middleware.ts` de `SEC-01`/`SEC-11` son ~10 líneas contra pagar el andamio dos veces. Cuando se
+   haga: en el **firewall de Vercel**, que corta antes de invocar la función; **excluyendo
+   `/api/webhooks/mercadopago`**, que lo llama MP desde sus servidores y bloquearlo rompe los pagos
+   **en silencio**; y **sin allowlist de Argentina sola** — el turista que averigua a dónde salir en
+   Buenos Aires antes de viajar es un usuario legítimo.
+5. **`DEPLOY` F2 (Upstash) queda confirmado como prioridad, no como ítem nuevo** — tal como el
    BACKLOG anticipaba. Con un matiz medido: la decisión 12 dice que *«donde más duele no es
    `/api/search` sino reclamos/altas»*. **Duele en dos lados que no estaban en esa lista**: el
    endpoint de Google (`SEC-02`, el único cupo en memoria atado a un SKU pago) y las páginas, que no
    pasan por ningún cupo (`SEC-01`, que Upstash **no** resuelve solo — hace falta `middleware.ts`).
-5. **Si se enciende el cobro (F3)**: hacer `SEC-18` y `SEC-19` antes, y cerrar F2 **antes** que F3 —
-   el rate-limit de 5/hora del checkout es hoy el único freno al brute-force de tokens de tarjeta, y
-   es memoria de proceso.
-6. **`SEC-10` — decisión de Fer (2026-08-18): medir antes de tocar.** Bajar `MAX_RONDAS_TOOL` de 5 a 3
+6. **Si se enciende el cobro (F3)**: ~~hacer `SEC-18` y `SEC-19` antes~~ — **hechos**, y a propósito
+   mientras el cobro estaba apagado, que era el momento más barato. Sigue en pie cerrar F2 **antes**
+   que F3: el rate-limit de 5/hora del checkout es hoy el único freno al brute-force de tokens de
+   tarjeta, y es memoria de proceso.
+7. **`SEC-10` — decisión de Fer (2026-08-18): medir antes de tocar.** Bajar `MAX_RONDAS_TOOL` de 5 a 3
    es una línea y bajaría el peor caso del cap de ~US$96 a ~US$58/mes, pero **cuántos turnos reales
    usan 4 o 5 rondas no está medido**, y recortarlo a ciegas hace que un turno que necesitaba
    otra búsqueda conteste con menos info. El dato sale gratis del log que ya existe

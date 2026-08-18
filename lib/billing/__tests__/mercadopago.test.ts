@@ -26,28 +26,32 @@ describe('validateWebhookSignature (decisión 16)', () => {
     process.env.MP_WEBHOOK_SECRET = prev
   })
 
+  /** Un `ts` cualquiera y el reloj puesto en ese mismo instante (ver `SEC-18`). */
+  const TS = '1742505638683'
+  const AHORA = Number(TS)
+
   it('acepta una firma válida', () => {
     process.env.MP_WEBHOOK_SECRET = SECRET
-    const ts = '1742505638683'
     const dataId = 'ABC-123'
     const xRequestId = 'req-9'
     expect(
       validateWebhookSignature({
-        xSignature: firmar(dataId, xRequestId, ts),
+        xSignature: firmar(dataId, xRequestId, TS),
         xRequestId,
         dataId,
+        ahora: AHORA,
       }),
     ).toBe(true)
   })
 
   it('rechaza una firma corrupta', () => {
     process.env.MP_WEBHOOK_SECRET = SECRET
-    const ts = '1742505638683'
     expect(
       validateWebhookSignature({
-        xSignature: `ts=${ts},v1=deadbeef`,
+        xSignature: `ts=${TS},v1=deadbeef`,
         xRequestId: 'req-9',
         dataId: 'ABC-123',
+        ahora: AHORA,
       }),
     ).toBe(false)
   })
@@ -59,10 +63,61 @@ describe('validateWebhookSignature (decisión 16)', () => {
 
   it('rechaza si no hay secreto configurado', () => {
     delete process.env.MP_WEBHOOK_SECRET
-    const ts = '1742505638683'
     expect(
-      validateWebhookSignature({ xSignature: firmar('x', 'r', ts), xRequestId: 'r', dataId: 'x' }),
+      validateWebhookSignature({
+        xSignature: firmar('x', 'r', TS),
+        xRequestId: 'r',
+        dataId: 'x',
+        ahora: AHORA,
+      }),
     ).toBe(false)
+  })
+
+  describe('ventana temporal del `ts` (`SEC-18`)', () => {
+    const valida = (ahora: number) =>
+      validateWebhookSignature({
+        xSignature: firmar('ABC-123', 'req-9', TS),
+        xRequestId: 'req-9',
+        dataId: 'ABC-123',
+        ahora,
+      })
+
+    it('una firma legítima capturada NO sirve una hora después', () => {
+      process.env.MP_WEBHOOK_SECRET = SECRET
+      expect(valida(AHORA + 60 * 60_000)).toBe(false)
+    })
+
+    it('dentro de los 5 minutos entra, y tolera el desfase de reloj hacia atrás', () => {
+      process.env.MP_WEBHOOK_SECRET = SECRET
+      expect(valida(AHORA + 4 * 60_000)).toBe(true)
+      expect(valida(AHORA - 4 * 60_000)).toBe(true)
+      expect(valida(AHORA + 6 * 60_000)).toBe(false)
+    })
+
+    it('un `ts` en segundos también entra: MP lo documenta de las dos formas', () => {
+      process.env.MP_WEBHOOK_SECRET = SECRET
+      const tsSeg = '1742505638'
+      expect(
+        validateWebhookSignature({
+          xSignature: firmar('x', 'r', tsSeg),
+          xRequestId: 'r',
+          dataId: 'x',
+          ahora: 1742505638 * 1000,
+        }),
+      ).toBe(true)
+    })
+
+    it('un `ts` que no es número se rechaza', () => {
+      process.env.MP_WEBHOOK_SECRET = SECRET
+      expect(
+        validateWebhookSignature({
+          xSignature: firmar('x', 'r', 'ayer'),
+          xRequestId: 'r',
+          dataId: 'x',
+          ahora: AHORA,
+        }),
+      ).toBe(false)
+    })
   })
 
   it('el manifest usa el data.id en minúsculas', () => {

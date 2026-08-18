@@ -564,9 +564,24 @@ son trabajo acotado con criterio de "listo" objetivo.
       ⚠️ **El plan de `SEC-05` (a) no se podía aplicar tal cual**: better-auth se traga el error del
       envío en el sign-up (`runInBackgroundOrAwait`), así que `sendOnSignUp` quedó en `false` y la
       verificación la pide la pantalla por `/send-verification-email`, que sí propaga.
-      **Sigue abierto**: `SEC-10` (el tope del chat cuenta mensajes, no tokens) · `SEC-09` · `SEC-01`
-      estructural · el **pre-hijacking** de `SEC-05`, que (a)+(b)+(c) acotan pero no cierran · la cola
-      larga `SEC-11`..`SEC-25`.
+      **✅ Y en una tercera sesión del mismo día, la cola larga** (gate: typecheck + **837 tests** +
+      build verde con el server parado): `SEC-13` (el tipo de una foto sale de la firma de los bytes,
+      no del header del cliente) · `SEC-14` · `SEC-15` (el par contar+incrementar del tope de Google
+      se colapsó en **una** reserva atómica, con el patrón de `lib/ai/cupo.ts`) · `SEC-17` · `SEC-18`
+      (ventana de 5 min en la firma del webhook de MP, hecha **mientras el cobro está apagado**, que
+      era el momento más barato) · `SEC-19` · `SEC-20` *la validación duplicada* · `SEC-21` ·
+      `SEC-22` · `SEC-24`, más `SEC-09` **en commit aparte** (shadcn a `devDependencies` + Next
+      16.3.1: los 9 advisories de Next cerrados y los 7 de shadcn fuera del árbol de producción).
+      ⚠️ **`SEC-21` no se pudo hacer como estaba planeado**: normalizar el mail en el login dejaba
+      **2 de los 3 usuarios de producción** sin poder entrar (los dos tienen un punto en el local-part
+      de Gmail, que es la misma bandeja). Se cierra el mismo agujero al revés — el alta rechaza un mail
+      que caiga en una bandeja ya usada— sin tocar lo guardado ni el login.
+      **Sigue abierto**: `SEC-01` estructural **+ `SEC-11`**, que van juntos porque los dos piden
+      `middleware.ts` (y ahí entra también el **geo-bloqueo** que pidió Fer: en el firewall de Vercel,
+      excluyendo el webhook de MP y sin allowlist de Argentina sola) · `SEC-16` (lo resuelve Upstash,
+      `DEPLOY` F2) · `SEC-10` (medir primero) · el SSRF de `SEC-20`, preventivo y no alcanzable ·
+      `SEC-23` (cosmético) · `SEC-25` (retención) · el **pre-hijacking** de `SEC-05`, que (a)+(b)+(c)
+      acotan pero no cierran.
       **`SEC-10` — Fer decidió medir antes de tocar** (2026-08-18): bajar `MAX_RONDAS_TOOL` de 5 a 3
       es una línea, pero **cuántos turnos reales usan 4 o 5 rondas no está medido** y recortar a
       ciegas hace que un turno que necesitaba otra búsqueda conteste con menos info. El dato sale

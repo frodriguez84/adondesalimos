@@ -1,6 +1,6 @@
 import { checkGoogleRateLimit } from '@/lib/middleware/rate-limit'
 import { getDetailsMonthlyCap, getMatchRetryDays, getPhotosMonthlyCap } from '@/lib/google/settings'
-import { contarUsoMensual, incrementarUsoMensual } from '@/lib/google/usage'
+import { reservarUsoMensual } from '@/lib/google/usage'
 import { fetchFotoUri, fetchPlaceDetails, resolvePlaceId } from '@/lib/google/places'
 import {
   getPlaceForEnrichment,
@@ -24,6 +24,8 @@ import { resolverEnriquecimiento } from '@/lib/lugar/enrichment'
  */
 
 export const dynamic = 'force-dynamic'
+/** `SEC-17`: una lectura no puede retener su slot 300 s, que es el default sin esto. */
+export const maxDuration = 15
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   // Paso 1: rate limit por IP.
@@ -53,8 +55,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       resolvePlaceId,
       fetchDetails: fetchPlaceDetails,
       fetchFoto: fetchFotoUri,
-      contarUso: contarUsoMensual,
-      incrementarUso: incrementarUsoMensual,
+      reservarUso: reservarUsoMensual,
       persistMatch: persistirMatchEncontrado,
       persistNotFound: persistirNoEncontrado,
     })

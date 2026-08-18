@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { googleApiUsage } from '@/lib/db/schema'
 import type { GoogleSku } from './types'
@@ -30,19 +30,41 @@ export async function contarUsoMensual(sku: GoogleSku): Promise<number> {
 }
 
 /**
- * Suma 1 al contador del SKU en el mes actual. Se llama **antes** de la llamada
- * paga (decisión 19): contar de menos por una excepción a mitad de camino es peor
- * que contar de más — una request que Google ya recibió puede facturarse aunque
- * después falle.
+ * Reserva **una** llamada del SKU: mira el cupo y lo consume en la misma
+ * operación. `false` ⇒ no hay cuota y el llamador degrada sin llamar a Google.
+ *
+ * Es una sola función y no el par `contar` + `incrementar` porque separarlos es
+ * exactamente el agujero (`SEC-15`): entre el SELECT y el upsert, N requests
+ * concurrentes leen el mismo valor por debajo del tope y pasan todas. **El patrón
+ * es el de `lib/ai/cupo.ts`**, que ya resuelve este mismo problema para el chat:
+ * TX + fila del mes asegurada con `onConflictDoNothing` + `FOR UPDATE` sobre ella,
+ * así el segundo request espera al primero en vez de leer un valor viejo.
+ *
+ * Se reserva **antes** de la llamada paga (decisión 19): contar de menos por una
+ * excepción a mitad de camino es peor que contar de más — una request que Google
+ * ya recibió puede facturarse aunque después falle.
  */
-export async function incrementarUsoMensual(sku: GoogleSku): Promise<void> {
-  await db
-    .insert(googleApiUsage)
-    .values({ month: MES_SQL as unknown as string, sku, count: 1 })
-    .onConflictDoUpdate({
-      target: [googleApiUsage.month, googleApiUsage.sku],
-      set: { count: sql`${googleApiUsage.count} + 1` },
-    })
+export async function reservarUsoMensual(sku: GoogleSku, tope: number): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    await tx
+      .insert(googleApiUsage)
+      .values({ month: MES_SQL as unknown as string, sku, count: 0 })
+      .onConflictDoNothing()
+
+    const [fila] = await tx
+      .select({ count: googleApiUsage.count })
+      .from(googleApiUsage)
+      .where(and(sql`${googleApiUsage.month} = ${MES_SQL}`, eq(googleApiUsage.sku, sku)))
+      .for('update')
+
+    if (!hayCuota(fila?.count ?? 0, tope)) return false
+
+    await tx
+      .update(googleApiUsage)
+      .set({ count: sql`${googleApiUsage.count} + 1` })
+      .where(and(sql`${googleApiUsage.month} = ${MES_SQL}`, eq(googleApiUsage.sku, sku)))
+    return true
+  })
 }
 
 /**

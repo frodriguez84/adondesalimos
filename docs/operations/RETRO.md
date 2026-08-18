@@ -37,6 +37,26 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-18 · Seguridad: la cola larga (10 hallazgos + SEC-09) — Opus
+
+- **Qué salió bien.** **Medir a quién rompe el fix, antes de escribirlo.** `SEC-21` estaba aprobado
+  como *«normalizar el mail en el alta y en el login»*; una consulta read-only a Neon mostró que **2
+  de los 3 usuarios de producción** tienen un punto en el local-part de Gmail, así que ese fix los
+  dejaba sin poder entrar a su propia cuenta. Se cerró el mismo agujero al revés (el alta rechaza un
+  mail que caiga en una bandeja ya usada) sin tocar lo guardado ni el login. La consulta costó dos
+  minutos y evitó una puerta de ida sobre usuarios reales.
+- **Qué frenó.** Nada grande, pero dos cosas concretas. (1) El fix de `SEC-14` venía escrito en el
+  informe —*«validar que cada valor sea `string|number`»*— y **no arreglaba el 500 que el propio
+  informe había reproducido** (`"o":"abc"` es un string, y pasa esa validación). Se vio solo por ir a
+  mirar a qué columna va cada clave del orden. Es la **tercera sesión seguida** en que el plan del
+  informe no se puede aplicar tal cual: ya no es mala suerte, es que un informe propone y el código
+  decide. (2) `npm run typecheck` **no existe** —el gate lo nombra en tres lugares y hay que
+  acordarse de que es `npx tsc --noEmit`—.
+- **Qué cambiar.** Una sola: agregar `"typecheck": "tsc --noEmit"` a `package.json`. Una línea, y
+  deja de haber un comando del gate que se nombra en los docs y no se puede tipear. Lo de los
+  informes **no** se convierte en regla nueva: verificar el repro antes de aplicar el fix ya es la
+  regla de "objetivos verificables", y agregar una segunda que diga lo mismo no la haría más cierta.
+
 ## 2026-08-18 · Seguridad: SEC-05, SEC-06 y SEC-07 — Opus
 
 - **Qué salió bien.** Leer la librería antes de creerle al informe. El fix (a) de `SEC-05` estaba

@@ -142,6 +142,30 @@ interface SignatureInput {
   xRequestId: string | null
   /** Query `data.id` del webhook firmado. Ausente → cadena vacía. */
   dataId: string | null
+  /** Inyectable para testear la ventana; en producción es el reloj. */
+  ahora?: number
+}
+
+/**
+ * Ventana de validez de la firma (`SEC-18`): 5 minutos, el valor que recomienda MP.
+ *
+ * Sin esto el HMAC estaba bien calculado pero el `ts` **nunca se comparaba contra
+ * el reloj**, así que una firma legítima capturada valía para siempre. Se tolera
+ * hacia los dos lados: el `ts` lo pone el reloj de MP, no el nuestro, y un desfase
+ * de unos segundos no puede rechazar un webhook real.
+ */
+const VENTANA_FIRMA_MS = 5 * 60_000
+
+/**
+ * El `ts` del header a milisegundos. MP lo manda en ms (13 dígitos), pero el
+ * mismo campo aparece en segundos en parte de su documentación y equivocarse acá
+ * rechazaría **todos** los webhooks en silencio: se normaliza por magnitud en vez
+ * de asumir una de las dos. `null` si no es un número.
+ */
+function tsEnMs(ts: string): number | null {
+  const n = Number(ts)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return n < 1e11 ? n * 1000 : n
 }
 
 /** Manifest HMAC tal como lo documenta MP (PHP oficial): id, request-id y ts. */
@@ -158,12 +182,14 @@ export function buildWebhookSignatureManifest(
 /**
  * Valida la autenticidad de un webhook de MP.
  * Template: `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` — HMAC-SHA256 con
- * `MP_WEBHOOK_SECRET`, comparación timing-safe.
+ * `MP_WEBHOOK_SECRET`, comparación timing-safe **y dentro de la ventana del `ts`**
+ * (`SEC-18`: una firma sin vencimiento es una firma reusable para siempre).
  */
 export function validateWebhookSignature({
   xSignature,
   xRequestId,
   dataId,
+  ahora = Date.now(),
 }: SignatureInput): boolean {
   const secret = process.env.MP_WEBHOOK_SECRET
   if (!secret || !xSignature) return false
@@ -177,6 +203,10 @@ export function validateWebhookSignature({
   ) as { ts?: string; v1?: string }
 
   if (!parts.ts || !parts.v1) return false
+
+  // La ventana se mira ANTES del HMAC: es más barata y no depende del secret.
+  const emitido = tsEnMs(parts.ts)
+  if (emitido === null || Math.abs(ahora - emitido) > VENTANA_FIRMA_MS) return false
 
   const manifest = buildWebhookSignatureManifest(dataId, xRequestId, parts.ts)
   const computed = crypto.createHmac('sha256', secret).update(manifest).digest('hex')

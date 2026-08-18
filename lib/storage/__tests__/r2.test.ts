@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { claveDeFoto, claveDeUrl, esTipoPermitido, MAX_BYTES, urlPublica } from '../r2'
+import {
+  claveDeFoto,
+  claveDeUrl,
+  esTipoPermitido,
+  MAX_BYTES,
+  tipoRealDeFoto,
+  urlPublica,
+} from '../r2'
 
 /**
  * Las partes de R2 que se pueden testear sin credenciales ni red: qué se acepta,
@@ -25,6 +32,57 @@ describe('tipos y tamaño (decisión 16)', () => {
 
   it('el tope es 5 MB', () => {
     expect(MAX_BYTES).toBe(5 * 1024 * 1024)
+  })
+})
+
+describe('tipoRealDeFoto — la firma manda, no el header del cliente (`SEC-13`)', () => {
+  /** Bytes con la firma pedida y relleno hasta `largo`. */
+  function conFirma(firma: number[], largo = 32): Uint8Array {
+    const b = new Uint8Array(largo)
+    b.set(firma)
+    return b
+  }
+
+  const JPEG = conFirma([0xff, 0xd8, 0xff, 0xe0])
+  const PNG = conFirma([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const WEBP = (() => {
+    const b = conFirma([0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00])
+    b.set([0x57, 0x45, 0x42, 0x50], 8)
+    return b
+  })()
+
+  it('reconoce los tres formatos permitidos', () => {
+    expect(tipoRealDeFoto(JPEG)).toBe('image/jpeg')
+    expect(tipoRealDeFoto(PNG)).toBe('image/png')
+    expect(tipoRealDeFoto(WEBP)).toBe('image/webp')
+  })
+
+  it('un HTML/PHP/ELF disfrazado de jpeg da null — el vector de `SEC-13`', () => {
+    const html = new TextEncoder().encode('<html><script>alert(1)</script></html>')
+    const php = new TextEncoder().encode('<?php system($_GET["c"]); ?>')
+    const elf = conFirma([0x7f, 0x45, 0x4c, 0x46])
+    expect(tipoRealDeFoto(html)).toBeNull()
+    expect(tipoRealDeFoto(php)).toBeNull()
+    expect(tipoRealDeFoto(elf)).toBeNull()
+  })
+
+  it('formatos de imagen que no están en la allowlist también dan null', () => {
+    const gif = new TextEncoder().encode('GIF89a')
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')
+    expect(tipoRealDeFoto(gif)).toBeNull()
+    expect(tipoRealDeFoto(svg)).toBeNull()
+  })
+
+  it('un RIFF que no es WEBP (un .wav) no pasa por webp', () => {
+    const wav = conFirma([0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00])
+    wav.set([0x57, 0x41, 0x56, 0x45], 8) // "WAVE"
+    expect(tipoRealDeFoto(wav)).toBeNull()
+  })
+
+  it('archivos más cortos que la firma no rompen', () => {
+    expect(tipoRealDeFoto(new Uint8Array(0))).toBeNull()
+    expect(tipoRealDeFoto(new Uint8Array([0xff, 0xd8]))).toBeNull()
+    expect(tipoRealDeFoto(new Uint8Array([0x52, 0x49, 0x46, 0x46]))).toBeNull() // RIFF sin los 12
   })
 })
 

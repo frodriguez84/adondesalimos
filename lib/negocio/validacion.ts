@@ -28,8 +28,14 @@ const opcional = (max: number) => z.string().trim().max(max)
  * Link http(s). Vacío se acepta (borrar el campo); con contenido tiene que ser
  * una URL absoluta — la ficha la usa tal cual como `href`, y un `javascript:` o
  * un `//evil` ahí serían un agujero.
+ *
+ * **Es el dueño único de la regla** y se exporta por eso: el alta de un lugar
+ * nuevo (`lib/claims/validacion.ts`) escribe `websites` en `places`, que la ficha
+ * resuelve contra este mismo campo con `COALESCE(dueño → base)`. Hasta `SEC-20`
+ * había dos validaciones distintas para la misma columna resuelta y solo una
+ * exigía `http(s)`: la copia que driftó era la del alta.
  */
-const link = (max: number) =>
+export const link = (max: number) =>
   opcional(max).refine((v) => v === '' || /^https?:\/\/\S+$/i.test(v), {
     message: 'Tiene que empezar con http:// o https://',
   })

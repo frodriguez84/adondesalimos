@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AMBA_BBOX } from '@/lib/geo/amba'
+import { link } from '@/lib/negocio/validacion'
 
 /**
  * Validación del payload de `POST /api/claims` — las dos entradas del flujo
@@ -48,7 +49,10 @@ export const altaSchema = solicitante.extend({
   // Contacto base del lugar nuevo: en `source='owner'` las columnas base se
   // llenan una vez, al alta (decisión 13).
   phone: texto(0, 40).optional(),
-  website: texto(0, 300).optional(),
+  // `SEC-20`: el link lo define `lib/negocio/validacion.ts`, que es su dueño único
+  // — acá había una segunda validación que no exigía `http(s)` para la **misma**
+  // columna que la ficha resuelve. La ficha lo usa tal cual como `href`.
+  website: link(300).optional(),
 })
 
 export const claimPayloadSchema = z.discriminatedUnion('kind', [reclamoSchema, altaSchema])

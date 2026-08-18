@@ -73,6 +73,17 @@ export type UsuarioAdmin = {
 }
 
 /**
+ * Los comodines de `LIKE` no son inyección —el valor viaja como parámetro— pero sí
+ * cambian la consulta: un `%` suelto matchea todo y un `_` matchea cualquier
+ * carácter (`SEC-24`). Acá el que escribe es un admin, así que el impacto es ~nulo;
+ * va por completitud, y porque el día que un buscador así quede de cara al público
+ * la regla ya está escrita. `\` primero, o se re-escaparían los escapes.
+ */
+export function escaparLike(texto: string): string {
+  return texto.replace(/[\\%_]/g, '\\$&')
+}
+
+/**
  * El listado de la tab Usuarios (`FB-01`). Los más nuevos primero, topeado —el
  * conteo real sale de `contarUsuarios()`, aparte, mismo criterio que la lista de
  * interesados (INT2-28)—.
@@ -86,10 +97,9 @@ export type UsuarioAdmin = {
  */
 export async function getUsuariosAdmin(q?: string, limite = 50): Promise<UsuarioAdmin[]> {
   const texto = q?.trim() ?? ''
+  const patron = `%${escaparLike(texto)}%`
   const filtro =
-    texto.length > 0
-      ? or(ilike(users.email, `%${texto}%`), ilike(users.name, `%${texto}%`))
-      : undefined
+    texto.length > 0 ? or(ilike(users.email, patron), ilike(users.name, patron)) : undefined
 
   const filas = await db
     .select({

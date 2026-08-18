@@ -292,6 +292,24 @@ export function checkVotacionesRateLimit(request: Request): Response | null {
 }
 
 /**
+ * Rate limit de `GET /api/votaciones/[token]` (`SEC-22`): era el **único** endpoint
+ * público que consulta la base sin pasar por ningún cupo, con 5 queries por hit y
+ * pensado para que el cliente lo poletee.
+ *
+ * El número sale del polling real, no de la intuición: `POLL_MS = 4000` en
+ * `app/votacion/[token]/votacion-client.tsx` son 15 requests por minuto **por
+ * pestaña abierta**, así que 120/min es un grupo entero mirando los resultados
+ * detrás del wifi de la misma casa. Apretarlo más rompe el caso legítimo; es un
+ * techo, no una defensa fina — la fina es Upstash (`DEPLOY` F2).
+ */
+const RESULTADOS_MAX = 120
+const RESULTADOS_WINDOW_MS = 60_000
+
+export function checkResultadosRateLimit(request: Request): Response | null {
+  return checkIpRateLimit(request, 'votacion-resultados', RESULTADOS_MAX, RESULTADOS_WINDOW_MS)
+}
+
+/**
  * Rate limit de `POST /api/votaciones/[token]/voto` (VOTACION, decisión 9): 20 por
  * minuto por IP. Cupo propio y generoso — la IP no es la identidad del votante
  * (esa es la cookie), así que un grupo entero votando casi a la vez desde la misma

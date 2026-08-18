@@ -70,8 +70,7 @@ function deps(over: Partial<EnrichmentDeps> = {}): EnrichmentDeps {
     resolvePlaceId: vi.fn(async () => 'ChIJnuevo'),
     fetchDetails: vi.fn(async () => detalle()),
     fetchFoto: vi.fn(async () => FOTO),
-    contarUso: vi.fn(async () => 0),
-    incrementarUso: vi.fn(async () => {}),
+    reservarUso: vi.fn(async () => true),
     persistMatch: vi.fn(async () => {}),
     persistNotFound: vi.fn(async () => {}),
     ...over,
@@ -135,7 +134,7 @@ describe('resolverEnriquecimiento — ningún camino sin datos gasta', () => {
     expect(res.status).toBe(204)
     expect(d.resolvePlaceId).not.toHaveBeenCalled()
     expect(d.fetchDetails).not.toHaveBeenCalled()
-    expect(d.incrementarUso).not.toHaveBeenCalled()
+    expect(d.reservarUso).not.toHaveBeenCalled()
   })
 
   it('not_found reciente ⇒ 204 sin resolver', async () => {
@@ -170,38 +169,42 @@ describe('resolverEnriquecimiento — ningún camino sin datos gasta', () => {
     expect(res.status).toBe(204)
     expect(d.persistNotFound).toHaveBeenCalledWith(d.place.id)
     expect(d.fetchDetails).not.toHaveBeenCalled()
-    expect(d.incrementarUso).not.toHaveBeenCalled()
+    expect(d.reservarUso).not.toHaveBeenCalled()
   })
 
-  it('tope de cuota superado ⇒ 204 SIN llamar a Details ni incrementar', async () => {
+  it('sin cuota ⇒ 204 SIN llamar a Details', async () => {
     const d = deps({
       place: lugar({ googleMatchStatus: 'matched', googlePlaceId: 'ChIJx' }),
       detailsCap: 100,
-      contarUso: vi.fn(async () => 100),
+      reservarUso: vi.fn(async () => false),
     })
     const res = await resolverEnriquecimiento(d)
     expect(res.status).toBe(204)
     expect(d.fetchDetails).not.toHaveBeenCalled()
-    expect(d.incrementarUso).not.toHaveBeenCalled()
   })
 
-  it('tope en 0 apaga el enriquecimiento sin tocar Google (decisión 19)', async () => {
+  it('el tope de `app_settings` llega tal cual a la reserva (decisión 19)', async () => {
+    // Quién compara usados contra tope es `reservarUsoMensual`, adentro de la TX
+    // (`SEC-15`); acá se fija que el número que se lee de `app_settings` viaje sin
+    // que nadie lo toque — un 0 apaga el enriquecimiento sin redeploy.
     const d = deps({
       place: lugar({ googleMatchStatus: 'matched', googlePlaceId: 'ChIJx' }),
       detailsCap: 0,
-      contarUso: vi.fn(async () => 0),
+      reservarUso: vi.fn(async () => false),
     })
     const res = await resolverEnriquecimiento(d)
     expect(res.status).toBe(204)
+    expect(d.reservarUso).toHaveBeenCalledWith('details', 0)
     expect(d.fetchDetails).not.toHaveBeenCalled()
   })
 
-  it('con cuota ⇒ incrementa ANTES de llamar a Details (contar de más, no de menos)', async () => {
+  it('con cuota ⇒ reserva ANTES de llamar a Details (contar de más, no de menos)', async () => {
     const orden: string[] = []
     const d = deps({
       place: lugar({ googleMatchStatus: 'matched', googlePlaceId: 'ChIJx' }),
-      incrementarUso: vi.fn(async () => {
-        orden.push('incrementar')
+      reservarUso: vi.fn(async () => {
+        orden.push('reservar')
+        return true
       }),
       fetchDetails: vi.fn(async () => {
         orden.push('fetch')
@@ -210,7 +213,7 @@ describe('resolverEnriquecimiento — ningún camino sin datos gasta', () => {
     })
     const res = await resolverEnriquecimiento(d)
     expect(res).toEqual({ status: 200, data: DETALLE })
-    expect(orden).toEqual(['incrementar', 'fetch'])
+    expect(orden).toEqual(['reservar', 'fetch'])
   })
 
   it('Details que falla/tarda (null) ⇒ 204 aunque ya se haya contado', async () => {
@@ -220,7 +223,7 @@ describe('resolverEnriquecimiento — ningún camino sin datos gasta', () => {
     })
     const res = await resolverEnriquecimiento(d)
     expect(res.status).toBe(204)
-    expect(d.incrementarUso).toHaveBeenCalledOnce()
+    expect(d.reservarUso).toHaveBeenCalledOnce()
   })
 })
 
@@ -242,7 +245,7 @@ describe('resolverEnriquecimiento — foto de Google (F3, el SKU más caro)', ()
     expect(res.data.foto).toEqual(FOTO)
     expect(d.fetchFoto).toHaveBeenCalledOnce()
     expect(d.fetchFoto).toHaveBeenCalledWith(CANDIDATA)
-    expect(d.incrementarUso).toHaveBeenCalledWith('photos')
+    expect(d.reservarUso).toHaveBeenCalledWith('photos', 5000)
   })
 
   it('foto de dueño presente ⇒ NI se cuenta NI se pide foto a Google (FICHA-10)', async () => {
@@ -252,8 +255,7 @@ describe('resolverEnriquecimiento — foto de Google (F3, el SKU más caro)', ()
     if (res.status !== 200) return
     expect(res.data.foto).toBeNull()
     expect(d.fetchFoto).not.toHaveBeenCalled()
-    expect(d.contarUso).not.toHaveBeenCalledWith('photos')
-    expect(d.incrementarUso).not.toHaveBeenCalledWith('photos')
+    expect(d.reservarUso).not.toHaveBeenCalledWith('photos', expect.anything())
   })
 
   it('Details sin fotos (candidata null) ⇒ sin media call, el contador no se mueve', async () => {
@@ -263,32 +265,36 @@ describe('resolverEnriquecimiento — foto de Google (F3, el SKU más caro)', ()
     if (res.status !== 200) return
     expect(res.data.foto).toBeNull()
     expect(d.fetchFoto).not.toHaveBeenCalled()
-    expect(d.incrementarUso).not.toHaveBeenCalledWith('photos')
+    expect(d.reservarUso).not.toHaveBeenCalledWith('photos', expect.anything())
   })
 
-  it('tope de photos agotado ⇒ sin foto, PERO la ficha sigue con rating/horarios (200)', async () => {
-    const d = conFoto({ photosCap: 100, contarUso: vi.fn(async (sku) => (sku === 'photos' ? 100 : 0)) })
+  it('cuota de photos agotada ⇒ sin foto, PERO la ficha sigue con rating/horarios (200)', async () => {
+    const d = conFoto({
+      photosCap: 100,
+      reservarUso: vi.fn(async (sku) => sku !== 'photos'),
+    })
     const res = await resolverEnriquecimiento(d)
     expect(res.status).toBe(200)
     if (res.status !== 200) return
     expect(res.data.foto).toBeNull()
     expect(res.data.rating).toBe(4.3) // el resto del enriquecimiento intacto
     expect(d.fetchFoto).not.toHaveBeenCalled()
-    expect(d.incrementarUso).not.toHaveBeenCalledWith('photos')
   })
 
-  it('tope de photos en 0 apaga la foto sin tocar Google (decisión 19)', async () => {
-    const d = conFoto({ photosCap: 0, contarUso: vi.fn(async () => 0) })
+  it('el tope de photos llega tal cual a la reserva (decisión 19)', async () => {
+    const d = conFoto({ photosCap: 0, reservarUso: vi.fn(async (sku) => sku !== 'photos') })
     const res = await resolverEnriquecimiento(d)
     expect(res.status).toBe(200)
+    expect(d.reservarUso).toHaveBeenCalledWith('photos', 0)
     expect(d.fetchFoto).not.toHaveBeenCalled()
   })
 
-  it('cuenta photos ANTES del media call (contar de más, no de menos)', async () => {
+  it('reserva photos ANTES del media call (contar de más, no de menos)', async () => {
     const orden: string[] = []
     const d = conFoto({
-      incrementarUso: vi.fn(async (sku) => {
-        if (sku === 'photos') orden.push('incrementar-photos')
+      reservarUso: vi.fn(async (sku) => {
+        if (sku === 'photos') orden.push('reservar-photos')
+        return true
       }),
       fetchFoto: vi.fn(async () => {
         orden.push('media-call')
@@ -296,7 +302,7 @@ describe('resolverEnriquecimiento — foto de Google (F3, el SKU más caro)', ()
       }),
     })
     await resolverEnriquecimiento(d)
-    expect(orden).toEqual(['incrementar-photos', 'media-call'])
+    expect(orden).toEqual(['reservar-photos', 'media-call'])
   })
 
   it('media call que falla (null) ⇒ foto null, la ficha igual se muestra (200)', async () => {
@@ -305,6 +311,6 @@ describe('resolverEnriquecimiento — foto de Google (F3, el SKU más caro)', ()
     expect(res.status).toBe(200)
     if (res.status !== 200) return
     expect(res.data.foto).toBeNull()
-    expect(d.incrementarUso).toHaveBeenCalledWith('photos') // ya se contó (dec. 19)
+    expect(d.reservarUso).toHaveBeenCalledWith('photos', 5000) // ya se reservó (dec. 19)
   })
 })

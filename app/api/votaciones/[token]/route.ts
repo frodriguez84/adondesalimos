@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth'
+import { checkResultadosRateLimit } from '@/lib/middleware/rate-limit'
 import { cambiarSugerencias, cancelarVotacion, cerrarVotacion } from '@/lib/votaciones/acciones'
 import { getResultados } from '@/lib/votaciones/query'
 import { gestionVotacionSchema } from '@/lib/votaciones/validacion'
@@ -16,6 +17,8 @@ import { gestionVotacionSchema } from '@/lib/votaciones/validacion'
  */
 
 export const dynamic = 'force-dynamic'
+/** `SEC-17`: ni el polling ni el UPDATE del creador necesitan más de 15 s. */
+export const maxDuration = 15
 
 const STATUS_POR_CODIGO: Record<string, number> = {
   NO_AUTORIZADO: 403,
@@ -24,7 +27,12 @@ const STATUS_POR_CODIGO: Record<string, number> = {
   YA_CERRADA: 409,
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
+  // `SEC-22`: es público, cuesta 5 queries y está pensado para polling. El cupo va
+  // antes de tocar la base, mismo criterio que el resto de los endpoints públicos.
+  const bloqueado = checkResultadosRateLimit(request)
+  if (bloqueado) return bloqueado
+
   const { token } = await params
 
   try {

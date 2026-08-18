@@ -118,6 +118,12 @@ function distKey(lat: number, lng: number) {
 /** Valores de la clave de orden de la última fila servida. */
 type Cursor = Record<string, string | number>
 
+/**
+ * Una clave del orden. `tipo` es el de la columna que devuelve `expr`, y existe
+ * solo para el cursor: es contra lo que se valida el valor que llega de la URL.
+ */
+type Clave = { nombre: string; expr: SQL; desc: boolean; tipo: 'string' | 'number' }
+
 function encodeCursor(c: Cursor): string {
   return Buffer.from(JSON.stringify(c)).toString('base64url')
 }
@@ -126,7 +132,15 @@ function decodeCursor(raw: string | null): Cursor | null {
   if (!raw) return null
   try {
     const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString())
-    return parsed && typeof parsed === 'object' ? (parsed as Cursor) : null
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    // Los valores van como parámetros —no hay inyección—, pero un array o un
+    // objeto donde va un escalar rompe el driver (SEC-14). El tipo que espera
+    // cada clave se verifica aparte, en `searchPlaces`, porque solo ahí se sabe
+    // cuáles son: acá alcanza con descartar lo que ni siquiera es un escalar.
+    for (const v of Object.values(parsed)) {
+      if (typeof v !== 'string' && typeof v !== 'number') return null
+    }
+    return parsed as Cursor
   } catch {
     // Cursor manoseado en la URL: se ignora y se sirve la primera página.
     return null
@@ -299,26 +313,31 @@ export async function countPlaces(params: SearchParams): Promise<number> {
 async function clavesDeOrden(
   params: SearchParams,
   usaGps: boolean,
-): Promise<{ nombre: string; expr: SQL; desc: boolean }[]> {
-  const claves: { nombre: string; expr: SQL; desc: boolean }[] = []
+): Promise<Clave[]> {
+  const claves: Clave[] = []
   if (usaGps) {
-    claves.push({ nombre: 'd', expr: distKey(params.coords!.lat, params.coords!.lng), desc: false })
+    claves.push({
+      nombre: 'd',
+      expr: distKey(params.coords!.lat, params.coords!.lng),
+      desc: false,
+      tipo: 'number',
+    })
   } else if (params.q) {
-    claves.push({ nombre: 's', expr: simKey(params.q), desc: true })
+    claves.push({ nombre: 's', expr: simKey(params.q), desc: true, tipo: 'number' })
   }
   if (!usaGps) {
-    claves.push({ nombre: 'o', expr: ownerRank, desc: true })
+    claves.push({ nombre: 'o', expr: ownerRank, desc: true, tipo: 'number' })
     // ORDEN_ORGANICO, decisión 10: la banda va acá y solo acá. En GPS manda la
     // distancia —quien pide "cerca mío" pide cercanía, y un Burger King a 100 m es
     // legítimamente lo más cercano—; con texto manda la similitud y la banda
     // desempata, que es donde hace falta ("cafe" empata mucho).
-    claves.push({ nombre: 'b', expr: bandaKey(await getCadenas()), desc: true })
-    claves.push({ nombre: 'c', expr: confKey, desc: true })
-    claves.push({ nombre: 'n', expr: sql`${places.name}`, desc: false })
+    claves.push({ nombre: 'b', expr: bandaKey(await getCadenas()), desc: true, tipo: 'number' })
+    claves.push({ nombre: 'c', expr: confKey, desc: true, tipo: 'number' })
+    claves.push({ nombre: 'n', expr: sql`${places.name}`, desc: false, tipo: 'string' })
   }
   // `id` último siempre: garantiza que el orden sea total y por lo tanto que la
   // paginación no repita ni saltee filas cuando hay empates.
-  claves.push({ nombre: 'i', expr: sql`${places.id}::text`, desc: false })
+  claves.push({ nombre: 'i', expr: sql`${places.id}::text`, desc: false, tipo: 'string' })
   return claves
 }
 
@@ -332,8 +351,12 @@ export async function searchPlaces(params: SearchParams): Promise<SearchResult> 
   const claves = await clavesDeOrden(params, usaGps)
 
   if (cursor) {
+    // El valor de cada clave tiene que venir con el tipo de SU columna (SEC-14):
+    // un texto donde va un número lo rechaza Postgres con un 500, no con una
+    // primera página. Si una sola no cierra se descarta el cursor entero, que es
+    // lo que promete el comentario de `decodeCursor`.
     const conValor = claves
-      .filter((k) => cursor[k.nombre] !== undefined)
+      .filter((k) => typeof cursor[k.nombre] === k.tipo)
       .map((k) => ({ expr: k.expr, valor: cursor[k.nombre], desc: k.desc }))
     if (conValor.length === claves.length) where.push(keysetWhere(conValor))
   }

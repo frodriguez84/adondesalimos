@@ -93,8 +93,8 @@ export type EnrichmentDeps = {
   resolvePlaceId: (input: MatchInput) => Promise<string | null>
   fetchDetails: (placeId: string) => Promise<DetailsResult | null>
   fetchFoto: (candidata: FotoCandidata) => Promise<GoogleFoto | null>
-  contarUso: (sku: GoogleSku) => Promise<number>
-  incrementarUso: (sku: GoogleSku) => Promise<void>
+  /** Mira el cupo y lo consume en una sola operación (`SEC-15`). `false` ⇒ sin cuota. */
+  reservarUso: (sku: GoogleSku, tope: number) => Promise<boolean>
   persistMatch: (id: string, googlePlaceId: string) => Promise<void>
   persistNotFound: (id: string) => Promise<void>
 }
@@ -138,12 +138,12 @@ export async function resolverEnriquecimiento(
 
   // Tope de Place Details (decisión 19): superado ⇒ 204 **sin llamar**. Bajar el
   // tope a 0 en `app_settings` apaga el enriquecimiento sin redeploy.
-  const usados = await deps.contarUso('details')
-  if (usados >= deps.detailsCap) return SIN_DATOS
-
-  // Contar ANTES de llamar (decisión 19): una request que Google ya recibió puede
-  // facturarse aunque después falle. Contar de más es más seguro que de menos.
-  await deps.incrementarUso('details')
+  //
+  // Mirar el cupo y consumirlo es UNA operación (`SEC-15`): en dos pasos, N
+  // requests concurrentes leen el mismo valor bajo el tope y pasan todas. Y se
+  // reserva ANTES de llamar (decisión 19): una request que Google ya recibió
+  // puede facturarse aunque después falle.
+  if (!(await deps.reservarUso('details', deps.detailsCap))) return SIN_DATOS
 
   const detalle = await deps.fetchDetails(placeId)
   if (!detalle) return SIN_DATOS // timeout, red caída o key inválida (decisión 20).
@@ -173,9 +173,6 @@ async function resolverFoto(
   if (deps.place.tieneFotoDueno) return null
   if (!candidata) return null
 
-  const usados = await deps.contarUso('photos')
-  if (usados >= deps.photosCap) return null
-
-  await deps.incrementarUso('photos')
+  if (!(await deps.reservarUso('photos', deps.photosCap))) return null
   return deps.fetchFoto(candidata)
 }

@@ -7,7 +7,8 @@ import { crearSuscripcion, type EntradaCheckout } from '@/lib/billing/checkout'
  * (MONETIZACION F2). Adaptador fino: resuelve la sesión y delega en
  * `crearSuscripcion`. Rate limit 5/h/IP (decisión 29). Body:
  * `{ tipo: 'b2c' } | { tipo: 'b2b', placeId }` + `card_token_id` + `amount`
- * (el monto que mostró el Brick, decisión 27) + `payer_email` opcional.
+ * (el monto que mostró el Brick, decisión 27). El `payer_email` que manda el Brick
+ * **se ignora**: el pagador sale de la sesión (`SEC-19`).
  */
 
 export const dynamic = 'force-dynamic'
@@ -38,7 +39,12 @@ export async function POST(request: Request) {
   const tipo = b.tipo
   const cardTokenId = b.card_token_id
   const amount = b.amount
-  const payerEmail = typeof b.payer_email === 'string' ? b.payer_email : null
+  // `SEC-19`: el pagador es **el de la sesión**, no el que venga en el body. Se
+  // manda a MP y se persiste en `mp_payer_email`; hoy esa columna se escribe y
+  // nadie la lee, así que el riesgo es a futuro —el día que algo la tome por
+  // verdad—. El Brick manda `payer_email`, pero es un dato del cliente y con
+  // sesión abierta ya sabemos quién paga.
+  const payerEmail = session.user.email ?? null
 
   if (tipo !== 'b2c' && tipo !== 'b2b') {
     return Response.json(

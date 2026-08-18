@@ -37,6 +37,42 @@ export function esTipoPermitido(tipo: string): tipo is TipoFoto {
   return (TIPOS_PERMITIDOS as readonly string[]).includes(tipo)
 }
 
+/**
+ * El tipo **real**, leído de la firma de los bytes. `null` si no es ninguno de los
+ * tres permitidos.
+ *
+ * Existe porque hasta `SEC-13` el único chequeo era `esTipoPermitido(archivo.type)`
+ * y ese `type` lo pone el cliente en la parte multipart: bastaba decir
+ * `Content-Type: image/jpeg` para guardar cualquier cosa en el bucket, con caché de
+ * un año y borrado manual. No era XSS —con ese `Content-Type` ningún browser
+ * interpreta HTML— pero sí hosting de archivos arbitrarios pagado por la app.
+ *
+ * Los bytes ya están en memoria cuando se llama, así que el chequeo es gratis. El
+ * `type` declarado sigue sirviendo como corte barato antes de leer el archivo; el
+ * que manda para guardar y para la extensión es este.
+ *
+ * ```
+ * jpeg  FF D8 FF
+ * png   89 50 4E 47 0D 0A 1A 0A
+ * webp  "RIFF" ... "WEBP"   (los 4 bytes del tamaño van en el medio)
+ * ```
+ */
+export function tipoRealDeFoto(bytes: Uint8Array): TipoFoto | null {
+  const empieza = (...firma: number[]) =>
+    bytes.length >= firma.length && firma.every((b, i) => bytes[i] === b)
+
+  if (empieza(0xff, 0xd8, 0xff)) return 'image/jpeg'
+  if (empieza(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png'
+  if (
+    empieza(0x52, 0x49, 0x46, 0x46) && // "RIFF"
+    bytes.length >= 12 &&
+    [0x57, 0x45, 0x42, 0x50].every((b, i) => bytes[8 + i] === b) // "WEBP"
+  ) {
+    return 'image/webp'
+  }
+  return null
+}
+
 // ---------------------------------------------------------------------------
 // Claves y URLs (puros — testeables sin credenciales ni red)
 // ---------------------------------------------------------------------------

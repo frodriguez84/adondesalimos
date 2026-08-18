@@ -20,6 +20,8 @@ import { buscarDestacados, searchPlaces, type SearchedPlace } from '@/lib/search
  */
 
 export const dynamic = 'force-dynamic'
+/** `SEC-17`: una lectura no puede retener su slot 300 s, que es el default sin esto. */
+export const maxDuration = 15
 
 export async function GET(request: Request) {
   const bloqueado = checkSearchRateLimit(request)
