@@ -891,6 +891,12 @@ principio de la sesión. Gate completo: **typecheck limpio + 837 tests en verde*
 nuevos) **+ `build` verde con el dev server parado**. Ninguna migración, así que no hizo falta
 backup. `SEC-09` va **en un commit aparte** por tocar dependencias.
 
+> **✅ Deployado a Vercel el 2026-08-18**, junto con el commit `3e2b670` de la segunda sesión, que
+> venía esperando. `npm run prod:check` post-deploy: migraciones **20 de 20**, `app_settings` sin
+> drift, topes holgados (Google 66/5000, chat 8/500) y backup del día. Los 4 avisos de datos que
+> reporta son el drift viejo dev↔prod (la curaduría vive solo en dev), no de esta cola.
+> **Los 25 hallazgos están evaluados contra código que hoy corre en producción.**
+
 | ID | Qué se cambió | Archivos | Verificación |
 |---|---|---|---|
 | `SEC-14` | El cursor se valida **contra el tipo de cada clave del orden**, no solo contra la forma | [`lib/search/query.ts`](../../lib/search/query.ts) | Los dos cursores que daban 500 (`"o":"abc"` y `"o":[1,2]`) ahora caen a la primera página |
