@@ -4675,9 +4675,9 @@ Verificado: `status=open · expires_at` original · **2 opciones · 0 votos**, i
 
 ## QA /qa-spec — TITULARIDAD F1 (2026-08-17)
 
-**Veredicto:** PARCIAL — pendiente QA en vivo
-**Verificación técnica:** typecheck ✅ · tests **788/788** ✅ · build ⏸️ **no corrido** (el dev
-server de Fer está levantado y comparte `.next` — convención de `CLAUDE.md` § *Notas importantes*)
+**Veredicto:** **APROBADO** (QA en vivo corrido el 2026-08-18 — ver § *QA en vivo* al final)
+**Verificación técnica:** typecheck ✅ · tests **788/788** ✅ · build ✅ **verde** (corrido el
+2026-08-18 con el dev server parado, después del fix de TIT-QA-16)
 **Método:** 3 checkers independientes (Explore read-only, haiku, maker≠checker) contra el DoD de
 `docs/specs/active/TITULARIDAD.md`. **Se verifica SOLO la F1**: F2 (transferencia y disputa) y F3
 (prueba documental) están escritas y **gateadas por volumen** a propósito (decisión 2) — no cuentan
@@ -4693,28 +4693,59 @@ Playwright contra `https://adondesalimos.ngrok.app`.
 | TIT-QA-05 | El route mapea `CONTACTO_VERIFICADO` a **403** | **PASS** | `app/api/mi-negocio/[placeId]/content/route.ts:26-32` |
 | TIT-QA-06 | `PATCH` con los tres campos **vacíos** no falla y **no borra** lo cargado antes del recorte | **PASS** | `acciones.ts:132-143` bifurca a `contactoGuardado()` (`:187-199`), que **lee lo guardado y lo reescribe dentro de la misma transacción** · test `panel.integration.test.ts:228-256` verifica la fila **y** la ficha |
 | TIT-QA-07 | `resolverContenidoDueno` sin cambios de comportamiento (el recorte es sobre escribir, no sobre mostrar) | **PASS** | Función intacta (`contenido.ts:98-116`) · test explícito «el recorte es sobre ESCRIBIR» en `contenido.test.ts:131-139` |
-| TIT-QA-08 | El editor muestra los tres campos **disabled** (no ocultos) con el dato actual y una línea que explica por qué y a dónde escribir, **solo** en Overture | **PASS (código)** · **pendiente en vivo** | `editor-client.tsx:182-189` (el aviso), `:193-268` (los tres `disabled`) · el `source` llega vía `query.ts:121,162`. Falta verlo renderizado a 390×844 |
+| TIT-QA-08 | El editor muestra los tres campos **disabled** (no ocultos) con el dato actual y una línea que explica por qué y a dónde escribir, **solo** en Overture | **PASS** (código **y en vivo**) | `editor-client.tsx:192-199` (el aviso), `:203-278` (los tres `disabled`) · el `source` llega vía `query.ts:121,162` · **en vivo 2026-08-18** a 390×844 sobre Kansas Grill & Bar (`overture`) y Bar QA Titularidad (`owner`) — ver § *QA en vivo* |
 | TIT-QA-09 | `POST /api/claims` devuelve **400** sin `declaracion`, en los dos `kind` | **PASS** | `validacion.ts:30` (`z.literal(true)` en el `solicitante` **compartido**) · `app/api/claims/route.ts:50-56` |
 | TIT-QA-10 | El checkbox aparece en los dos formularios, definido **una sola vez** | **PASS** | `components/negocio/campos.tsx:168-188` · consumido por `reclamo-form.tsx:85-89` y `alta-form.tsx:127-131` |
 | TIT-QA-11 | El copy dice la declaración **antes** que la consecuencia y **no afirma que sea un delito** (decisión 4) | **PASS** | `lib/claims/declaracion.ts:22-27`, en ese orden. La consecuencia enumera lo que de verdad pasa (se da de baja el reclamo y la cuenta, queda registrado); cero mención de delito ni de sanción penal |
 | TIT-QA-12 | Todo el copy nuevo de cara al usuario, en argentino rioplatense | **PASS (tras fix)** | ⚠️ El checker lo marcó **PARCIAL**: `DECLARACION_CONSECUENCIA` decía *«damos de baja **el** reclamo y **la** cuenta… quién lo pidió»* —impersonal— mientras el resto del copy vosea (*«Tildá»*, *«Escribinos»*, *«sos vos»*). **Corregido en la misma sesión** a *«damos de baja **tu** reclamo y **tu** cuenta… que lo **pediste vos**»*. La versión **no se bumpeó**: `DECLARACION_VERSION` es la fecha `'2026-08-17'`, el texto nunca se persistió con la redacción vieja (0 claims, sin deploy) |
 | TIT-QA-13 | `place_claims.declaracion_version` se persiste en reclamo **y** en alta, con migración aditiva y nullable | **PASS** | `schema.ts:678` · `drizzle/0018_titularidad.sql` (`ADD COLUMN … text`, sin `NOT NULL`) · `claims/acciones.ts:81` y `:129` |
-| TIT-QA-14 | La cola de `/admin` muestra la declaración y su versión | **PASS (código)** · **pendiente en vivo** | `claims/query.ts:235,266,300` · `app/admin/cola-client.tsx:133-140` |
-| TIT-QA-15 | Sin regresión: el alta sigue naciendo **invisible** y revocar sigue devolviendo la ficha a Overture (AUTH F2/F3) | **PASS** | Cubierto por la suite existente de `claims.integration.test.ts` y `panel.integration.test.ts`, verde en 788/788 |
+| TIT-QA-14 | La cola de `/admin` muestra la declaración y su versión | **PASS** (código **y en vivo**) | `claims/query.ts:235,266,300` · `app/admin/cola-client.tsx:133-140` · **en vivo 2026-08-18**: «Declaró ser dueño o estar autorizado (2026-08-17)» en los dos claims nuevos, y «Sin declaración: es anterior a que la pidiéramos» en los tres viejos (`declaracion_version` NULL) |
+| TIT-QA-15 | Sin regresión: el alta sigue naciendo **invisible** y revocar sigue devolviendo la ficha a Overture (AUTH F2/F3) | **PASS** | Cubierto por la suite existente de `claims.integration.test.ts` y `panel.integration.test.ts`, verde en 788/788 · **en vivo**: el alta nació con `publish_override=f` y `confidence` NULL (invisible), y pasó a `t` recién al aprobarla |
+| TIT-QA-16 | **Hallazgo del QA en vivo (fix aplicado en esta sesión)**: con el contacto apagado, el hint «Hoy se muestra: …» seguía trayendo el valor de **la base** mientras el input apagado mostraba el del dueño — los dos a la vez, contradiciéndose | **FIX APLICADO** | Visto en Kansas: input «11 4776 4100» (lo que la ficha muestra de verdad, verificado en `/lugar/…`) contra hint «+541147764100» (Overture). El rótulo quedó dado vuelta por F1: nació para un campo **vacío y editable**. Fix: `hoySeMuestra()` en `editor-client.tsx` — el hint sale **solo si el campo del dueño está vacío**, que es cuando de verdad informa. Typecheck + 788/788 + build verdes después del cambio |
 
-### Qué falta para APROBADO
+### QA en vivo — 2026-08-18
 
-Tres casos **de pantalla**, que por regla no se declaran PASS leyendo código (MCP de Playwright
-contra `https://adondesalimos.ngrok.app`, 390×844, con el dev server que levanta Fer):
+Los tres casos de pantalla que faltaban, corridos con el MCP de Playwright contra
+`https://adondesalimos.ngrok.app` a **390×844**, con el dev server de Fer levantado. Los tres
+**pasan**; el único hallazgo es TIT-QA-16, arriba, con su fix ya aplicado.
 
-1. **TIT-QA-08 en vivo** — `/mi-negocio/[placeId]` de un lugar de Overture: los tres campos se ven
-   apagados, con el dato actual y el aviso; y en un lugar `source='owner'` se ven editables.
-   Guardar tags/fotos en el lugar de Overture **tiene que funcionar** (el editor manda el contacto
-   vacío justamente para no auto-403earse).
-2. **TIT-QA-14 en vivo** — `/admin` con un claim recién creado: la ficha muestra «Declaró ser dueño
-   o estar autorizado (2026-08-17)».
-3. **El recorrido completo del reclamo** — `/reclamar/[placeId]` y `/registrar-negocio`: el submit
-   sin tildar no pasa y señala el checkbox; tildando, el claim se crea con su versión.
+**1. TIT-QA-08 — el editor, en los dos tipos de lugar.**
+
+- *Overture* (Kansas Grill & Bar, reclamo aprobado): los tres campos se ven **apagados y visibles**,
+  con el dato del dueño adentro y arriba el aviso con candado —«Estos tres los verificamos a mano:
+  son por donde te llaman y te visitan. Si hay algo mal, escribinos a contacto@… y lo cambiamos
+  nosotros»—, que dice el porqué **y** a dónde escribir.
+- *Alta propia* (Bar QA Titularidad, `source='owner'`): los tres **editables**, sin el aviso y con
+  el botón «Agregar red». Cargar teléfono, sitio y una red **guarda** (`PATCH` → 200, fila escrita)
+  y la ficha los muestra. Es TIT-04 en vivo.
+- **El caso que más importa** (el editor no se auto-403ea): con el lugar de Overture, tildar un tag
+  y guardar da **200** — se escribió `pet-friendly` y el contacto del dueño **quedó igual**
+  (`contactoGuardado()` reescribiendo lo que ya estaba, TIT-QA-06 confirmado sobre datos reales).
+- El rechazo también se probó en vivo, campo por campo, con `fetch` desde la sesión del dueño:
+  `phone`, `website` y `socials` no vacíos sobre el lugar de Overture dan **403
+  `CONTACTO_VERIFICADO`** y la fila de `place_owner_content` no cambia (TIT-02).
+
+**2. TIT-QA-14 — la cola de `/admin`.** Sobre los dos claims creados en esta sesión: «Declaró ser
+dueño o estar autorizado (2026-08-17)». Y en los tres claims anteriores a la F1
+(`declaracion_version` NULL) el caso vacío está resuelto con texto propio: «Sin declaración: es
+anterior a que la pidiéramos» — no un hueco ni un «(null)».
+
+**3. El recorrido del reclamo y del alta.** En `/reclamar/[placeId]` y en `/registrar-negocio`, el
+checkbox aparece con el copy correcto —declaración primero, consecuencia después, en voseo («damos
+de baja **tu** reclamo y **tu** cuenta… que lo **pediste vos**»)—. Sin tildar, el submit **no
+sale** (cero `POST` a `/api/claims`) y aparece en rojo, pegado al checkbox, «Tildá esto para mandar
+la solicitud.». Tildando, el claim se crea con `declaracion_version = '2026-08-17'` en los **dos**
+`kind`: alta (`new`) y reclamo (`claim`).
+
+**Cuenta de lo tocado en dev** (todo aditivo, nada destructivo): un lugar nuevo `Bar QA Titularidad`
+(`source='owner'`, alta aprobada desde `/admin`) con su `place_owner_content`; un claim `pending` de
+`pepe@gmail.com` sobre La Malta; y el tag `pet-friendly` sumado a Kansas. Se dejan a propósito: el
+repo no tenía **ningún** lugar `source='owner'`, y sin uno este QA no se puede repetir.
+
+**Nota de método:** a mitad del recorrido, los clicks del MCP dejaron de llegar a la página —el
+listener en captura sobre `document` no registraba **nada**, ni foco ni evento— y eso se leía igual
+que un checkbox roto. Era el driver: cerrando y reabriendo la pestaña, el mismo click funcionó. La
+señal que lo distingue de un bug real es que **ningún** elemento respondía, ni los de arriba.
 
 **Nota de operación:** la columna `declaracion_version` está aplicada en **dev y en producción**.
 La `0018` se corrió contra Neon (endpoint direct) el **2026-08-17**, después del commit y **antes**

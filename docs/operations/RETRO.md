@@ -37,6 +37,23 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-18 · TITULARIDAD F1 — QA en vivo hasta APROBADO — Opus
+
+- **Qué salió bien.** El QA en vivo volvió a encontrar lo que 788 tests no ven: el hint «Hoy se
+  muestra: …» quedó **contradiciendo** al input apagado que tiene al lado (uno traía Overture y el
+  otro el dato del dueño, que es el que la ficha muestra de verdad). Ningún criterio del DoD fallaba
+  —el bloque cumple lo que el spec pide— y aun así la pantalla mentía: el rótulo nació para un campo
+  **vacío y editable** y F1 le cambió el contexto sin que nadie lo mirara. Se vio recién al comparar
+  el editor contra `/lugar/…` en la misma sesión.
+- **Qué frenó.** Dos cosas de entorno, ninguna de método: `/admin` tiraba 404 porque el `.env` local
+  tenía `ADMIN_EMAIL=…gmail.com va` (un « va» pegado), y **los clicks del MCP dejaron de llegar a la
+  página a mitad del recorrido** — el checkbox parecía roto y no lo estaba. Lo que lo distingue de
+  un bug real: un listener en captura sobre `document` no registraba **nada**, ni siquiera en los
+  campos de arriba. Cerrar y reabrir la pestaña lo arregló.
+- **Qué cambiar.** Nada de método. La lección de contenido: **cuando una fase apaga un campo, hay
+  que releer lo que quedó escrito alrededor** — el texto de ayuda de un campo editable no dice lo
+  mismo pegado a uno apagado, y el DoD no lo agarra porque no habla de él.
+
 ## 2026-08-17 · TITULARIDAD — autoría del spec + F1 (el recorte y la declaración) — Opus
 
 - **Qué salió bien.** Buscar en la web lo que la sesión anterior había relevado de memoria: el

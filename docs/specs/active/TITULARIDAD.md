@@ -1,7 +1,8 @@
 # Spec: Titularidad — cómo sé que el dueño de X es realmente el dueño de X
 
-**Estado:** 🟡 Parcial — **F1 ✅ 2026-08-17** (el recorte + la declaración) · F2 y F3 escritas y
-**gateadas por volumen**
+**Estado:** 🟡 Parcial — **F1 ✅ 2026-08-17**, QA **APROBADO 2026-08-18** (el recorte + la
+declaración; QA en vivo y build verdes — ver `docs/qa/AnalisisQA.md` § *QA /qa-spec — TITULARIDAD
+F1*) · F2 y F3 escritas y **gateadas por volumen**
 **Prioridad:** Alta — es **puerta de ida en reputación**. Hoy hay 0 reclamos y 0 altas en
 producción (9 días), así que el costo de decidirlo ahora es cero y el de decidirlo después es
 irreversible: un reclamo falso aprobado desvía llamadas de un negocio real a un competidor.

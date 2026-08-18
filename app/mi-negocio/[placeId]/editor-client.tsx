@@ -62,6 +62,16 @@ function redesVisibles(lugar: PanelLugar): string[] {
   return lugar.contenido.socials.length > 0 ? lugar.contenido.socials : lugar.base.socials
 }
 
+/**
+ * El «hoy se muestra» es el dato de la base: solo informa **mientras el dueño no
+ * tenga el suyo**, porque el COALESCE de `contenido.ts` le da prioridad al del
+ * dueño. Con el contacto apagado (TITULARIDAD F1) el input ya muestra lo que sale
+ * en la ficha, así que repetir ahí la base contradecía lo que se ve (TIT-QA-16).
+ */
+function hoySeMuestra(propio: string, base: string | null): string | undefined {
+  return !propio && base ? `Hoy se muestra: ${base}` : undefined
+}
+
 export function EditorClient({ lugar }: { lugar: PanelLugar }) {
   const pago = lugar.plan === 'paid'
   /**
@@ -193,7 +203,7 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           <Campo
             label="Teléfono"
             error={errores.phone}
-            hint={lugar.base.phone ? `Hoy se muestra: ${lugar.base.phone}` : undefined}
+            hint={hoySeMuestra(datos.phone, lugar.base.phone)}
           >
             <input
               type="tel"
@@ -208,7 +218,10 @@ export function EditorClient({ lugar }: { lugar: PanelLugar }) {
           <Campo
             label="Sitio web"
             error={errores.website}
-            hint={lugar.base.website ? `Hoy se muestra: ${lugar.base.website}` : 'Con https://'}
+            hint={
+              hoySeMuestra(datos.website, lugar.base.website) ??
+              (contactoEditable ? 'Con https://' : undefined)
+            }
           >
             <input
               type="url"
