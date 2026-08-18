@@ -60,16 +60,63 @@ async function cargarHistorial(conversationId: string): Promise<Anthropic.Messag
 }
 
 /**
- * Corre el turno y devuelve el stream SSE. Si Anthropic falla, revierte la reserva
- * (mensaje + cupo, decisión 13) y emite un evento de error — el usuario ve un error
- * amable y su mensaje no consumió cupo.
+ * Corre el turno y devuelve el stream SSE. Si Anthropic falla **antes de contestar**,
+ * revierte la reserva (mensaje + cupo, decisión 13) y emite un evento de error — el
+ * usuario ve un error amable y su mensaje no consumió cupo.
+ *
+ * ⚠️ **Que la llamada haya salido o no cambia todo** (`SEC-06`). Antes había un
+ * `try`/`catch` único que revertía la reserva ante *cualquier* excepción, sin
+ * distinguir "Anthropic no respondió" (devolver el cupo es correcto) de "Anthropic
+ * respondió, cobró, y falló algo posterior" (devolverlo es regalar la llamada). Y el
+ * segundo caso no necesita atacante: si el cliente corta el SSE —cerrar la pestaña
+ * alcanza— el `enqueue` siguiente tira `TypeError: Controller is already closed`,
+ * caía al catch y le devolvía el mensaje de trial con los tokens ya facturados.
+ * Leyendo el stream hasta las cards y cortando antes del `[DONE]` eso era chat
+ * gratis ilimitado del lado del usuario, y quemar el tope global —`ai_api_usage`
+ * **no** se revierte, a propósito— dejaba a todos con el 503 hasta el 1º.
+ *
+ * De ahí las tres piezas de abajo: `llamadaEmitida` marca el punto sin retorno,
+ * `emitir` no revive un stream ya cerrado (era la excepción que disparaba el revert,
+ * y también la que dejaba una unhandled rejection al fallar el evento de error), y
+ * `cancel` aborta la llamada a Anthropic cuando el cliente se fue — antes seguía
+ * generando tokens enteros para nadie.
  */
 export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
   const { conversationId, userId, esPrem, reservaMessageId, plan } = args
 
+  /** Corta la generación cuando el cliente se va (`cancel`, más abajo). */
+  const abort = new AbortController()
+  /** El cliente cortó o el stream ya se cerró: no hay a dónde escribir. */
+  let cerrado = false
+  /**
+   * `true` desde el momento en que Anthropic devolvió un mensaje completo: la
+   * llamada se hizo y se facturó. A partir de acá **no se revierte el cupo**, falle
+   * lo que falle después — el gasto ya ocurrió y devolverlo es regalarlo.
+   *
+   * Se marca en el primer `finalMessage()` y no en el primer delta: un stream que
+   * se corta en la mitad de la primera ronda sí revierte, porque `cancel` ya abortó
+   * la llamada y lo facturado es una fracción. Ese resto es deliberado y acotado.
+   */
+  let llamadaEmitida = false
+
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const anthropic = getAnthropic()
+
+      /**
+       * Único camino de escritura al SSE. Si el cliente ya cortó, no hace nada en vez
+       * de tirar: escribirle a un controller cerrado era lo que hacía pasar una
+       * desconexión por "falló el turno".
+       */
+      const emitir = (chunk: Uint8Array): void => {
+        if (cerrado) return
+        try {
+          controller.enqueue(chunk)
+        } catch {
+          cerrado = true
+        }
+      }
+
       let fullText = ''
       let inputTokens = 0
       let outputTokens = 0
@@ -102,7 +149,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
             system,
             tools: [BUSCAR_LUGARES_TOOL],
             messages,
-          })
+          }, { signal: abort.signal })
 
           // El texto de esta ronda se pega al de la anterior sin separador
           // ("…para después.Uh, sin resultados…"): el modelo escribe, corre una tool
@@ -117,11 +164,14 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
               }
               primerTextoDeRonda = false
               fullText += texto
-              controller.enqueue(sse({ text: texto }))
+              emitir(sse({ text: texto }))
             }
           }
 
           const msg = await stream.finalMessage()
+          // Punto sin retorno (`SEC-06`): la llamada volvió completa, así que ya se
+          // facturó. De acá en adelante, falle lo que falle, el cupo no se devuelve.
+          llamadaEmitida = true
           inputTokens += msg.usage.input_tokens
           outputTokens += msg.usage.output_tokens
           // Los dos van aparte de `input_tokens` (que es el remanente NO cacheado)
@@ -134,7 +184,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
 
           // Hay tools que ejecutar: se emite el estado y se corren.
           messages.push({ role: 'assistant', content: msg.content })
-          controller.enqueue(sse({ estado: 'buscando' }))
+          emitir(sse({ estado: 'buscando' }))
 
           const toolResults: Anthropic.ToolResultBlockParam[] = []
           for (const bloque of msg.content) {
@@ -187,7 +237,7 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
         }
 
         if (lugares.length > 0) {
-          controller.enqueue(sse({ lugares }))
+          emitir(sse({ lugares }))
           // INT-05 (PULIDO): un lugar mostrado como card en el chat es tan
           // "impresión" como uno mostrado en la búsqueda — mismo agregado puro,
           // solo los efectivamente citados/mostrados (no todo lo que devolvió
@@ -240,22 +290,52 @@ export function streamChatTurn(args: TurnoArgs): ReadableStream<Uint8Array> {
         // por la reserva, así que refleja lo que queda después de este mensaje.
         try {
           const { restantes } = await resumenCupo(userId, esPrem)
-          controller.enqueue(sse({ restantes }))
+          emitir(sse({ restantes }))
         } catch (e) {
           console.error('[chat] resumenCupo falló:', e)
         }
 
-        controller.enqueue(DONE)
+        emitir(DONE)
       } catch (err) {
-        // Error de la API (o nuestro): revertir el mensaje + cupo (decisión 13).
-        console.error('[chat] turno falló:', err)
-        await revertirReserva({ userId, esPrem, messageId: reservaMessageId }).catch((e) =>
-          console.error('[chat] revert falló:', e),
+        // El revert es condicional (`SEC-06`): solo si la llamada nunca llegó a
+        // volver. Ahí el error es de la API o nuestro, no se gastó nada, y el cupo
+        // vuelve como manda la decisión 13. Si ya había vuelto, la plata está
+        // gastada: el mensaje del usuario se queda y el cupo también.
+        //
+        // Esto además cierra el colateral de antes: el mensaje del assistant se
+        // inserta más arriba, dentro del `try`, y el revert borra el del usuario —
+        // revertir después de haber contestado dejaba la conversación con una
+        // respuesta sin pregunta. Ahora, en ese tramo, no se revierte.
+        console.error(
+          `[chat] turno falló (llamadaEmitida=${llamadaEmitida}, cliente cortó=${cerrado}):`,
+          err,
         )
-        controller.enqueue(sse({ error: 'No pudimos procesar el mensaje. Probá de nuevo.' }))
+        if (!llamadaEmitida) {
+          await revertirReserva({ userId, esPrem, messageId: reservaMessageId }).catch((e) =>
+            console.error('[chat] revert falló:', e),
+          )
+        }
+        emitir(sse({ error: 'No pudimos procesar el mensaje. Probá de nuevo.' }))
       } finally {
-        controller.close()
+        // Si el cliente ya cortó, el controller está cerrado y `close()` tira.
+        if (!cerrado) {
+          cerrado = true
+          try {
+            controller.close()
+          } catch {
+            // Se cerró entre medio: nada que hacer, el turno ya terminó.
+          }
+        }
       }
+    },
+    /**
+     * El cliente se fue (cerró la pestaña, cortó el fetch). Antes esto no existía y
+     * la llamada a Anthropic seguía generando la respuesta entera para nadie
+     * (`SEC-06`): se aborta, y `emitir` deja de intentar escribir.
+     */
+    cancel(reason) {
+      cerrado = true
+      abort.abort(reason)
     },
   }) as unknown as ReadableStream<Uint8Array>
 }

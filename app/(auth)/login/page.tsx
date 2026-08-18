@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { signIn } from '@/lib/auth/client'
 import { authErrorMessage } from '@/lib/auth/errorMessages'
 import { PasswordInput } from '@/components/ui/password-input'
+import { ReenviarVerificacion } from '@/components/auth/reenviar-verificacion'
+import { destinoInterno } from '@/lib/navegacion/destino'
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
@@ -27,7 +29,10 @@ export default function LoginPage() {
 
 function LoginForm() {
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/'
+  // SEC-04: el `callbackUrl` viene del query y termina en `location.assign()`, así
+  // que se normaliza a ruta interna antes de tocarlo. `lib/navegacion/destino.ts`
+  // es el dueño de esa regla; acá no se decide nada.
+  const callbackUrl = destinoInterno(searchParams.get('callbackUrl'))
   const resetOk = searchParams.get('reset') === 'ok'
   // PBETA-R3-01: el que llega acá desde "Guardar" no pidió iniciar sesión, así
   // que la pantalla tiene que decirle por qué está parado en un formulario.
@@ -38,6 +43,10 @@ function LoginForm() {
     ? `/registro?callbackUrl=${encodeURIComponent(callbackUrl)}&motivo=guardar`
     : `/registro?callbackUrl=${encodeURIComponent(callbackUrl)}`
   const [serverError, setServerError] = useState<string | null>(null)
+  // SEC-05: el email de esta cuenta está sin verificar. Guardamos la dirección para
+  // ofrecerle el reenvío acá mismo — es el otro lugar por donde llega el que quedó
+  // trabado, y hasta ahora el copy prometía un reenvío que podía no haber salido.
+  const [sinVerificar, setSinVerificar] = useState<string | null>(null)
 
   const {
     register,
@@ -47,6 +56,7 @@ function LoginForm() {
 
   async function onSubmit(data: FormData) {
     setServerError(null)
+    setSinVerificar(null)
     let result
     try {
       result = await signIn.email({ email: data.email, password: data.password })
@@ -55,6 +65,9 @@ function LoginForm() {
       return
     }
     if (result.error) {
+      if (result.error.code?.toUpperCase() === 'EMAIL_NOT_VERIFIED') {
+        setSinVerificar(data.email)
+      }
       setServerError(authErrorMessage(result.error, 'El email o la contraseña no coinciden.'))
       return
     }
@@ -112,6 +125,11 @@ function LoginForm() {
         {serverError && (
           <div className="rounded-xl border border-red-800 bg-red-950/50 px-4 py-3">
             <p className="text-sm text-destructive">{serverError}</p>
+            {sinVerificar && (
+              <div className="mt-2">
+                <ReenviarVerificacion email={sinVerificar} callbackURL={callbackUrl} />
+              </div>
+            )}
           </div>
         )}
 

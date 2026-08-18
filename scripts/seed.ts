@@ -41,6 +41,12 @@ import {
   DEFAULT_CURATION_MODEL,
   DEFAULT_CURATION_ZONE_QUOTA,
 } from '@/lib/curation/settings'
+import {
+  DEFAULT_EMAIL_DAILY_PER_RECIPIENT,
+  DEFAULT_EMAIL_MONTHLY_CAP,
+  EMAIL_DAILY_PER_RECIPIENT_KEY,
+  EMAIL_MONTHLY_CAP_KEY,
+} from '@/lib/email/cupo'
 import { CADENAS_KEY, DEFAULT_CADENAS } from '@/lib/search/cadenas'
 import { CHIPS_SCHEDULE_KEY, DEFAULT_CHIPS_SCHEDULE } from '@/lib/search/rotacion'
 
@@ -118,6 +124,11 @@ async function main() {
       { key: CHAT_QUOTA_PREMIUM_KEY, value: DEFAULT_CHAT_QUOTA_PREMIUM },
       { key: CHAT_QUOTA_TRIAL_KEY, value: DEFAULT_CHAT_QUOTA_TRIAL },
       { key: CHAT_MONTHLY_CAP_KEY, value: DEFAULT_CHAT_MONTHLY_CAP },
+      // SEC-05: tope global de mails del mes (kill switch en 0) y tope diario por
+      // destinatario. Cierra la asimetría de que Resend fuera el único proveedor
+      // externo sin contador ni tope. `onConflictDoNothing` no pisa lo ya editado.
+      { key: EMAIL_MONTHLY_CAP_KEY, value: DEFAULT_EMAIL_MONTHLY_CAP },
+      { key: EMAIL_DAILY_PER_RECIPIENT_KEY, value: DEFAULT_EMAIL_DAILY_PER_RECIPIENT },
       // CURADURIA (decisiones 2 y 4): cuota por zona y modelo del batch offline.
       // `onConflictDoNothing` no pisa un valor ya editado a mano — el mecanismo.
       { key: CURATION_ZONE_QUOTA_KEY, value: DEFAULT_CURATION_ZONE_QUOTA },
@@ -144,7 +155,7 @@ async function main() {
         : ' · tags al día'),
   )
   console.log(
-    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}, ${CURATION_ZONE_QUOTA_KEY}, ${CURATION_MODEL_KEY}, ${CHIPS_SCHEDULE_KEY}, ${CADENAS_KEY}`,
+    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}, ${EMAIL_MONTHLY_CAP_KEY}, ${EMAIL_DAILY_PER_RECIPIENT_KEY}, ${CURATION_ZONE_QUOTA_KEY}, ${CURATION_MODEL_KEY}, ${CHIPS_SCHEDULE_KEY}, ${CADENAS_KEY}`,
   )
 
   if (total !== TOTAL_TAGS) {

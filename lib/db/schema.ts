@@ -529,6 +529,55 @@ export const aiApiUsage = pgTable(
 )
 
 /**
+ * Consumo mensual de Resend por SKU (`SEC-05`). Tercer espejo de
+ * `google_api_usage` / `ai_api_usage`, y llega último por un motivo que vale
+ * anotar: Resend era **el único proveedor externo sin contador ni tope**, y a la
+ * vez el único cuyo agotamiento no degradaba la app sino que le cerraba el alta —
+ * el mail de verificación es obligatorio para poder loguear.
+ *
+ * Alimenta `email.monthly_cap`. Se incrementa **antes** de mandar: contar de menos
+ * por una excepción es peor que contar de más. Un SKU por tipo de mail, para ver
+ * en qué se gasta la cuota; el tope se compara contra la **suma del mes**, porque
+ * la cuota del plan de Resend es una sola y compartida.
+ */
+export const emailApiUsage = pgTable(
+  'email_api_usage',
+  {
+    /** `YYYY-MM`, lo pone Postgres (`to_char(current_date, 'YYYY-MM')`). */
+    month: text('month').notNull(),
+    /** `'verification'` | `'reset_password'` | … Texto, no enum: sumar no migra. */
+    sku: text('sku').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.month, t.sku] })],
+)
+
+/**
+ * Mails por destinatario y por día (`SEC-05`). El vector que cierra:
+ * `POST /api/auth/send-verification-email` **no requiere sesión**, así que con un
+ * sign-up más N reenvíos se le mandaban N+1 mails al mismo buzón. Acá el N tiene
+ * techo (`email.daily_per_recipient`).
+ *
+ * El destinatario se guarda **hasheado** (SHA-256): la tabla necesita contar, no
+ * saber a quién. Y como la escribe un endpoint anónimo con la dirección que le
+ * pasen, en claro se volvería una lista enumerable de las direcciones que alguien
+ * probó — algo que no existe en ningún otro lado del sistema.
+ */
+export const emailRecipientDaily = pgTable(
+  'email_recipient_daily',
+  {
+    /** El día en AR, lo pone Postgres (ver `lib/email/cupo.ts`). */
+    day: date('day').notNull(),
+    /** SHA-256 hex del email en minúsculas. Nunca la dirección en claro. */
+    recipientHash: text('recipient_hash').notNull(),
+    /** Mismo SKU que `email_api_usage`: el techo es por tipo de mail. */
+    sku: text('sku').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.recipientHash, t.sku] })],
+)
+
+/**
  * Settings editables desde admin. Genérica a propósito: nace con el umbral de
  * confidence y las bandas de precio, y el mismo patrón sirve para precios de
  * planes y cupos de IA (decisión 15).
@@ -1376,6 +1425,8 @@ export type PlanGrant = typeof planGrants.$inferSelect
 export type NewPlanGrant = typeof planGrants.$inferInsert
 export type PlanGrantAction = (typeof planGrantActionEnum.enumValues)[number]
 export type AiApiUsage = typeof aiApiUsage.$inferSelect
+export type EmailApiUsage = typeof emailApiUsage.$inferSelect
+export type EmailRecipientDaily = typeof emailRecipientDaily.$inferSelect
 export type ChatConversation = typeof chatConversations.$inferSelect
 export type NewChatConversation = typeof chatConversations.$inferInsert
 export type ChatMessage = typeof chatMessages.$inferSelect

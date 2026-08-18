@@ -37,6 +37,26 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-18 · Seguridad: SEC-05, SEC-06 y SEC-07 — Opus
+
+- **Qué salió bien.** Leer la librería antes de creerle al informe. El fix (a) de `SEC-05` estaba
+  escrito como *«propagar el error del envío»* desde el callback de better-auth, y **por ahí no se
+  puede**: el sign-up lo invoca dentro de `runInBackgroundOrAwait`, que tiene su propio `catch`
+  (`create-context.mjs:214`). Rethrowear no habría cambiado nada y el fix hubiera pasado el gate
+  igual —typecheck y tests verdes, pantalla sin tocar— porque nada de eso mira el modo de falla real.
+  Lo destapó abrir `node_modules`, que costó cinco minutos.
+- **Qué frenó.** Dos cosas, ninguna de método. (1) El heredoc de Bash **se come los backslashes**:
+  un `\n` dentro de un template literal de TS no matcheaba nunca y el reemplazo fallaba en silencio.
+  Es la misma familia de la cicatriz ya anotada en `CLAUDE.md` (texto largo por el shell), pero con
+  otro síntoma: no rompe el string, rompe **el patrón de búsqueda**. (2) El QA en vivo dio un 400
+  raro que parecía un bug del fix y era una **sesión de `pepe@gmail.com`** que el perfil de
+  Playwright arrastraba de un QA anterior.
+- **Qué cambiar.** Nada de método —el gate funcionó y el falso positivo se resolvió mirando la
+  respuesta, no adivinando—. Vale como nota de contenido: **el navegador del MCP tiene estado entre
+  sesiones**, así que antes de un QA de auth conviene mirar `/api/auth/get-session` primero. De paso
+  ese falso positivo pagó: destapó el `EMAIL_MISMATCH` que dejaba mudo el botón de reenvío para quien
+  crea una segunda cuenta sin salir de la primera, y eso sí era un callejón real.
+
 ## 2026-08-18 · TITULARIDAD F1 — QA en vivo hasta APROBADO — Opus
 
 - **Qué salió bien.** El QA en vivo volvió a encontrar lo que 788 tests no ven: el hint «Hoy se

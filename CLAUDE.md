@@ -301,6 +301,15 @@ Cicatrices reales — gotchas que sorprenden:
   guarda solo (lo dejó un toque real en esta pestaña); `?guardar=<id>`, que llega del link del mail
   de verificación, **pide un toque** antes de escribir. Esa asimetría es lo que evita que un link
   ajeno guarde en la lista de otro; el dueño de las dos es `lib/favoritos/pendiente.ts`.
+- **`emailVerification.sendOnSignUp` está en `false` A PROPÓSITO, y no significa "no mandamos el
+  mail"** (`SEC-05`): lo manda la pantalla de registro con `authClient.sendVerificationEmail` apenas
+  el alta vuelve OK. El motivo es que **por el callback el error no llega al cliente** — el sign-up
+  de better-auth lo invoca dentro de `runInBackgroundOrAwait`, que tiene su propio `catch`, así que
+  si Resend falla el alta devuelve **200** igual y la pantalla decía "revisá tu mail" a alguien que
+  quedaba sin poder loguear ni re-registrarse. El endpoint `/send-verification-email` **sí** propaga.
+  Ponerlo en `true` reabre el bug y encima duplica el mail. Y ojo: el sign-in con el mail sin
+  verificar **también** dispara un reenvío (y también se traga el error) — por eso el copy de
+  `EMAIL_NOT_VERIFIED` ya no promete "te lo reenviamos", ahora hay un botón que informa el resultado.
 - **⚠️ La curaduría vive SOLO en el Postgres de dev — no viaja en git.** Los ~3.967 tags
   `place_tags source='admin'` cargados por CURADURIA (spec 9, corrida Sonnet + bulk-accept de
   Fer, 2026-07-27) son **datos**, no código: no están en migraciones ni en el seed. Un reset o
@@ -474,7 +483,11 @@ global toca todos los proyectos → radio grande; ante la duda, cambio acá y se
 hace que un agente pueda mantener este código sin romperlo: si el vocabulario y las reglas viven
 en un único lugar, una sesión no puede divergir en silencio. Ya es así y hay que defenderlo:
 `lib/db/visibility.ts` (qué se publica), `lib/google/places.ts` (única puerta a Google),
-`lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/ai/settings.ts` (claves de
+`lib/storage/r2.ts` (única a R2), `lib/ai/cupo.ts` (cupo), `lib/email/cupo.ts` (¿podemos mandar este
+mail? — tope global con kill switch + tope por destinatario/día; **todos** los mails salen por el
+embudo `enviar` de `lib/email/index.ts`), `lib/curation/evidencia.ts` (¿la cita que devolvió el
+modelo está de verdad en el texto scrapeado? — el auto-apply de la curaduría la consulta),
+`lib/ai/settings.ts` (claves de
 runtime), `lib/negocio/contenido.ts` (COALESCE dueño→base), `lib/negocio/correcciones.ts` (la **única**
 puerta que escribe `name`/`address`/`locality`/`lat`/`lng` de `places` — fuera de ella solo el
 upsert del import), `lib/favoritos/planes.ts` (cuántas

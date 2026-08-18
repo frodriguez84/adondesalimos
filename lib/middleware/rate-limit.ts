@@ -154,7 +154,18 @@ export function resetRateLimit() {
   buckets.clear()
 }
 
+/**
+ * `DISABLE_RATE_LIMIT` es **de dev y solo de dev** (DEPLOY, decisión 14).
+ *
+ * Hasta la auditoría del 2026-08-18 (SEC-12) esto no miraba el entorno: la
+ * variable apagaba **todos** los cupos en cualquier lado, y el `.env.example`
+ * —el archivo que uno copia para armar un entorno— la traía en `true`. Que
+ * "jamás va a prod" estaba escrito en un doc, que no es un lugar donde se
+ * ejecute nada; un `vercel env pull`/`push` distraído alcanzaba para prenderla.
+ * Ahora producción se niega a obedecerla, esté seteada o no.
+ */
 function deshabilitado(): boolean {
+  if (process.env.NODE_ENV === 'production') return false
   return process.env.DISABLE_RATE_LIMIT === 'true'
 }
 
@@ -204,9 +215,23 @@ export function checkSearchRateLimit(request: Request): Response | null {
  * Rate limit de `/api/lugar/[id]/google` (FICHA, § Camino de la request, paso 1).
  * Endpoint distinto, cupo distinto: acota el abuso de disparar el enriquecimiento
  * pago en loop sin castigar al que solo busca.
+ *
+ * ⚠️ **Hasta la auditoría de seguridad del 2026-08-18 esto era mentira a medias**
+ * (SEC-02): no se pasaba `max`, así que "cupo distinto" era solo un *bucket*
+ * distinto y el límite seguía siendo el default de 60/min de la búsqueda — en el
+ * **único** endpoint anónimo de la app que cuesta plata por request (Place Details
+ * + foto ≈ US$0,027). A 60/min el cap mensual de Google se agotaba en ~83 minutos
+ * y dejaba **todas** las fichas sin horarios, rating ni foto hasta el 1º del mes:
+ * un ataque de US$0 para el atacante. Con 10/min pasa a ~8 horas.
+ *
+ * **Bajar los caps de `app_settings` NO es la mitigación**: agranda la superficie
+ * de DoS en vez de achicarla. El freno va acá.
  */
+const GOOGLE_MAX = 10
+const GOOGLE_WINDOW_MS = 60_000
+
 export function checkGoogleRateLimit(request: Request): Response | null {
-  return checkIpRateLimit(request, 'ficha-google')
+  return checkIpRateLimit(request, 'ficha-google', GOOGLE_MAX, GOOGLE_WINDOW_MS)
 }
 
 /**

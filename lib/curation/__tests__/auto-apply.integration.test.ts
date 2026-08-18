@@ -5,7 +5,8 @@ import { db } from '@/lib/db'
 import { placeTagSuggestions, placeTags, tags, places } from '@/lib/db/schema'
 import { getConfidenceThreshold } from '@/lib/db/settings'
 import { FACETAS_SUGERIBLES } from '../facetas'
-import { guardarSugerencias } from '../suggestions'
+import { guardarSugerencias, MAX_AUTO_APLICADAS_POR_LUGAR } from '../suggestions'
+import type { EvidenciaSitio } from '../fetch-sitio'
 import type { SugerenciaLLM } from '../sugeridor'
 
 /**
@@ -24,6 +25,7 @@ let hayDb = true
 let placeId = ''
 let tagConEvi = 0
 let tagSinEvi = 0
+let idsDeTags: number[] = []
 
 async function limpiar() {
   await db.delete(places).where(like(places.name, `${PREFIJO}%`))
@@ -60,13 +62,16 @@ beforeAll(async () => {
     .select({ id: tags.id })
     .from(tags)
     .where(inArray(tags.facet, [...FACETAS_SUGERIBLES]))
-    .limit(2)
-  if (disponibles.length < 2) {
+    // Los dos primeros son de los casos de la decisión 13; el resto los usa el
+    // test del tope por lugar de `SEC-07`, que necesita pasarse de la raya.
+    .limit(MAX_AUTO_APLICADAS_POR_LUGAR + 2)
+  if (disponibles.length < MAX_AUTO_APLICADAS_POR_LUGAR + 2) {
     hayDb = false
     return
   }
   tagConEvi = disponibles[0].id
   tagSinEvi = disponibles[1].id
+  idsDeTags = disponibles.map((t) => t.id)
 
   const [creado] = await db
     .insert(places)
@@ -80,6 +85,14 @@ afterAll(async () => {
   await limpiar()
 })
 
+/**
+ * `SEC-07`: la cita se coteja contra ESTE texto antes de auto-aplicar. Contiene la
+ * frase de `tagConEvi` — si no estuviera, la sugerencia iría a la cola manual.
+ */
+const EVIDENCIA: EvidenciaSitio[] = [
+  { url: 'https://x.test', texto: 'Bar de Palermo. Happy hour: 2x1 de 18 a 20 todos los días.' },
+]
+
 describe.runIf(process.env.DATABASE_URL)('auto-apply del batch (decisión 13)', () => {
   it('con evidencia → place_tags admin + accepted; sin evidencia → pending, place_tags intacta', async () => {
     if (!hayDb) return
@@ -89,7 +102,7 @@ describe.runIf(process.env.DATABASE_URL)('auto-apply del batch (decisión 13)', 
       { tagId: tagSinEvi, slug: 'sin-evi', evidence: null, sourceUrl: null },
     ]
 
-    const res = await guardarSugerencias(placeId, sugerencias, MODEL)
+    const res = await guardarSugerencias(placeId, sugerencias, MODEL, EVIDENCIA)
 
     expect(res.nuevas).toBe(2)
     expect(res.autoAplicadas).toBe(1)
@@ -112,12 +125,102 @@ describe.runIf(process.env.DATABASE_URL)('auto-apply del batch (decisión 13)', 
       { tagId: tagSinEvi, slug: 'sin-evi', evidence: null, sourceUrl: null },
     ]
 
-    const res = await guardarSugerencias(placeId, sugerencias, MODEL)
+    const res = await guardarSugerencias(placeId, sugerencias, MODEL, EVIDENCIA)
 
     expect(res.nuevas).toBe(0)
     expect(res.autoAplicadas).toBe(0)
     // Estado idéntico al de antes: la aceptada sigue sola como admin, la otra pending.
     expect(await tagsAdminDe(placeId)).toEqual([tagConEvi])
     expect(await estadoSug(placeId, tagSinEvi)).toBe('pending')
+  })
+})
+
+/**
+ * `SEC-07`: los dos candados del auto-apply. Cada caso usa un lugar propio porque
+ * el `unique(place_id, tag_id)` hace que la segunda corrida sobre el mismo lugar no
+ * inserte nada nuevo y el auto-apply no llegue a evaluarse.
+ */
+describe.runIf(process.env.DATABASE_URL)('candados del auto-apply (SEC-07)', () => {
+  async function lugarNuevo(sufijo: string): Promise<string> {
+    const [creado] = await db
+      .insert(places)
+      .values({
+        source: 'overture',
+        name: `${PREFIJO} ${sufijo}`,
+        lat: -34.6,
+        lng: -58.4,
+        confidence: 0.8,
+      })
+      .returning({ id: places.id })
+    return creado.id
+  }
+
+  it('la cita que NO está en la evidencia no se auto-aplica: queda pending', async () => {
+    if (!hayDb) return
+    const id = await lugarNuevo('cita-inventada')
+
+    // El payload del ataque: el modelo devuelve una cita que suena perfecta pero
+    // que no está escrita en ninguna de las páginas que se scrapearon.
+    const res = await guardarSugerencias(
+      id,
+      [
+        {
+          tagId: tagConEvi,
+          slug: 'inventado',
+          evidence: 'ambiente íntimo y romántico con terraza',
+          sourceUrl: 'https://x.test',
+        },
+      ],
+      MODEL,
+      EVIDENCIA,
+    )
+
+    expect(res.nuevas).toBe(1)
+    expect(res.autoAplicadas).toBe(0)
+    expect(res.frenadas).toBe(1)
+    // Lo importante: NO escribió un tag admin (que es lo que sube la banda del orden).
+    expect(await tagsAdminDe(id)).toEqual([])
+    expect(await estadoSug(id, tagConEvi)).toBe('pending')
+  })
+
+  it('sin evidencia recolectada no se auto-aplica nada, aunque el modelo cite', async () => {
+    if (!hayDb) return
+    const id = await lugarNuevo('sin-evidencia')
+
+    const res = await guardarSugerencias(
+      id,
+      [{ tagId: tagConEvi, slug: 'x', evidence: '2x1 de 18 a 20', sourceUrl: 'https://x.test' }],
+      MODEL,
+      [],
+    )
+
+    expect(res.autoAplicadas).toBe(0)
+    expect(res.frenadas).toBe(1)
+    expect(await tagsAdminDe(id)).toEqual([])
+  })
+
+  it(`auto-aplica hasta ${MAX_AUTO_APLICADAS_POR_LUGAR} por lugar; el resto queda pending`, async () => {
+    if (!hayDb) return
+    const id = await lugarNuevo('tope')
+
+    // Todas con cita verificable: el único motivo para frenar alguna es el tope.
+    const cita = '2x1 de 18 a 20'
+    const sugerencias: SugerenciaLLM[] = idsDeTags.map((tagId, i) => ({
+      tagId,
+      slug: `tope-${i}`,
+      evidence: cita,
+      sourceUrl: 'https://x.test',
+    }))
+
+    const res = await guardarSugerencias(id, sugerencias, MODEL, EVIDENCIA)
+
+    expect(res.nuevas).toBe(idsDeTags.length)
+    expect(res.autoAplicadas).toBe(MAX_AUTO_APLICADAS_POR_LUGAR)
+    expect(res.diferidas).toBe(idsDeTags.length - MAX_AUTO_APLICADAS_POR_LUGAR)
+    expect(res.frenadas).toBe(0)
+    expect(await tagsAdminDe(id)).toHaveLength(MAX_AUTO_APLICADAS_POR_LUGAR)
+    // Corta por el orden en que las devolvió el modelo: las primeras entran.
+    expect(await estadoSug(id, idsDeTags[0])).toBe('accepted')
+    expect(await estadoSug(id, idsDeTags[idsDeTags.length - 1])).toBe('pending')
   })
 })

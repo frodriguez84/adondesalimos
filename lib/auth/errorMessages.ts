@@ -14,9 +14,23 @@ const MESSAGES: Record<string, string> = {
   PASSWORD_TOO_SHORT: 'La contraseña debe tener al menos 8 caracteres.',
   PASSWORD_TOO_LONG: 'La contraseña es demasiado larga.',
   INVALID_EMAIL: 'Ese email no es válido.',
-  EMAIL_NOT_VERIFIED: 'Verificá tu email antes de iniciar sesión. Te reenviamos el link.',
+  // SEC-05: decía "Te reenviamos el link", y era una promesa que podía ser falsa —
+  // better-auth reintenta el envío acá, pero se traga el error si Resend falla. Ahora
+  // el reenvío es un botón que sí informa el resultado.
+  EMAIL_NOT_VERIFIED: 'Verificá tu email antes de iniciar sesión. Si no te llegó, pedilo de nuevo.',
   // Lo devuelve nuestro propio handler (app/api/auth/[...all]/route.ts), ya en español.
   DISPOSABLE_EMAIL: 'Usá un email permanente para registrarte.',
+  // SEC-05: los tira el cupo de mails (`lib/email/cupo.ts`), traducidos a HTTP en
+  // `lib/auth/index.ts`. Antes un cupo agotado llegaba como un 500 pelado.
+  DEMASIADOS_MAILS:
+    'Ya te mandamos varios mails hoy. Mirá la bandeja y el spam, y si no está, probá mañana.',
+  EMAIL_PAUSADO: 'Estamos con problemas para mandar mails. Probá de nuevo más tarde.',
+  // Lo tira `/send-verification-email` cuando hay una sesión abierta de OTRA cuenta:
+  // el endpoint solo deja pedir el link del email de la sesión. Aparece si alguien
+  // crea una segunda cuenta sin salir de la primera (típico de compu compartida), y
+  // sin este copy el botón de reenvío quedaba mudo. Salió en el QA en vivo de SEC-05.
+  EMAIL_MISMATCH:
+    'Tenés otra cuenta abierta en este navegador. Cerrá sesión y volvé a pedir el link.',
 }
 
 const GENERIC = 'No pudimos completar la operación. Probá de nuevo en un momento.'

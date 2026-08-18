@@ -44,6 +44,10 @@ async function main() {
   let sugerenciasGeneradas = 0
   let sugerenciasNuevas = 0
   let sugerenciasAutoAplicadas = 0
+  // `SEC-07`: lo que NO se auto-aplicó por los dos candados nuevos. Se cuenta y se
+  // reporta — un tope que recorta en silencio se lee como "entró todo".
+  let sugerenciasFrenadas = 0
+  let sugerenciasDiferidas = 0
   let tokensIn = 0
   let tokensOut = 0
   // El system se cachea (ver `sugerirTags`): estos NO están en `tokensIn` y hay
@@ -78,14 +82,25 @@ async function main() {
       cacheCreationTokens += cc
       sugerenciasGeneradas += sugerencias.length
 
-      const { nuevas, autoAplicadas } = await guardarSugerencias(lugar.id, sugerencias, model)
+      // La evidencia viaja hasta acá (`SEC-07`): es contra este texto que se coteja
+      // la cita antes de auto-aplicar. Sin él, `guardarSugerencias` no auto-aplica.
+      const { nuevas, autoAplicadas, frenadas, diferidas } = await guardarSugerencias(
+        lugar.id,
+        sugerencias,
+        model,
+        evidencia,
+      )
       sugerenciasNuevas += nuevas
       sugerenciasAutoAplicadas += autoAplicadas
+      sugerenciasFrenadas += frenadas
+      sugerenciasDiferidas += diferidas
       lugaresProcesados++
 
       const conEvi = sugerencias.filter((s) => s.evidence).length
+      const frenos =
+        frenadas > 0 || diferidas > 0 ? `, ${frenadas} sin cita real, ${diferidas} pasadas del tope` : ''
       console.log(
-        `  · ${lugar.name} — ${sugerencias.length} sugerencias (${conEvi} con evidencia, ${nuevas} nuevas, ${autoAplicadas} auto-aplicadas)`,
+        `  · ${lugar.name} — ${sugerencias.length} sugerencias (${conEvi} con evidencia, ${nuevas} nuevas, ${autoAplicadas} auto-aplicadas${frenos})`,
       )
     }
   }
@@ -106,8 +121,15 @@ async function main() {
   console.log(`Sugerencias generadas: ${sugerenciasGeneradas}`)
   console.log(`Sugerencias nuevas persistidas: ${sugerenciasNuevas}`)
   console.log(`  · ya existían (no se pisaron): ${sugerenciasGeneradas - sugerenciasNuevas}`)
-  console.log(`  · auto-aplicadas a place_tags (con evidencia → accepted): ${sugerenciasAutoAplicadas}`)
-  console.log(`  · quedaron pending (sin evidencia): ${sugerenciasNuevas - sugerenciasAutoAplicadas}`)
+  console.log(`  · auto-aplicadas a place_tags (cita verificada → accepted): ${sugerenciasAutoAplicadas}`)
+  console.log(`  · quedaron pending: ${sugerenciasNuevas - sugerenciasAutoAplicadas}`)
+  console.log(`      · sin cita citable (el modelo no citó): ${sugerenciasNuevas - sugerenciasAutoAplicadas - sugerenciasFrenadas - sugerenciasDiferidas}`)
+  console.log(`      · citaron algo que NO está en la evidencia (SEC-07): ${sugerenciasFrenadas}`)
+  console.log(`      · verificadas pero pasadas del tope por lugar (SEC-07): ${sugerenciasDiferidas}`)
+  if (sugerenciasFrenadas > 0) {
+    console.log('  ⚠ Hubo citas que no aparecen en el texto scrapeado. Miralas en la cola antes de')
+    console.log('    aceptarlas: o el modelo alucinó, o la página le pidió que dijera eso.')
+  }
   console.log(`Tokens: in ${tokensIn} · out ${tokensOut}`)
   console.log(`  · caché: ${cacheReadTokens} leídos (0,1×) · ${cacheCreationTokens} escritos (1,25×)`)
   console.log(`Costo estimado: US$${costoUsd.toFixed(4)} (modelo ${model})`)

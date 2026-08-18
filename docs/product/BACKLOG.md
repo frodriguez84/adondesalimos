@@ -520,6 +520,81 @@ son trabajo acotado con criterio de "listo" objetivo.
       quedó en 361, igual que antes — orden, no filtro.
 
 
+- [x] **8 · Auditoría de seguridad — ✅ EJECUTADA 2026-08-18** (sesión Opus). **Informe:
+      [`docs/qa/SEGURIDAD.md`](../qa/SEGURIDAD.md)**, que es desde ahora la fuente de verdad —
+      **25 hallazgos `SEC-01..25`**, con su § *Refutados* y su § *Lo que está bien*. No se duplica
+      acá para que no driftee. Lo que hay que saber sin abrirlo:
+      **Las tres preguntas grandes dieron que NO**: cero IDOR en 36 handlers, cero inyección SQL
+      (ni de segundo orden por `app_settings`), y **no se puede conseguir premium sin pagar** — el
+      webhook de MP es fail-closed sin secret, re-consulta a MP y resuelve el usuario desde su propia
+      fila. El dueño único de los flags de plan está intacto y la 2ª escritura de `baja.ts` que
+      destapó ADMIN_USUARIOS **ya está unificada**.
+      **Lo expuesto es presupuesto y disponibilidad, por una sola raíz**: hay rate-limit en las rutas
+      de API y **nada delante de las páginas** (no hay `middleware.ts`). Medido con el log de
+      sentencias: `/api/search` = 12 sentencias / 27 ms **y tiene cupo**; la home = **74 sentencias /
+      528 ms y no tiene ninguno** (`SEC-01`). La protección está invertida.
+      **La asimetría de fondo**: Google y Anthropic tienen contador + tope que degradan; **Resend no
+      tiene ninguno de los dos**, y es el único cuyo agotamiento *rompe* la app — si el envío falla,
+      el alta devuelve 200, la pantalla dice «revisá tu mail», y la persona queda sin poder loguear
+      **ni re-registrarse** (no existe UI de reenvío). Eso muerde **sin atacante** (`SEC-05`).
+      **✅ Arreglados en la misma sesión** (typecheck + **793 tests** verdes; el build corrió verde al
+      cerrar la segunda sesión del día): `SEC-02` (el cupo de `ficha-google` heredaba 60/min pese a que su comentario
+      prometía «cupo distinto» — ahora 10/min, y agotar la cuota de Google pasa de ~83 min a ~8 h) ·
+      `SEC-04` (**open redirect en `/login`, reproducido y re-verificado en vivo**; el fix es
+      `lib/navegacion/destino.ts`, dueño único de *«¿este destino es nuestro?»*) · `SEC-12`
+      (`DISABLE_RATE_LIMIT` no miraba `NODE_ENV` y el `.env.example` la traía en `true`) · `SEC-01`
+      parcial (`getConfidenceThreshold` a `React.cache`: la misma fila se leía **20 veces por
+      render**).
+      **Verificado con Fer**: `TRUSTED_IP_HEADER` **sí** está seteada en Vercel ⇒ `SEC-03` es
+      teórico. `DISABLE_RATE_LIMIT` **no** está seteada, que es el estado correcto ⇒ **no agregarla**.
+      ⚠️ **Ojo con dos cosas que el plan de abajo daba por sabidas y resultaron distintas**: (a) de
+      las 15 vulnerabilidades de `npm audit`, **10 las arrastra `shadcn`, que está en `dependencies`
+      sin importarse jamás** — el `undici` que preocupaba **nunca estuvo en el runtime**; lo real es
+      `next@16.2.6` (fix a 16.3.1, no major); (b) la cifra de Google **no** es «US$97/hora»: son
+      **US$108 una vez por mes calendario**, techo duro, y el daño real es **disponibilidad** (30 días
+      de fichas sin horarios/rating/foto a costo US$0 para el atacante).
+      **✅ Arreglados en una segunda sesión del mismo día** (gate completo: typecheck + **819 tests**
+      verdes + build verde con el server parado, que cubre también los 4 de arriba): `SEC-05` entero —(a) el alta ya no miente, verificado en vivo;
+      (b) UI de reenvío, que no existía en ninguna parte; (c) `lib/email/cupo.ts`, dueño único del cupo
+      de mails, con la migración `0019_cupo_mails`— · `SEC-06` (el revert del cupo del chat pasa a ser
+      condicional a que Anthropic haya contestado, y cortar el stream ahora **aborta** la llamada) ·
+      `SEC-07` (la cita se coteja contra el texto scrapeado antes de auto-aplicar, + fence
+      anti-inyección, + tope de 4 por lugar). Detalle y matices de alcance en `docs/qa/SEGURIDAD.md`
+      § *Fixes aplicados en la segunda sesión*.
+      ⚠️ **El plan de `SEC-05` (a) no se podía aplicar tal cual**: better-auth se traga el error del
+      envío en el sign-up (`runInBackgroundOrAwait`), así que `sendOnSignUp` quedó en `false` y la
+      verificación la pide la pantalla por `/send-verification-email`, que sí propaga.
+      **Sigue abierto**: `SEC-10` (el tope del chat cuenta mensajes, no tokens) · `SEC-09` · `SEC-01`
+      estructural · el **pre-hijacking** de `SEC-05`, que (a)+(b)+(c) acotan pero no cierran · la cola
+      larga `SEC-11`..`SEC-25`.
+      **`SEC-10` — Fer decidió medir antes de tocar** (2026-08-18): bajar `MAX_RONDAS_TOOL` de 5 a 3
+      es una línea, pero **cuántos turnos reales usan 4 o 5 rondas no está medido** y recortar a
+      ciegas hace que un turno que necesitaba otra búsqueda conteste con menos info. El dato sale
+      gratis del log que ya existe (`type: "chat_tool_call"`): **falta tráfico, no instrumentación**.
+      **`SEC-08` — riesgo ACEPTADO por Fer** (2026-08-18): la base de dev vive en un ambiente privado
+      y solo escucha en `localhost`. **Se reabre si el repo deja de ser privado** (fork, espejo, CI de
+      terceros, o alguien más con acceso), porque la credencial está también en el historial de git.
+      El plan original, para trazabilidad:
+      Revisión completa de la app con criterio de hacker ético **sobre la
+      propia app**, en 8 dimensiones: authz/IDOR sobre las 36 rutas de API · inyección SQL (el
+      `sql` crudo de Drizzle, el match por nombre, el orden dinámico) · **DoS y abuso de costos**
+      (el rate-limit vive en memoria de proceso y en serverless eso es casi nada; chat IA, Google
+      Places, R2 y Resend gastan plata real) · secrets y fuga de datos · XSS/CSRF/cookies/headers ·
+      uploads y SSRF · webhook de MercadoPago (firma, replay, auto-otorgarse premium) · prompt
+      injection en el chat. **Método acordado**: fan-out en paralelo por dimensión + verificación
+      **adversarial** de cada hallazgo (los verificadores intentan refutarlo antes de que entre al
+      informe), y pruebas activas contra **dev**, no contra producción. Sale a
+      `docs/qa/SEGURIDAD.md` con IDs `SEC-NN`; el fix de cada hallazgo se triage aparte.
+  - [ ] **Ya medido, antes de arrancar (2026-08-18):** `npm audit --omit=dev` da **15
+        vulnerabilidades (9 high, 6 moderate)** en dependencias **de producción**, entre ellas
+        `undici` (cross-user information disclosure vía Cache-Control y cookie attribute
+        injection). `npm audit fix` las cubre sin cambios rompientes según npm — **pero se corre
+        con typecheck + tests + build de testigo**, no a ciegas. Y `.env` **nunca se commiteó** en
+        toda la historia del repo (verificado con `git log --all -- .env`).
+  - [ ] **Lo que ya sabemos que va a salir** y conviene no re-descubrir: el rate-limit en memoria
+        es `DEPLOY` F2 (Upstash) y está escrito hace rato; que aparezca en la auditoría **confirma**
+        la prioridad, no agrega un ítem nuevo.
+
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
 **Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).
