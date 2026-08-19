@@ -44,7 +44,7 @@ en la segunda sesión*.)_
 |---|---|---|---|
 | **V-1** | ¿Está seteada `TRUSTED_IP_HEADER`? | **Sí, está seteada** | ✅ **`SEC-03` baja a teórico.** Los cupos son por IP de verdad; el bucket global compartido no ocurre. Queda solo el fail-fast como red por si algún día se borra |
 | **V-2** | ¿`DISABLE_RATE_LIMIT` está seteada en Vercel? | **No está seteada** | ✅ Es **el estado correcto**: el código compara `=== 'true'`, así que ausente = rate-limit encendido. **No hay que agregarla** — hacerlo solo crea la chance de que un día quede en `true`. El fix de `SEC-12` se aplicó igual, para que producción se niegue a obedecerla aunque aparezca |
-| **V-3** | `R2_PUBLIC_URL`, ¿subdominio propio o `r2.dev`? | **Pendiente** — en dev es `pub-…​.r2.dev` (verificado) | Si en producción también termina en `.r2.dev`, `SEC-13` se queda donde está. Si fuera `algo.adondesalimos.com.ar`, sube (mismo eTLD+1) |
+| **V-3** | `R2_PUBLIC_URL`, ¿subdominio propio o `r2.dev`? | **Contestada 2026-08-18**: en producción es `fotos.adondesalimos.com.ar` (subdominio propio); en dev, `pub-…​.r2.dev` | Es el caso que **subía** la severidad de `SEC-13`… salvo que la cookie de sesión resultó **host-only** y no cruza al subdominio (medido, no leído). `SEC-13` ya estaba arreglado por firma de bytes. Ver § *Verificación contra producción* |
 
 Y una consulta read-only que ya tiene herramienta: **`npm run prod:check`** reporta los valores
 reales de `google.details_monthly_cap` / `photos_monthly_cap` y `ai.chat_monthly_cap` en Neon, que
@@ -1190,6 +1190,57 @@ posterior dio **200 donde tenía que dar 429**. Con una ventana de 60 s, **la r�
 cronometrada**: la corrida válida tardó 9 s. Si esto se vuelve a correr, medir el tiempo y que quede
 en el output.
 
+### Verificación **contra producción**, ya deployado (2026-08-18, con Fer presente)
+
+Todo read-only salvo una apertura de ficha, **autorizada expresamente por Fer** por ser la única
+forma de observar el `img-src` de Google en vez de razonarlo.
+
+**Los headers, en el dominio real:** los cuatro en enforcing, el CSP en `Report-Only`, y **HSTS una
+sola vez** (el de Vercel). Con una verificación que dev no podía dar: **el CSP de producción no trae
+`'unsafe-eval'`**, o sea que la rama `esProduccion` del `next.config` hace lo que dice.
+
+**El CSP, recorrido en producción con la consola abierta — cero violaciones en diez pantallas:**
+home · búsqueda con filtros · **mapa** · **ficha** · chat · `votacion/nueva` · login · `mis-lugares`
+· `cuenta` · `mi-negocio` · `admin`. La foto de la ficha **cargó de verdad** desde
+`lh3.googleusercontent.com`, así que el último hueco del inventario pasó de razonado a **observado**.
+**Lo único que queda sin recorrer es el checkout de MP**, que está apagado (`DEPLOY` F3).
+
+**`V-3` queda contestada, y es la respuesta que subía la severidad**: producción sirve R2 desde
+`https://fotos.adondesalimos.com.ar` —subdominio propio, **mismo eTLD+1 que la app**—, no desde
+`.r2.dev` como dev. Salió del `img-src` del CSP, que se arma con `R2_PUBLIC_URL`.
+
+**Pero la escalada que `SEC-13` temía NO se materializa, y esto sí se midió**: la cookie de sesión es
+**host-only**. `__Secure-better-auth.session_token` sale `HttpOnly`, `Secure`, `SameSite=Lax` y sin
+atributo `Domain`, así que **no viaja al host de las fotos**. Comprobado ejerciéndolo, no leyendo la
+config: se capturó una request real a `fotos.adondesalimos.com.ar` desde el browser logueado y **no
+lleva header `Cookie`**. ⚠️ Ojo con el método: `context.cookies(url)` de Playwright **sí** las
+devolvía para ese host —su filtro no distingue host-only de cookies con `Domain`— y creerle habría
+dado un falso positivo. De paso queda confirmado el supuesto de `SEC-11`: `SameSite=Lax` es lo que
+hace que el clickjacking no funcione hoy.
+
+La recomendación barata del informe —*servir R2 desde un dominio sin relación con el de la app*—
+sigue en pie como higiene, pero **ya no tiene un agujero atrás**: `SEC-13` está arreglado por firma
+de bytes y la cookie no cruza.
+
+**El cupo de páginas, ejercido en producción:**
+
+| Qué se probó | Resultado |
+|---|---|
+| 65 requests a `/`, **cada una con un `x-real-ip` distinto** | **64 × 200 + 1 × 429** — el spoofing **no** funciona: si cada IP inventada tuviera su bucket, los 65 serían 200 |
+| La IP real, después de la ráfaga | **429** — o sea que las 65 spoofeadas se contaron contra ella: Vercel **sobrescribe** el header, como el diseño fail-closed exige |
+| `/lugar/[id]` con la home bloqueada | **200** |
+| `POST /api/webhooks/mercadopago` | **401** (falta firma), **no 429** |
+| La pantalla de 429 en el dominio real | `Retry-After`, `no-store` y el copy correcto |
+
+⚠️ **Y el número que corrige un dato ya escrito: en producción el cupo NO corta en 60 exacto, corta
+en 64.** El corte fue 60/60 en dev y **64/1** acá. La explicación es la esperada —el contador es
+memoria **por instancia** y Vercel tenía **al menos dos** calientes—, pero **contradice la medición
+del 2026-08-18** que decía que *«140 GETs cortaron en la request 121 EXACTA, o sea que con este
+tráfico Vercel no reparte entre instancias»*. Con concurrencia de 15 **sí reparte**. El techo real es
+`60 × instancias vivas`, y ese número **no lo controlamos**. No invalida el fix —el techo pasó de no
+existir a existir— pero **es el argumento medido a favor de `DEPLOY` F2 (Upstash)**: es lo único que
+vuelve el cupo global. Anotado también para no volver a confiar en el «121 exacta».
+
 **El geo-bloqueo no entró** (decisión de Fer en esta sesión): el propio informe dice que baja el
 ruido del log y no el riesgo. Sigue anotado en § *Qué sigue* con las dos condiciones que no cambian
 — excluir `/api/webhooks/mercadopago` y no hacer allowlist de Argentina sola.
@@ -1224,7 +1275,8 @@ arriba, en dos sesiones posteriores del mismo día.
 
 ## Qué sigue
 
-1. ~~Las tres verificaciones V-1/V-2/V-3~~ — **hechas**; falta solo el hostname de R2 en producción.
+1. ~~Las tres verificaciones V-1/V-2/V-3~~ — **hechas y completas**: el hostname de R2 en producción
+   se cerró el 2026-08-18 (`fotos.adondesalimos.com.ar`, con la cookie host-only que lo desactiva).
 2. ~~Triaje con Fer~~ — **hecho**: se aplicaron los 4 fixes de una línea (§ *Fixes aplicados*).
 3. ~~`SEC-05`, `SEC-06` y `SEC-07`~~ — **hechos** (§ *Fixes aplicados en la segunda sesión*).
 4. ~~La cola larga barata + `SEC-13`, `SEC-18`, `SEC-21` y `SEC-09`~~ — **hechos** (§ *Fixes aplicados
@@ -1263,10 +1315,11 @@ arriba, en dos sesiones posteriores del mismo día.
    (`PISO_HOME`/`PISO_ZONA`), que es una regla de producto: **un agregado precomputado** —que envejece
    y hay que refrescar— **o mostrar menos chips**. No es una decisión de seguridad y no se toma sola.
 
-7. **El CSP sigue en `Report-Only` y no se destraba solo.** Faltan dos pantallas por recorrer con la
-   consola abierta —la **ficha** (abrirla cuesta ~US$0,027 de Google por vez) y el **checkout**, que
-   está apagado— o, en su defecto, un colector de reportes. Sin una de las dos cosas, esperar no
-   agrega evidencia.
+7. **El CSP sigue en `Report-Only`, pero ya no por falta de evidencia.** Se recorrieron **diez
+   pantallas en producción con cero violaciones**, ficha incluida (la foto de Google cargó de verdad).
+   **Queda una sola sin verificar: el checkout de MP**, que está apagado hasta `DEPLOY` F3. O sea que
+   pasarlo a enforcing es hoy una **decisión de Fer**, no un pendiente técnico — con la salvedad de
+   que la única superficie sin probar es justo la que maneja plata.
 
 8. **`DEPLOY` F2 (Upstash) queda confirmado como prioridad, no como ítem nuevo** — tal como el
    BACKLOG anticipaba. Con un matiz medido: la decisión 12 dice que *«donde más duele no es

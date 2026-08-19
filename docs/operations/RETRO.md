@@ -58,6 +58,10 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
   `components/` y `scripts/`, así que el test de un archivo **de la raíz** (`proxy.ts`) tiene que
   vivir en `lib/middleware/__tests__/`. Se dejó anotado en el propio test; **no se tocó la config**,
   que es lo que correspondía por cambio quirúrgico.
+  (2b) En la verificación contra producción, `context.cookies(url)` de Playwright devolvió la cookie
+  de sesión como si alcanzara al subdominio de R2 — **su filtro no distingue host-only de cookies con
+  `Domain`**. Creerle habría escrito un hallazgo falso en el informe; se resolvió capturando la
+  request real, que no lleva header `Cookie`.
 - **Qué cambiar.** Una sola: la línea de `proxy.ts` en `CLAUDE.md` § *Notas importantes* — **hecha en
   esta sesión**. Toda sesión futura va a buscar `middleware.ts`, no lo va a encontrar y va a
   re-derivar lo mismo. Lo del conteo de Postgres **no** se convierte en regla: el método de medición

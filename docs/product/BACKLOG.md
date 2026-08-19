@@ -588,6 +588,15 @@ son trabajo acotado con criterio de "listo" objetivo.
       eran lecturas por PK. Los ~400 ms son los **18 `count(*)`**, que son una decisión de producto.
       El CSP quedó en **`Report-Only`** y encontró en vivo un host que el código no declaraba
       (`va.vercel-scripts.com`, el Web Analytics prendido desde el panel).
+      **Verificado contra producción el mismo día, ya deployado**: cero violaciones de CSP en **diez**
+      pantallas (ficha incluida, con la foto de Google cargando de verdad) — solo falta el checkout de
+      MP, que está apagado. Se cerró además **`V-3`**: producción sirve R2 desde
+      `fotos.adondesalimos.com.ar`, mismo eTLD+1 que la app, **pero la cookie de sesión es host-only y
+      no cruza** (medido capturando la request, no leyendo la config: el filtro de Playwright miente
+      ahí). ⚠️ **Y un número que corrige a otro ya escrito**: en producción el cupo cortó en **64 y no
+      en 60**, porque el contador es memoria **por instancia** y Vercel tenía al menos dos calientes —
+      contra la medición del 2026-08-18 que decía que "no reparte entre instancias". El techo real es
+      `60 × instancias vivas`. Es el argumento medido a favor de `DEPLOY` F2 (Upstash).
       **Sigue abierto**: `SEC-16` (lo resuelve Upstash, `DEPLOY` F2) · `SEC-10` (medir primero) · el
       SSRF de `SEC-20`, preventivo y no alcanzable · `SEC-23` (cosmético) · `SEC-25` (retención) · el
       **pre-hijacking** de `SEC-05`, que (a)+(b)+(c) acotan pero no cierran. **Sin cerrar pero fuera
