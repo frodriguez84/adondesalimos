@@ -576,12 +576,26 @@ son trabajo acotado con criterio de "listo" objetivo.
       **2 de los 3 usuarios de producción** sin poder entrar (los dos tienen un punto en el local-part
       de Gmail, que es la misma bandeja). Se cierra el mismo agujero al revés — el alta rechaza un mail
       que caiga en una bandeja ya usada— sin tocar lo guardado ni el login.
-      **Sigue abierto**: `SEC-01` estructural **+ `SEC-11`**, que van juntos porque los dos piden
-      `middleware.ts` (y ahí entra también el **geo-bloqueo** que pidió Fer: en el firewall de Vercel,
-      excluyendo el webhook de MP y sin allowlist de Argentina sola) · `SEC-16` (lo resuelve Upstash,
-      `DEPLOY` F2) · `SEC-10` (medir primero) · el SSRF de `SEC-20`, preventivo y no alcanzable ·
-      `SEC-23` (cosmético) · `SEC-25` (retención) · el **pre-hijacking** de `SEC-05`, que (a)+(b)+(c)
-      acotan pero no cierran.
+      **Cuarta sesión (2026-08-18) — `SEC-01` y `SEC-11`, los dos que faltaban**: `proxy.ts` con cupo
+      de páginas (120/min general, 60/min en `/`) + los 5 headers en `next.config.ts`. Gate: typecheck
+      + **845 tests** + build verde. ⚠️ **El archivo no se llama `middleware.ts`**: Next 16 lo renombró
+      a `proxy` y **corre siempre en Node.js**, así que el cupo en memoria funciona ahí — la premisa
+      del "edge" con la que se planificó no aplicaba. Y como los `headers()` de `next.config` corren
+      **antes** que el Proxy, **`SEC-11` no necesitaba el archivo nuevo**: los dos hallazgos venían
+      atados por una premisa, no por una dependencia. Se re-midió lo que la primera sesión dejó a
+      deber: **59 → 41 sentencias** en `/` (74 → 53 con filtros), con el "antes" reproduciendo exacto
+      los números del informe. ⚠️ **El tiempo de Postgres NO bajó** (392 → 410 ms): lo que se ahorró
+      eran lecturas por PK. Los ~400 ms son los **18 `count(*)`**, que son una decisión de producto.
+      El CSP quedó en **`Report-Only`** y encontró en vivo un host que el código no declaraba
+      (`va.vercel-scripts.com`, el Web Analytics prendido desde el panel).
+      **Sigue abierto**: `SEC-16` (lo resuelve Upstash, `DEPLOY` F2) · `SEC-10` (medir primero) · el
+      SSRF de `SEC-20`, preventivo y no alcanzable · `SEC-23` (cosmético) · `SEC-25` (retención) · el
+      **pre-hijacking** de `SEC-05`, que (a)+(b)+(c) acotan pero no cierran. **Sin cerrar pero fuera
+      de los 25**: pasar el CSP a enforcing (faltan la ficha y el checkout, y abrir una ficha cuesta
+      ~US$0,027 de Google) · los **18 `count(*)`** de la home, que decide Fer · el **geo-bloqueo**,
+      que Fer decidió postergar en esta sesión — el andamio ya está, pero sigue bajando el ruido del
+      log y no el riesgo (en el firewall de Vercel, excluyendo el webhook de MP y sin allowlist de
+      Argentina sola).
       **`SEC-10` — Fer decidió medir antes de tocar** (2026-08-18): bajar `MAX_RONDAS_TOOL` de 5 a 3
       es una línea, pero **cuántos turnos reales usan 4 o 5 rondas no está medido** y recortar a
       ciegas hace que un turno que necesitaba otra búsqueda conteste con menos info. El dato sale

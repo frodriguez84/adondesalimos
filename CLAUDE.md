@@ -241,6 +241,16 @@ Cicatrices reales — gotchas que sorprenden:
 - **Las listas de Overture (`phones`/`websites`/`socials`) son `jsonb`**, no columnas array:
   cruzan el driver de DuckDB serializadas a JSON (lección CATALOGO). En la ficha llegan como
   `string[] | null` — coercionar a `[]`.
+- **No existe `middleware.ts`: se llama `proxy.ts` y corre en Node.js, no en el edge.** Next 16
+  deprecó el nombre viejo y lo renombró (`v16.0.0`); en un `proxy.ts` el `runtime` de segmento ni se
+  puede declarar —tira error—, así que **el rate-limit en memoria funciona ahí igual que en los route
+  handlers**. Hoy lo usa el cupo de páginas de `SEC-01` (120/min general, 60/min en `/`), y la
+  política vive en `lib/middleware/rate-limit.ts`, no en el archivo. ⚠️ Dos trampas: (a) el matcher
+  **excluye `/api`** y eso NO es opcional —un 429 a `/api/webhooks/mercadopago` rompe los pagos en
+  silencio, y tiene test propio—; (b) **los headers de seguridad NO van acá**: los `headers()` de
+  `next.config.ts` corren **antes** que el Proxy y no gastan invocación. Y ojo con el helper de
+  tests: la doc dice `unstable_doesProxyMatch`, el paquete instalado exporta
+  `unstable_doesMiddlewareMatch`.
 - **`lucide-react` (v1.16) NO tiene íconos de marca** (Instagram/Facebook/Twitter): se
   removieron. Las redes de la ficha se rotulan con texto vía `clasificarRed`. Ver BACKLOG.
 - **Una votación tiene DOS techos de opciones y son dos constantes distintas**

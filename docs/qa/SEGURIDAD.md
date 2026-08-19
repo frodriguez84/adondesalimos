@@ -25,7 +25,10 @@ el usuario desde su propia fila, nunca del body).
 
 **Lo que sí está expuesto es el presupuesto y la disponibilidad**, y siempre por la misma raíz: hay
 un rate-limit bien diseñado en las rutas de API y **no hay nada delante de las páginas**. Los tres
-hallazgos de arriba los ejecuta un anónimo, sin cuenta, con `curl`, a costo cero para él.
+hallazgos de arriba los ejecuta un anónimo, sin cuenta, con `curl`, a costo cero para él. _(Esa raíz
+quedó cerrada el 2026-08-18 con `proxy.ts`: las páginas ya tienen cupo. Lo que sigue sin cupo global
+es el propio rate-limit, que es memoria por instancia hasta `DEPLOY` F2 — ver § *Fixes aplicados en
+la cuarta sesión*.)_
 
 **El patrón que más se repite no es un bug, es una asimetría:** Google y Anthropic tienen contador
 y tope que degradan; **Resend no tiene ninguno de los dos**, y es el único cuyo agotamiento *rompe*
@@ -57,7 +60,7 @@ alcance cambiaron · **CONDICIONAL** = depende de V-1/V-2/V-3.
 
 | ID | Hallazgo | Quién lo hace | Impacto | Estado |
 |---|---|---|---|---|
-| `SEC-01` | La home cuesta 59-74 sentencias SQL y no tiene rate-limit (lo barato está protegido, lo caro no) | anónimo | indisponibilidad + quema Neon Free | **CONFIRMADO** (medido) · 🔧 **mitigado en parte** |
+| `SEC-01` | La home cuesta 59-74 sentencias SQL y no tiene rate-limit (lo barato está protegido, lo caro no) | anónimo | indisponibilidad + quema Neon Free | **CONFIRMADO** (medido) · ✅ **ARREGLADO Y VERIFICADO EN VIVO** (`proxy.ts` + 59→41 re-medido); los 18 `count(*)` quedan como decisión de producto |
 | `SEC-02` | `/api/lugar/[id]/google`: US$108 y 30 días de fichas degradadas | anónimo | US$108/mes + disponibilidad | **CON CORRECCIONES** · ✅ **ARREGLADO** |
 | `SEC-03` | Sin `TRUSTED_IP_HEADER` los cupos colapsan a un bucket compartido | anónimo | login/alta/reset caídos por instancia | **TEÓRICO** — V-1 confirmó que está seteada |
 | `SEC-04` | Open redirect en `/login` vía `callbackUrl` | anónimo | phishing con el dominio real | **CONFIRMADO EN VIVO** · ✅ **ARREGLADO Y RE-VERIFICADO** |
@@ -67,7 +70,7 @@ alcance cambiaron · **CONDICIONAL** = depende de V-1/V-2/V-3.
 | `SEC-08` | `.env.example` versionado con la contraseña real del Postgres de dev | quien lea el repo | credencial en el historial | **CONFIRMADO EN VIVO** · 🤝 **riesgo ACEPTADO** (ambiente privado; se reabre si el repo deja de ser privado) |
 | `SEC-09` | `shadcn` en `dependencies` arrastra 10 de 15 vulnerabilidades; `next` con 9 advisories | — | superficie de dependencias | **CONFIRMADO EN VIVO** · ✅ **ARREGLADO** (commit aparte) |
 | `SEC-10` | El tope del chat cuenta mensajes, no tokens: ~US$96 contra ≤US$20 declarados | logueado | 5× el presupuesto | **CON CORRECCIONES** |
-| `SEC-11` | Cero headers de seguridad en toda la app | — | sin segunda línea de defensa | **CONFIRMADO EN VIVO** |
+| `SEC-11` | Cero headers de seguridad en toda la app | — | sin segunda línea de defensa | **CONFIRMADO EN VIVO** · ✅ **ARREGLADO**; el CSP queda en `Report-Only` a propósito |
 | `SEC-12` | `DISABLE_RATE_LIMIT` no mira `NODE_ENV`, y `.env.example` lo trae en `true` | — | apaga todo el rate-limit | **CONFIRMADO** · ✅ **ARREGLADO** |
 | `SEC-13` | El tipo de las fotos se cree, nunca se comprueba (sin magic bytes) | dueño aprobado | abuso de hosting | **CONFIRMADO** · ✅ **ARREGLADO** |
 | `SEC-14` | Cursor manipulado devuelve 500 en vez de degradar | anónimo | ruido de logs | **CONFIRMADO EN VIVO** · ✅ **ARREGLADO** |
@@ -1030,6 +1033,169 @@ en `votaciones/[token]` cubre también el PATCH del creador — que es un UPDATE
 
 ---
 
+## Fixes aplicados en la cuarta sesión (2026-08-18) — `SEC-01` y `SEC-11`
+
+Los dos que quedaban del trabajo grande, y que el informe había atado a un mismo archivo. Gate:
+**typecheck limpio + 845 tests en verde** (837 de base + 8 nuevos) + **build verde con el dev server
+parado**, que además muestra `ƒ Proxy (Middleware)` en la salida.
+
+### El archivo no se llama `middleware.ts` — y eso cambió la decisión, no solo el nombre
+
+La premisa con la que entró la sesión era: *«el `middleware.ts` de Next corre en el edge, que es otro
+runtime y no comparte la memoria del rate-limit»*. **En Next 16 eso ya no es cierto**, y verificarlo
+antes de escribir código evitó armar la sesión alrededor de un problema que no existía:
+
+- `v16.0.0` **deprecó `middleware` y lo renombró a `proxy`**. Verificado en el paquete instalado
+  (`next@16.3.1`, `runDependingOnPageType` → `isProxyFile` → `onServer`) y en la doc: *«Proxy defaults
+  to the Node.js runtime. The `runtime` config option is not available in Proxy files»* — declararlo
+  tira error.
+- Consecuencia: **el cupo en memoria funciona en el Proxy igual que en los route handlers**. La
+  degradación es la que `DEPLOY` decisión 12 ya había aceptado, ni una más.
+- Y la falla es **abierta**: memoria que no se comparte entre instancias solo puede *sub*-contar.
+  Nunca puede inventar un 429 que no corresponde.
+
+**Corolario que ahorró la mitad del trabajo:** los `headers()` de `next.config.js` corren **antes**
+que el Proxy en la cadena de Next y los aplica la capa de routing sin gastar una invocación. O sea
+que **`SEC-11` no necesitaba el archivo nuevo para nada** — solo un CSP con nonce por request lo
+habría obligado, y el nonce no es lo que este hallazgo pide. Los dos hallazgos venían atados por una
+premisa, no por una dependencia.
+
+### `SEC-01` — la parte barata, ahora sí medida
+
+La primera sesión aplicó `React.cache` sobre `getConfidenceThreshold` y dejó anotado, con todas las
+letras, que la reducción **no se había re-medido**. Se midió acá, con el mismo método (log de
+sentencias de Postgres en dev, `log_min_duration_statement` activado y **revertido a `-1`**), y
+desenvolviendo el `React.cache` un minuto para tener el «antes» de verdad y no de memoria:
+
+| Request | Antes | Después | Lecturas de `app_settings` |
+|---|---|---|---|
+| `GET /` | **59** | **41** (−30,5 %) | 20 → **2** |
+| `GET /?z=palermo-soho&t=bar` | **74** | **53** (−28,4 %) | 24 → **3** |
+
+**El «antes» reprodujo exacto los 59 y 74 del informe**, lo que valida de paso que el método de
+medición es el mismo. La predicción era «~42»: dio 41.
+
+⚠️ **Lo que la medición también dice, y conviene no maquillar: el tiempo de Postgres NO bajó**
+(392 ms → 410 ms en `/`, dentro del ruido). Es coherente: las 18 lecturas que se ahorraron eran un
+`select` por clave primaria que cuesta microsegundos. **Lo que bajó son round-trips, no trabajo de
+base.** Los 426 ms los siguen pagando los **18 `count(*)`**, que están intactos y son una decisión de
+producto pendiente (ver § *Qué sigue*).
+
+### `SEC-01` — la parte estructural: `proxy.ts`
+
+| Qué | Dónde |
+|---|---|
+| Cupo de páginas antes del render: **120/min general** y **60/min en `/`** | [`proxy.ts`](../../proxy.ts) (nuevo) + [`lib/middleware/rate-limit.ts`](../../lib/middleware/rate-limit.ts) |
+| `evaluarCupoIp` extraída para que el Proxy **reuse** la regla en vez de clonarla | `rate-limit.ts` |
+| 8 tests nuevos: cupo de páginas · matcher · headers | `lib/middleware/__tests__/` |
+
+**Por qué 60/min en la home y no los 30 que parecían obvios.** La home **no es la portada: es la
+pantalla de búsqueda entera**, y los chips y las zonas navegan con `router.push`/`replace` a
+`/?z=…&t=…`. O sea que **cada toque de filtro es una request más a `/`**. Con 30, un usuario
+entusiasmado se comía un «Pará un poco» en la pantalla principal de la app. 60 es además el número
+que ya tiene `/api/search`, que es su hermana: un filtro dispara las dos. El error caro acá es
+quedarse corto, no largo.
+
+**Los prefetch del router se cuentan a propósito.** La doc de Next sugiere excluirlos con
+`missing: next-router-prefetch`, y eso sería **regalar el bypass**: el atacante manda el header y
+listo. Por eso el cupo general es generoso (120) en vez de exacto — la ráfaga legítima tiene que
+entrar por el mismo tubo que la ilegítima.
+
+⚠️ **El matcher tiene su propio test, y no por prolijidad.** Un cupo mal calibrado devuelve un 429 de
+más y se ve; **un matcher de más mete un 429 donde nadie lo está mirando**. El caso que justifica el
+archivo es `/api/webhooks/mercadopago`: ese request lo hace MP desde sus servidores y el webhook es
+idempotente y fail-closed, así que un 429 nuestro **no se ve** — se caen acreditaciones en silencio.
+Quedan afuera también los estáticos, la metadata y `/og` (la tarjeta que dibuja WhatsApp, que es
+`force-static` y no toca la base: un 429 ahí rompería los previews del loop viral).
+
+### `SEC-11` — los headers, y qué encontró el `Report-Only` que el código no decía
+
+Van en [`next.config.ts`](../../next.config.ts). Verificados en vivo **y** con un test que falla si
+alguien los borra o si el CSP pasa a enforcing sin querer.
+
+| Header | Estado | Nota |
+|---|---|---|
+| `Referrer-Policy: strict-origin-when-cross-origin` | enforcing | Cierra la fuga del token de `/restablecer` y de `/votacion/[token]`: el tercero recibe el origen pelado |
+| `X-Frame-Options: DENY` | enforcing | ⚠️ Hoy el clickjacking **no funciona igual** (cookie `sameSite: lax`). Va por el día que alguien toque ese `sameSite` |
+| `X-Content-Type-Options: nosniff` | enforcing | Higiene |
+| `Permissions-Policy: camera=(), microphone=(), browsing-topics=()` | enforcing | Solo se niega lo que **no** se usa; lo que no se nombra conserva su default |
+| CSP | **`Report-Only`** | Ver abajo |
+
+**Verificación en línea contra producción (read-only), que el informe había dejado pendiente:**
+**Vercel ya emite `Strict-Transport-Security: max-age=63072000`** por su cuenta en el dominio propio.
+Por eso HSTS **no** se declara acá: sería duplicarlo. Confirmado también que producción no emitía
+ninguno de los otros cinco. *(Se filtra además `X-Powered-By: Next.js`; se apaga con
+`poweredByHeader: false` y quedó sin tocar por ser una línea fuera del alcance de `SEC-11` — decisión
+de Fer si entra.)*
+
+**El CSP encontró un host que leer el código no encontraba.** El inventario armado a mano tenía
+`tiles.openfreemap.org` (mapa), `*.googleusercontent.com` (la foto de la ficha, que Google sirve
+desde ahí y no desde la API), el bucket de R2 y `sdk.mercadopago.com`. En vivo apareció uno más:
+**`va.vercel-scripts.com`, el Web Analytics de Vercel**, que se prendió desde el panel el 2026-08-14
+y por eso no se leía como una dependencia. Es la mejor defensa del `Report-Only`: el inventario
+estático estaba incompleto y no había forma de saberlo sin correrlo.
+
+**Verificado en vivo con Playwright** (`https://adondesalimos.ngrok.app`, consola del browser):
+
+| Pantalla | Violaciones |
+|---|---|
+| `/` (home) | **0** — tras sumar `va.vercel-scripts.com`; antes, 1 |
+| `/?z=…&t=…` → **vista mapa** | **0**. MapLibre levanta sus Web Workers desde un `blob:` y los tiles renderizan; los warnings que quedan salen **de adentro** del worker (o sea que se creó) y son datos, no CSP |
+| `/chat` | **0** |
+| `/votacion/nueva` | **0** |
+| `/login` | **0** |
+
+⚠️ **La ficha NO se verificó en vivo, a propósito**: abrir una dispara el enriquecimiento de Google
+(Place Details + foto ≈ **US$0,027 reales** por apertura) y esta sesión tenía prohibido llamar APIs
+pagas. O sea que `*.googleusercontent.com` en `img-src` está **razonado desde `fetchFotoUri`, no
+observado**. Es el hueco conocido del CSP y es el motivo principal para no sacarle el `Report-Only`
+todavía. Lo mismo vale para el checkout de MP, que está apagado (`DEPLOY` F3).
+
+⚠️ **Limitación honesta del `Report-Only`: sin un colector, solo escribe en la consola del browser.**
+«Esperar tráfico real» **no acumula evidencia por sí solo**. Para pasarlo a enforcing hacen falta
+una de dos: recorrer las pantallas que faltan con la consola abierta (ficha y checkout), o sumar un
+endpoint que junte los reportes. Dejarlo en `Report-Only` sin hacer ninguna de las dos es dejarlo en
+`Report-Only` para siempre.
+
+### Verificación **en vivo** del cupo de páginas (2026-08-18, con Fer presente)
+
+Los tests cubren la lógica; esto cubre lo que ningún test ve. Se hizo contra dev
+(`https://adondesalimos.ngrok.app`) poniendo `DISABLE_RATE_LIMIT=false` y
+`TRUSTED_IP_HEADER=x-forwarded-for` en el `.env`, **revertido al terminar**.
+
+*(`x-forwarded-for` y no `x-real-ip`, que es el de producción: por el túnel de ngrok el que llega
+seguro es el primero. Con `x-real-ip` ausente, `getClientIp` devuelve `unknown`, en dev eso hace
+bypass del cupo y **el QA habría pasado sin probar nada** — un verde falso, que es el peor resultado.)*
+
+| Qué se probó | Resultado |
+|---|---|
+| Ráfaga de 62 a `/` desde una IP limpia | **60 × 200 + 2 × 429** — el corte cae en **60/min exacto** |
+| Misma IP, `/` de nuevo | **429** |
+| Misma IP, `/lugar/[id]` | **200** — los buckets están separados de verdad: agotar la home no deja sin sitio |
+| IP distinta, sin usar | **200** — el cupo es por IP, no global |
+| `POST /api/webhooks/mercadopago` con el cupo agotado | **401** (falta firma), **no 429** — el matcher lo excluye, que es lo que el test unitario afirma y esto confirma |
+| El 429 en sí | `Retry-After` correcto, `Cache-Control: no-store`, y la pantalla propia sin assets |
+| Recuperación | Vuelve a **200** solo al vencer la ventana, sin tocar nada |
+
+**Lo que solo se podía ver en el browser: qué pasa cuando el 429 cae en una navegación de cliente.**
+Era el riesgo concreto de la decisión de contar los prefetch. Con el cupo agotado se tocó un chip
+(que es un `router.push`, no una carga completa): el router recibe HTML donde esperaba el payload de
+RSC y **degrada a navegación completa**, mostrando la pantalla de «Pará un poco». **No queda spinner
+colgado ni estado roto**, y el único error de consola es el 429 del recurso — ninguna excepción de JS.
+
+⚠️ **Una trampa de medición que casi da un falso negativo, anotada para la próxima:** la primera
+ráfaga se corrió con 70 requests y `-P 20`, y **tardó más de 60 segundos** porque el cuello de
+botella es el server de dev, no el cliente. La ventana se renovó a mitad de la ráfaga y el chequeo
+posterior dio **200 donde tenía que dar 429**. Con una ventana de 60 s, **la ráfaga tiene que estar
+cronometrada**: la corrida válida tardó 9 s. Si esto se vuelve a correr, medir el tiempo y que quede
+en el output.
+
+**El geo-bloqueo no entró** (decisión de Fer en esta sesión): el propio informe dice que baja el
+ruido del log y no el riesgo. Sigue anotado en § *Qué sigue* con las dos condiciones que no cambian
+— excluir `/api/webhooks/mercadopago` y no hacer allowlist de Argentina sola.
+
+---
+
 ## Método y cobertura
 
 **Las 8 dimensiones del plan (ítem 8 del BACKLOG), todas cubiertas:** authz/IDOR (36 handlers) ·
@@ -1062,13 +1228,14 @@ arriba, en dos sesiones posteriores del mismo día.
 2. ~~Triaje con Fer~~ — **hecho**: se aplicaron los 4 fixes de una línea (§ *Fixes aplicados*).
 3. ~~`SEC-05`, `SEC-06` y `SEC-07`~~ — **hechos** (§ *Fixes aplicados en la segunda sesión*).
 4. ~~La cola larga barata + `SEC-13`, `SEC-18`, `SEC-21` y `SEC-09`~~ — **hechos** (§ *Fixes aplicados
-   en la tercera sesión*). **De los 25, quedan 6 abiertos y ninguno es una sorpresa:**
+   en la tercera sesión*).
+5. ~~`SEC-01` estructural + `SEC-11`~~ — **hechos** (§ *Fixes aplicados en la cuarta sesión*).
+   **De los 25, quedan 4 abiertos y ninguno es una sorpresa:**
 
    | ID | Por qué sigue abierto |
    |---|---|
-   | `SEC-01` estructural + `SEC-11` | Los dos piden `middleware.ts` y van **juntos, en su propia sesión**. Es el trabajo más grande que queda |
    | `SEC-16` | Lo resuelve Upstash (`DEPLOY` F2). Arreglarlo aparte es escribir código para tirarlo |
-   | `SEC-10` | Decisión de Fer: **medir antes de tocar** (punto 7) |
+   | `SEC-10` | Decisión de Fer: **medir antes de tocar** (punto 10) |
    | `SEC-20` (el SSRF) | Preventivo y **no alcanzable desde ninguna ruta HTTP**; el script corre en la máquina de Fer, no en Vercel. Se cierra solo el día que la curaduría sea un cron en Vercel. La validación duplicada que sí era un drift ya se unificó |
    | `SEC-23` | Cosmético (403 vs 404). Sin bypass |
    | `SEC-25` | Política de retención de datos, no vulnerabilidad |
@@ -1077,24 +1244,42 @@ arriba, en dos sesiones posteriores del mismo día.
    `(a)`+`(b)`+`(c)` acotan pero no cierran —pide rediseñar el alta, invalidando la contraseña previa
    al verificar—, y `SEC-08`, **riesgo aceptado**.
 
-   **Geo-bloqueo de países** (Fer lo pidió el 2026-08-18): decidido **esperar a `middleware.ts`**. No
-   cierra ninguno de los 25 —un proxy residencial cuesta centavos y el escaneo automatizado sale de
-   IPs de nube en EE.UU./DE/NL—, así que baja el ruido del log y no el riesgo; y sumarlo al
-   `middleware.ts` de `SEC-01`/`SEC-11` son ~10 líneas contra pagar el andamio dos veces. Cuando se
-   haga: en el **firewall de Vercel**, que corta antes de invocar la función; **excluyendo
+   **Geo-bloqueo de países** (Fer lo pidió el 2026-08-18): **sigue sin hacerse, y ahora por decisión
+   y no por falta de andamio.** El `proxy.ts` ya existe, así que el costo bajó a ~10 líneas; lo que no
+   cambió es el retorno — no cierra ninguno de los 25, porque un proxy residencial cuesta centavos y
+   el escaneo automatizado sale de IPs de nube en EE.UU./DE/NL. Baja el ruido del log, no el riesgo.
+   Cuando se haga: en el **firewall de Vercel**, que corta antes de invocar la función (en el
+   `proxy.ts` el bloqueo gasta la invocación igual, así que ayuda menos a `SEC-01`); **excluyendo
    `/api/webhooks/mercadopago`**, que lo llama MP desde sus servidores y bloquearlo rompe los pagos
    **en silencio**; y **sin allowlist de Argentina sola** — el turista que averigua a dónde salir en
-   Buenos Aires antes de viajar es un usuario legítimo.
-5. **`DEPLOY` F2 (Upstash) queda confirmado como prioridad, no como ítem nuevo** — tal como el
+   Buenos Aires antes de viajar es un usuario legítimo. Falta además mirar en el panel si Hobby
+   permite reglas custom por país, y si aplica algún techo L7 por IP: eso no se puede ver desde el
+   código.
+
+6. **Los 18 `count(*)` de la home son una decisión de PRODUCTO, no una optimización pendiente.** La
+   medición de esta sesión lo dejó nítido: `React.cache` bajó las sentencias de 59 a 41 pero **el
+   tiempo de Postgres no se movió** (392 → 410 ms), porque lo que se ahorró eran lecturas por clave
+   primaria. Los ~400 ms son los 18 `count(*)` sobre los publicados, y salen del piso de los chips
+   (`PISO_HOME`/`PISO_ZONA`), que es una regla de producto: **un agregado precomputado** —que envejece
+   y hay que refrescar— **o mostrar menos chips**. No es una decisión de seguridad y no se toma sola.
+
+7. **El CSP sigue en `Report-Only` y no se destraba solo.** Faltan dos pantallas por recorrer con la
+   consola abierta —la **ficha** (abrirla cuesta ~US$0,027 de Google por vez) y el **checkout**, que
+   está apagado— o, en su defecto, un colector de reportes. Sin una de las dos cosas, esperar no
+   agrega evidencia.
+
+8. **`DEPLOY` F2 (Upstash) queda confirmado como prioridad, no como ítem nuevo** — tal como el
    BACKLOG anticipaba. Con un matiz medido: la decisión 12 dice que *«donde más duele no es
    `/api/search` sino reclamos/altas»*. **Duele en dos lados que no estaban en esa lista**: el
-   endpoint de Google (`SEC-02`, el único cupo en memoria atado a un SKU pago) y las páginas, que no
-   pasan por ningún cupo (`SEC-01`, que Upstash **no** resuelve solo — hace falta `middleware.ts`).
-6. **Si se enciende el cobro (F3)**: ~~hacer `SEC-18` y `SEC-19` antes~~ — **hechos**, y a propósito
+   endpoint de Google (`SEC-02`, el único cupo en memoria atado a un SKU pago) y las páginas, que
+   desde esta sesión **sí** tienen cupo (`SEC-01`) pero con la misma memoria por instancia que el
+   resto — Upstash lo vuelve global sin tocar el `proxy.ts`, solo el almacenamiento de
+   `rate-limit.ts`.
+9. **Si se enciende el cobro (F3)**: ~~hacer `SEC-18` y `SEC-19` antes~~ — **hechos**, y a propósito
    mientras el cobro estaba apagado, que era el momento más barato. Sigue en pie cerrar F2 **antes**
    que F3: el rate-limit de 5/hora del checkout es hoy el único freno al brute-force de tokens de
    tarjeta, y es memoria de proceso.
-7. **`SEC-10` — decisión de Fer (2026-08-18): medir antes de tocar.** Bajar `MAX_RONDAS_TOOL` de 5 a 3
+10. **`SEC-10` — decisión de Fer (2026-08-18): medir antes de tocar.** Bajar `MAX_RONDAS_TOOL` de 5 a 3
    es una línea y bajaría el peor caso del cap de ~US$96 a ~US$58/mes, pero **cuántos turnos reales
    usan 4 o 5 rondas no está medido**, y recortarlo a ciegas hace que un turno que necesitaba
    otra búsqueda conteste con menos info. El dato sale gratis del log que ya existe

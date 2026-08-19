@@ -170,6 +170,32 @@ function deshabilitado(): boolean {
 }
 
 /**
+ * Consume el cupo de una IP y devuelve la decisión cruda, o `null` cuando el cupo
+ * **no aplica** (apagado en dev, o IP desconocida fuera de producción).
+ *
+ * Existe separado de `checkIpRateLimit` porque hay dos consumidores con formas de
+ * respuesta distintas: los route handlers de `app/api/**` contestan JSON, y el
+ * `proxy.ts` —que corta las **páginas** antes de renderizarlas— tiene que contestar
+ * algo que un browser pueda mostrar. Lo que no se duplica es esto: quién es la IP,
+ * cuándo el cupo está exento y cómo se consume la ventana.
+ */
+export function evaluarCupoIp(
+  request: Request,
+  prefijo: string,
+  max = MAX_REQUESTS,
+  windowMs = WINDOW_MS,
+): { allowed: boolean; remaining: number; resetAt: number } | null {
+  if (deshabilitado()) return null
+
+  const ip = getClientIp(request)
+  // Con TRUSTED_IP_HEADER sin declarar, todas las requests comparten bucket
+  // (fail-closed de getClientIp). En dev eso haría inusable la app.
+  if (ip === UNKNOWN_IP && process.env.NODE_ENV !== 'production') return null
+
+  return consumirCupo(`${prefijo}:${ip}`, Date.now(), max, windowMs)
+}
+
+/**
  * Núcleo compartido: devuelve una `Response` 429 si hay que bloquear, o `null` si
  * pasa. El `prefijo` separa los cupos por endpoint (una IP que scrollea la búsqueda
  * no consume el cupo de abrir fichas). Misma firma que los checks de StressPlan.
@@ -181,15 +207,10 @@ function checkIpRateLimit(
   windowMs = WINDOW_MS,
   mensaje = 'Pará un poco. Probá de nuevo en un minuto.',
 ): Response | null {
-  if (deshabilitado()) return null
+  const cupo = evaluarCupoIp(request, prefijo, max, windowMs)
+  if (!cupo || cupo.allowed) return null
 
-  const ip = getClientIp(request)
-  // Con TRUSTED_IP_HEADER sin declarar, todas las requests comparten bucket
-  // (fail-closed de getClientIp). En dev eso haría inusable la app.
-  if (ip === UNKNOWN_IP && process.env.NODE_ENV !== 'production') return null
-
-  const { allowed, remaining, resetAt } = consumirCupo(`${prefijo}:${ip}`, Date.now(), max, windowMs)
-  if (allowed) return null
+  const { remaining, resetAt } = cupo
 
   return Response.json(
     {
@@ -409,4 +430,61 @@ export function checkFavoritosRateLimit(request: Request): Response | null {
     FAVORITOS_WINDOW_MS,
     'Pará un poco. Probá de nuevo en un minuto.',
   )
+}
+
+/**
+ * Cupo de las **páginas** (`SEC-01`, auditoría del 2026-08-18). Lo aplica
+ * `proxy.ts`, que corre antes de renderizar.
+ *
+ * **El hallazgo no era "falta un cupo": era que el perfil de protección estaba
+ * dado vuelta.** `/api/search` cuesta 12 sentencias y tenía 60/min; la home cuesta
+ * 59-74 y no tenía ninguno. Un atacante que quiere cargar la base no usa la API:
+ * usa la home, que es más barata de pedir y ~20× más cara de servir.
+ *
+ * **Son dos cupos porque son dos costos.** El general cubre toda página que pase
+ * por el matcher; el de la home se suma **solo en `/`**, que es la ruta cara. Una
+ * request a `/` consume los dos.
+ */
+const PAGINAS_MAX = 120
+const PAGINAS_WINDOW_MS = 60_000
+
+/**
+ * 60/min en `/`, el mismo número que `/api/search` — que es su hermana: cada toque de
+ * filtro dispara las dos.
+ *
+ * ⚠️ **La home no es solo "la portada": es la pantalla de búsqueda entera.** Los chips
+ * y las zonas navegan con `router.push`/`replace` a `/?z=…&t=…`, así que **cada toque
+ * de filtro es una request más a esta ruta**. Por eso el número no se calcula sobre
+ * "cuántas veces alguien recarga la home" —que sería un puñado— sino sobre cuánto
+ * filtra alguien entusiasmado. Un 429 acá es la pantalla principal de la app diciéndole
+ * que pare: el error caro es quedarse corto, no largo.
+ *
+ * Con 426 ms de Postgres por hit, 60/min acota el peor caso a ~25 s de CPU de base por
+ * minuto y por IP. No es poco; comparado con el `while true; do curl` del informe, que
+ * no tenía techo ninguno, es la diferencia que importa.
+ */
+const HOME_MAX = 60
+const HOME_WINDOW_MS = 60_000
+
+/**
+ * Cupo de una request de página. Devuelve la decisión que **bloquea**, o `null` si
+ * pasa (o si el cupo no aplica: dev, o IP desconocida fuera de producción).
+ *
+ * ⚠️ **Cuenta también los prefetch del router.** Next prefetchea los `<Link>` que
+ * entran en viewport, y esas requests llegan acá como cualquier otra. Excluirlas
+ * con el `missing: next-router-prefetch` que sugiere la doc sería regalar el bypass:
+ * el atacante manda el header y listo. Por eso el cupo general es generoso (120) en
+ * vez de exacto — la ráfaga legítima de una lista con muchas cards tiene que entrar.
+ */
+export function evaluarCupoDePagina(
+  request: Request,
+  pathname: string,
+): { allowed: boolean; remaining: number; resetAt: number } | null {
+  const general = evaluarCupoIp(request, 'pagina', PAGINAS_MAX, PAGINAS_WINDOW_MS)
+  const home =
+    pathname === '/' ? evaluarCupoIp(request, 'home', HOME_MAX, HOME_WINDOW_MS) : null
+
+  if (home && !home.allowed) return home
+  if (general && !general.allowed) return general
+  return null
 }

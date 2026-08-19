@@ -37,6 +37,35 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-18 · Seguridad: `SEC-01` + `SEC-11` (`proxy.ts` y headers) — Opus
+
+- **Qué salió bien.** **Verificar la premisa del informe antes de escribir código, no el código
+  contra el informe.** La sesión venía con una decisión bloqueante bien planteada —*«el middleware
+  corre en el edge y no comparte la memoria del rate-limit»*— que **en Next 16 ya no es cierta**:
+  el archivo se llama `proxy.ts` y corre siempre en Node.js. Cinco minutos de `grep` en
+  `node_modules/next/dist` disolvieron la decisión bloqueante **y** destaparon que `SEC-11` nunca
+  necesitó ese archivo (los `headers()` de `next.config` corren antes que el Proxy). Los dos
+  hallazgos venían atados por una premisa, no por una dependencia: media sesión de trabajo que no
+  había que hacer.
+- **Qué frenó.** Cuatro cosas chicas y ninguna de método. (1) El primer conteo de sentencias dio **123
+  en vez de 41**: Postgres emite **tres líneas por sentencia** (`parse` + `bind` + `execute`) y el
+  script contaba `duration:`. Una iteración. (1b) En el QA en vivo, una ráfaga de 70 requests **tardó
+  más que la ventana de 60 s** —el cuello de botella es el server de dev, no el cliente— y el chequeo
+  posterior dio **200 donde tenía que dar 429**: un falso negativo que solo se cazó porque el número
+  no cerraba con la lógica. Se repitió cronometrando la ráfaga (9 s). (2) La doc de Next 16 documenta
+  `unstable_doesProxyMatch` y el paquete instalado todavía exporta `unstable_doesMiddlewareMatch` —
+  4 tests en rojo hasta mirar los exports reales. (3) `vitest.config.ts` solo incluye `lib/`,
+  `components/` y `scripts/`, así que el test de un archivo **de la raíz** (`proxy.ts`) tiene que
+  vivir en `lib/middleware/__tests__/`. Se dejó anotado en el propio test; **no se tocó la config**,
+  que es lo que correspondía por cambio quirúrgico.
+- **Qué cambiar.** Una sola: la línea de `proxy.ts` en `CLAUDE.md` § *Notas importantes* — **hecha en
+  esta sesión**. Toda sesión futura va a buscar `middleware.ts`, no lo va a encontrar y va a
+  re-derivar lo mismo. Lo del conteo de Postgres **no** se convierte en regla: el método de medición
+  ya está documentado en `SEGURIDAD.md` con el número que da, que es la forma en que un error así se
+  detecta solo la próxima vez.
+
+---
+
 ## 2026-08-18 · Seguridad: la cola larga (10 hallazgos + SEC-09) — Opus
 
 - **Qué salió bien.** **Medir a quién rompe el fix, antes de escribirlo.** `SEC-21` estaba aprobado

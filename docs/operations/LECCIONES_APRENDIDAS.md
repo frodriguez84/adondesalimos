@@ -5,6 +5,36 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## El informe decía «edge» y hacía tres versiones que no (2026-08-18 · SEC-01 / SEC-11)
+
+**Qué pasó.** La sesión entró con una decisión bloqueante bien planteada: *«el `middleware.ts` de
+Next corre en el edge, que es otro runtime y NO comparte la memoria del rate-limit — entonces,
+¿`SEC-01` se puede cerrar sin Upstash?»*. La pregunta era buena. La premisa tenía dos años de
+antigüedad: **Next 16 deprecó `middleware` y lo renombró a `proxy`, y Proxy corre siempre en Node.js**
+(el `runtime` de segmento ni siquiera se puede declarar ahí: tira error). Con eso, el cupo en memoria
+funciona igual que en los route handlers y la decisión bloqueante se disolvió sola.
+
+Y arrastraba una segunda: como los `headers()` de `next.config.js` corren **antes** que el Proxy en
+la cadena de Next, **`SEC-11` nunca necesitó el archivo nuevo**. Los dos hallazgos venían atados por
+la premisa, no por una dependencia — el informe los había juntado por el archivo que creían compartir.
+
+**Qué se hizo.** Verificar la premisa contra el paquete instalado antes de escribir una línea: cinco
+minutos de `grep` en `node_modules/next/dist` (`runDependingOnPageType` → `isProxyFile` → `onServer`)
+más la doc de la versión exacta. Recién después se le presentaron las opciones a Fer, con la premisa
+ya corregida.
+
+**Qué hacer distinto: nada nuevo, la regla ya existe y funcionó.** `CLAUDE.md` § *Convenciones* ya
+dice que hay que mirar **qué resuelven las dependencias instaladas** antes de escribir, y cita la
+cicatriz de `lucide-react`. Esto es la misma cicatriz del otro lado: no *«el paquete no tiene lo que
+creías»* sino *«el paquete cambió lo que creías saber»*. Lo que sí se agregó es la línea concreta a
+§ *Notas importantes* — un dato así se re-descubre una vez y después se anota, porque toda sesión
+futura va a buscar `middleware.ts` y no lo va a encontrar.
+
+**El corolario que vale para cualquier informe:** cuando un documento fija una premisa **técnica de
+una dependencia** —no de nuestro código— esa premisa tiene fecha de vencimiento y el documento no se
+entera. Es la cuarta sesión seguida en que el plan del informe no se aplica tal cual; las tres
+anteriores fue el código el que decidió, esta vez fue la versión.
+
 ## Verificar un formulario en vivo lo guarda, y lo guardado pisa el dato de QA (2026-08-15 · R6)
 
 **Qué pasó.** Para verificar la barra fija de guardar (`PBETA-R6-03`) había que tocar un campo y

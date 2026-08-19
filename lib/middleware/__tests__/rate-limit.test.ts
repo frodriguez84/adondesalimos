@@ -4,6 +4,7 @@ import {
   checkFotosRateLimit,
   checkSearchRateLimit,
   consumirCupo,
+  evaluarCupoDePagina,
   resetRateLimit,
 } from '../rate-limit'
 import { getClientIp, UNKNOWN_IP } from '../get-client-ip'
@@ -103,5 +104,47 @@ describe('checkSearchRateLimit', () => {
     for (let i = 0; i < 100; i++) {
       expect(checkSearchRateLimit(req)).toBeNull()
     }
+  })
+})
+
+/** `SEC-01`: el cupo de las páginas, que aplica `proxy.ts` antes de renderizar. */
+describe('evaluarCupoDePagina', () => {
+  it('la home tiene su propio techo, más bajo que el general', () => {
+    process.env.TRUSTED_IP_HEADER = 'x-real-ip'
+    const req = new Request('http://x/', { headers: { 'x-real-ip': '4.4.4.4' } })
+
+    for (let i = 0; i < 60; i++) expect(evaluarCupoDePagina(req, '/')).toBeNull()
+
+    const bloqueo = evaluarCupoDePagina(req, '/')
+    expect(bloqueo).not.toBeNull()
+    expect(bloqueo!.allowed).toBe(false)
+  })
+
+  it('agotar la home no deja sin páginas al resto del sitio', () => {
+    process.env.TRUSTED_IP_HEADER = 'x-real-ip'
+    const headers = { 'x-real-ip': '5.5.5.5' }
+
+    for (let i = 0; i < 70; i++) evaluarCupoDePagina(new Request('http://x/', { headers }), '/')
+
+    const ficha = new Request('http://x/lugar/abc', { headers })
+    expect(evaluarCupoDePagina(ficha, '/lugar/abc')).toBeNull()
+  })
+
+  it('el cupo general corta igual en una ruta que no es la home', () => {
+    process.env.TRUSTED_IP_HEADER = 'x-real-ip'
+    const req = new Request('http://x/lugar/abc', { headers: { 'x-real-ip': '6.6.6.6' } })
+
+    for (let i = 0; i < 120; i++) expect(evaluarCupoDePagina(req, '/lugar/abc')).toBeNull()
+
+    expect(evaluarCupoDePagina(req, '/lugar/abc')).not.toBeNull()
+  })
+
+  it('no comparte bucket con /api/search: raspar la API no cierra la home', () => {
+    process.env.TRUSTED_IP_HEADER = 'x-real-ip'
+    const headers = { 'x-real-ip': '8.8.8.8' }
+
+    for (let i = 0; i < 70; i++) checkSearchRateLimit(new Request('http://x/api/search', { headers }))
+
+    expect(evaluarCupoDePagina(new Request('http://x/', { headers }), '/')).toBeNull()
   })
 })
