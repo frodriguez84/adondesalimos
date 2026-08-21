@@ -5,6 +5,51 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un DoD escrito como grep se dispara contra sus propios comentarios (2026-08-21 · LEGALES)
+
+**Qué pasó.** Tres criterios del DoD estaban escritos como greps, y estaba bien que lo estuvieran:
+son la forma más barata de que nadie escriba una cláusula de exoneración total, niegue que la app
+tenga cookies, o meta una lectura de sesión en un footer que renderizan 301 páginas estáticas.
+
+```
+grep -in "no nos hacemos responsables\|bajo ninguna circunstancia\|renuncia a todo"  app/legales/terminos/page.tsx
+grep -in "no usamos cookies\|sin cookies"                                            app/legales/privacidad/page.tsx
+grep -rn "headers()\|cookies()\|getSession"                                          app/legales app/salir/layout.tsx
+```
+
+Los tres dieron **FAIL**. Ninguno por el documento: los tres pegaron contra los **comentarios de
+código que explican por qué esa frase no va**. El comentario de los Términos decía «nada de
+"no nos hacemos responsables"» para que nadie lo agregara; el de la privacidad citaba el invariante
+de MONETIZACION; el de la página de baja nombraba las tres funciones que matarían las landings
+estáticas. **El comentario que documenta la trampa era, literalmente, la trampa** a los ojos del
+grep.
+
+**Por qué no es un detalle.** El grep no distingue prosa de comentario, y el veredicto que
+devuelve —FAIL— es indistinguible del real. Un checker independiente que corre el DoD al pie de la
+letra reporta un incumplimiento que no existe, y quien lo lea después va a "arreglar" el documento
+o, peor, va a aprender que ese grep del DoD miente y a ignorarlo la próxima vez. Una red de
+seguridad que da falsos positivos se desactiva sola, no de golpe.
+
+**Qué hacer distinto.**
+
+1. **Al escribir un criterio de DoD como grep, correrlo contra el archivo entero antes de darlo por
+   bueno** — comentarios y JSDoc incluidos, no solo contra el texto que se quiere vigilar.
+2. **En el comentario, nombrar la regla sin escribir el token que el grep busca.** «La fórmula de
+   manual, esa que dice que el proveedor no responde por nada» documenta igual de bien y no dispara
+   nada. «Leer los headers, las cookies o la sesión» dice lo mismo que `headers()` / `cookies()` /
+   `getSession` sin los paréntesis que el patrón caza. La advertencia no se pierde: lo único que se
+   pierde es la coincidencia literal.
+3. **Y si el token tiene que estar sí o sí** (a veces el nombre exacto es la información), entonces
+   el criterio del DoD tiene que acotar el alcance —`grep` sobre el JSX renderizado, o con
+   `--` excluyendo comentarios— en vez de sobre el archivo crudo. Lo que no sirve es dejar el grep
+   amplio y "acordarse" de que los hits en comentarios no cuentan.
+
+**Corolario que va más allá de este spec:** vale para cualquier criterio automatizable, no solo
+greps de texto. Una red que se dispara sola enseña a ignorarla, y una red ignorada es peor que no
+tenerla — porque figura como cubierta.
+
+---
+
 ## Dos reglas correctas que juntas incumplen el DoD (2026-08-21 · SEO F2)
 
 **Qué pasó.** El DoD pedía un breadcrumb en la ficha «con links que resuelven a `/salir/<zona>` y

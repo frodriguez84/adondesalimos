@@ -24,7 +24,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: `${APP_URL}/`, changeFrequency: 'daily', priority: 1 },
+    // La letra chica (LEGALES, F0): el índice y sus cuatro documentos. Van al
+    // sitemap porque son páginas públicas y estáticas, y porque `/legales/baja`
+    // tiene que ser encontrable — la Resolución 424/2020 la pide accesible.
     { url: `${APP_URL}/legales`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legales/terminos`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legales/privacidad`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legales/atribucion`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${APP_URL}/legales/baja`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${APP_URL}/registrar-negocio`, changeFrequency: 'monthly', priority: 0.5 },
 
     // Las 46 zonas van todas y sin piso (decisión 4): la más flaca tiene 181

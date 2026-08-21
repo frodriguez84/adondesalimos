@@ -13,6 +13,7 @@ import {
   type Errores,
 } from '@/components/negocio/campos'
 import { cobroApagado } from '@/lib/billing/apagado'
+import { CONTACTO } from '@/lib/contacto'
 import { puedeEditarContacto } from '@/lib/negocio/contenido'
 import { contenidoSchema, MAX_RANGOS_POR_DIA, MAX_SOCIALS } from '@/lib/negocio/validacion'
 import {
@@ -53,9 +54,6 @@ const FORM_ID = 'editor-negocio'
 
 /** Cuánto queda el «Listo» antes de devolverle el pie de la pantalla al dueño. */
 const MS_AVISO_OK = 4000
-
-/** A dónde escribe el dueño cuando algo del contacto está mal (TITULARIDAD). */
-const CONTACTO = 'contacto@adondesalimos.com.ar'
 
 /** Las redes que hoy salen en la ficha: las del dueño si cargó, si no las de la base. */
 function redesVisibles(lugar: PanelLugar): string[] {

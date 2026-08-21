@@ -363,11 +363,16 @@ function SemanaAcordeon({ semana, diaHoy }: { semana: string[]; diaHoy: number |
   )
 }
 
-/** Atribución obligatoria a Google (decisión 5): su logo + link a /legales. */
+/**
+ * Atribución obligatoria a Google (decisión 5): su logo + link a la atribución.
+ *
+ * ⚠️ Apunta a `/legales/atribucion`, **no** al índice (LEGALES, decisión 5): este es
+ * el link que la licencia de Google exige, y a dos clicks deja de cumplirla.
+ */
 function AtribucionGoogle({ texto }: { texto: string }) {
   return (
     <a
-      href="/legales"
+      href="/legales/atribucion"
       className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:underline"
     >
       {texto}

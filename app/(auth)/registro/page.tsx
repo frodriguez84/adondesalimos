@@ -224,6 +224,26 @@ function RegisterForm() {
         >
           {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta'}
         </button>
+
+        {/* LEGALES, decisión 12: el T&C se acepta **por uso**, con esta línea de copy
+            bajo el botón — no con un checkbox duro. El de TITULARIDAD (decisión 5)
+            existe porque allá la declaración es la prueba que sostiene revocar una
+            cuenta; acá no sostiene nada que el T&C no cubra, y la fricción se pagaría
+            en el embudo más caro que tiene la app. */}
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          Al crear la cuenta aceptás los{' '}
+          <Link href="/legales/terminos" className="underline underline-offset-4 hover:text-primary">
+            Términos y condiciones
+          </Link>{' '}
+          y la{' '}
+          <Link
+            href="/legales/privacidad"
+            className="underline underline-offset-4 hover:text-primary"
+          >
+            Política de privacidad
+          </Link>
+          .
+        </p>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">

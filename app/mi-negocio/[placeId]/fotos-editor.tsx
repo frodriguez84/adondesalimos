@@ -167,6 +167,24 @@ export function FotosEditor({
         <ImagePlus className="size-4" />
         {subiendo ? 'Subiendo…' : lleno ? `Llegaste al máximo de ${cap}` : 'Agregar foto'}
       </button>
+
+      {/* LEGALES, decisión 13: hasta acá el flujo de subida no tenía una sola línea
+          legal. Va en el punto de subida y no enterrada en el T&C, por el mismo
+          criterio que la línea del alta (decisión 12): la declaración vale donde se
+          hace el acto. La licencia es **revocable**, y el botón que la revoca es el
+          tachito de arriba — por eso el borrado se nombra en la misma frase. */}
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Al subir una foto declarás que tenés derecho a publicarla y nos das permiso para mostrarla
+        en tu ficha. Es tuya: podés borrarla cuando quieras y ahí el permiso se termina. Más
+        detalle en los{' '}
+        <a
+          href="/legales/terminos"
+          className="underline underline-offset-4 hover:text-foreground"
+        >
+          Términos y condiciones
+        </a>
+        .
+      </p>
     </section>
   )
 }

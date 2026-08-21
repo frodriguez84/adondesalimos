@@ -242,6 +242,16 @@ Cicatrices reales — gotchas que sorprenden:
   **no lleva el botón de guardar** aunque use la misma `PlaceCard` que el listado. Corolario: el
   `next build` **ahora necesita la base** —arma los combos con una query— y si `DATABASE_URL` no
   resuelve, el build falla. Es lo correcto: mejor no deployar que deployar 301 páginas rotas.
+- **`/legales` es un ÍNDICE y la atribución vive aparte, en `/legales/atribucion` — y cuál link va a
+  cuál NO se adivina por el archivo** (LEGALES, decisiones 2 y 5). Son **9 links en 6 archivos** y se
+  reparten **5 de beta contra 4 de licencia**: los de `results-list.tsx` y `search-shell.tsx`
+  *parecen* atribución por vivir en la búsqueda y son el aviso de beta. Los 4 que existen **porque
+  una licencia lo exige** —las dos mitades «Overture Maps y Google» de los footers, el «Fuentes y
+  atribución» de la ficha y el del bloque de Google en `ficha-google.tsx`— apuntan a
+  `/legales/atribucion`; **a dos clicks del índice ya no cumplen**, que es justo lo que la
+  separación vino a evitar. Un link nuevo se clasifica por **motivo**, no por dónde vive. Y ojo con
+  el pie de las 301: el link de baja del footer es un `<Link href>` pelado a propósito — ver el
+  punto de arriba.
 - **El escape de `<` del JSON-LD tiene UN dueño y es `serializarJsonLd` (`lib/seo/jsonld.ts`).**
   `JSON.stringify` **no escapa `<`**, así que un lugar llamado `Bar </script><script>…` cierra el tag
   y ejecuta script — y el nombre viene de Overture, de una corrección de admin o del dueño del
@@ -538,9 +548,12 @@ listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
 `lib/search/rotacion.ts` (qué chips van primero según el reloj), `lib/search/cadenas.ts`
 (quién es cadena a los efectos del orden — nadie más lee `search.cadenas`), `lib/negocio/horarios.ts`
 (`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature), `lib/navegacion/volver.ts`
-(¿el «Volver» de una pantalla hace `back` o sube a la home? — nadie llama `router.back()` suelto) y
+(¿el «Volver» de una pantalla hace `back` o sube a la home? — nadie llama `router.back()` suelto) ,
 `lib/geo/amba.ts` (el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta —
-**sin imports**, para que el script de import no arrastre `lib/claims`).
+**sin imports**, para que el script de import no arrastre `lib/claims`) y `lib/contacto.ts` (el mail
+de contacto — dejó de ser un dato de pie de página cuando la política de privacidad lo declaró **el
+canal para ejercer los derechos de la Ley 25.326**: ahí una copia vieja no es un typo, es una
+promesa rota).
 
 Los seis que dejó **SEO** (F1 + F2), porque son los que un agente va a querer clonar sin darse
 cuenta: `lib/app-url.ts` (la URL base absoluta — antes copiada 4 veces), `lib/lugar/url.ts`

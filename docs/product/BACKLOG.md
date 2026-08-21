@@ -796,11 +796,14 @@ son trabajo acotado con criterio de "listo" objetivo.
         compartidos vivos (`INVITACION`, fichas mandadas por WhatsApp) ⇒ los redirects se deciden
         **antes** de tocar, no después.
 
-- [ ] **11 · Legales de verdad — 3 ideas de Fer evaluadas el 2026-08-21.** Salieron al cerrar
+- [x] **11 · Legales de verdad — 3 ideas de Fer evaluadas el 2026-08-21.** Salieron al cerrar
       SEO F2. Dos se fusionaron en un spec y una quedó parada con gate.
 
-      ✅ **ESPECEADO 2026-08-21 → [`docs/specs/planned/LEGALES.md`](../specs/planned/LEGALES.md)**
-      (4 fases, sin código todavía). El inventario del código está adentro y no hay que rehacerlo.
+      ✅ **CERRADO 2026-08-21** — las 4 fases implementadas y QA **APROBADO** (21/21).
+      Spec: [`docs/specs/done/LEGALES.md`](../specs/done/LEGALES.md) ·
+      [Resumen](../archive/SPECS_ARCHIVO.md#legales) ·
+      [QA](../qa/AnalisisQA.md) § *QA /qa-spec — LEGALES*.
+      El inventario del código quedó adentro del spec y no hay que rehacerlo.
       **Tres cosas que el spec encontró y el triaje no tenía**: (a) hay **dos cookies funcionales**
       (sesión de better-auth + `voter_id`), así que copiar el *«sin cookies»* de MONETIZACION d22 a
       una política sería **falso**; (b) `session.ip_address` y `session.user_agent` **sí** se
@@ -2926,6 +2929,55 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       `quesale.com` están **todos tomados**.
 
 ## Hecho
+
+- [x] **`LEGALES` — cerrado entero, las 4 fases en una sesión** (2026-08-21, Opus). Spec:
+      [`docs/specs/done/LEGALES.md`](../specs/done/LEGALES.md) ·
+      [Resumen](../archive/SPECS_ARCHIVO.md#legales) · QA:
+      [`docs/qa/AnalisisQA.md`](../qa/AnalisisQA.md) § *QA /qa-spec — LEGALES* — **APROBADO**
+      (21/21 casos · 4 checkers independientes en 29/29 · typecheck · **888/888** tests · `next
+      build` verde con el dev server parado).
+      **Era el ítem 11 del backlog y el único de la cola NO gateado por tráfico:** la app ya cobraba
+      por MercadoPago y ya guardaba datos personales **sin T&C ni política de privacidad en ninguna
+      parte del repo** — grep sobre el repo entero daba cero.
+      **Qué quedó:** `/legales` es índice (aviso de beta arriba + los 4 documentos) · la atribución
+      bajó a `/legales/atribucion` **sin un solo redirect** · `/legales/terminos` ·
+      `/legales/privacidad` · `/legales/baja`, las cinco estáticas y en el sitemap.
+
+      **Lo que vale más que el diff:**
+
+      1. **Las tres trampas que el spec había medido se sostuvieron todas, y por eso no costaron
+         nada.** Los 9 links a `/legales` eran **5 de beta y 4 de licencia**, y los dos que parecen
+         atribución por vivir en la búsqueda (`results-list.tsx`, `search-shell.tsx`) son el aviso
+         de beta. El footer compartido de `/salir` no leyó sesión y las 301 landings siguieron
+         prerenderizadas. Y `session.ip_address` **sí se llena**: 33/33 en dev y **9/9 en
+         producción**, con IPs públicas reales, así que la excepción de seguridad se declaró en vez
+         de callarse. **El spec midió, la sesión ejecutó** — es el mejor caso de que escribir el
+         spec aparte se paga.
+      2. **⚠️ Tres greps del propio DoD hacían FAIL contra comentarios de código, no contra los
+         documentos.** Los comentarios que explican *por qué* no va una cláusula de exoneración, por
+         qué no se puede negar que la app tenga cookies y por qué el footer no puede leer sesión
+         **contenían las frases prohibidas al citarlas**, y el grep no distingue prosa de comentario.
+         Se reescribieron para nombrar la regla sin escribir el token que el grep busca. **Regla que
+         deja: un DoD escrito como grep hay que probarlo contra el archivo entero, comentarios
+         incluidos — si no, la red se dispara sola y el QA reporta un FAIL que no existe.**
+      3. **El heredoc volvió a romper con texto largo en español, en la 5ª sesión seguida.** El
+         `cat > page.tsx <<'EOF'` de los Términos murió con `unexpected EOF` y ni siquiera creó el
+         archivo. Los tres documentos siguientes se escribieron con la herramienta `Write` y salió
+         a la primera. La regla del CLAUDE.md global ya lo dice; lo nuevo es que **vale para
+         cualquier archivo largo, no solo mensajes de commit**.
+      4. **`lib/contacto.ts` es dueño único nuevo.** El mail de contacto ya estaba duplicado en dos
+         archivos **antes** de este spec, y las cuatro páginas nuevas lo habrían llevado a seis
+         copias. Cambia de categoría en el momento en que la política lo declara **el canal para
+         ejercer los derechos de la Ley 25.326**: ahí una copia vieja deja de ser un typo y pasa a
+         ser una promesa rota.
+      5. **La brecha del titular quedó declarada, no pendiente.** El titular publicado es
+         `adondesalimos.com.ar` + el mail, sin nombre ni CUIT (decisión de Fer). **Se reabre por
+         hecho verificable —el primer pago real de un tercero
+         (`select count(*) from subscription_payments`)— o ante el primer reclamo formal**, no por
+         tiempo. El mitigante real: el checkout de MercadoPago identifica al vendedor con nombre y
+         CUIT antes de cobrar, así que donde nace la relación de consumo sí hay un responsable.
+      6. **Deja limpio el prerrequisito honesto de `DEPLOY` F3** (encender el cobro de verdad) y de
+         cualquier difusión.
 
 - [x] **`TITULARIDAD` — spec escrito entero + F1 implementada** (2026-08-17, sesión de autoría Opus;
       código delegado al subagente `implementador`). Spec:

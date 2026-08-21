@@ -363,7 +363,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
           <Info className="size-3" />
           Estamos en beta
         </Link>
-        <Link href="/legales" className="inline-flex items-center gap-1 underline underline-offset-4">
+        <Link href="/legales/atribucion" className="inline-flex items-center gap-1 underline underline-offset-4">
           <Clock className="size-3" />
           Fuentes y atribución
         </Link>

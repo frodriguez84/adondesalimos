@@ -124,7 +124,7 @@ export function MapView({ params, coords }: Props) {
       center: CENTRO_AMBA,
       zoom: 11,
       // La atribución va SIEMPRE desplegada, no en el botón "i": es la condición
-      // de uso de OSM y de OpenFreeMap, no un detalle de UI (ver /legales).
+      // de uso de OSM y de OpenFreeMap, no un detalle de UI (ver /legales/atribucion).
       attributionControl: { compact: false },
       // Decisión 7: el control de ubicación se rotula en castellano. Se pisa por
       // `locale` y no editando el DOM después de `addControl` porque MapLibre

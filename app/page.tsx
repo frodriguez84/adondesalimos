@@ -207,10 +207,19 @@ export default async function Home({
         <span aria-hidden>·</span>
         <span>
           Datos de{' '}
-          <Link href="/legales" className="underline underline-offset-4">
+          <Link href="/legales/atribucion" className="underline underline-offset-4">
             Overture Maps y Google
           </Link>
         </span>
+        <span aria-hidden>·</span>
+        {/* Resolución 424/2020 (LEGALES, decisión 11): la baja y el arrepentimiento
+            tienen que estar accesibles desde la página principal. ⚠️ Es un `<Link>`
+            pelado a propósito (decisión 10): este mismo footer lo renderiza
+            `app/salir/layout.tsx`, y leer la sesión acá convertiría 301 landings
+            estáticas en 301 funciones serverless **sin tirar un solo error**. */}
+        <Link href="/legales/baja" className="underline underline-offset-4">
+          Cancelar suscripción o cuenta
+        </Link>
       </footer>
     </main>
   )

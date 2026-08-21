@@ -4903,3 +4903,71 @@ es lo que ve el crawler — no de la pantalla.
   Neon divergió; lo que hay que re-correr allá es el **criterio**, no el número.
 
 ---
+
+## QA /qa-spec — LEGALES (2026-08-21)
+
+**Veredicto:** **APROBADO**
+**Verificación técnica:** typecheck limpio · tests **888/888** (79 archivos) · `npm run build` verde
+con el dev server parado.
+⚠️ **El build es previo a la enmienda de LEG-16** (los dos proveedores por función): después de ese
+cambio se re-corrieron typecheck y los 888 tests, y se verificó la página en vivo, pero **el `next
+build` no se volvió a correr** — decisión de Fer para no frenar el dev server de nuevo. El cambio es
+texto dentro de `app/legales/privacidad/page.tsx`, una página que ya salió `○` y que no ganó ninguna
+lectura de sesión, así que el riesgo es bajo; **queda para correr en la próxima sesión con el server
+parado.**
+**Método:** cuatro checkers independientes (Explore read-only, haiku, uno por fase — maker≠checker)
+contra el DoD de [`docs/specs/active/LEGALES.md`](../specs/active/LEGALES.md), **29/29 PASS**, más
+verificación en vivo contra `https://adondesalimos.ngrok.app` de los 13 casos que no se pueden
+declarar por lectura de código, más una consulta read-only a la base (LEG-20) contra **dev y
+producción**.
+
+Los IDs son los que propone el propio spec (§ *QA manual*): `LEG-01`..`LEG-20` + `LEG-05b`.
+
+| ID | Caso | Resultado | Evidencia / Gap |
+|----|------|-----------|-----------------|
+| LEG-01 | `/legales` responde 200 y es índice | **PASS** | En vivo: 200, título «La letra chica», aviso de beta arriba y las 4 tarjetas (`/legales/terminos`, `/legales/privacidad`, `/legales/atribucion`, `/legales/baja`) |
+| LEG-02 | `/legales/atribucion` tiene las 9 fuentes y las 3 licencias | **PASS** | `app/legales/atribucion/page.tsx` — Overture, los 7 de CDLA Permissive 2.0, Foursquare (Apache 2.0), AllThePlaces (CC0), zonas (BA Data + IGN), MapLibre/OpenFreeMap (ODbL) y Google. Diffeado contra `git show HEAD:app/legales/page.tsx`: **el texto no cambió una palabra** |
+| LEG-03 | La atribución de Google de la ficha cae en `/legales/atribucion`, no en el índice | **PASS** | En vivo sobre la ficha de *70 30 Bar*: el bloque de Google linkea `/legales/atribucion` («Horarios y calificación» + logo). Es **el** link que la licencia de Google exige, y a dos clicks dejaba de cumplirla |
+| LEG-04 | «Estamos en beta» del footer de la home cae en `/legales` | **PASS** | En vivo: footer de `/` = `Estamos en beta → /legales` · `Overture Maps y Google → /legales/atribucion` · `Cancelar suscripción o cuenta → /legales/baja` |
+| LEG-05 | «Overture Maps y Google» de `/salir/<zona>` cae en `/legales/atribucion` | **PASS** | En vivo sobre `/salir/palermo-soho` (200): los mismos tres links del footer, con la atribución re-apuntada |
+| LEG-05b | El «estamos en beta» del estado vacío cae en `/legales`, **no** en la atribución | **PASS** | En vivo con `?q=xyzqwkjhg&zona=palermo-soho`: *«Puede que exista y todavía no lo tengamos etiquetado — estamos en beta»* → `/legales` |
+| LEG-06 | `npm run build` con el dev server parado | **PASS** | `/legales`, `/legales/terminos`, `/legales/privacidad`, `/legales/atribucion` y `/legales/baja` salen **`○`**. Las 301 de `/salir` siguen prerenderizadas: `● /salir/[zona]` (46) y `● /salir/[zona]/[tipo]` (255). **Ninguna cayó a `ƒ`**, que es el criterio duro de la decisión 10. ⚠️ Nota de lectura: el marcador de `/salir` es `●` (SSG con `generateStaticParams`), no `○` como dice el DoD al pie de la letra — las dos son HTML prerenderizado y `ƒ` es el modo de falla |
+| LEG-07 | `sitemap.xml` lleva las 5 URLs | **PASS** | En vivo: el XML contiene `legales`, `legales/terminos`, `legales/privacidad`, `legales/atribucion` y `legales/baja`. Declaradas en `app/sitemap.ts:30-34` |
+| LEG-08 | Quién presta el servicio es identificable en `/legales/terminos` | **PASS** | § *Quién presta el servicio*: identificación = `adondesalimos.com.ar`, contacto = `contacto@adondesalimos.com.ar`, jurisdicción = Ciudad Autónoma de Buenos Aires. ⚠️ **Sin nombre ni CUIT** — es la brecha declarada del spec, no un gap de QA. El checker verificó explícitamente que **no se inventó** ningún nombre propio, razón social ni CUIT |
+| LEG-09 | No hay cláusulas de exoneración total | **PASS** | `grep -in "no nos hacemos responsables\|bajo ninguna circunstancia\|renuncia a todo"` sobre el archivo = **cero**. Y lectura del checker: no hay exoneración total escrita con otras palabras. Lo que sí dice: *«Nada de lo que dice este documento limita los derechos que te da la Ley 24.240»* |
+| LEG-10 | Alta de cuenta: línea de aceptación con los dos links | **PASS** | En vivo en `/registro`: bajo el botón «Crear cuenta», *«Al crear la cuenta aceptás los [Términos y condiciones] y la [Política de privacidad]»*. Es **copy, no checkbox** (decisión 12); los dos destinos responden 200 |
+| LEG-11 | El subidor de fotos muestra la declaración de derechos | **PASS** | En vivo en `/mi-negocio/<id>` con la cuenta dueña de *Kansas Grill & Bar*: *«Al subir una foto declarás que tenés derecho a publicarla… podés borrarla cuando quieras y ahí el permiso se termina»*, con link a los T&C. Hasta acá el flujo **no tenía una sola línea legal** |
+| LEG-12 | El bloque A del inventario está entero en `/legales/privacidad` | **PASS** | Los **17** datos verificados uno por uno por el checker, cada uno con su para-qué y su qué-pasa-al-dar-de-baja (`DATOS[]`, `app/legales/privacidad/page.tsx:47-144`) |
+| LEG-13 | El contenido del dueño: dice que deja de mostrarse, no que se borra | **PASS** | Dos lugares: la fila del inventario (*«Deja de mostrarse, pero no se borra»*) y § *Tus derechos*, que da el canal de supresión. Es la decisión 8: el derecho se cubre con un canal accesible, no con un borrado que el código no hace |
+| LEG-14 | Cookies de la home | **PASS** | En vivo con `context.cookies()` (incluye las `httpOnly`, que `document.cookie` no ve): sobre `adondesalimos.ngrok.app` hay **exactamente dos** — `__Secure-better-auth.session_token` y `voter_id`. **Cero de analítica.** Sin sesión, `document.cookie` en `/` es literalmente vacío |
+| LEG-15 | `voter_id` aparece y está declarada | **PASS** | Presente en el contexto del browser (`voter_id`, `httpOnly`), y declarada por nombre en § *Las cookies que sí hay*. ⚠️ Se observó la cookie ya existente: **las 3 votaciones de dev están vencidas** (la más nueva expiró el 2026-08-11), así que no se re-emitió una votación nueva para verla nacer |
+| LEG-16 | Los terceros de los dos grupos, con la IP dicha | **PASS** (con enmienda) | Grupo servidor: Anthropic, Mercado Pago, el proveedor de envío de mails y Google Maps Platform. Grupo navegador: Google, OpenFreeMap, Cloudflare R2, Vercel y el proveedor de base de datos, con *«les pega tu navegador directamente, así que ven tu IP»*. ⚠️ **Enmienda del 2026-08-21, decisión de Fer al revisar la F2 en pantalla**: Neon y Resend van **por función y no por marca** — son los dos únicos cuyo nombre no se puede averiguar desde afuera (los otros cuatro se ven en la pestaña Red, y `curl -I` sobre producción devuelve `Server: Vercel`). La sustancia del bloque D queda entera y **el documento ofrece el nombre a pedido** por el canal de los derechos |
+| LEG-17 | No hay plazo de retención inventado | **PASS** | `grep -inE "a los [0-9]+ (días\|meses)"` = **cero**. El documento dice *«No hay ningún borrado automático, y preferimos decirlo antes que inventar un plazo»* — que es lo que el código hace: `vercel.json` no declara un solo cron |
+| LEG-18 | Sin sesión, hay camino visible a la baja desde la home | **PASS** | En vivo sin sesión: el footer de `/` lleva «Cancelar suscripción o cuenta» → `/legales/baja`. Idem el footer de `/salir/<zona>`. Es el requisito de **forma** de la Resolución 424/2020 (decisión 11) |
+| LEG-19 | Desde `/legales/baja` se llega a cancelar | **PASS** | En vivo con sesión: el link cae en `/cuenta`, donde están el bloque **Suscripción** y el de **Eliminar cuenta** con su botón. ⚠️ El botón «Cancelar suscripción» solo se renderiza con suscripción **activa**, y la cuenta de prueba hoy no la tiene: el botón se verificó en el código (`components/billing/suscripcion-panel.tsx:179`), no en pantalla |
+| LEG-20 | `select count(*) from session where ip_address is not null` | **PASS** | **Dev: 33 de 33** filas con `ip_address` y `user_agent`; **producción (Neon): 9 de 9**. IPs públicas reales. O sea que la decisión 7 se escribe tal cual estaba prevista: la excepción de seguridad **existe** y por eso se declara en vez de callarse |
+
+### Notas del QA
+
+- **Las tres trampas que el spec había medido se sostuvieron todas.** Los 9 links eran 5 de beta y 4
+  de licencia, y los dos que "parecen atribución por vivir en la búsqueda" (`results-list.tsx`,
+  `search-shell.tsx`) son efectivamente el aviso de beta. El footer compartido de `/salir` no leyó
+  sesión y las 301 páginas siguen prerenderizadas. Y `session.ip_address` se llena de verdad.
+- **Tres greps del DoD hacían FAIL contra comentarios de código, no contra el documento.** Los
+  comentarios que explican *por qué* no va una cláusula de exoneración, por qué no se puede decir
+  que la app no tiene cookies y por qué el footer no puede leer sesión **contenían las frases
+  prohibidas al citarlas**. Se reescribieron para nombrar la regla sin escribir el token que el
+  grep busca. La advertencia sigue estando; lo que cambió es que ya no dispara su propia red.
+- **`lib/contacto.ts` es nuevo y es el dueño único del mail de contacto.** Ya estaba duplicado en
+  dos archivos antes de este spec (`app/legales/page.tsx` y `mi-negocio/[placeId]/editor-client.tsx`)
+  y estas cuatro páginas lo habrían llevado a seis copias. Deja de ser un dato de pie de página en
+  el momento en que la política lo declara como **el canal para ejercer los derechos de la Ley
+  25.326**: una copia vieja ahí no es un typo, es una promesa rota.
+- **Lo que este QA NO verifica, y no puede:** si el texto de los documentos alcanza legalmente. El
+  spec lo dice en su header — esto no lo revisó un abogado. Lo que sí se verificó es el criterio que
+  lo reemplaza (decisión 3): **cada afirmación de los tres documentos nuevos se chequeó contra el
+  código**, incluidas las cuatro de la página de baja (el botón de cancelar existe, el acceso se
+  mantiene hasta fin de período vía `cancelAtPeriodEnd`, el borrado de cuenta cancela en MP en
+  `beforeDelete`, y pide contraseña).
+
+---

@@ -1291,3 +1291,86 @@ es de `R2-05`** —tres son de `SUGERIR_EN_VOTACION`—; y el panel del creador 
 de título (`app/mis-votaciones/mis-votaciones-client.tsx:43`), así que la misma votación ahora se
 llama distinto en cada pantalla. Puede estar bien (en una *lista* los nombres son lo que distingue),
 pero es una segunda implementación de la misma regla y va al `BACKLOG` como territorio de R4.
+
+---
+
+## LEGALES — la letra chica que la app ya necesitaba (ítem 11 del backlog) {#legales}
+
+**Spec:** [`docs/specs/done/LEGALES.md`](../specs/done/LEGALES.md) ·
+**QA:** [AnalisisQA § QA /qa-spec — LEGALES](../qa/AnalisisQA.md) · ✅ 2026-08-21
+
+**Qué hace:** le da a la app los cuatro documentos legales que le correspondían a lo que **ya
+hacía**. Antes de este spec, `app/legales/page.tsx` eran 263 líneas **enteramente de atribución**
+más el aviso de beta: **cero T&C, cero política de privacidad** — grep sobre el repo entero. Y
+mientras tanto el código cobraba por MercadoPago, guardaba emails y hashes de contraseña, escribía
+la **IP y el user-agent de cada sesión**, recibía fotos de dueños sin haberles pedido una licencia y
+le mandaba a Anthropic el texto que el usuario escribía en el chat. Fue el único ítem de la cola
+**no gateado por tráfico**: los otros esperan que llegue gente, este no esperaba nada.
+
+⚠️ **No lo revisó un abogado** (decisión 1 de Fer). Lo que reemplaza al abogado es el criterio de
+redacción de la decisión 3: **cada cláusula tiene que poder señalar una fila del § Inventario del
+spec**, que es un relevamiento del código hecho el 2026-08-21. Si no se puede señalar dónde vive, no
+se escribe — porque unos T&C que prometen algo que el código no cumple son **peores** que no
+tenerlos: convierten un vacío en una declaración falsa.
+
+**Alcance:**
+
+- **F0 — la atribución se separa de los legales**, y por un motivo estructural, no de prolijidad: la
+  atribución es **condición de licencia** (CDLA-Permissive, Apache 2.0, ODbL, ToS de Google) y los
+  T&C son un **contrato con el usuario**. Dos documentos con dueños y riesgos distintos en un
+  archivo terminan driftando, y el que quede viejo rompe una licencia. `/legales` **no se mueve**:
+  se convierte en índice —aviso de beta arriba, los cuatro documentos abajo— y la atribución baja a
+  `/legales/atribucion` **sin un solo redirect**, que es la razón de haber elegido eso y no
+  `/atribucion`.
+- **Los 9 links se re-apuntaron por MOTIVO, y el motivo no se adivina por el archivo.** Al
+  verificarlos uno por uno resultaron **5 de beta y 4 de licencia**, y los dos de
+  `results-list.tsx` y `search-shell.tsx` —que parecen atribución por vivir en la búsqueda— son el
+  aviso de beta. Solo los 4 de licencia van a `/legales/atribucion`; re-apuntarlos todos al índice
+  habría dejado la atribución de Google **a dos clicks** de donde la licencia la pide, que es justo
+  el incumplimiento que la F0 venía a evitar.
+- **F1 — `/legales/terminos`.** Qué es el servicio y qué no garantiza (**sin exoneración total**:
+  no cubre, el que sabe la detecta, y la Ley 24.240 declara nulas las cláusulas abusivas, así que
+  sería letra muerta), la cuenta y su baja, **18+** para registrarse y contratar, el **uso
+  aceptable**, los planes pagos, y la **licencia de las fotos del dueño: no exclusiva y revocable al
+  borrar la foto**. Suma dos líneas de copy en el punto donde se hace el acto —la aceptación bajo el
+  botón del alta y la declaración de derechos en el subidor de fotos, que hasta acá **no tenía una
+  sola línea legal**—. Ninguna de las dos es un checkbox duro: el de `TITULARIDAD` existe porque
+  allá la declaración **sostiene una revocación**; acá no sostiene nada que el T&C no cubra, y la
+  fricción se pagaría en el embudo más caro que tiene la app.
+- **F2 — `/legales/privacidad`**, que es el § *Inventario* puesto en prosa: los **17 datos** del
+  bloque A con su para-qué y su qué-pasa-al-dar-de-baja, y —la mejor carta que tiene la app— lo que
+  **no** se guarda: el texto de las búsquedas, el recorrido de cada persona (la instrumentación es
+  agregada pura, sin `user_id`, sin cookie y sin IP), nada de lo que devuelve Google, ninguna
+  tarjeta, ninguna documentación de titularidad.
+- **Dos trampas de ese documento quedaron escritas al derecho.** *«No usamos cookies»* habría sido
+  **falso** y falso de un modo verificable en 5 segundos con el inspector: hay **dos**, las dos
+  funcionales (la de sesión y `voter_id`) — lo que sí se dice, y es verdad y es mejor, es que **no
+  hay ninguna de analítica ni de terceros**, y por eso no hay banner. Y el invariante *«sin cookies,
+  sin IP»* de `MONETIZACION` es de **la instrumentación**, no de la app: `session.ip_address` y
+  `session.user_agent` **sí se llenan** —verificado contra dev (33/33) y contra producción (9/9)— y
+  se declaran como excepción explícita de **seguridad de la cuenta**.
+- **F3 — `/legales/baja`**, que es un requisito de **forma**, no de redacción. La Resolución
+  424/2020 pide el botón de arrepentimiento y el de baja **accesibles desde la página principal**;
+  la sustancia ya existía en `/cuenta`, pero a varios clicks y detrás de un login. ⚠️ **El link del
+  footer es un `<Link href>` pelado a propósito**: ese footer vive también en `app/salir/layout.tsx`,
+  y un componente que leyera la sesión ahí convertiría **301 landings estáticas en 301 funciones
+  serverless sin tirar un solo error** — el build las marcaría `ƒ` en vez de prerenderizadas.
+- **Lo que NO se tocó, y está escrito:** el borrado de `place_owner_content` (deja de mostrarse pero
+  no se borra — cambiarlo es puerta de ida y quedó en el BACKLOG; el derecho de supresión se cubre
+  con un **canal accesible**), ningún cron de retención (no hay uno solo, y prometer un plazo que
+  nadie ejecuta sería el pecado de la decisión 3), y ningún banner de cookies.
+
+**La brecha declarada, que no es un pendiente:** el titular publicado es **`adondesalimos.com.ar` +
+el mail de contacto**, sin nombre ni CUIT (decisión de Fer). Está tomada con la consecuencia
+escrita: la 24.240 art. 4 y la 424/2020 piden identificar al proveedor, y un contrato cuyo titular
+es un dominio **también es más difícil de hacer valer a favor nuestro**. El mitigante real es que
+quien paga pasa por el checkout de MercadoPago, que identifica al vendedor con nombre y CUIT **antes
+de que se cobre nada**: falta la identificación en el documento, no en la transacción. **Se reabre
+por hecho verificable —el primer pago real de un tercero (`subscription_payments`)— o ante el primer
+reclamo formal**, no por tiempo.
+
+**Dueño único que dejó:** [`lib/contacto.ts`](../../lib/contacto.ts) — el mail de contacto. Ya
+estaba duplicado en dos archivos antes de este spec, y las cuatro páginas nuevas lo habrían llevado
+a seis copias. Deja de ser un dato de pie de página en el momento en que la política lo declara como
+**el canal para ejercer los derechos de la Ley 25.326**: ahí una copia vieja no es un typo, es una
+promesa rota.
