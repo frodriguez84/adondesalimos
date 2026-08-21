@@ -148,17 +148,29 @@ del visitante sin que podamos evitarlo.
 ⚠️ **Omitir este segundo grupo es la clase de silencio que hace que el resto del documento no
 valga.** No podemos ocultarle la IP a un host de teselas, pero sí podemos decirlo.
 
-> **Enmienda del 2026-08-21 (decisión de Fer, al revisar F2 implementada): dos proveedores van
+> **Enmienda del 2026-08-21 (decisión de Fer, al revisar F2 implementada): tres proveedores van
 > nombrados por función y no por marca.** Fer no quiso publicar el detalle de con qué stack está
-> armada la app. Se midió antes de decidir, y el dato es que **la mayoría de estos nombres ya son
-> públicos**: Google, OpenFreeMap y R2 aparecen en la pestaña Red del navegador
-> (`googleusercontent.com`, `tiles.openfreemap.org`, `pub-….r2.dev`), y **Vercel lo anuncia la
-> propia infra en cada respuesta** (`Server: Vercel`, `X-Powered-By: Next.js`, verificado con
-> `curl -I` sobre producción). Ocultarlos no compraba secreto: compraba que un lector técnico viera
-> el documento omitiendo lo que su navegador le muestra. **Los únicos dos donde ocultar oculta algo
-> son Neon (invisible desde afuera) y Resend (solo visible en los headers del mail)**, y son
-> exactamente los dos que se genericizaron: *«nuestro proveedor de envío de mails»* y *«nuestro
-> proveedor de base de datos»*.
+> armada la app. Se midió antes de decidir, y el criterio que salió de la medición es **si el nombre
+> se puede averiguar sin la política**: ocultar lo que el navegador ya muestra no compra secreto,
+> compra que un lector técnico vea el documento omitiendo lo que tiene delante.
+>
+> **Quedan nombrados** Google y OpenFreeMap —aparecen en la pestaña Red (`googleusercontent.com`,
+> `tiles.openfreemap.org`)— y **Vercel**, que lo anuncia la propia infraestructura en cada
+> respuesta (`Server: Vercel`, `X-Powered-By: Next.js`, verificado con `curl -I` sobre producción).
+> Anthropic y Mercado Pago también, pero por otro motivo: **reciben contenido del usuario**, no son
+> infraestructura.
+>
+> **Van por función** *«nuestro proveedor de envío de mails»* (Resend, solo visible en los headers
+> del mail), *«nuestro proveedor de base de datos»* (Neon, invisible desde afuera) y **«nuestro
+> proveedor de almacenamiento»** (R2).
+>
+> ⚠️ **R2 se corrigió el mismo día, y el error vale la pena registrarlo.** En la primera pasada se
+> lo clasificó como *ya público* porque en **dev** las fotos salen de `pub-….r2.dev`, que delata la
+> marca. **En producción no**: viven detrás de `fotos.adondesalimos.com.ar`, como declara el CSP de
+> `next.config.ts`. O sea que R2 estaba en el mismo grupo que Neon y Resend y se lo había puesto en
+> el otro. **La lección que deja: para decidir qué es visible desde afuera hay que mirar
+> PRODUCCIÓN, no el `.env` de dev** — se descubrió mirando los headers de prod por otra razón, no
+> porque el criterio lo hubiera pedido.
 >
 > **La sustancia del bloque D se conserva entera** —qué dato va, para qué, y que un proveedor de
 > hosting ve tu IP— que es lo que la Ley 25.326 pide informar; lo que se omite es la marca. Y para
@@ -313,7 +325,7 @@ Escritos para que `/qa-spec` los pueda verificar con `grep` y con una lectura de
       la base** antes de escribirlo (decisión 7).
 - [x] Enumera los **dos grupos** de terceros del bloque D, incluidos los que reciben la IP porque el
       navegador les pega directo (Google, OpenFreeMap, R2, Vercel, Neon). ⚠️ **Enmendado el
-      2026-08-21**: Neon y Resend van por función y no por marca (ver la enmienda del bloque D). Los
+      2026-08-21**: Resend, Neon y R2 van por función y no por marca (ver la enmienda del bloque D). Los
       dos grupos, el qué-va-a-cada-uno y la IP siguen enumerados; lo que cambia es que esos dos no
       llevan nombre propio y el documento lo ofrece a pedido.
 - [ ] Dice que el chat manda el texto a Anthropic y linkea la política de Anthropic **en vez de

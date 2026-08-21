@@ -178,8 +178,8 @@ const TERCEROS_NAVEGADOR: { quien: React.ReactNode; que: string }[] = [
     que: 'Los mosaicos del mapa.',
   },
   {
-    quien: <Externo href="https://www.cloudflare.com/privacypolicy/">Cloudflare R2</Externo>,
-    que: 'Las fotos que subieron los dueños.',
+    quien: 'Nuestro proveedor de almacenamiento',
+    que: 'Las fotos que subieron los dueños se descargan de ahí.',
   },
   {
     quien: <Externo href="https://vercel.com/legal/privacy-policy">Vercel</Externo>,
@@ -354,8 +354,8 @@ export default function PrivacidadPage() {
           la web—, pero sí podemos decírtelo, que es lo que estamos haciendo acá.
         </p>
         <p>
-          Dos de todos estos van nombrados por lo que hacen y no por su marca: el que manda los
-          mails y el que guarda la base de datos.{' '}
+          Tres de todos estos van nombrados por lo que hacen y no por su marca: el que manda los
+          mails, el que guarda la base de datos y el que aloja las fotos.{' '}
           <strong className="text-foreground">Si querés saber exactamente quiénes son, escribinos a</strong>{' '}
           <MailContacto /> y te lo decimos. No es un dato que escondamos: simplemente elegimos no
           publicar el detalle de con qué proveedores está armada la app.
