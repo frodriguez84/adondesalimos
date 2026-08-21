@@ -157,9 +157,23 @@ export default async function Home({
 
               Y «por lo que tengas ganas» son los chips de ocasión, que junto con
               las zonas pensadas-para-salir son los dos diferenciales reales contra
-              Google Maps. Antes no estaban escritos en ninguna parte. */}
+              Google Maps. Antes no estaban escritos en ninguna parte.
+
+              ⚠️ Enumera ACTIVIDADES y no tipos de local (2026-08-21, pedido de Fer):
+              «bares, restos y shows» describía la vidriera y dejaba afuera dos cosas que
+              la app sí hace —bailar (860 boliches) y jugar (el chip «Jugar»: escape room,
+              arcade, bowling, karaoke, pool)—. Lo que tiene que entenderse en un segundo
+              es para qué sirve, no qué hay adentro.
+
+              ⚠️ Dice «jugar» y NO «sala de escape», aunque la sala de escape sea la de
+              la lista con más gracia: son **34 lugares en toda el AMBA**, menos de uno
+              por zona. Como variante rotativa del H1 se banca —ese no linkea a un
+              resultado filtrado—; acá sería una promesa permanente que el catálogo no
+              sostiene. «Jugar» es el paraguas que sí aguanta (135). Al sumar una
+              actividad a esta lista: mirá el conteo primero. */}
           <p className="text-base text-muted-foreground">
-            Buscá bares, restos y shows por barrio y por lo que tengas ganas. Decidí en dos toques.
+            Buscá dónde comer, tomar algo, bailar, ver un show o jugar. Por barrio y por ganas, en
+            dos toques.
           </p>
           <nav className="mt-1 flex flex-col">
             <Link

@@ -89,8 +89,8 @@ Que alguien que entra por primera vez, sin cuenta, se entere en la primera panta
 ### Copy propuesto (decisión 7 — ajustable)
 
 ```
-¿Qué sale?
-Buscá bares, restos y shows por barrio y por lo que tengas ganas. Decidí en dos toques.
+¿Birra con amigos?   (rota — ver HOME_IDENTIDAD 9-bis)
+Buscá dónde comer, tomar algo, bailar, ver un show o jugar. Por barrio y por ganas, en dos toques.
 
 ¿Van varios? Armá una votación y que elija el grupo  →
 ¿No sabés qué pinta? Contale a la IA                 →
@@ -110,6 +110,22 @@ Buscá bares, restos y shows por barrio y por lo que tengas ganas. Decidí en do
 > *«birras»* por ser la única de la lista que no es una categoría del catálogo. Verificado en 390 px:
 > sigue en dos líneas y no empuja el buscador fuera del pliegue. ⚠️ *«shows»* se chequeó contra la
 > base antes de conservarlo: **1.864** teatros/espacios culturales y **1.246** con música en vivo.
+>
+> **Segunda pasada, el mismo día (pedido de Fer): la bajada enumera ACTIVIDADES, no tipos de
+> local.** *«Bares, restos y shows»* describía la vidriera —qué hay adentro— y dejaba afuera dos
+> cosas que la app sí hace: **bailar** (860 boliches) y **jugar** (el chip *Jugar*: escape room,
+> arcade, bowling, karaoke, pool). Fer lo puso así: *«me interesa que sepan que es una app para
+> buscar lugares para salir a hacer algo, comer, bailar, tomar algo, ir al teatro, sala de
+> escape»*. Quedó **«Buscá dónde comer, tomar algo, bailar, ver un show o jugar. Por barrio y por
+> ganas, en dos toques.»** — verbos de punta a punta, y conserva la promesa de velocidad, que era
+> la mejor mitad de la línea original.
+>
+> ⚠️ **Dice «jugar» y no «sala de escape» a propósito**, aunque la sala de escape sea la de la
+> lista con más gracia: son **34 lugares en toda el AMBA**, menos de uno por zona. Como variante
+> rotativa del H1 se banca —ese **no linkea a un resultado filtrado**, así que no promete un
+> número—; en la bajada sería una promesa **permanente** que el catálogo no sostiene, y el que la
+> busque en su barrio no la encuentra. *«Jugar»* es el paraguas que sí aguanta (**135**).
+> **Regla: antes de sumar una actividad a esta lista, mirá el conteo.**
 
 Cada uno de los dos últimos renglones es un `<Link>` de bloque, alto de toque ≥ 44 px, en el
 mismo bloque `!tieneBusqueda(params)` que el headline y la bajada.

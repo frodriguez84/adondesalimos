@@ -4909,12 +4909,10 @@ es lo que ve el crawler — no de la pantalla.
 **Veredicto:** **APROBADO**
 **Verificación técnica:** typecheck limpio · tests **888/888** (79 archivos) · `npm run build` verde
 con el dev server parado.
-⚠️ **El build es previo a la enmienda de LEG-16** (los dos proveedores por función): después de ese
-cambio se re-corrieron typecheck y los 888 tests, y se verificó la página en vivo, pero **el `next
-build` no se volvió a correr** — decisión de Fer para no frenar el dev server de nuevo. El cambio es
-texto dentro de `app/legales/privacidad/page.tsx`, una página que ya salió `○` y que no ganó ninguna
-lectura de sesión, así que el riesgo es bajo; **queda para correr en la próxima sesión con el server
-parado.**
+✅ **Re-corrido el 2026-08-21 después de la enmienda de LEG-16** (los dos proveedores por función) y
+de los cambios del hero de la home: build verde, las **cinco** páginas de `/legales` siguen `○` y las
+301 de `/salir` siguen `●` (46 zonas + 255 combos). **Ninguna cayó a `ƒ`.** De paso confirma que la
+home es `ƒ`, que es de lo que depende el sorteo del H1 en el server (`HOME_IDENTIDAD` 9-quater).
 **Método:** cuatro checkers independientes (Explore read-only, haiku, uno por fase — maker≠checker)
 contra el DoD de [`docs/specs/active/LEGALES.md`](../specs/active/LEGALES.md), **29/29 PASS**, más
 verificación en vivo contra `https://adondesalimos.ngrok.app` de los 13 casos que no se pueden
