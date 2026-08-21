@@ -440,8 +440,11 @@ una tabla, así el dump que viaja a Neon ya la trae y se evita un `db:migrate` s
 
 ## v2 (fuera de scope)
 
-- Slug SEO en la URL de la ficha (ya en el BACKLOG) — pega justo cuando se prenda la indexación.
-- Sitemap.
+- ~~Slug SEO en la URL de la ficha~~ y ~~Sitemap~~ — **los dos se reabrieron el 2026-08-21** en
+  [`SEO.md`](SEO.md). Esta sección los declaró fuera de scope cuando la app **no estaba en línea**;
+  desde el 2026-08-07 lo está, la indexación ya está prendida y —con la decisión de Fer de no hacer
+  difusión activa— el SEO pasó a ser el **único canal de adquisición**. **El sitemap existe** (F1 de
+  ese spec); **el slug sigue diferido**, ahora con gate escrito, no por omisión.
 - Entorno de staging y preview deployments con base propia.
 - Alertas de caída / uptime.
 - El copy del kill switch del chat ("volvé más tarde") sugiere una espera corta y el tope es
