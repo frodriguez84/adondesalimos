@@ -146,8 +146,20 @@ export default async function Home({
       {!tieneBusqueda(params) && (
         <section className="flex flex-col gap-2 pt-2">
           <RotatingHeadline />
+          {/* La bajada carga la FUNCIÓN, porque el H1 no puede: rota entre tres
+              preguntas y la marca es otra pregunta, así que sin esta línea el que
+              entra por primera vez lee tres veces el tema («salir») y ninguna vez
+              qué hace la app. Por eso arranca con verbo.
+
+              Dice «por barrio» y no «cerca tuyo» a propósito: el modo primario es
+              elegir zona —las 46—, y el GPS es una opción. Prometer geolocalización
+              como puerta principal desalinea la promesa del producto.
+
+              Y «por lo que tengas ganas» son los chips de ocasión, que junto con
+              las zonas pensadas-para-salir son los dos diferenciales reales contra
+              Google Maps. Antes no estaban escritos en ninguna parte. */}
           <p className="text-base text-muted-foreground">
-            Bares, restos, shows y birras cerca tuyo. Decidí sin dar mil vueltas.
+            Buscá bares, restos y shows por barrio y por lo que tengas ganas. Decidí en dos toques.
           </p>
           <nav className="mt-1 flex flex-col">
             <Link

@@ -90,11 +90,26 @@ Que alguien que entra por primera vez, sin cuenta, se entere en la primera panta
 
 ```
 ¿Qué sale?
-Bares, restos, shows y birras cerca tuyo. Decidí sin dar mil vueltas.
+Buscá bares, restos y shows por barrio y por lo que tengas ganas. Decidí en dos toques.
 
 ¿Van varios? Armá una votación y que elija el grupo  →
 ¿No sabés qué pinta? Contale a la IA                 →
 ```
+
+> **La bajada se ajustó el 2026-08-21, y es exactamente el caso que la decisión 7 previó**
+> («ajustarla después de verla en pantalla no reabre el spec»). Decía *«Bares, restos, shows y
+> birras cerca tuyo. Decidí sin dar mil vueltas.»* y a Fer le hacía ruido al leer la home como un
+> desconocido. **El diagnóstico no era la redacción: era que ninguna de las tres líneas del hero
+> decía qué hace la app.** La marca es una pregunta, el H1 rota entre tres preguntas más, y la
+> bajada respondía con una **lista de sustantivos** — o sea el tema («salir») dicho tres veces y el
+> verbo ninguna. Tres correcciones concretas: (a) arranca con **verbo**; (b) dice **«por barrio»** y
+> no *«cerca tuyo»*, porque el modo primario es elegir zona y el GPS es una opción —prometer
+> geolocalización como puerta principal desalineaba promesa y producto—; (c) suma **«por lo que
+> tengas ganas»**, que son los chips de ocasión: junto con las zonas pensadas-para-salir son los dos
+> diferenciales reales contra Google Maps, y **no estaban escritos en ninguna parte**. Se cayó
+> *«birras»* por ser la única de la lista que no es una categoría del catálogo. Verificado en 390 px:
+> sigue en dos líneas y no empuja el buscador fuera del pliegue. ⚠️ *«shows»* se chequeó contra la
+> base antes de conservarlo: **1.864** teatros/espacios culturales y **1.246** con música en vivo.
 
 Cada uno de los dos últimos renglones es un `<Link>` de bloque, alto de toque ≥ 44 px, en el
 mismo bloque `!tieneBusqueda(params)` que el headline y la bajada.
