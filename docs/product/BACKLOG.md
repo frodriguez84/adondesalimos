@@ -171,7 +171,7 @@ son trabajo acotado con criterio de "listo" objetivo.
         quedó intacto**, así que F0 sigue siendo deshacible borrando el proyecto de Neon.
         QA: `docs/qa/AnalisisQA.md` § *DEPLOY F0* (`DEPLOY-F0-01..12`). **Lo que sigue es F1**:
         `noindex` + `maxDuration` + `.env.example` + **el aviso de beta** + proyecto en Vercel + DNS.
-      - [ ] **Aviso «Estamos en beta» — 5º cambio de F1** (pedido de Fer, 2026-08-03; decisión 21
+      - [x] **Aviso «Estamos en beta» — 5º cambio de F1** (pedido de Fer, 2026-08-03; decisión 21
         del spec, con copy y números). Nace de *"por si los usuarios dicen che, esto no busca bien"*.
         **⚠️ Encuadre corregido en la conversación: no nos cubre legalmente de nada** (no se vende
         ni se cobra, y los datos ya están atribuidos), así que escrito como letra chica defensiva es
@@ -186,7 +186,7 @@ son trabajo acotado con criterio de "listo" objetivo.
         banner de home y la frustración aparece mirando 3 resultados. QA `DEPLOY-18/19/20`.
         **Y se conecta con el #3 de esta cola** (curaduría de cobertura): el aviso describe un estado
         que este mismo lanzamiento viene a destrabar, así que puede decirlo sin sonar a excusa.
-      - [ ] **Canal de contacto: `contacto@adondesalimos.com.ar` por Cloudflare Email Routing** (decisión
+      - [x] **Canal de contacto: `contacto@adondesalimos.com.ar` por Cloudflare Email Routing** (decisión
         22, 2026-08-03). Salió de escribir el aviso: el copy invitaba a "avisanos" y **no había
         dónde** — Resend solo envía, y quien conteste `no-reply@` escribe al vacío. Gratis, cero
         código, y **se hace en la misma visita al panel de DNS que Vercel**: ese es el argumento, no
@@ -705,6 +705,76 @@ son trabajo acotado con criterio de "listo" objetivo.
       los hermanos de Fer. Un tablero habría contado lo mismo con más pasos. **Esto no gatea nada
       nuevo**: es contexto para el ítem 3 (curaduría de cobertura) y para `DEPLOY` F2, cuyos
       disparadores también esperan tráfico que todavía no llegó.
+
+- [ ] **10 · Difusión — el casillero que no existía. Triaje del 2026-08-21 y orden aprobado por Fer.**
+      Sesión de producto sin código, continuación directa del ítem 9. La pregunta era separar lo
+      gateado por **tráfico** (esperar es correcto) de lo gateado por una **decisión de Fer** (se
+      puede hacer hoy). El triaje encontró una tercera cosa que no estaba en ninguna de las dos.
+
+      **📊 El hallazgo, medido con un grep y no con una corazonada:** buscando
+      «difusión / difundir / marketing / adquisición / boca a boca» en las 3.819 líneas de este
+      archivo, en `IDEAS.md` y en `RETRO.md` hay **cero ítems**. La única mención es la frase del
+      ítem 9 admitiendo que la única difusión que hubo fueron los hermanos de Fer. **El backlog
+      tenía un casillero vacío llamado "cómo llega la gente"**, y de él dependen los nueve ítems
+      de la tabla de abajo.
+
+      **Los 9 que esperan tráfico — un solo gate, ningún trabajo bloqueado.** Ninguno está
+      frenado por falta de código: están frenados por falta de gente. **No proponerlos hasta que
+      `detail_views` se mueva.**
+
+      | Ítem | Gate escrito | Hoy |
+      |---|---|---|
+      | `DEPLOY` F2 — Upstash (`SEC-16`) | «primer pico de altas basura» | 0 altas, 0 reclamos |
+      | `DEPLOY` F2 — botón de Google OAuth | funnel real de signups | 3 usuarios (uno es Fer) |
+      | `DEPLOY` F3 — cobro + Vercel Pro (decisión 18) | ≥10 clicks distintos, o 1er dueño B2B | sin movimiento |
+      | `ABIERTO_AHORA` F2 (decisión 11) | ≥50 publicados con horarios propios | **1** |
+      | `TITULARIDAD` F2 y F3 | primer caso real de disputa | 0 reclamos, 0 altas |
+      | Ítem 3 — curaduría de cobertura | uso real por lugar | 169/200 más vistos ya curados |
+      | `SEC-10` — `MAX_RONDAS_TOOL` | medir turnos con 4-5 rondas | 4 conversaciones en 13 días |
+      | Ítem 9 — tab «Uso» en `/admin` | ≥200 fichas/semana × 2 semanas | récord 38 |
+      | `PBETA-R5-01` — causa raíz del chat | que se justifique el gasto de `eval:chat` | no se justifica |
+
+      **Lo gateado por una decisión, no por tráfico** (detalle y recomendación en el orden de
+      abajo): el **CSP a enforcing** · **ocultar el filtro de Precio** —que está *decidido desde el
+      2026-08-01 y nunca se implementó*: `lib/search/catalog.ts` filtra `count > 0` y nada más, así
+      que Precio se sigue mostrando con 1 solo lugar— · los **18 `count(*)`** de la home ·
+      **`SEC-25`** (retención) · **`SEC-23`** (cosmético) · los **~400 tags a revisar a mano**
+      (`hasta-tarde` 173 + `trasnoche` 44 + `happy-hour` 189) · la deuda chica de docs/copy.
+
+      **✅ Orden aprobado por Fer (2026-08-21):**
+      1. **Difusión, el tramo que es código: SEO.** Sesión propia, con spec.
+      2. **Difusión, el tramo humano** — decidido abajo.
+      3. **El paquete de decisiones agrupado**: CSP enforcing + filtro de Precio + `SEC-23` + la
+         deuda de docs. Una sola pasada.
+      4. Los ~400 tags a mano, cuando haya ganas de datos.
+      5. **Nada de la tabla de arriba** hasta que el tráfico se mueva.
+
+      **✅ Decisión de Fer sobre el punto 2 (2026-08-21): no se hace difusión activa — solo SEO.**
+      Se evaluaron cuatro caminos (empujar el loop viral con grupos propios · cuenta en redes ·
+      comunidades que ya existen tipo r/BuenosAires · nada activo). Fer eligió **nada activo**.
+      **La consecuencia, escrita para que nadie la lea como un olvido:** el orgánico tarda semanas
+      o meses, así que **los 9 ítems de la tabla siguen esperando todo ese tiempo** y eso es
+      esperado, no un síntoma de que algo se atascó. Y **sube la apuesta del punto 1**: el SEO deja
+      de ser un ítem de infraestructura para ser **el único canal de adquisición de la app**.
+
+      **⚠️ Y por eso el punto 1 NO es "un sitemap".** Dos cosas que el spec tiene que resolver y
+      que se vieron al triar, para no re-descubrirlas:
+      - **No existe `app/sitemap.ts`.** El `noindex` se sacó el 2026-08-07 (F1), así que hay
+        **18.993 fichas indexables y ningún mapa que se las ofrezca a Google**. En
+        `DEPLOY.md:444` el sitemap está declarado «v2, fuera de scope» — decisión tomada cuando la
+        app **no estaba en línea**; el contexto cambió y por eso se reabre.
+      - **19.000 fichas de Overture son *thin content*.** Nombre + dirección + tags no rankea, y
+        ofrecerle a Google 19k páginas casi vacías puede rendir **menos** que ofrecerle 1.200
+        buenas. Hay que decidir si se indexa **selectivamente** (curados, con contenido de dueño)
+        en vez de todo. Conecta con el ítem 3: la curaduría deja de ser solo cobertura de filtros y
+        pasa a ser materia prima de SEO.
+      - **Lo que la gente busca es «bares en Palermo», y esa URL no existe.** La búsqueda vive en
+        `/?zona=…` con `searchParams`: **una sola URL** para las 46 zonas × 6 facetas. El SEO local
+        pide página propia por zona (× tipo), que es **arquitectura**, no un sitemap.
+      - **El slug de la ficha** (`/lugar/[uuid]` → `/lugar/nombre-zona-xxxx`, anotado hace tiempo
+        en § Mejoras futuras) entra acá. ⚠️ **Es puerta de ida**: son URLs públicas y hay links
+        compartidos vivos (`INVITACION`, fichas mandadas por WhatsApp) ⇒ los redirects se deciden
+        **antes** de tocar, no después.
 
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
