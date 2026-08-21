@@ -37,6 +37,28 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-21 · Spec SEO + F1 — Fable (spec) + implementador Opus (código)
+
+- **Salió bien: medir el catálogo ANTES de escribir las decisiones.** Las 4 decisiones venían
+  planteadas como preguntas de arquitectura, y tres las resolvió un `SELECT`, no el criterio. El
+  eje cocina parecía obvio («sushi en Palermo» es una búsqueda real) y murió con un número: **43**
+  combos con ≥10 lugares contra **255** de zona × tipo. Sin esa medición el spec habría pedido dos
+  ejes y la mitad de las páginas habrían nacido vacías. Mismo patrón que la sesión del 2026-08-20:
+  medir primero cambia el spec, no lo confirma.
+- **Frenó: revisar el output del subagente costó lo mismo que delegarlo, y por eso valió.** El
+  `implementador` devolvió código bueno con typecheck y 858 tests verdes, pero tenía **un XSS**
+  (`JSON.stringify` en `dangerouslySetInnerHTML`), **8 copias** de la regla `noindex` —declaradas
+  en su propio reporte como "la única duplicación que dejé", o sea vistas y no resueltas— y dos
+  queries del mismo módulo contando distinto. Ninguna la habría cazado un gate: los tests pasaban.
+  **El reporte honesto del subagente fue lo que las hizo baratas de encontrar** — las tres estaban
+  en su § *Decisiones y desvíos*.
+- **Qué cambiar: nada del método. Una línea al `CLAUDE.md` del proyecto, ya escrita.** El
+  subagente no resolvió las 8 copias porque el spec listaba **tres** módulos en § *Arquitectura* y
+  lo leyó como un tope. Es una lectura razonable de un spec mal redactado por mí, no una falla del
+  agente: la tabla de dueños describe el eje SEO, no un presupuesto de archivos. **No se agrega
+  ninguna regla nueva** —«una regla, un dueño» ya cubría el caso—; lo que se corrige es cómo
+  redactar esa tabla en el próximo spec: enumerar dueños no es prohibir dueños.
+
 ## 2026-08-20 · Medir el uso real: decisión de no construir — Opus
 
 - **Salió bien: medir producción antes de diseñar.** El pedido era una tab de `/admin`; la sesión
