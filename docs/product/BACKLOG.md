@@ -805,12 +805,14 @@ son trabajo acotado con criterio de "listo" objetivo.
       (sesión de better-auth + `voter_id`), así que copiar el *«sin cookies»* de MONETIZACION d22 a
       una política sería **falso**; (b) `session.ip_address` y `session.user_agent` **sí** se
       guardan — el *«sin IP»* es de la instrumentación, no de la app; (c) `place_owner_content`
-      **no se borra** al eliminar la cuenta, solo deja de mostrarse. ⚠️ **Falta un dato de Fer para
-      cerrar F1**: **nombre completo y CUIT** del titular. Ya se descartó por escrito que alcance
-      con el dominio y el mail (*«un contrato cuyo titular es una URL no tiene una de las dos
-      partes»*), y el **domicilio se omite a propósito** con la brecha declarada — publicar la
-      dirección particular tiene un costo real y MercadoPago ya identifica al vendedor en el
-      checkout.
+      **no se borra** al eliminar la cuenta, solo deja de mostrarse. ⚠️ **No queda nada esperando a Fer**: el titular
+      publicado es **el dominio + el mail**, sin nombre ni CUIT (decisión de Fer del 2026-08-21,
+      tomada con la consecuencia a la vista). Es la **brecha declarada** del spec y **corta para
+      los dos lados** — un T&C sin titular identificable también es más difícil de invocar a favor
+      nuestro. Mitigante real: el checkout de MercadoPago identifica al vendedor con nombre y CUIT
+      antes de cobrar, o sea que donde nace la relación de consumo sí hay un responsable.
+      **Disparador para reabrir, verificable y no por tiempo: el primer pago real de un tercero**
+      (`select count(*) from subscription_payments`).
 
       **El hallazgo que las ordenó**: `app/legales/page.tsx` son **263 líneas y todas sus secciones
       son atribución** (Overture, Foursquare, AllThePlaces, MapLibre, OpenFreeMap, Google). **No hay

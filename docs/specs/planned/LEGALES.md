@@ -179,36 +179,41 @@ Las 1-3 las tomó Fer el **2026-08-21** en el triaje del ítem 11; las 4-16 son 
 | 15 | **Los documentos se versionan con una fecha visible y con git, sin tabla nueva.** Cada uno lleva *«Última actualización: YYYY-MM-DD»*. **No se guarda qué versión aceptó cada usuario**: sería un pasivo nuevo sin ningún uso hoy. Es la cicatriz de TITULARIDAD decisión 6 leída al revés — allá se versionó en la base porque la declaración sostiene una revocación; acá no sostiene nada |
 | 16 | **El aviso de beta se queda en `/legales`, arriba del índice.** No es un documento legal, pero **es lo que viene a leer quien toca el link del footer**, y darle URL propia agrega una página para no ganar nada. `/legales` queda siendo *«la letra chica»*: beta arriba, los cuatro documentos abajo, correcciones al pie |
 
-### ⚠️ La única entrada que este spec no puede resolver solo
+### El titular del servicio — decidido, y es la brecha conocida del spec
 
-**Quién es el titular del servicio.** La Ley 24.240 art. 4 pide que el proveedor esté
-identificable, y unos T&C sin titular son casi lo mismo que no tenerlos. **No bloquea F0** —
-bloquea el cierre de F1.
+**Decisión de Fer, 2026-08-21: por ahora el titular declarado es `adondesalimos.com.ar` + el mail
+de contacto.** No hay nombre ni CUIT. Está tomada sabiendo lo que sigue, así que **no se reabre en
+cada sesión** — se reabre cuando se cumpla el disparador de abajo.
 
-⚠️ **El dominio NO alcanza, y esta es la pregunta que ya se hizo una vez** (Fer, 2026-08-21):
-*«¿puedo poner `adondesalimos.com.ar` y el mail de contacto?»*. **No**: un dominio no es una
-persona ni una razón social, no se le puede reclamar nada, y un contrato cuyo titular es una URL
-es un contrato **sin una de las dos partes**. Es exactamente el pecado de la decisión 3 —parecer
-legal sin describir nada— aplicado al campo que sostiene todos los demás. Queda escrito acá para
-que la sesión que implemente F1 no la re-abra.
+**La consecuencia, escrita (mismo criterio que la decisión 1):** esta es **la brecha más grande que
+tiene el spec**. La Ley 24.240 art. 4 y la Resolución 424/2020 piden identificar al proveedor, y un
+contrato cuyo titular es un dominio no tiene una de las dos partes. ⚠️ **Y corta para los dos
+lados**, que es lo que suele no verse: un T&C sin titular identificable también es **más difícil de
+hacer valer a favor nuestro** — las cláusulas que protegen a la app (uso aceptable, licencia de
+fotos, baja por reclamo falso) las invoca alguien, y ese alguien tiene que existir.
 
-**Lo que hace falta, entonces:**
+**El mitigante es real y no es una excusa:** quien paga pasa por el **checkout de MercadoPago**,
+que identifica al vendedor con nombre y CUIT **antes** de que se cobre nada. O sea que en el punto
+exacto donde nace la relación de consumo que la 24.240 protege, el consumidor **sí** llega a un
+responsable identificado. Lo que falta es la identificación en el documento, no en la transacción.
 
-| Dato | Estado |
+**Disparador para reabrir** (no es por tiempo, es por hecho verificable): **el primer pago real de
+un tercero** — alguien fuera del círculo de Fer —, medible con
+`select count(*) from subscription_payments`. Ahí la relación de consumo deja de ser hipotética y
+el nombre + CUIT pasan a ser el costo mínimo de cobrar. El otro disparador es cualquier reclamo
+formal. **Publicar el domicilio sigue sin recomendarse** ni siquiera entonces: nombre + CUIT + mail
+alcanzan, y la dirección particular de un dev solo tiene un costo que el resto no tiene.
+
+**Lo que sí se publica desde F1:**
+
+| Dato | Valor |
 |---|---|
-| Nombre completo de Fer (persona física) | ⏳ pendiente |
-| CUIT / CUIL | ⏳ pendiente. **No es sensible**: es público y se baja con la constancia de ARCA solo con el número ([`TITULARIDAD`](../active/TITULARIDAD.md) ya lo relevó) |
-| Mail de contacto | ✅ `contacto@adondesalimos.com.ar` |
-| Jurisdicción | ✅ Ciudad Autónoma de Buenos Aires, salvo que Fer diga otra |
-| Domicilio | ➖ **se publica sin domicilio** (ver abajo) |
+| Identificación | `adondesalimos.com.ar` (⚠️ brecha declarada, ver arriba) |
+| Contacto | `contacto@adondesalimos.com.ar` — el único mail que recibe (`no-reply@` solo envía) |
+| Jurisdicción | Ciudad Autónoma de Buenos Aires |
 
-**Sobre el domicilio, que es la parte incómoda: se omite a propósito y con la brecha anotada.**
-Publicar la dirección particular de un dev solo tiene un costo real y concreto, y hay dos
-mitigantes que no son excusas: el **checkout de MercadoPago identifica al vendedor con nombre y
-CUIT antes de que nadie pague** —o sea, el punto donde se forma la relación de consumo sí muestra
-un responsable—, y el mail de contacto es un canal vivo que se contesta. **Esto es una brecha
-declarada, no una omisión**: si el volumen o el ingreso lo justifican, se agrega un domicilio
-comercial y se actualiza la fecha del documento (decisión 15).
+⚠️ **F1 NO está bloqueada.** Antes esperaba un dato de Fer; con la decisión tomada, las cuatro
+fases se pueden implementar de corrido.
 
 ---
 
@@ -262,7 +267,9 @@ Escritos para que `/qa-spec` los pueda verificar con `grep` y con una lectura de
 
 ### F1 — Términos
 - [ ] `/legales/terminos` existe, es estática y lleva *«Última actualización: YYYY-MM-DD»*.
-- [ ] Identifica al titular del servicio (el dato pendiente de Fer) y la jurisdicción.
+- [ ] Publica identificación, canal de contacto y jurisdicción según la tabla del § *El titular
+      del servicio*. ⚠️ **No inventa un nombre, una razón social ni un CUIT que Fer no dio** — el
+      criterio de la decisión 3 vale también acá: un titular inventado es peor que uno incompleto.
 - [ ] `grep -in "no nos hacemos responsables\|bajo ninguna circunstancia\|renuncia a todo"` sobre
       el archivo devuelve **cero** (decisión 9).
 - [ ] Dice 18+ para crear cuenta y contratar (decisión 14).
@@ -345,6 +352,8 @@ Escritos para que `/qa-spec` los pueda verificar con `grep` y con una lectura de
 ## v2 (fuera de scope)
 
 - Borrar `place_owner_content` al eliminar la cuenta (decisión 8) — puerta de ida, al BACKLOG.
+- **Publicar nombre + CUIT del titular**, cuando entre el primer pago real de un tercero
+  (`subscription_payments`) o ante el primer reclamo formal. Ver § *El titular del servicio*.
 - Revisión por un abogado, si el volumen o el ingreso lo justifican.
 - Registro de bases de datos ante la AAIP (Ley 25.326 art. 21) — evaluar cuando haya volumen real.
 - Tabla de aceptación versionada (decisión 15), si algún día un cambio de términos lo pide.
