@@ -37,6 +37,26 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-20 · Medir el uso real: decisión de no construir — Opus
+
+- **Salió bien: medir producción antes de diseñar.** El pedido era una tab de `/admin`; la sesión
+  estaba por recomendar "esperá" apoyada en un supuesto ("el volumen es de decenas") cuando el propio
+  BACKLOG lo contradecía —el ítem 3 citaba un tramo "501-975" de lugares con impresiones—. Un `SELECT`
+  read-only contra Neon reemplazó la corazonada por 69 aperturas de ficha y 1 votación en 13 días, y
+  con eso el disparador que Fer acababa de elegir quedó a 5× de distancia. **Sin ese dato la decisión
+  habría sido la misma pero sin línea de base**, que es justo lo que hace que no se re-discuta.
+- **Frenó: no existe forma corta de hacerle una pregunta a producción.** `prod:check` es una
+  radiografía fija; para "¿cuánto se usa esto?" hubo que escribir un script suelto en la raíz,
+  descubrir a los golpes que `tsx` no acepta top-level await, e inventar un nombre de columna que no
+  existía (`voter_id` por `voter_token`). Tres intentos para dos `SELECT`. Además el classifier de
+  auto mode bloqueó ejecutarlo —correcto, es una credencial de prod— así que lo corrió Fer, y eso
+  agregó un ida y vuelta explicando dónde se abre una terminal.
+- **Qué cambiar: nada todavía, pero queda anotado el patrón.** Si vuelve a hacer falta consultar prod
+  con una pregunta libre, el arreglo barato es un `npm run prod:sql` que tome una query por argumento
+  con la sesión ya en `READ ONLY` (el cinturón que ya tiene `prod-check.ts:112`). **No se hace ahora**:
+  pasó una vez, y una red que se construye por un solo uso es exactamente la sobre-ingeniería que
+  esta misma sesión decidió no cometer con la tab. Se hace si vuelve a pasar.
+
 ## 2026-08-18 · Seguridad: `SEC-01` + `SEC-11` (`proxy.ts` y headers) — Opus
 
 - **Qué salió bien.** **Verificar la premisa del informe antes de escribir código, no el código

@@ -633,6 +633,79 @@ son trabajo acotado con criterio de "listo" objetivo.
         es `DEPLOY` F2 (Upstash) y está escrito hace rato; que aparezca en la auditoría **confirma**
         la prioridad, no agrega un ítem nuevo.
 
+- [ ] **9 · Medir el uso real de la app — DECIDIDO ✅ 2026-08-20: no se construye nada todavía.**
+      Pedido de Fer: *"una sección en `/admin` para ver qué cantidad de usuarios USAN la app,
+      independientemente de los que se registren o logueen, y qué hacen"*. Se midió producción antes
+      de diseñar nada y **el dato dio vuelta el pedido**. Queda acá con disparador para no
+      re-discutirlo en tres semanas.
+
+      **📊 Línea de base — producción, 2026-08-07 al 2026-08-19 (13 días).** Medido con un `SELECT`
+      read-only contra Neon; es *toda* la actividad de la app desde que está en línea:
+
+      | Semana | Impresiones | Fichas abiertas | Guardados | Lugares distintos |
+      |---|---|---|---|---|
+      | 03/08 (lanzamiento) | 8.440 | **38** | 9 | 704 |
+      | 10/08 | 732 | **25** | 0 | 457 |
+      | 17/08 (parcial) | 221 | **6** | 0 | 93 |
+
+      Totales: **69 aperturas de ficha · 10 taps** (8 `website`, 2 `como_llegar`) · **1 votación
+      creada** (08/08, 2 votos de 2 dispositivos) · 4 conversaciones de chat · 3 usuarios, 9
+      sesiones · 6 ítems guardados vivos.
+
+      **Decisión 1 — no se crea identificador anónimo de dispositivo.** El invariante *"sin
+      `user_id`, sin cookies, sin IP"* de `place_impressions_daily` se **ratifica**, ahora
+      explícitamente contra un pedido concreto y no como default heredado. Cuatro motivos, del más
+      fuerte al más débil: **(a)** es una **puerta de ida** — no ponerla es reversible (si en seis
+      meses hace falta, se pone), ponerla no lo es: la promesa "no guardamos nada por persona" no se
+      des-rompe hacia atrás; **(b)** el valor marginal sobre Vercel Web Analytics es casi cero — lo
+      único que agregaría es *retorno entre días*, sobre una base de decenas donde no distingue señal
+      de ruido; **(c)** el invariante es un activo, escrito tres veces (schema,
+      `lib/search/impressions.ts:17-22`, `CLAUDE.md`) y sostenido a lo largo de cuatro specs — vale
+      más en una app de salidas, donde el dato es *dónde estuviste*, que en casi cualquier otro
+      producto; **(d)** ePrivacy pide consentimiento para una cookie de analytics en la UE, y ya se
+      aceptó que hay visitantes de la UE al descartar el geo-bloqueo (el argumento del turista,
+      `docs/qa/SEGURIDAD.md`). AR 25.326 no lo pediría, pero el eje no es lo legal. Además, abrir un
+      segundo eje de datos por persona antes de cerrar `SEC-25` (retención de `chat_messages`)
+      empeora un hallazgo abierto.
+
+      **Decisión 2 — no se construye la tab de `/admin`.** El disparador elegido por Fer está a **5×
+      de distancia en la mejor semana que hubo**. Una pantalla para leer seis números que entran en
+      un renglón es sobre-ingeniería; y esperar **no pierde datos**, porque los cinco registradores
+      (`/api/search`, `app/page.tsx`, la ficha, taps, guardados) están cableados y escribiendo desde
+      el día 1. Lo único con fecha de vencimiento es el panel de Vercel (Hobby retiene una ventana
+      corta), y eso es headcount, que es justo lo que se decidió no perseguir.
+
+      **⚠️ Dos hallazgos sobre los datos que ya se guardan, para no leerlos mal después:**
+      1. **`impressions` NO es "búsquedas" ni "gente".** Cuenta **cards mostradas** y mezcla tres
+         orígenes: el render de la home, cada scroll de `/api/search` y las búsquedas del chat IA.
+         Cualquier ratio "visita → ficha" calculado contra `impressions` es inventado. El denominador
+         del embudo **no existe en la base**: sale de Vercel (pageviews de `/` vs `/lugar/[id]`), o
+         habría que agregar un contador de búsquedas servidas (agregado puro, sin persona).
+      2. **El tráfico propio está sumado al ajeno y no se puede separar** — precisamente porque no
+         hay identificador. El 09/08 hay 5.067 impresiones contra 10 aperturas de ficha: eso es QA o
+         un crawler, no gente decidiendo dónde salir. **El número honesto es `detail_views`**, que es
+         1:1 con una acción humana deliberada.
+
+      **Disparador para reabrir (elegido por Fer):** **≥200 aperturas de ficha en una semana, dos
+      semanas seguidas.** Sale de `detail_views`, que no vence, así que se puede verificar **hacia
+      atrás** con un `SELECT` aunque nadie haya estado mirando. Récord actual: **38**.
+
+      **Mientras tanto (0 código):** mirar Vercel Analytics ~2 min por semana y anotar una línea
+      (fecha · únicos · pageviews de `/` · pageviews de `/lugar/[id]`). Da la serie histórica del
+      embudo con retención infinita y esquiva el borrado de la ventana de Hobby.
+
+      **El día del disparador, qué se construye:** una tab "Uso" en `/admin` (`app/admin/tabs.tsx`,
+      octava — patrón conocido) con un `GROUP BY date` sobre las tres tablas que ya existen, más un
+      contador de búsquedas servidas para que el denominador viva en la base. Sin spec por ahora:
+      especear una pantalla cuyo contenido depende de datos que todavía no se vieron es adivinar.
+
+      **📌 Lo que el dato dice y no es una métrica:** la curva es descendente desde el día uno
+      (38 → 25 → 6 fichas) y el loop viral se ejecutó **una sola vez**. La app no tiene un problema
+      de medición, tiene un problema de que nadie la está usando — la única difusión que hubo fueron
+      los hermanos de Fer. Un tablero habría contado lo mismo con más pasos. **Esto no gatea nada
+      nuevo**: es contexto para el ítem 3 (curaduría de cobertura) y para `DEPLOY` F2, cuyos
+      disparadores también esperan tráfico que todavía no llegó.
+
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
 **Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).

@@ -1338,3 +1338,11 @@ arriba, en dos sesiones posteriores del mismo día.
    otra búsqueda conteste con menos info. El dato sale gratis del log que ya existe
    (`type: "chat_tool_call"`, una línea por llamada a la tool) — falta tráfico, no instrumentación.
    Mientras tanto el gasto lo acota `ai.chat_monthly_cap`, que **sí** está puesto.
+
+   **📊 Medido el 2026-08-20 (sesión de métricas de uso): el tráfico sigue sin llegar.** En los 13
+   días de producción hay **4 conversaciones de chat en total** (`chat_conversations`, contra Neon).
+   Con ese volumen la muestra de turnos no alcanza para saber cuántos usan 4 o 5 rondas, así que la
+   decisión *"medir antes de tocar"* **se mantiene y no está bloqueada por nadie**: está esperando
+   usuarios, no trabajo. Y el riesgo real del hallazgo es proporcional — el peor caso de ~US$96
+   supone un cap que se llena, y hoy se está usando ~0,1% de eso. Ver `BACKLOG.md` § *Cola post-v2*
+   ítem 9 para la línea de base completa.
