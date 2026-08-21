@@ -5,6 +5,68 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Dos reglas correctas que juntas incumplen el DoD (2026-08-21 · SEO F2)
+
+**Qué pasó.** El DoD pedía un breadcrumb en la ficha «con links que resuelven a `/salir/<zona>` y
+`/salir/<zona>/<tipo>`». Escribí dos piezas, las dos bien:
+
+- El componente `Breadcrumb` **nunca linkea la última miga** — es la página actual, y linkearla a
+  sí misma es ruido. Regla correcta, y la que usan todos los breadcrumbs del mundo.
+- La ruta de la ficha, tal como la nombra la decisión 13, es `Inicio › <Zona> › <Tipo>`. Correcta
+  también: es literalmente lo que dice el spec.
+
+Compuestas, el Tipo quedaba **último** ⇒ no se linkeaba ⇒ **el link que el DoD exige no existía**.
+Ninguna de las dos reglas está mal. Lo que estaba mal era la composición, y no se ve leyendo
+ninguna de las dos por separado.
+
+**Cómo apareció.** No lo cazó el typecheck (compila), ni los tests (no había uno para esto), ni la
+lectura del código —dos veces lo leí y me pareció bien—. Apareció al hacer
+`curl | grep '<nav aria-label=...>'` y ver la última miga como `<span>` en vez de `<a>`. El arreglo
+fue agregar una cuarta miga con el nombre del lugar: la ruta ahora **cierra donde termina la
+navegación de verdad**, el Tipo deja de ser el último y se linkea solo.
+
+**Qué hacer distinto.**
+
+- **Un criterio de DoD que dice «con links que resuelven a X» se verifica en el HTML servido, no
+  en el código.** Es la misma familia que la lección de `qa-en-vivo-encuentra-lo-que-los-tests-no`
+  (el `EXISTS` en SQL crudo: 241 tests verdes y la pantalla mentía). La forma barata acá fue un
+  `curl | grep` del `<nav>`, treinta segundos.
+- **Cuando un requisito se reparte entre un componente genérico y su llamador, el `grep` del DoD
+  hay que hacerlo sobre la salida, no sobre los dos archivos.** Cada uno cumple su mitad; nadie
+  cumple el todo.
+- El checker independiente **tampoco lo habría cazado** leyendo código: le pregunté por el criterio
+  y habría visto `urlDeZonaTipo(...)` asignado a la miga. La evidencia que vale es el HTML.
+
+---
+
+## Un `layout.tsx` nuevo pone el `typecheck` en rojo, y no es tu código (2026-08-21 · SEO F2)
+
+**Qué pasó.** Al crear `app/salir/layout.tsx`, `npm run typecheck` empezó a tirar dos errores
+seguidos en `.next/dev/types/validator.ts`:
+
+```
+error TS2344: Type 'Route' does not satisfy the constraint '"/"'.
+  Type 'LayoutRoutes' is not assignable to type '"/"'.
+    Type '"/salir"' is not assignable to type '"/"'.
+```
+
+No hay nada mal en el código. `tsconfig.json` incluye **dos** carpetas de tipos generados —
+`.next/types/**` (la del último `next build`) y `.next/dev/types/**` (la que regenera el dev
+server)—. El dev server ya había visto el layout nuevo (`LayoutRoutes = "/" | "/salir"`), pero la
+del build seguía en `LayoutRoutes = "/"`, de la última vez que se buildeó. Las dos declaraciones
+globales de `LayoutProps` chocan y gana la vieja.
+
+**Qué hacer distinto.**
+
+- **Si aparece un error de `.next/types/` o `.next/dev/types/` después de agregar una ruta o un
+  layout: es artefacto stale, no tu código.** Se va solo con el próximo `next build`.
+- Para confirmarlo sin correr el build (que no se corre con el dev server levantado): mover
+  `.next/types/routes.d.ts` de lugar, correr el typecheck, y devolverlo. Si el único error que
+  queda es "Cannot find module './routes.js'", el código está limpio.
+- **No editar ni borrar nada de `.next/` para "arreglarlo"** — es salida de build y vuelve igual.
+
+---
+
 ## El escape que se resuelve solo antes de llegar al archivo (2026-08-21 · SEO F1)
 
 **Qué pasó.** El arreglo del XSS del JSON-LD era una línea: escapar `<` como la secuencia

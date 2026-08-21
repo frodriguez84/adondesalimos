@@ -3,7 +3,13 @@
 **Estado:** **Parcial** — escrito 2026-08-21 · **F1 ✅ 2026-08-21** (cimientos + sitemap + eje de
 `noindex` + JSON-LD): typecheck limpio, **861 tests**, `next build` verde con el server parado, y
 `/sitemap.xml` prerenderizado **estático** con **1.126 URLs** (3 estáticas + 1.123 fichas), cruce
-contra `publishedWhere` con **diff = 0**. · **F2** (páginas de zona) y **F3** (medición) pendientes
+contra `publishedWhere` con **diff = 0**. · **F2 ✅ 2026-08-21** (las 301 páginas de zona):
+QA **APROBADO** — **301 URLs recorridas con 0 no-200**, sitemap en **1.427** (3 + 46 + 255 + 1.123),
+typecheck limpio, **888 tests**, `next build` en frío verde en **41 s** con las 301 saliendo `●` (SSG)
+y `security-review` con **0 HIGH / 0 MEDIUM**. De paso se cerraron en vivo los tres de F1 que habían
+quedado en código (`SEO-06`, `SEO-07`, `SEO-08`) y el preview de WhatsApp de `/votacion/[token]`
+quedó intacto. · **F3** (medición en Search Console, 60 días después) **pendiente** — es lo único
+que falta para cerrar el spec, y no tiene código
 **Prioridad:** **Alta** — el 2026-08-21 Fer decidió **no hacer difusión activa** (BACKLOG § Cola
 post-v2, ítem 10). Con esa decisión el SEO deja de ser infraestructura y pasa a ser **la única
 forma en que un usuario nuevo puede llegar a la app**. Los 9 ítems del backlog gateados por
@@ -292,6 +298,13 @@ Todo reversible, sin migraciones, sin cambios de URL. Es lo que hace que F2 sea 
 | SEO-19 | Preview del link de `/salir/palermo-soho/bar` en WhatsApp | Trae la imagen de `app/og/route.tsx` (no se perdió al declarar `openGraph`) |
 | SEO-20 | 390×844, las dos páginas nuevas | Sin desbordes horizontales; el bloque de links hermanas no empuja la pantalla |
 | SEO-21 | Tiempo del `next build` antes vs después | Anotado. Si las 301 páginas lo vuelven inviable en Hobby, es dato para revisar la decisión 5 |
+
+Al correr el QA de F2 salieron nueve criterios más, de arquitectura y no de pantalla —**`SEO-22` a
+`SEO-30`**: fuente única de la lista de combos, cero SQL nuevo, `publishedWhere` en todas las
+queries, el piso de links hermanos, el JSON-LD sin datos de Google, el **escape único de `<`**, que
+las rutas sean estáticas de verdad, cero prosa generada y los tres pisos sin contaminarse. Viven en
+`docs/qa/AnalisisQA.md` § *QA /qa-spec — SEO F2*; acá se nombran para que el próximo que lea esta
+tabla no crea que el QA fueron 21 casos.
 
 ---
 

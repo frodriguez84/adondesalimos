@@ -1,5 +1,6 @@
 import { DIAS, type HorariosSemana } from '@/lib/negocio/horarios'
 import { urlAbsolutaDeLugar } from '@/lib/lugar/url'
+import { serializarJsonLd } from '@/lib/seo/jsonld'
 import type { FichaTag } from '@/lib/lugar/ficha'
 
 /**
@@ -111,20 +112,17 @@ export function jsonLdDeLugar(place: LugarParaJsonLd): Record<string, unknown> {
 }
 
 /**
- * El JSON-LD ya serializado y **seguro de inyectar** en un `<script>`.
+ * El JSON-LD de la ficha ya serializado y **seguro de inyectar** en un `<script>`.
  *
- * ⚠️ **`JSON.stringify` NO escapa `<`**, así que un lugar llamado
- * `Bar </script><script>…` rompería el tag y ejecutaría script en la ficha. No es
- * teórico: el `name` viene de Overture (dato de terceros), de una corrección de
- * admin y —vía `resolverContenidoDueno`— del dueño del negocio. Encima el CSP está
- * en `Report-Only` y con `'unsafe-inline'`, así que no lo frenaría.
- *
- * Escapar `<` como `<` es válido en JSON y desactiva el vector entero: sin un
- * `<` literal no se puede abrir ni cerrar ningún tag. **La page usa esto, nunca
- * `JSON.stringify` a pelo.**
+ * ⚠️ El escape de `<` —sin el cual un lugar llamado `Bar </script><script>…`
+ * ejecuta script— **ya no vive acá**: lo mudó F2 a `serializarJsonLd`
+ * (`lib/seo/jsonld.ts`) cuando las páginas de `/salir` pasaron a emitir su propio
+ * JSON-LD. Dos escapes serían dos oportunidades de que uno quede sin el `replace`,
+ * y el que quedara viejo no fallaría: publicaría el XSS en silencio. **La page usa
+ * esto, nunca `JSON.stringify` a pelo.**
  */
 export function jsonLdSerializado(place: LugarParaJsonLd): string {
-  return JSON.stringify(jsonLdDeLugar(place)).replace(/</g, '\\u003c')
+  return serializarJsonLd(jsonLdDeLugar(place))
 }
 
 /** `HorariosSemana` propia → `OpeningHoursSpecification[]`. Vacío si no hay nada. */

@@ -37,6 +37,15 @@ export type PlaceDetail = {
   /** Zona primaria, o `null`: 1.890 lugares publicados no tienen (ZONAS, dec. 17). */
   zone: string | null
   /**
+   * Slug de la zona primaria — el mismo `null` que `zone`, y siempre juntos.
+   *
+   * Lo pide el breadcrumb `Inicio › <Zona> › <Tipo>` (SEO, decisión 13), que
+   * necesita armar `/salir/<zona>`. Sale de la base y no de buscar `zone` en el
+   * canon por nombre: el nombre es copy y puede cambiar sin romper nada, el slug
+   * es contrato.
+   */
+  zoneSlug: string | null
+  /**
    * Contacto ya resuelto `COALESCE(dueño → Overture)` (AUTH, decisión 13). Lo que
    * el dueño cargó gana; lo que dejó vacío cae a la base. La ficha no ve el
    * origen — solo el dato que corresponde mostrar.
@@ -174,7 +183,8 @@ export const getPlaceDetail = cache(async (id: string): Promise<PlaceDetail | nu
     lng: place.lng,
     address: place.address,
     locality: place.locality,
-    zone: zonaPrimaria,
+    zone: zonaPrimaria?.name ?? null,
+    zoneSlug: zonaPrimaria?.slug ?? null,
     phone: contenido.phone,
     website: contenido.website,
     socials: contenido.socials,
@@ -202,15 +212,15 @@ async function tagsDeLugar(id: string): Promise<FichaTag[]> {
 }
 
 /** Zona primaria del lugar, o `null` si cae fuera de todo polígono (ZONAS, dec. 17). */
-async function zonaPrimariaDeLugar(id: string): Promise<string | null> {
+async function zonaPrimariaDeLugar(id: string): Promise<{ name: string; slug: string } | null> {
   const [fila] = await db
-    .select({ name: zones.name })
+    .select({ name: zones.name, slug: zones.slug })
     .from(placeZones)
     .innerJoin(zones, eq(zones.id, placeZones.zoneId))
     .where(and(eq(placeZones.placeId, id), eq(placeZones.isPrimary, true)))
     .limit(1)
 
-  return fila?.name ?? null
+  return fila ?? null
 }
 
 /**

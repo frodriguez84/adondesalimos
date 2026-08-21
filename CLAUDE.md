@@ -44,6 +44,7 @@ app/
   page.tsx            home = búsqueda (server component, lee searchParams)
   layout.tsx          root layout (tema ámbar único, sin toggle)
   legales/            atribución de fuentes (Overture + Google)
+  salir/[zona]/       las 301 landings SEO (F2) — ESTÁTICAS con ISR diaria, ver Notas
   lugar/[id]/         ficha del lugar (FICHA) — server component + generateMetadata
   mis-lugares/        lo guardado (FAVORITOS F2) — server + client, patrón de /mis-votaciones
   api/
@@ -53,7 +54,8 @@ app/
     listas/           crear / renombrar / borrar listas (FAVORITOS F2)
 components/
   ui/                 primitivos (button, bottom-sheet, filter-chip, search-input)
-  shared/             place-card (card del listado; slot `accion` para guardar)
+  shared/             place-card (card del listado; slot `accion` para guardar), breadcrumb
+  seo/                cuerpo de las landings: lista-lugares, enlaces, explora-por-barrio
   search/             shell de búsqueda, sheets, mapa MapLibre, chips
   lugar/              acciones de la ficha (volver/compartir/guardar — cliente)
   favoritos/          botón de guardar (cliente, estado optimista + sheet de destino)
@@ -65,6 +67,8 @@ lib/
   lugar/              ficha: query (getPlaceDetail) + ficha.ts (helpers puros)
   favoritos/          planes (dueño único del cupo de listas), acciones, query,
                       validacion
+  seo/                paginas (qué páginas SEO existen), robots, jsonld (el escape de
+                      `<`), textos (el copy de las 301 — plantilla sobre datos)
   google/             settings.ts (claves de cuota); places.ts server-only → F2
   zones/              geometría (turf, sin PostGIS)
   middleware/         rate-limit por IP (memoria de proceso)
@@ -230,6 +234,33 @@ exista el scaffold.)_
 
 Cicatrices reales — gotchas que sorprenden:
 
+- **Las 301 páginas de `/salir` son ESTÁTICAS, y una lectura de sesión las mata en silencio.**
+  `revalidate = 86400` + `dynamicParams = false` (SEO, decisión 5). Agregar `headers()`, `cookies()`
+  o `auth.api.getSession` en `app/salir/**` —o en cualquier componente que rendericen— convierte 301
+  landings en 301 funciones serverless, y en Vercel Hobby **cada visita del crawler pasa a gastar
+  cuota**. No tira error: el build simplemente las marca `ƒ` en vez de `○`. Por eso `ListaLugares`
+  **no lleva el botón de guardar** aunque use la misma `PlaceCard` que el listado. Corolario: el
+  `next build` **ahora necesita la base** —arma los combos con una query— y si `DATABASE_URL` no
+  resuelve, el build falla. Es lo correcto: mejor no deployar que deployar 301 páginas rotas.
+- **El escape de `<` del JSON-LD tiene UN dueño y es `serializarJsonLd` (`lib/seo/jsonld.ts`).**
+  `JSON.stringify` **no escapa `<`**, así que un lugar llamado `Bar </script><script>…` cierra el tag
+  y ejecuta script — y el nombre viene de Overture, de una corrección de admin o del dueño del
+  negocio. El CSP no salva: está en `Report-Only` y con `'unsafe-inline'`. Las **tres** superficies
+  que emiten JSON-LD (la ficha y las dos de `/salir`) pasan por esa función; `lib/lugar/jsonld.ts`
+  la delega. **Un `JSON.stringify` nuevo adentro de un `dangerouslySetInnerHTML` es un bug de
+  seguridad, no de estilo** — y el modo de falla es mudo. Hay tests de regresión en los dos
+  `__tests__/jsonld.test.ts`.
+- **Declarar `openGraph` en una página PISA el del padre entero, imagen incluida.** Vale para
+  cualquier `generateMetadata` nuevo: hay que heredar la imagen con `(await parent).openGraph?.images`
+  o el link compartido vuelve a verse pelado. Ya mordió en la ficha (`PBETA-R2-02`) y por eso las dos
+  rutas de `/salir` la heredan. **Nadie escribe `/og` a mano**: `app/og/route.tsx` es el único archivo
+  que define esa imagen.
+- **El breadcrumb de la ficha cierra en el NOMBRE DEL LUGAR, y esa cuarta miga no es adorno.**
+  `components/shared/breadcrumb.tsx` nunca linkea la última miga —es la página actual—, así que sin
+  ella el escalón de Tipo quedaba último y el link a `/salir/<zona>/<tipo>` que pide la decisión 13
+  no existía. Y el Tipo se linkea **solo si `existePaginaZonaTipo` da true**: un bar de un barrio
+  donde los bares no llegan al piso de 10 no tiene página, y linkearla sería mandar al usuario y al
+  crawler a un 404. El visible y el `BreadcrumbList` salen de **la misma lista de migas** a propósito.
 - **El dev server lo levanta el usuario**, nunca Claude: `npm run dev` en el **puerto 5178**.
   Se accede por `https://adondesalimos.ngrok.app`, no `localhost`. El MCP de Playwright
   (`.mcp.json`, gitignoreado) verifica el render en vivo que el checker read-only no ve.
@@ -510,6 +541,16 @@ listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
 (¿el «Volver» de una pantalla hace `back` o sube a la home? — nadie llama `router.back()` suelto) y
 `lib/geo/amba.ts` (el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta —
 **sin imports**, para que el script de import no arrastre `lib/claims`).
+
+Los seis que dejó **SEO** (F1 + F2), porque son los que un agente va a querer clonar sin darse
+cuenta: `lib/app-url.ts` (la URL base absoluta — antes copiada 4 veces), `lib/lugar/url.ts`
+(`urlDeLugar` — existe para que el día que la ficha gane slug se toque **un** archivo y no ocho),
+`lib/seo/paginas.ts` (**qué páginas SEO existen**: `paginasDeZonaTipo()` es la única query que
+decide los combos, y la llaman `generateStaticParams` **y** el sitemap — si divergen, el sitemap le
+promete a Google URLs que dan 404), `lib/seo/robots.ts` (qué se le dice a un crawler: son **dos**
+valores y la diferencia importa — lo privado corta el recorrido, lo público-no-canónico lo deja
+seguir), `lib/seo/jsonld.ts` (`serializarJsonLd` — **el escape de `<`**, ver § *Notas importantes*)
+y `lib/seo/textos.ts` (el copy de las 301 landings, que es plantilla sobre datos y nunca prosa).
 
 - Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
 - Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de

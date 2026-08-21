@@ -1536,6 +1536,31 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ### Deuda técnica señalada, no tocada
 
+- [ ] **Dos módulos no coinciden en qué es «una zona»: uno mira `zones.active` y el otro no.**
+      `paginasDeZonaTipo` (`lib/seo/paginas.ts`) exige `zones.active = true`; `zonaPrimariaDeLugar`
+      (`lib/lugar/query.ts`) no filtra por eso, y el `generateStaticParams` de `/salir/[zona]` sale
+      del **canon** (`lib/zones/canon.ts`), que tampoco sabe de `active`. Hoy no muerde porque las 46
+      están activas. El día que se desactive una, el breadcrumb de la ficha va a seguir linkeando a
+      su `/salir/<zona>`, que va a existir igual (sale del canon) pero sin ningún tipo debajo.
+      **Es un link flojo, no una fuga** — lo levantó el security review de SEO F2 y quedó por debajo
+      de su barra. El arreglo de fondo es decidir **quién es dueño de «zona vigente»**: el canon o
+      la columna `active`. Hoy son dos fuentes.
+
+
+- [ ] **El nombre de la app está escrito literal en 14 archivos más.** SEO F2 creó `MARCA` en
+      `lib/seo/textos.ts` y lo hizo dueño único de los dos usos que importaban —el `metadata` del
+      root layout y el `<title>` de la ficha— **para no crear la copia número quince** al escribir
+      el título de las 301 páginas de `/salir`. Pero `'¿A dónde salimos?'` sigue inline en
+      `app/admin`, `app/chat`, `app/legales`, `app/manifest.ts`, `app/mi-negocio` (×2),
+      `app/mis-lugares`, `app/mis-votaciones`, `app/not-found.tsx`, `app/reclamar/[placeId]`,
+      `app/registrar-negocio`, `app/votacion/nueva`, `app/votacion/[token]` y `lib/email/index.ts`
+      (como `BRAND`). Es el mismo caso que la dirección de contacto de acá arriba: **no es una regla
+      de negocio**, así que no urge — el día que la marca cambie, cambia en catorce lugares o en
+      ninguno. El barrido es mecánico (importar `MARCA` y reemplazar) y no se hizo en la sesión de
+      F2 por ser refactor fuera del encargo (cambios quirúrgicos). ⚠️ `app/manifest.ts` es el caso
+      a mirar aparte: ahí el nombre es el del ícono del launcher, no un `<title>`.
+
+
 - [ ] **La dirección de contacto está escrita dos veces, como const local en cada archivo.**
       `contacto@adondesalimos.com.ar` vive en `app/legales/page.tsx` y, desde TITULARIDAD F1, también
       en `app/mi-negocio/[placeId]/editor-client.tsx`. Señalado apenas se vio (`CLAUDE.md` § *Una regla,

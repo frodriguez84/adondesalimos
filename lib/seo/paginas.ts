@@ -64,10 +64,26 @@ export type PaginaZonaTipo = { zona: string; tipo: string; total: number }
  * que se cuenta `count(distinct place_id)` por combo: aparece en las dos páginas y
  * eso es correcto —son páginas distintas que comparten algunos ítems—, pero dentro
  * de una no se cuenta dos veces.
+ *
+ * **El filtro es opcional a propósito, y por eso no hay una segunda función.**
+ * `generateStaticParams` y `app/sitemap.ts` la llaman **sin argumento** (la lista
+ * completa: es el requisito de la decisión 5 —las dos listas salen de la misma
+ * llamada—). Las páginas la llaman **acotada**, que es la misma regla sobre menos
+ * filas: `{ zona }` para "los otros tipos de este barrio" y `{ tipo }` para "lo
+ * mismo en los barrios de al lado". Sin el filtro cada una de las 301 páginas
+ * correría el GROUP BY entero en el build, que es tiempo de build regalado — y una
+ * función aparte sería la segunda implementación del piso.
  */
-export async function paginasDeZonaTipo(): Promise<PaginaZonaTipo[]> {
+export async function paginasDeZonaTipo(filtro?: {
+  zona?: string
+  tipo?: string
+}): Promise<PaginaZonaTipo[]> {
   const umbral = await getConfidenceThreshold()
   const total = countDistinct(places.id)
+
+  const where = [publishedWhere(umbral)]
+  if (filtro?.zona) where.push(eq(zones.slug, filtro.zona))
+  if (filtro?.tipo) where.push(eq(tags.slug, filtro.tipo))
 
   return db
     .select({ zona: zones.slug, tipo: tags.slug, total })
@@ -79,10 +95,24 @@ export async function paginasDeZonaTipo(): Promise<PaginaZonaTipo[]> {
       tags,
       and(eq(tags.id, placeTags.tagId), eq(tags.facet, 'tipo'), eq(tags.active, true)),
     )
-    .where(publishedWhere(umbral))
+    .where(and(...where))
     .groupBy(zones.slug, tags.slug)
     .having(gte(total, PISO_PAGINA_ZONA))
     .orderBy(zones.slug, tags.slug)
+}
+
+/**
+ * ¿El combo tiene página propia? Lo pregunta el breadcrumb de la ficha
+ * (decisión 13): un lugar puede ser un bar de una zona donde los bares no llegan
+ * al piso, y linkear ahí sería mandar al usuario —y al crawler— a un 404.
+ *
+ * Se resuelve con la **misma** `paginasDeZonaTipo` acotada a la zona y no con un
+ * `count` propio: el piso y la regla de publicado tienen un solo dueño, y una
+ * segunda query "parecida" es exactamente lo que driftea.
+ */
+export async function existePaginaZonaTipo(zona: string, tipo: string): Promise<boolean> {
+  const paginas = await paginasDeZonaTipo({ zona })
+  return paginas.some((p) => p.tipo === tipo)
 }
 
 export type FichaDeSitemap = { id: string; updatedAt: Date }

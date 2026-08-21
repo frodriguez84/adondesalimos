@@ -26,6 +26,10 @@ import {
 } from '@/lib/lugar/ficha'
 import { jsonLdSerializado } from '@/lib/lugar/jsonld'
 import { getPlaceDetail } from '@/lib/lugar/query'
+import { Breadcrumb } from '@/components/shared/breadcrumb'
+import { breadcrumbJsonLd, serializarJsonLd, type Miga } from '@/lib/seo/jsonld'
+import { existePaginaZonaTipo, urlDeZona, urlDeZonaTipo } from '@/lib/seo/paginas'
+import { MARCA } from '@/lib/seo/textos'
 
 /**
  * Ficha del lugar (FICHA, fase 1). Server component: los datos propios
@@ -63,7 +67,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { id } = await params
   const place = await getPlaceDetail(id)
-  if (!place) return { title: 'Lugar no encontrado — ¿A dónde salimos?' }
+  if (!place) return { title: `Lugar no encontrado — ${MARCA}` }
 
   // Solo datos PROPIOS en el OG (decisión 16): el preview se cachea en terceros
   // —WhatsApp, buscadores— y meter horarios o rating de Google ahí sería
@@ -74,7 +78,7 @@ export async function generateMetadata(
     .join(' — ')
 
   return {
-    title: `${place.name} — ¿A dónde salimos?`,
+    title: `${place.name} — ${MARCA}`,
     description: descripcion || undefined,
     openGraph: {
       title: place.name,
@@ -100,7 +104,42 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
   // FAVORITOS: el botón nace con el estado real (decisión 9), así el mismo lugar
   // se ve igual en la card y en la ficha. Sin sesión no se consulta nada — el
   // botón se muestra igual y el tap lleva a login (decisión 7).
-  const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
+  // Breadcrumb `Inicio › <Zona> › <Tipo>` (SEO, decisión 13): es el link que sube
+  // de la ficha a la landing, o sea la otra mitad del circuito que arma la
+  // arquitectura de links. `existePaginaZonaTipo` no es un lujo — un bar de un
+  // barrio donde los bares no llegan al piso **no tiene** página, y linkearla sería
+  // mandar al usuario y al crawler a un 404.
+  const tipoTag = place.tags.find((t) => t.facet === 'tipo') ?? null
+  const [session, tipoConPagina] = await Promise.all([
+    auth.api.getSession({ headers: await headers() }).catch(() => null),
+    place.zoneSlug && tipoTag
+      ? existePaginaZonaTipo(place.zoneSlug, tipoTag.slug)
+      : Promise.resolve(false),
+  ])
+
+  const migas: Miga[] = [
+    { name: 'Inicio', path: '/' },
+    ...(place.zoneSlug && place.zone
+      ? [{ name: place.zone, path: urlDeZona(place.zoneSlug) }]
+      : []),
+    ...(tipoTag
+      ? [
+          {
+            name: tipoTag.name,
+            path:
+              tipoConPagina && place.zoneSlug
+                ? urlDeZonaTipo(place.zoneSlug, tipoTag.slug)
+                : null,
+          },
+        ]
+      : []),
+    // El lugar cierra la ruta. **No es adorno**: sin él la última miga sería el
+    // Tipo, y `Breadcrumb` nunca linkea la última —es la página actual—, así que
+    // el link a `/salir/<zona>/<tipo>` que pide la decisión 13 no existiría. De
+    // paso el `BreadcrumbList` termina donde termina la navegación de verdad, que
+    // es lo que Google espera de un breadcrumb.
+    { name: place.name, path: null },
+  ]
   // F2: junto al estado vienen las listas visibles, para el sheet de destino
   // (decisión 8) — la misma resolución sirve para las dos cosas.
   const favoritos = session?.user
@@ -130,7 +169,17 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
         dangerouslySetInnerHTML={{ __html: jsonLdSerializado(place) }}
       />
 
+      {/* El mismo breadcrumb, estructurado: se arma con **la misma lista** de
+          migas que el visible (ver `lib/seo/jsonld.ts`). Uno que no coincida con
+          el otro es structured data engañoso. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializarJsonLd(breadcrumbJsonLd(migas)) }}
+      />
+
       <BrandHeader />
+
+      <Breadcrumb migas={migas} />
 
       <FichaActions
         nombre={place.name}

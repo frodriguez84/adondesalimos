@@ -5,6 +5,7 @@ import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
 import { MarcadorNavegacion } from '@/components/navegacion/marcador-navegacion'
 import { AvisoProvider } from '@/components/ui/aviso'
 import { APP_URL } from '@/lib/app-url'
+import { MARCA } from '@/lib/seo/textos'
 import './globals.css'
 
 const inter = Inter({
@@ -12,7 +13,10 @@ const inter = Inter({
   subsets: ['latin'],
 })
 
-const TITULO = '¿A dónde salimos?'
+// El nombre de la app tenía dos copias literales —acá y en el `<title>` de la
+// ficha— y F2 iba a ser la tercera (las 301 páginas de `/salir` cierran su título
+// igual). Se unifica en `lib/seo/textos.ts` antes de crearla, no después.
+const TITULO = MARCA
 const DESCRIPCION = 'Decidí a dónde salir esta noche sin dar mil vueltas.'
 
 export const metadata: Metadata = {

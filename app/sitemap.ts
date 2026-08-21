@@ -2,7 +2,8 @@ import type { MetadataRoute } from 'next'
 
 import { APP_URL } from '@/lib/app-url'
 import { urlAbsolutaDeLugar } from '@/lib/lugar/url'
-import { fichasParaSitemap } from '@/lib/seo/paginas'
+import { fichasParaSitemap, paginasDeZonaTipo, urlDeZona, urlDeZonaTipo } from '@/lib/seo/paginas'
+import { ZONAS } from '@/lib/zones/canon'
 
 /**
  * `sitemap.xml` (SEO, decisiones 7 y 8).
@@ -19,17 +20,32 @@ import { fichasParaSitemap } from '@/lib/seo/paginas'
 export const revalidate = 86400
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const fichas = await fichasParaSitemap()
+  const [fichas, combos] = await Promise.all([fichasParaSitemap(), paginasDeZonaTipo()])
 
   return [
     { url: `${APP_URL}/`, changeFrequency: 'daily', priority: 1 },
     { url: `${APP_URL}/legales`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${APP_URL}/registrar-negocio`, changeFrequency: 'monthly', priority: 0.5 },
 
-    // 🕳️ **Hueco de F1: acá van las ~301 páginas de `/salir`** (`urlDeZona` y
-    // `urlDeZonaTipo` de `lib/seo/paginas.ts`, alimentadas por `paginasDeZonaTipo()`).
-    // Se agregan **junto con** las páginas, en F2, y no antes: un sitemap que
-    // promete URLs que dan 404 es peor que uno corto.
+    // Las 46 zonas van todas y sin piso (decisión 4): la más flaca tiene 181
+    // lugares publicados. Salen del canon, que es el mismo origen del
+    // `generateStaticParams` de `/salir/[zona]` — no hay una segunda lista de barrios.
+    ...ZONAS.map((z) => ({
+      url: `${APP_URL}${urlDeZona(z.slug)}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    })),
+
+    // ⚠️ Los ~255 combos salen de **`paginasDeZonaTipo()`, la misma llamada** que
+    // alimenta el `generateStaticParams` de `/salir/[zona]/[tipo]` (decisión 5).
+    // Esa es toda la garantía de que el sitemap no le prometa a Google una URL que
+    // da 404: si esta lista se armara acá por su cuenta, divergirían en silencio y
+    // el síntoma tardaría semanas en aparecer en Search Console.
+    ...combos.map((c) => ({
+      url: `${APP_URL}${urlDeZonaTipo(c.zona, c.tipo)}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
+    })),
 
     ...fichas.map((f) => ({
       url: urlAbsolutaDeLugar(f.id),

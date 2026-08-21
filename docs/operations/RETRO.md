@@ -37,6 +37,30 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-21 · SEO F2 — las 301 páginas de zona — Opus
+
+- **Salió bien: leer el HTML servido, no el código.** El DoD pedía un breadcrumb en la ficha «con
+  links que resuelven a `/salir/<zona>/<tipo>`». Typecheck limpio, 888 tests verdes, y **cuatro
+  checkers independientes le habrían dado PASS leyendo el código** —está ahí el `urlDeZonaTipo(...)`
+  asignado a la miga—. Un `curl | grep '<nav>'` mostró la última miga como `<span>`, no como `<a>`:
+  el componente nunca linkea la última y el Tipo quedaba último. Dos reglas correctas que juntas
+  incumplían el DoD. Misma familia que el `EXISTS` en SQL crudo del QA integral (241 tests verdes y
+  la pantalla mentía). La misma pasada en vivo cerró de paso los tres `noindex` de F1 que habían
+  quedado en deuda, y confirmó que el preview de WhatsApp de `/votacion/[token]` no se rompió.
+- **Frenó: `npm run typecheck` en rojo por un artefacto de build, no por el código.** Al crear
+  `app/salir/layout.tsx` aparecieron dos errores en `.next/dev/types/validator.ts`
+  (`'"/salir"' is not assignable to type '"/"'`). `tsconfig` incluye **dos** carpetas de tipos
+  generados y la del último `next build` seguía en `LayoutRoutes = "/"`. Costó tres turnos y una
+  maniobra de mover `.next/types/routes.d.ts` y devolverlo para probar que el código estaba limpio.
+  Se fue solo con el build. Segundo freno, menor: `mv app/salir` dio *permission denied* (lock de
+  Windows tras el build), así que el «antes vs después» de `SEO-21` salió del propio output del
+  build —**317 páginas prerenderizadas en 10,7 s**, 41 s el build entero— en vez de dos corridas.
+- **Qué cambiar: una sola cosa, y ya está escrita.** La entrada de `LECCIONES_APRENDIDAS.md` sobre
+  los tipos stale de `.next/` — es concreta, reusable y cuesta cero. **El hallazgo del breadcrumb no
+  genera regla nueva a propósito**: la regla «el QA en vivo encuentra lo que los tests no» ya existe
+  y ya está en memoria; lo que faltaba no era una regla, era aplicarla antes de escribir el QA y no
+  después. Sumar una segunda regla que dice lo mismo sería inflar el método.
+
 ## 2026-08-21 · Spec SEO + F1 — Fable (spec) + implementador Opus (código)
 
 - **Salió bien: medir el catálogo ANTES de escribir las decisiones.** Las 4 decisiones venían

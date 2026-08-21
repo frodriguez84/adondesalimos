@@ -7,6 +7,7 @@ import { auth } from '@/lib/auth'
 import { AccountMenu } from '@/components/shared/account-menu'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { RotatingHeadline } from '@/components/shared/rotating-headline'
+import { ExploraPorBarrio } from '@/components/seo/explora-por-barrio'
 import { SearchShell } from '@/components/search/search-shell'
 import { estadoDeFavoritos, type ListaDestino } from '@/lib/favoritos/query'
 import { getFacetCatalog, getZoneCatalog } from '@/lib/search/catalog'
@@ -188,6 +189,14 @@ export default async function Home({
         listas={listas}
         autenticado={Boolean(session?.user)}
       />
+
+      {/* Los 46 links a `/salir/<zona>` (SEO, decisión 12), solo en el estado
+          vacío. Va **debajo** del shell y no entre el hero y el buscador —que es
+          donde el spec lo imaginó— por una razón de pantalla: son 46 links y
+          meterlos arriba empujaría el campo de búsqueda fuera del primer viewport
+          en 390 px, o sea enterrar la acción principal de la home para ganar unos
+          píxeles de posición en el HTML que a un crawler no le cambian nada. */}
+      {!tieneBusqueda(params) && <ExploraPorBarrio />}
 
       {/* El rótulo del aviso de beta (DEPLOY, decisión 21) va acá, y la atribución
           se queda: linkear las fuentes es condición de la licencia, no decoración. */}

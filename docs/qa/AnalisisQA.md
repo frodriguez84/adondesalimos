@@ -4814,3 +4814,92 @@ que salir por el mismo serializador**, no por un `JSON.stringify` nuevo.
   re-correr allá, no el número.
 
 ---
+
+## QA /qa-spec — SEO F2 (2026-08-21)
+
+**Veredicto:** ✅ **APROBADO**
+**Verificación técnica:** typecheck ✅ · tests **888/888** ✅ (861 → +27) · `next build` ✅ (en frío,
+con el dev server parado) · lint N/A (sin linter configurado) · `security-review` del diff ✅
+**0 HIGH / 0 MEDIUM**
+**Método:** cuatro checkers independientes (`Explore` read-only, haiku, maker≠checker) contra el
+DoD de `docs/specs/active/SEO.md` § *F2*, **más** verificación en vivo con `curl` y Playwright
+contra `https://adondesalimos.ngrok.app`. Los criterios de HTML servido se leyeron del server, que
+es lo que ve el crawler — no de la pantalla.
+
+### F2 — las páginas de zona
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| SEO-11 | `/salir/<zona>` para las 46 del canon, 200 | ✅ PASS | `generateStaticParams` sale de `ZONAS` (`app/salir/[zona]/page.tsx:42-44`). En vivo: `/salir/merlo` y `/salir/palermo-soho` → 200, `<h1>` con la zona, tipos con conteo, 20 fichas y las zonas de la región |
+| SEO-12 | `/salir/palermo-soho/bar` con `curl \| grep` | ✅ PASS | `<h1>Bares en Palermo Soho</h1>` · bajada «Hay 235 bares publicados en Palermo Soho» · **20 nombres de lugar en el HTML del server**. Nada de esto necesita JavaScript |
+| SEO-13 | Un combo bajo el piso da **404** | ✅ PASS | `/salir/florencio-varela/wine-bar` → **404**. También `/salir/palermo-soho/no-existe`, `/salir/no-existe` y `/salir/no-existe/bar` → 404. Además de `dynamicParams = false` hay chequeo defensivo (`app/salir/[zona]/[tipo]/page.tsx:92`) contra la **misma** lista de `paginasDeZonaTipo()` — por eso el 404 también se verifica en dev, no solo en el build |
+| SEO-14 | Recorrer las 301 URLs del sitemap | ✅ PASS | **301 recorridas, 0 no-200.** Barrido completo, no de a muestras |
+| SEO-15 | La salida de `next build` marca `/salir` como estática | ✅ PASS | Las dos rutas salen **`●` (SSG)** con `Revalidate 1d` / `Expire 1y`: `/salir/[zona]` con 3 + **`[+43 more paths]`** = 46, y `/salir/[zona]/[tipo]` con 3 + **`[+252 more paths]`** = 255. **Ninguna sale `ƒ`**. Los conteos cuadran con el sitemap |
+| SEO-16 | Home sin búsqueda vs con búsqueda | ✅ PASS · ⚠️ ver nota | Sin búsqueda: bloque «Explorá por barrio» con **46** `<a href="/salir/…">`. Con `?z=palermo-soho`: **0**. Gateado por `!tieneBusqueda(params)`, y los 46 salen del canon, no de una segunda lista. ⚠️ **Medido con el bloque desplegado** (668 px). Después Fer pidió plegarlo por región y **esa versión no se verificó en vivo** — ver Gaps |
+| SEO-17 | Breadcrumb de la ficha, visible y con links que resuelven | ✅ PASS | `Inicio › Palermo Soho › Bar › 70 30 Bar`, con `/salir/palermo-soho` y `/salir/palermo-soho/bar` como links reales. **Bordes verificados en vivo**: un lugar sin zona primaria (`Karamba`) muestra el Tipo como texto y no emite **ni un** link a `/salir`; el Tipo se linkea solo si `existePaginaZonaTipo` da true |
+| SEO-18 | `canonical` de `/salir/palermo-soho/bar` | ✅ PASS | `<link rel="canonical" href="https://adondesalimos.ngrok.app/salir/palermo-soho/bar"/>` — absoluto y a sí misma. Se declara relativo y lo resuelve el `metadataBase` del layout: ninguna page escribe el dominio |
+| SEO-19 | El preview del link no se perdió al declarar `openGraph` | ✅ PASS | `/salir/palermo-soho/bar` emite `og:image` → `/og` (1200×630) heredada del padre vía `(await parent).openGraph?.images`, más `og:title`/`og:description` propios. **La trampa de «declarar `openGraph` pisa el del padre entero» no mordió** |
+| SEO-20 | 390×844, las dos páginas nuevas | ✅ PASS | `scrollWidth === clientWidth` en `/salir/palermo-soho/bar` y en `/salir/devoto-villa-del-parque` (la zona de nombre más largo). Cero elementos desbordados; consola sin errores |
+| SEO-21 | Tiempo del `next build` antes vs después | ✅ PASS | **41 s en frío** (`.next` borrado), de los cuales la prerenderización de las **317** páginas —301 de `/salir` + 16 estáticas— tardó **10,7 s** con 11 workers. Compilación: 10,4 s. **No vuelve nada inviable en Hobby, ni cerca.** ⚠️ El «antes» exacto no se pudo medir (`mv app/salir` dio *permission denied* por un lock de Windows tras el build): el número que decide es el marginal de arriba, que sale del propio output. Y el build **ahora depende de la base** — sin `DATABASE_URL` falla, que es lo correcto (decisión 5) |
+
+### F2 — criterios de arquitectura (checkers independientes)
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| SEO-22 | `paginasDeZonaTipo()` es la **única** fuente de la lista de combos | ✅ PASS | La llaman **sin argumento** `generateStaticParams` (`app/salir/[zona]/[tipo]/page.tsx:46`) y `app/sitemap.ts:23`. No existe una segunda función ni una constante con la lista. El filtro opcional (`{ zona }` / `{ tipo }`) es la **misma** query sobre menos filas — no una segunda implementación del piso |
+| SEO-23 | Cero SQL nuevo para el cuerpo de las páginas | ✅ PASS | Las dos pages arman el listado con `searchPlaces` y el conteo con `countPlaces`. Ninguna tiene un `db.select` propio. `lib/seo/paginas.ts` toca `place_tags` solo para **contar** (GROUP BY / HAVING), nunca para listar |
+| SEO-24 | Toda query de `lib/seo/paginas.ts` pasa por `publishedWhere` | ✅ PASS | `paginasDeZonaTipo` (línea 84) y `fichasParaSitemap` (línea 144). `existePaginaZonaTipo` delega en la primera. Ninguna reimplementa `operating_status`/`confidence` a mano |
+| SEO-25 | Cada combo linkea ≥3 hermanas + la búsqueda filtrada | ✅ PASS | **Medido sobre los 255 combos reales**: el peor es `adrogue-burzaco/boliche` con **7** links hermanos (3 otros tipos + 3 zonas de la región + el hub del breadcrumb). **Cero combos por debajo de 3.** ⚠️ El borde teórico existe —una zona con un solo tipo por encima del piso, y ese tipo en ninguna otra zona de su región— y por eso hay fallback a `otrasZonas.slice(0, 8)`; el catálogo de hoy no lo alcanza. Ver Gaps |
+| SEO-26 | JSON-LD de las páginas de zona: solo datos propios | ✅ PASS | `breadcrumbJsonLd` e `itemListJsonLd` emiten **solo** `@context`, `@type`, `position`, `name` y `item`/`url`. Cero `aggregateRating`, `review`, `openingHours`, `priceRange`, `image`. Test de regresión en `lib/seo/__tests__/jsonld.test.ts` |
+| SEO-27 | **Un solo escape de `<` para todo el JSON-LD del sitio** | ✅ PASS | `serializarJsonLd` (`lib/seo/jsonld.ts:33`) es el dueño único. Las **tres** superficies pasan por él: las dos de `/salir` y la ficha (`jsonLdSerializado` ahora lo delega, `lib/lugar/jsonld.ts:124-126`). Grep de `JSON.stringify` dentro de `dangerouslySetInnerHTML`: **0** fuera del serializador. Tests de regresión en los dos archivos |
+| SEO-28 | Las dos rutas son estáticas de verdad (sin sesión ni cookies) | ✅ PASS | Ninguna page ni `app/salir/layout.tsx` ni los componentes de `components/seo/` leen `headers()`, `cookies()` ni `auth.api.getSession`. `ListaLugares` **omite el botón de guardar a propósito** y lo documenta: llenarlo obligaría a leer la sesión y convertiría 301 landings estáticas en 301 funciones |
+| SEO-29 | Cero prosa generada; copy rioplatense | ✅ PASS | Todo el texto sale de `lib/seo/textos.ts`, que es plantilla sobre datos: conteo real, nombre de zona del canon, nombre de tipo de la taxonomía. Ni un párrafo descriptivo de barrio, ni una frase de color, ni texto de LLM. Voseo verificado («Explorá por barrio», «qué vas a encontrar», «acá») |
+| SEO-30 | `PISO_PAGINA_ZONA` no se confunde con el piso de los chips | ✅ PASS | `lib/seo/paginas.ts` no importa de `lib/search/chips.ts` ni al revés. Las tres constantes (`PISO_PAGINA_ZONA` = 10, `PISO_HOME` = 20, `PISO_ZONA` = 3) están documentadas en su módulo con **por qué** miden cosas distintas |
+
+### F1 — los tres que quedaron en deuda, cerrados en vivo
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| SEO-06 | `/` pelada indexable; `/?z=…` con `noindex, follow` | ✅ PASS (**en vivo**) | `curl /` → **sin** `<meta name="robots">`. `curl "/?z=palermo-soho"` → `noindex, follow`. Idem `/registrar-negocio` pelada (sin meta) vs `?q=bar` (`noindex, follow`) |
+| SEO-07 | `/votacion/<token>` con `noindex, nofollow` **y la votación sigue funcionando** | ✅ PASS (**en vivo**) | Token real de una votación abierta: HTTP **200**, `noindex, nofollow`, `<h1>¿A dónde vamos?</h1>` y las dos opciones (`Soria Bar`, `Cerveceria Söt`) en el HTML. **El preview de WhatsApp quedó entero**: `og:title`, `og:description` («Votá entre Soria Bar, Cerveceria Söt.»), `og:image` → `/og` y `twitter:card: summary_large_image`. Era el riesgo más caro de F1 y no se rompió |
+| SEO-08 | Los seis privados con `noindex` | ✅ PASS (**en vivo**) | `/chat`, `/cuenta`, `/mis-lugares`, `/mis-votaciones`, `/mi-negocio/<id>`, `/reclamar/<id>`: los seis con `noindex, nofollow` leído del HTML servido |
+
+### F1 — re-verificados de paso
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| SEO-01 | `sitemap.xml` válido, URLs absolutas | ✅ PASS | 200, XML válido, **0** `<loc>` relativas |
+| SEO-02 | Conteo por tipo; ninguna con `?` | ✅ PASS | **1.427 URLs** = 3 estáticas + **46** de zona + **255** de combo + **1.123** fichas. `<loc>` con `?`: **0**. Rutas prohibidas (`/api/`, `/admin`, `/votacion/`, `/cuenta`, `/mis-*`, `/mi-negocio`, `/reclamar`, `/chat`): **0** |
+| SEO-09 | JSON-LD de la ficha sin claves de Google | ✅ PASS | Ficha real: `BarOrPub` con `name`, `url`, `geo`, `address` y nada más |
+| SEO-10 | Test que falla si se agrega una clave prohibida | ✅ PASS | Sigue verde tras mudar el escape; se le sumó el equivalente para `ItemList` |
+
+### Gaps declarados
+
+- **Ninguno bloquea.** El `next build` se corrió con el dev server parado y cerró `SEO-15` y
+  `SEO-21`. De paso confirmó la lección de los tipos stale: los dos errores de `typecheck` que
+  aparecían en `.next/dev/types/validator.ts` **desaparecieron solos** al regenerarse `.next`.
+- **El `security-review` levantó un ítem por debajo de su barra, anotado igual**: `zonaPrimariaDeLugar`
+  no filtra por `zones.active` y `paginasDeZonaTipo` sí — dos módulos que no coinciden en qué es «una
+  zona vigente». Hoy no muerde (las 46 están activas). Queda en el BACKLOG § *Deuda técnica*.
+- **`SEO-25` está medido, no garantizado por código.** Hoy ningún combo baja de 7 links hermanos,
+  pero nada impide que un re-import de Overture deje una zona con un solo tipo por encima del piso.
+  El fallback (`otrasZonas.slice(0, 8)`) cubre la mitad del caso; la otra mitad —una zona con un
+  solo tipo— dejaría el bloque «Otra cosa en …» vacío, no la página sin salida (siguen el hub, el
+  CTA y las vecinas). **No se agregó un test porque el criterio depende de datos**, no de código:
+  el lugar donde vive es esta medición.
+- **`SEO-03` y `SEO-04` no se re-corrieron hoy.** El cruce `diff = 0` contra `publishedWhere` y el
+  `UPDATE` del umbral se verificaron en F1 y **F2 no tocó `fichasParaSitemap`**: el conteo de
+  fichas sigue dando exactamente **1.123**, el mismo número. Si algo hubiera cambiado ahí, ese
+  número se habría movido.
+- **El bloque «Explorá por barrio» plegado no se vio en pantalla.** Fer pidió reducirlo (desplegado
+  medía **668 px**, tres cuartos de pantalla en 390 px) y se pasó a cuatro `<details>` nativos, uno
+  por región. Lo que **sí** está verificado: typecheck limpio, 888 tests y `next build` verde con el
+  cambio puesto, y que los 46 `<a>` siguen en el HTML servido — un `<details>` sin `open` contiene a
+  sus hijos igual (spec de HTML) y el componente **no** es `'use client'`, así que el crawler los ve
+  plegados o no. Lo que **no** está verificado es el alto real y cómo se ve. **Pendiente para la
+  próxima sesión con el dev server arriba**: `curl` de `/` contando los 46 `<a href="/salir/`, y una
+  mirada a 390×844.
+- **Todo se verificó contra la base de dev.** En producción los números difieren si el catálogo de
+  Neon divergió; lo que hay que re-correr allá es el **criterio**, no el número.
+
+---
