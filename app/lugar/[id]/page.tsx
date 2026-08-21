@@ -24,6 +24,7 @@ import {
   type FichaTag,
   type RedPlataforma,
 } from '@/lib/lugar/ficha'
+import { jsonLdSerializado } from '@/lib/lugar/jsonld'
 import { getPlaceDetail } from '@/lib/lugar/query'
 
 /**
@@ -119,6 +120,16 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 pb-28 pt-4">
+      {/* JSON-LD (SEO, decisión 14): **solo datos propios**. Lo arma
+          `lib/lugar/jsonld.ts`, que es función pura para que el test de regresión
+          de ToS pueda fallar si alguien le agrega una clave de Google.
+          ⚠️ Se serializa con `jsonLdSerializado`, **no** con `JSON.stringify` a
+          pelo: `stringify` no escapa `<` y el `name` es dato de terceros. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdSerializado(place) }}
+      />
+
       <BrandHeader />
 
       <FichaActions

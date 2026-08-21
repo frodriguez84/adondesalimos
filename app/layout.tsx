@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
 import { MarcadorNavegacion } from '@/components/navegacion/marcador-navegacion'
 import { AvisoProvider } from '@/components/ui/aviso'
+import { APP_URL } from '@/lib/app-url'
 import './globals.css'
 
 const inter = Inter({
@@ -14,14 +15,10 @@ const inter = Inter({
 const TITULO = '¿A dónde salimos?'
 const DESCRIPCION = 'Decidí a dónde salir esta noche sin dar mil vueltas.'
 
-/**
- * De dónde cuelga la URL **absoluta** del `og:image`. Misma variable que usan los
- * mails y el checkout — el día que se unifique en un helper, son cuatro lugares.
- */
-const BASE = process.env.BETTER_AUTH_URL ?? 'http://localhost:5178'
-
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE),
+  // De dónde cuelga la URL **absoluta** del `og:image`. La base tiene dueño
+  // único desde SEO (decisión 16): `lib/app-url.ts`.
+  metadataBase: new URL(APP_URL),
   title: TITULO,
   description: DESCRIPCION,
   // INVITACION, decisión 3 (`PBETA-R2-02`): la app no declaraba **ninguna**

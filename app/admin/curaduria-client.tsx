@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
+import { urlDeLugar } from '@/lib/lugar/url'
+
 import type {
   FacetaEditable,
   LugarBuscado,
@@ -337,7 +339,7 @@ function RevisorLugar({
           {lugar.address && <p className="text-xs text-muted-foreground">{lugar.address}</p>}
         </div>
         <Link
-          href={`/lugar/${lugar.id}`}
+          href={urlDeLugar(lugar.id)}
           target="_blank"
           className="shrink-0 text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary"
         >

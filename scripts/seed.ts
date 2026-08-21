@@ -49,6 +49,7 @@ import {
 } from '@/lib/email/cupo'
 import { CADENAS_KEY, DEFAULT_CADENAS } from '@/lib/search/cadenas'
 import { CHIPS_SCHEDULE_KEY, DEFAULT_CHIPS_SCHEDULE } from '@/lib/search/rotacion'
+import { DEFAULT_UMBRAL_TAGS_SITEMAP, UMBRAL_TAGS_SITEMAP_KEY } from '@/lib/seo/paginas'
 
 /**
  * Seed idempotente de la taxonomía (105 filas) + los chips de Ocasión + los 2
@@ -141,6 +142,10 @@ async function main() {
       // cadena. `onConflictDoNothing` no pisa una lista ya curada a mano — el
       // mecanismo: sacar Havanna es un UPDATE, no un deploy.
       { key: CADENAS_KEY, value: DEFAULT_CADENAS },
+      // SEO (decisión 8): mínimo de tags para que una ficha entre al sitemap.
+      // `onConflictDoNothing` no pisa un umbral ya movido a mano — el mecanismo:
+      // cuando la curaduría avance, el sitemap crece con un UPDATE, sin deploy.
+      { key: UMBRAL_TAGS_SITEMAP_KEY, value: DEFAULT_UMBRAL_TAGS_SITEMAP },
     ])
     .onConflictDoNothing({ target: appSettings.key })
 
@@ -155,7 +160,7 @@ async function main() {
         : ' · tags al día'),
   )
   console.log(
-    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}, ${EMAIL_MONTHLY_CAP_KEY}, ${EMAIL_DAILY_PER_RECIPIENT_KEY}, ${CURATION_ZONE_QUOTA_KEY}, ${CURATION_MODEL_KEY}, ${CHIPS_SCHEDULE_KEY}, ${CADENAS_KEY}`,
+    `Settings: ${CONFIDENCE_THRESHOLD_KEY}, ${BAND_LIMITS_KEY}, ${DETAILS_MONTHLY_CAP_KEY}, ${PHOTOS_MONTHLY_CAP_KEY}, ${MATCH_RETRY_DAYS_KEY}, ${PRECIO_B2B_ARS_KEY}, ${PRECIO_B2C_ARS_KEY}, ${CHAT_MODEL_KEY}, ${CHAT_QUOTA_PREMIUM_KEY}, ${CHAT_QUOTA_TRIAL_KEY}, ${CHAT_MONTHLY_CAP_KEY}, ${EMAIL_MONTHLY_CAP_KEY}, ${EMAIL_DAILY_PER_RECIPIENT_KEY}, ${CURATION_ZONE_QUOTA_KEY}, ${CURATION_MODEL_KEY}, ${CHIPS_SCHEDULE_KEY}, ${CADENAS_KEY}, ${UMBRAL_TAGS_SITEMAP_KEY}`,
   )
 
   if (total !== TOTAL_TAGS) {

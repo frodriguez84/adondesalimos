@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
@@ -6,6 +7,7 @@ import { estadoSuscripcionB2C } from '@/lib/billing/estado'
 import { cobroApagado } from '@/lib/billing/apagado'
 import { tieneInteres } from '@/lib/billing/interes'
 import { CuentaClient } from './cuenta-client'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/cuenta` (spec AUTH F1 + tab de Suscripción del spec 7): nombre, email, cambio
@@ -16,6 +18,13 @@ import { CuentaClient } from './cuenta-client'
  * server-side con lazy check (MONETIZACION, decisión 18).
  */
 export const dynamic = 'force-dynamic'
+
+/**
+ * Pantalla privada: `noindex, nofollow` (SEO, decisión 11). No hay nada acá que un
+ * crawler deba indexar ni recorrer. `/api/` y `/admin` ya están en `robots.txt`;
+ * esto es la segunda barrera, mismo criterio que FICHA decisión 16.
+ */
+export const metadata: Metadata = { robots: ROBOTS_PRIVADO }
 
 export default async function CuentaPage() {
   const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)

@@ -743,6 +743,26 @@ son trabajo acotado con criterio de "listo" objetivo.
 
       **✅ Orden aprobado por Fer (2026-08-21):**
       1. **Difusión, el tramo que es código: SEO.** Sesión propia, con spec.
+         → **✅ SPEC ESCRITO Y F1 IMPLEMENTADA (2026-08-21)**:
+         [`docs/specs/active/SEO.md`](../specs/active/SEO.md), que es desde ahora la fuente de
+         verdad — las 4 decisiones de arquitectura de más abajo se resolvieron ahí y **no se
+         vuelven a discutir acá**. Lo que decidieron los números: el eje es **zona × Tipo y nada
+         más** (255 combos con ≥10 lugares, contra **43** de zona × cocina), las páginas van en
+         **`/salir/<zona>/<tipo>`** —no en el apex, para no cotejar cada ruta futura contra 46
+         slugs de barrio— y el sitemap es **selectivo sin `noindex`**, con el umbral en
+         `app_settings`: **cada lugar curado pasa a ser una página que se ofrece**, que es la
+         conexión real con el ítem 3. El **slug de la ficha se difirió** (única puerta de ida)
+         pagando su prerrequisito, `lib/lugar/url.ts`.
+         **F1 ✅** (cimientos + sitemap + eje de `noindex` + JSON-LD): 861 tests, build verde,
+         `/sitemap.xml` estático con **1.126 URLs** y cruce contra `publishedWhere` con **diff = 0**
+         (`docs/qa/AnalisisQA.md` § *SEO F1*). **F2** (las ~301 páginas de zona, que es lo que
+         rinde) y **F3** (medición en Search Console) pendientes.
+         ⚠️ **El triaje encontró un quinto agujero que no estaba en la lista**: la app no tenía
+         **ni una** ruta con `noindex`, y eso incluía **`/votacion/[token]`** —un token privado que
+         se comparte por WhatsApp—. Cerrado en F1.
+         🔴 **Y F1 destapó un XSS** en el JSON-LD de la ficha (`JSON.stringify` no escapa `<` y el
+         `name` viene de Overture, de admin y del dueño). Arreglado con test de regresión; el
+         detalle está en el QA.
       2. **Difusión, el tramo humano** — decidido abajo.
       3. **El paquete de decisiones agrupado**: CSP enforcing + filtro de Precio + `SEC-23` + la
          deuda de docs. Una sola pasada.
@@ -2459,6 +2479,13 @@ acá va la línea con su ID para poder elegir sin releer la auditoría entera.
       pero son ~27.000 requests para lugares que quizá nadie visite. Ver spec FICHA.
 - [ ] **Slug SEO en la URL de la ficha** — hoy `/lugar/[id]` con uuid (fijado en BUSQUEDA).
       Un `/lugar/nombre-zona-xxxx` ayuda al descubrimiento orgánico.
+      **📌 Evaluado y DIFERIDO con gate el 2026-08-21** (spec `SEO`, decisión 9). No es un
+      pendiente suelto: es la **única puerta de ida** de las cuatro decisiones de ese spec (son
+      URLs públicas y hay links compartidos vivos), y **su beneficio depende de que las fichas
+      rankeen**, que es justo lo que hoy no pasa. **El prerrequisito ya está pago**:
+      `lib/lugar/url.ts` es el dueño único de la URL de un lugar, así que el trabajo pasó de 8
+      archivos a 1. **Gate para reabrirlo:** que Search Console (spec SEO, F3) muestre fichas con
+      impresiones por nombre propio.
 - [ ] **`/admin` para corregir matches de Google** — en v1 se corrige por `UPDATE`
       documentado, igual que el umbral de confidence.
 - [x] **Identidad visual: aplicar el logo y la paleta definitivos** (2026-07-21). **Hecho ✅

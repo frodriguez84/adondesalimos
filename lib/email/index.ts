@@ -1,4 +1,6 @@
 import { Resend } from 'resend'
+import { APP_URL } from '@/lib/app-url'
+import { urlAbsolutaDeLugar } from '@/lib/lugar/url'
 import { reservarEnvio, type EmailSku } from './cupo'
 
 /**
@@ -19,8 +21,6 @@ import { reservarEnvio, type EmailSku } from './cupo'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
-const APP_URL = process.env.BETTER_AUTH_URL ?? 'http://localhost:5178'
-
 const BRAND = '¿A dónde salimos?'
 
 /** Layout compartido de los mails. Colores = la paleta única (globals.css). */
@@ -118,7 +118,7 @@ function esc(texto: string): string {
  * el mail linkea a la ficha, que es la prueba.
  */
 export async function sendClaimApprovedEmail(email: string, placeName: string, placeId: string) {
-  const url = `${APP_URL}/lugar/${placeId}`
+  const url = urlAbsolutaDeLugar(placeId)
   await enviar({
     sku: 'claim_approved',
     to: email,

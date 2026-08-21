@@ -4,6 +4,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
+import { urlDeLugar } from '@/lib/lugar/url'
 import { Aviso, inputClass } from '@/components/negocio/campos'
 import type { LugarBuscado } from '@/lib/curation/query'
 import type { EdicionDeDatos, LugarParaCorregir } from '@/lib/negocio/query'
@@ -268,7 +269,7 @@ function Editor({ lugar, onGuardado, onCerrar }: EditorProps) {
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <Link
-            href={`/lugar/${lugar.id}`}
+            href={urlDeLugar(lugar.id)}
             target="_blank"
             className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary"
           >

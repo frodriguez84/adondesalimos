@@ -12,6 +12,7 @@ import {
 } from '@/lib/votaciones/query'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { MisVotaciones } from './mis-votaciones-client'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/mis-votaciones` — el panel del creador (VOTACION F3, decisión 19). Sesión
@@ -24,7 +25,10 @@ import { MisVotaciones } from './mis-votaciones-client'
  * nunca en el cliente.
  */
 
-export const metadata: Metadata = { title: 'Mis votaciones — ¿A dónde salimos?' }
+export const metadata: Metadata = {
+  title: 'Mis votaciones — ¿A dónde salimos?',
+  robots: ROBOTS_PRIVADO,
+}
 export const dynamic = 'force-dynamic'
 
 const SIN_HISTORIAL: PaginaHistorial = { filas: [], nextCursor: null }

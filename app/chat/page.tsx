@@ -7,6 +7,7 @@ import { getPrecioB2cArs } from '@/lib/billing/settings'
 import { esPremium } from '@/lib/votaciones/planes'
 import { resumenCupo } from '@/lib/ai/cupo'
 import { ChatClient } from './chat-client'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/chat` — chat IA "armá tu salida" (CHAT_IA F2). Server component con gate por
@@ -19,7 +20,10 @@ import { ChatClient } from './chat-client'
  * contador y el CTA correcto sin un fetch extra (decisión 20).
  */
 
-export const metadata: Metadata = { title: 'Chat IA — ¿A dónde salimos?' }
+export const metadata: Metadata = {
+  title: 'Chat IA — ¿A dónde salimos?',
+  robots: ROBOTS_PRIVADO,
+}
 export const dynamic = 'force-dynamic'
 
 export default async function ChatPage({

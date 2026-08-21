@@ -8,6 +8,7 @@ import { auth } from '@/lib/auth'
 import { buscarCatalogoCompleto } from '@/lib/claims/query'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { AltaForm } from './alta-form'
+import { ROBOTS_RESULTADOS } from '@/lib/seo/robots'
 
 /**
  * `/registrar-negocio` — entrada única del flujo dueño (decisión 11).
@@ -22,7 +23,22 @@ import { AltaForm } from './alta-form'
  * acá. No hace falta un endpoint — el resultado no es interactivo, es una lista.
  */
 
-export const metadata: Metadata = { title: 'Registrá tu negocio — ¿A dónde salimos?' }
+/**
+ * Misma regla que la home (SEO, decisión 10): con `?q=` esto es una pantalla de
+ * resultados y no se indexa. Acá pesa más todavía — el buscador corre sobre el
+ * catálogo **completo, incluidos los no publicados** (`buscarCatalogoCompleto`),
+ * que es exactamente lo que `publishedWhere` decide no mostrar. Pelada se indexa.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}): Promise<Metadata> {
+  const { q } = await searchParams
+  const titulo = 'Registrá tu negocio — ¿A dónde salimos?'
+  const buscando = (q ?? '').trim().length > 0
+  return buscando ? { title: titulo, robots: ROBOTS_RESULTADOS } : { title: titulo }
+}
 
 export default async function RegistrarNegocioPage({
   searchParams,

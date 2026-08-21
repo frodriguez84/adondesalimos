@@ -2,6 +2,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { MapPin } from 'lucide-react'
 
+import { urlDeLugar } from '@/lib/lugar/url'
 import { cn } from '@/lib/utils'
 
 export interface PlaceCardProps extends React.ComponentProps<'div'> {
@@ -66,7 +67,7 @@ function PlaceCard({
       {accion && <div className="absolute right-2 top-2 z-10">{accion}</div>}
 
       <Link
-        href={`/lugar/${id}`}
+        href={urlDeLugar(id)}
         className={cn('flex flex-col gap-2 p-4 outline-none', accion && 'pr-14')}
       >
         {destacado && (

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { after } from 'next/server'
 import { headers } from 'next/headers'
@@ -22,6 +23,7 @@ import {
   searchPlaces,
   type SearchedPlace,
 } from '@/lib/search/query'
+import { ROBOTS_RESULTADOS } from '@/lib/seo/robots'
 
 /**
  * Home = Search (decisión 1). Server component: lee `searchParams` y consulta,
@@ -33,6 +35,23 @@ import {
  * el cliente no consulta salvo para paginar, contar, mapear y el modo GPS —los
  * casos donde el server no puede (ver `ResultsList` y `MapView`).
  */
+
+/**
+ * Ninguna pantalla de resultados se indexa (SEO, decisión 10). Motivo: `/?z=…&t=…`
+ * es la versión no-canónica de `/salir/<zona>/<tipo>` y las dos muestran lo mismo
+ * — canibalización directa. **`follow` sí**: los links internos se siguen recorriendo.
+ *
+ * La home **pelada** sí se indexa: sin búsqueda no declara `robots` y hereda el layout.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<RawParams>
+}): Promise<Metadata> {
+  const params = parseSearchParams(await searchParams)
+  if (!tieneBusqueda(params)) return {}
+  return { robots: ROBOTS_RESULTADOS }
+}
 
 export default async function Home({
   searchParams,

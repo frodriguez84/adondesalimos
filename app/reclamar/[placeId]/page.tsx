@@ -6,7 +6,9 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { getLugarAReclamar } from '@/lib/claims/query'
 import { BrandHeader } from '@/components/shared/brand-header'
+import { urlDeLugar } from '@/lib/lugar/url'
 import { ReclamoForm } from './reclamo-form'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/reclamar/[placeId]` — formulario de reclamo de un lugar existente. Se llega
@@ -18,7 +20,10 @@ import { ReclamoForm } from './reclamo-form'
  * publicado: reclamar un lugar invisible es el caso de negocio del spec.
  */
 
-export const metadata: Metadata = { title: 'Reclamar un negocio — ¿A dónde salimos?' }
+export const metadata: Metadata = {
+  title: 'Reclamar un negocio — ¿A dónde salimos?',
+  robots: ROBOTS_PRIVADO,
+}
 
 export default async function ReclamarPage({
   params,
@@ -43,7 +48,7 @@ export default async function ReclamarPage({
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">¿Es tu negocio?</h1>
         <Link
-          href={`/lugar/${lugar.id}`}
+          href={urlDeLugar(lugar.id)}
           className="shrink-0 text-sm text-muted-foreground transition-colors hover:text-primary"
         >
           ← Volver

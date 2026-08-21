@@ -14,7 +14,9 @@ import { tieneInteres } from '@/lib/billing/interes'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
 import { DesglosePanel } from '@/components/negocio/desglose-panel'
 import { BrandHeader } from '@/components/shared/brand-header'
+import { urlDeLugar } from '@/lib/lugar/url'
 import { EditorClient } from './editor-client'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/mi-negocio/[placeId]` — el editor. Datos de contacto, tags de las 7 facetas,
@@ -33,7 +35,10 @@ import { EditorClient } from './editor-client'
  * el claim no esté aprobado no hay panel.
  */
 
-export const metadata: Metadata = { title: 'Editar mi negocio — ¿A dónde salimos?' }
+export const metadata: Metadata = {
+  title: 'Editar mi negocio — ¿A dónde salimos?',
+  robots: ROBOTS_PRIVADO,
+}
 export const dynamic = 'force-dynamic'
 
 export default async function EditorPage({ params }: { params: Promise<{ placeId: string }> }) {
@@ -89,7 +94,7 @@ export default async function EditorPage({ params }: { params: Promise<{ placeId
 
         {lugar.publicado ? (
           <Link
-            href={`/lugar/${lugar.id}`}
+            href={urlDeLugar(lugar.id)}
             className="w-fit text-sm text-primary underline underline-offset-4"
           >
             Ver mi ficha

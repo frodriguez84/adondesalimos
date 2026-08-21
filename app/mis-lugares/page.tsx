@@ -7,6 +7,7 @@ import { puedeCrearLista } from '@/lib/favoritos/planes'
 import { listasDelUsuario } from '@/lib/favoritos/query'
 import { esPremium } from '@/lib/votaciones/planes'
 import { MisLugares } from './mis-lugares-client'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/mis-lugares` — lo guardado (FAVORITOS F2, decisión 10). Página propia y no
@@ -20,7 +21,10 @@ import { MisLugares } from './mis-lugares-client'
  * esta pantalla esconde es cosmética; el candado está en `POST /api/listas`.
  */
 
-export const metadata: Metadata = { title: 'Mis lugares — ¿A dónde salimos?' }
+export const metadata: Metadata = {
+  title: 'Mis lugares — ¿A dónde salimos?',
+  robots: ROBOTS_PRIVADO,
+}
 export const dynamic = 'force-dynamic'
 
 export default async function MisLugaresPage() {

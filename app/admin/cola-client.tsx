@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+import { urlDeLugar } from '@/lib/lugar/url'
 import { Aviso, inputClass } from '@/components/negocio/campos'
 import type { ClaimEnCola } from '@/lib/claims/query'
 import type { CorreccionEnCola } from '@/lib/negocio/query'
@@ -143,7 +144,7 @@ function Fila({ claim }: { claim: ClaimEnCola }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <Link
-          href={`/lugar/${claim.place.id}`}
+          href={urlDeLugar(claim.place.id)}
           target="_blank"
           className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary"
         >
@@ -302,7 +303,7 @@ function FilaCorreccion({ correccion }: { correccion: CorreccionEnCola }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <Link
-          href={`/lugar/${correccion.placeId}`}
+          href={urlDeLugar(correccion.placeId)}
           target="_blank"
           className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-primary"
         >

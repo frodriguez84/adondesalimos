@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { APP_URL } from '@/lib/app-url'
 import { parseMpApiErrorBody } from '@/lib/billing/mp-errors'
 import type {
   MpAuthorizedPayment,
@@ -37,9 +38,9 @@ function accessToken(): string {
   return token
 }
 
-/** URL base del sitio (misma convención que `lib/email`): `back_url` del preapproval. */
+/** URL base del sitio (dueño único, SEO decisión 16): `back_url` del preapproval. */
 function appUrl(): string {
-  return process.env.BETTER_AUTH_URL ?? 'http://localhost:5178'
+  return APP_URL
 }
 
 async function mpFetch<T>(path: string, init?: RequestInit): Promise<T> {

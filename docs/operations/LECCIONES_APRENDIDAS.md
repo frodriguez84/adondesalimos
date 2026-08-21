@@ -5,6 +5,48 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## El escape que se resuelve solo antes de llegar al archivo (2026-08-21 · SEO F1)
+
+**Qué pasó.** El arreglo del XSS del JSON-LD era una línea: escapar `<` como la secuencia
+`\u003c`. Tardó **cuatro intentos** y ninguno falló por el motivo que parecía.
+
+1. Escribí el reemplazo con un heredoc de Python. El `\\\\u003c` del heredoc llegó al archivo
+   como `\u003c` — bien —, pero…
+2. …**`'\u003c'` en fuente JavaScript no es la secuencia: es el carácter `<`.** El compilador
+   resuelve el escape Unicode al parsear, así que `.replace(/</g, '\u003c')` es
+   `.replace(/</g, '<')`: un no-op perfecto, sin error, sin warning.
+3. La herramienta `Read` **muestra `\u003c` como `<`**, así que el archivo se veía "mal" cuando
+   estaba bien, y "bien" cuando estaba mal. Dos ediciones fallaron por no matchear un `old_string`
+   que en pantalla parecía idéntico.
+4. Un `node -e "..."` para verificar tampoco sirvió: el shell se comió una capa más de barras y
+   dio un falso negativo.
+
+**Qué lo destrabó.** Dos herramientas que no interpretan nada: **`od -c`** para ver los bytes
+reales del archivo, y un **script en el scratchpad escrito con `Write`** (no `node -e`) para
+probar el comportamiento sin que ningún shell toque el string. Y la edición final se hizo
+**reescribiendo la línea entera por índice**, construyendo la barra con `chr(92)` en vez de
+escribirla — la única forma de que ninguna capa la reinterprete.
+
+**Qué hacer distinto.**
+
+- **La regla de `CLAUDE.md` sobre texto largo por el shell tiene un hermano más chico y peor:
+  los strings *cortos* con barras invertidas.** La regla vieja dice "más de unas pocas líneas van
+  a un archivo con `Write`". El corolario nuevo: **si el string contiene `\`, va con `Write` o se
+  construye con `chr(92)`, tenga el largo que tenga.** Un `\u003c` de 6 caracteres atravesó tres
+  capas (bash → Python → JS) y cada una se comió una.
+- **Nunca verificar un escape leyendo el archivo.** `Read` normaliza. Se verifica con `od -c` o
+  corriendo el código.
+- **El test es el único árbitro.** Los tres tests de regresión se escribieron *antes* de que el
+  arreglo funcionara y fueron los que cazaron el no-op del paso 2. Sin ellos el bug se
+  commiteaba "arreglado", con comentario explicativo y todo — que es el peor estado posible: un
+  agujero abierto con un cartel que dice que está cerrado.
+
+**Lo que NO es la lección.** No es "tené cuidado con los escapes". Es que **un arreglo de
+seguridad sin un test que lo verifique no es un arreglo**, porque el modo de falla de un escape
+mal escrito es *silencioso y visualmente idéntico al correcto*.
+
+---
+
 ## El informe decía «edge» y hacía tres versiones que no (2026-08-18 · SEC-01 / SEC-11)
 
 **Qué pasó.** La sesión entró con una decisión bloqueante bien planteada: *«el `middleware.ts` de

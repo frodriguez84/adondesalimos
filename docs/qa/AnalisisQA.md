@@ -4754,3 +4754,63 @@ primero tiraba 500 en la cola de `/admin` y en todo alta o reclamo. Backup previ
 `NEON_prod_2026-08-17_205245.sql.gz` · `prod:check` confirma **19 de 19** · 0 claims en prod, así
 que no hubo backfill. **Falta el `git push`**: hasta que el deploy salga, la app en línea no tiene
 esta F1 (la columna está, nadie la usa — que es el lado seguro).
+
+## QA manual — SEO F1 (2026-08-21)
+
+**Veredicto:** APROBADO — F1 completa.
+**Verificación técnica:** typecheck ✅ · tests ✅ **861/861** (77 archivos) · `next build` ✅ con el
+dev server parado.
+**Método:** verificación directa contra el DoD de `docs/specs/active/SEO.md` § *F1*, con `grep`,
+`SELECT` contra el Postgres de dev e inspección del `sitemap.xml` **realmente prerenderizado** por
+el build (`.next/server/app/sitemap.xml.body`), no del código que lo genera. La distinción importa:
+el criterio es lo que ve el crawler.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| SEO-01 | `sitemap.xml` válido, URLs absolutas desde `lib/app-url.ts` | ✅ PASS | Prerenderizado como **estático** (`○` en la salida del build, `revalidate 1d`). Todas las `<loc>` cuelgan de `BETTER_AUTH_URL` |
+| SEO-02 | Conteo por tipo de URL; ninguna con `?` | ✅ PASS | **1.126 URLs** = 3 estáticas (`/`, `/legales`, `/registrar-negocio`) + **1.123 fichas**. `grep` de `?` en `<loc>`: **0**. Rutas privadas (`/api`, `/admin`, `/votacion`, `/cuenta`, `/mis-*`, `/mi-negocio`, `/reclamar`, `/chat`): **0** |
+| SEO-03 | Toda ficha del sitemap está publicada según la regla de `lib/db/visibility.ts` | ✅ PASS | Los 1.123 ids extraídos del XML, cargados a una temp table y cruzados: **no_publicadas = 0, inexistentes = 0**. **diff = 0** |
+| SEO-04 | El umbral se mueve por `app_settings` sin redeploy | ✅ PASS | `seo.sitemap_min_tags = 3` ⇒ **1.123**; con `5` ⇒ **576**. Sembrado en `scripts/seed.ts` (idempotente) y presente en la base de dev |
+| SEO-05 | Los dos dueños únicos, verificados por `grep` | ✅ PASS | `BETTER_AUTH_URL ?? ` → **1** ocurrencia (`lib/app-url.ts`). `` `/lugar/${ `` → **0** fuera de `lib/lugar/url.ts` |
+| SEO-06 | `/` pelada indexable; `/?z=…` con `noindex, follow` | ✅ PASS (código) | `generateMetadata` de `app/page.tsx` devuelve `ROBOTS_RESULTADOS` solo si `tieneBusqueda(params)`. **Pendiente de verificar en vivo con `curl`** — ver Gaps |
+| SEO-07 | `/votacion/<token>` con `noindex, nofollow` y la votación sigue funcionando | ⚠️ PARCIAL | El `robots` está en los **dos** returns de `generateMetadata` y el bloque `openGraph` quedó intacto. **La votación en vivo y el preview de WhatsApp no se probaron** — requieren el dev server, que lo levanta Fer |
+| SEO-08 | `/chat`, `/cuenta`, `/mis-lugares`, `/mis-votaciones`, `/mi-negocio/<id>`, `/reclamar/<id>` con `noindex` | ✅ PASS (código) | Los seis consumen `ROBOTS_PRIVADO` de `lib/seo/robots.ts`. `grep "index: false"` fuera de ese módulo: **0** |
+| SEO-09 | JSON-LD de la ficha sin ninguna clave de Google | ✅ PASS | `lib/lugar/jsonld.ts` arma solo `@type`, `name`, `url`, `geo`, `address` y —si hay dueño— `openingHoursSpecification`. Sin `aggregateRating`, `review`, `priceRange`, `image` ni `telephone` |
+| SEO-10 | Test que falla si se agrega una clave prohibida | ✅ PASS | `lib/lugar/__tests__/jsonld.test.ts`, lista `CLAVES_PROHIBIDAS`. **11 tests**, verdes |
+| SEO-15 | El build emite `/sitemap.xml` como estático, no como `ƒ` | ✅ PASS | Salida del build: `○ /sitemap.xml    1d    1y` |
+
+### 🔴 Hallazgo — XSS en el JSON-LD de la ficha (encontrado y arreglado en la misma sesión)
+
+**Nadie lo reportó: salió de revisar el código del subagente antes de darlo por bueno.**
+
+El JSON-LD se inyectaba con `dangerouslySetInnerHTML={{ __html: JSON.stringify(...) }}`, y
+**`JSON.stringify` no escapa `<`**. Un lugar llamado `Bar </script><script>alert(1)</script>`
+cerraba el `<script type="application/ld+json">` y abría uno ejecutable en la ficha.
+
+No es hipotético que el dato sea hostil: `places.name` tiene **tres** orígenes que no controlamos —
+Overture (datos de terceros), una corrección de admin (`lib/negocio/correcciones.ts`) y, vía
+`resolverContenidoDueno`, **el dueño del negocio**. Y el CSP no lo hubiera frenado: está en
+`Report-Only` y con `'unsafe-inline'` (ver `docs/qa/SEGURIDAD.md` § `SEC-11`).
+
+**Arreglo:** `jsonLdSerializado()` en `lib/lugar/jsonld.ts` escapa `<` como la secuencia de 6
+caracteres `\u003c` — válido en JSON, y sin un `<` literal no se puede abrir ni cerrar ningún tag.
+La page usa **eso**, nunca `JSON.stringify` a pelo. Tres tests de regresión (nombre hostil,
+round-trip del nombre, y un `<` en la dirección).
+
+⚠️ **Vale para cualquier `<script>` futuro con `dangerouslySetInnerHTML`.** Hoy el JSON-LD de la
+ficha es el único; F2 va a agregar `BreadcrumbList` e `ItemList` en las páginas de zona y **tienen
+que salir por el mismo serializador**, no por un `JSON.stringify` nuevo.
+
+### Gaps declarados (no bloquean F1)
+
+- **`SEO-06`, `SEO-07`, `SEO-08` están verificados en el código, no en vivo.** Los `noindex` se
+  leen del HTML servido y eso necesita el dev server, que lo levanta Fer. Quedan para la pasada en
+  vivo de F2, junto con `SEO-19` (preview de WhatsApp de `/votacion/[token]`, que es el que puede
+  haberse roto sin que se note).
+- `SEO-11` a `SEO-14` y `SEO-16` a `SEO-21` son **de F2** y no se corrieron: las páginas de
+  `/salir` todavía no existen.
+- El sitemap se verificó contra la base de **dev**. En producción los números van a diferir si el
+  catálogo de Neon divergió; el criterio (`diff = 0` contra `publishedWhere`) es el que hay que
+  re-correr allá, no el número.
+
+---

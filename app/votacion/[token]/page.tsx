@@ -16,6 +16,7 @@ import {
 } from '@/lib/votaciones/query'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { VotacionPublicaCliente } from './votacion-client'
+import { ROBOTS_PRIVADO } from '@/lib/seo/robots'
 
 /**
  * `/votacion/[token]` — la página **pública** (sin sesión) de una votación (F2).
@@ -52,6 +53,12 @@ function primerNombre(nombre: string): string {
  * vuelve a verse pelado, que es justo lo que arregla `PBETA-R2-02`. La imagen se
  * hereda del padre en vez de escribir la ruta a mano, así sigue habiendo **un
  * solo** archivo que la define.
+ *
+ * El `robots` de acá es el hallazgo de SEO (decisión 11): esto es un **token
+ * privado** que se comparte por WhatsApp y hasta hoy era perfectamente indexable.
+ * `nofollow` además de `noindex` porque la página linkea las opciones y no hay
+ * motivo para que un crawler recorra el interior de un plan privado. **No toca el
+ * `og:`**: `robots` no participa del preview, así que el link se sigue viendo igual.
  */
 export async function generateMetadata(
   { params }: { params: Promise<{ token: string }> },
@@ -59,7 +66,9 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { token } = await params
   const votacion = await cargar(token)
-  if (!votacion) return { title: 'Votación no encontrada — ¿A dónde salimos?' }
+  if (!votacion) {
+    return { title: 'Votación no encontrada — ¿A dónde salimos?', robots: ROBOTS_PRIVADO }
+  }
 
   const titulo = tituloDePagina(votacion)
   const descripcion =
@@ -70,6 +79,7 @@ export async function generateMetadata(
   return {
     title: `${titulo} — ¿A dónde salimos?`,
     description: descripcion,
+    robots: ROBOTS_PRIVADO,
     openGraph: {
       title: titulo,
       description: descripcion,
