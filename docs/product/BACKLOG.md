@@ -796,6 +796,66 @@ son trabajo acotado con criterio de "listo" objetivo.
         compartidos vivos (`INVITACION`, fichas mandadas por WhatsApp) ⇒ los redirects se deciden
         **antes** de tocar, no después.
 
+- [ ] **11 · Legales de verdad — 3 ideas de Fer evaluadas el 2026-08-21.** Salieron al cerrar
+      SEO F2. Dos se fusionaron en un spec y una quedó parada con gate.
+
+      **El hallazgo que las ordenó**: `app/legales/page.tsx` son **263 líneas y todas sus secciones
+      son atribución** (Overture, Foursquare, AllThePlaces, MapLibre, OpenFreeMap, Google). **No hay
+      T&C ni política de privacidad en ninguna parte del repo.** Y el footer manda *«Estamos en
+      beta»* y *«Datos de Overture y Google»* **al mismo lugar**, que es la confusión que nombró
+      Fer. Mientras tanto la app **ya cobra** (MercadoPago) y **ya guarda datos personales**
+      (`users.email`, `users.name`, `session`, `account`, fotos de dueños en R2,
+      `place_owner_content.phone`).
+
+      ⚠️ **Este ítem NO está gateado por tráfico**, y por eso se saltea la cola de los 9 del ítem
+      10: aquellos esperan que llegue gente, este no espera nada — el riesgo ya está corriendo. Con
+      3 usuarios es chico, pero crece solo y no avisa.
+
+      **Decisiones de Fer (2026-08-21), tomadas ya:**
+      1. **No lo revisa un abogado.** T&C genéricos que cubran lo que la app hace hoy.
+         **Consecuencia escrita, para que nadie la lea después como un olvido**: cubre
+         razonablemente y es muchísimo mejor que nada, pero **no garantiza cumplimiento**. El
+         criterio de redacción que lo compensa: describir **lo que el código realmente hace** y no
+         inventar cláusulas que suenen legales sin describir nada — unos T&C que prometen algo que
+         el código no cumple son **peores** que no tenerlos.
+      2. **La separación de la atribución es la fase 0**, no un spec aparte. Motivo estructural, no
+         de prolijidad: la atribución es **condición de licencia** (CDLA-Permissive de Overture,
+         ToS de Google, OpenFreeMap) y los T&C son un **contrato con el usuario** — dos documentos
+         con dueños, ciclos de vida y riesgos distintos en un solo archivo.
+         ⚠️ `/legales` está linkeado desde **6 lugares del código** y está en el sitemap: mover la
+         URL sin redirect rompe links. Lo barato es dejar `/legales` de índice y bajar la
+         atribución a su propia página.
+      3. **El contador de visitas / «# online» NO se hace ahora.** Fer confirmó que lo que quería
+         era **mostrar movimiento de gente**, así que la contrapropuesta (prueba social por tamaño
+         de catálogo) no aplica y el ítem espera. **Gate: ≥200 `detail_views` por semana** — el
+         mismo disparador que ya tiene el tablero de uso del ítem 9, no uno nuevo.
+         El motivo es un número, no una opinión: con **69 aperturas en 13 días y 3 usuarios**, el
+         contador diría *«Visitas hoy: 2 · 0 online»*, que **no es prueba social sino prueba de lo
+         contrario** — y justo en la primera pantalla, cuando empiece a llegar el tráfico de SEO.
+         Los dos problemas técnicos, para no re-descubrirlos: *«visitas hoy»* **no tiene fuente**
+         (`place_impressions_daily` cuenta por lugar, no por sitio; Vercel Analytics es un panel que
+         la app no puede leer en runtime), y *«# online»* necesita saber quién sigue conectado —
+         heartbeat o last-seen—, lo que **pelea con el «sin cookies, sin banner»** ya ratificado y
+         gasta invocaciones de Hobby en cada latido.
+
+      **Lo único donde «genérico» no alcanza**: el **botón de arrepentimiento** y el **botón de
+      baja** de la **Resolución 424/2020** son requisito de **forma**, no de redacción — la norma
+      los pide accesibles desde la página principal. Hoy existe *«Cancelar suscripción»* dentro de
+      `components/billing/suscripcion-panel.tsx`: **la sustancia está, el lugar no**. Es un link en
+      el footer. ⚠️ **A verificar, no es sentencia** — sale de una lectura, no de un abogado.
+
+      **Material que ya existe y se reusa** (no re-investigar): `docs/specs/active/TITULARIDAD.md`
+      líneas 133-134 ya tiene la investigación de la **Ley 25.326** (vigente; ningún proyecto de
+      reforma sancionado) y su decisión 8 aplica minimización de datos. `MONETIZACION.md` decisión
+      22 tiene el invariante que es **la mejor carta de la app**: la instrumentación es agregada
+      pura, **sin `user_id`, sin cookies, sin IP** — poder escribir eso en la política es una
+      ventaja real, no un trámite.
+
+      **Alcance a inventariar en el spec** (el inventario es el trabajo de verdad): qué se guarda y
+      por cuánto · qué pasa al dar de baja · las fotos en R2 (qué licencia cede el dueño, cómo se
+      pide una baja) · el chat IA, que **manda texto del usuario a Anthropic** · los mails
+      (`lib/email/`) · los pagos y la renovación.
+
 ### 🆕 Feedback de los primeros usuarios reales (2026-08-07) — **TRIADO 2026-08-08**
 
 **Origen:** los hermanos de Fer, a quienes les compartió la app el día del lanzamiento (DEPLOY F1).
