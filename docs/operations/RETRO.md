@@ -37,6 +37,23 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-21 · Spec LEGALES (ítem 11) — Opus
+
+- **Qué salió bien:** el prompt encuadró el trabajo como **inventario del código, no redacción**, y
+  eso fue exactamente lo que rindió: leer el schema y los módulos destapó **tres cosas que ningún
+  triaje tenía** — las dos cookies funcionales (`voter_id` + la de sesión) que hacen *falsa* la
+  frase «sin cookies», `session.ip_address`/`user_agent` que sí se guardan, y que
+  `place_owner_content` no se borra al eliminar la cuenta. Escribir el T&C sin ese paso habría
+  producido las tres mentiras verificables.
+- **Qué frenó:** nada, pero **una suposición mía casi entra al spec como DoD**: di por hecho que
+  los links a `/legales` de `results-list.tsx` y `search-shell.tsx` eran de atribución por vivir en
+  la búsqueda, y al abrirlos resultaron ser el aviso de beta. Eran 2 de 9. Lo agarró releer el
+  contexto de cada `grep`, no el `grep`.
+- **Qué cambiar:** nada nuevo. La lección ya está escrita —el triaje de FB se hizo *«leyendo el
+  módulo dueño de esa regla, no el reporte»*— y acá se aplicó a un `grep`: **la línea que matchea
+  no dice para qué existe.** Quedó registrada como decisión 5 del spec para que la sesión que
+  implemente F0 no la re-descubra.
+
 ## 2026-08-21 · SEO F2 — las 301 páginas de zona — Opus
 
 - **Salió bien: leer el HTML servido, no el código.** El DoD pedía un breadcrumb en la ficha «con

@@ -799,6 +799,19 @@ son trabajo acotado con criterio de "listo" objetivo.
 - [ ] **11 · Legales de verdad — 3 ideas de Fer evaluadas el 2026-08-21.** Salieron al cerrar
       SEO F2. Dos se fusionaron en un spec y una quedó parada con gate.
 
+      ✅ **ESPECEADO 2026-08-21 → [`docs/specs/planned/LEGALES.md`](../specs/planned/LEGALES.md)**
+      (4 fases, sin código todavía). El inventario del código está adentro y no hay que rehacerlo.
+      **Tres cosas que el spec encontró y el triaje no tenía**: (a) hay **dos cookies funcionales**
+      (sesión de better-auth + `voter_id`), así que copiar el *«sin cookies»* de MONETIZACION d22 a
+      una política sería **falso**; (b) `session.ip_address` y `session.user_agent` **sí** se
+      guardan — el *«sin IP»* es de la instrumentación, no de la app; (c) `place_owner_content`
+      **no se borra** al eliminar la cuenta, solo deja de mostrarse. ⚠️ **Falta un dato de Fer para
+      cerrar F1**: **nombre completo y CUIT** del titular. Ya se descartó por escrito que alcance
+      con el dominio y el mail (*«un contrato cuyo titular es una URL no tiene una de las dos
+      partes»*), y el **domicilio se omite a propósito** con la brecha declarada — publicar la
+      dirección particular tiene un costo real y MercadoPago ya identifica al vendedor en el
+      checkout.
+
       **El hallazgo que las ordenó**: `app/legales/page.tsx` son **263 líneas y todas sus secciones
       son atribución** (Overture, Foursquare, AllThePlaces, MapLibre, OpenFreeMap, Google). **No hay
       T&C ni política de privacidad en ninguna parte del repo.** Y el footer manda *«Estamos en
