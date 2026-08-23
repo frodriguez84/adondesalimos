@@ -37,6 +37,32 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-22/23 · GEO — la postura frente a los LLM + spec + línea de base — Fable
+
+- **Qué salió bien: la pregunta de producto fue primero y ahorró el trabajo entero.** El prompt
+  la puso arriba de cualquier táctica —*¿queremos que los LLM usen el catálogo?*— y contestarla
+  reencuadró todo: **el catálogo no es el activo** (es Overture con licencia abierta, no hay nada
+  exclusivo que regalar), así que la canibalización solo aplicaba a consultas donde tenemos cero
+  tráfico. Si la sesión arrancaba por `robots.txt` y `llms.txt`, hoy habría un archivo que **el
+  97% de las veces nadie lee** y seguiría sin haber qué citar. El inventario del código dio vuelta
+  el diagnóstico: no hay JSON-LD de entidad en ninguna superficie, el `<h1>` de la home se sortea
+  al azar, y `/votacion/nueva` **redirige a login** ⇒ para un crawler el único activo no
+  replicable de la app es un redirect.
+- **Qué frenó: afirmé dos cosas de terceros antes de verificarlas, y las dos estaban vencidas.**
+  (a) *«No se puede estar en Google Search y fuera de AI Overviews»* — falso desde el 17/06/2026,
+  hay un toggle en Search Console que no toca ranking ni snippets; (b) *«cada día sin la propiedad
+  es un día que no se mide»* — falso, Search Console rellena ~16 meses hacia atrás en un dominio
+  que Google ya indexó. Ninguna llegó a un documento —la primera la agarró la verificación previa
+  al spec, la segunda la búsqueda antes de escribir la guía— pero **Fer leyó las dos mal primero**,
+  y la (a) encima era el argumento con el que se estaba decidiendo. El patrón: **el dato de un
+  proveedor que cambia sus reglas se busca antes de afirmarlo, no después.**
+- **Qué cambiar: nada del método.** Es la misma lección ya escrita (2026-08-21: *la línea que
+  matchea no dice para qué existe*) aplicada a otra fuente, y no necesita regla nueva. Lo que sí
+  quedó, y es hallazgo de producto y no de método: **la línea de base se tomó ANTES de escribir
+  código** (`AnalisisQA.md` § *GEO-12*), y no dio solo un 0/9 — destapó **cinco competidores que
+  nunca habíamos relevado** y el requisito de vocabulario del copy. Tomarla después habría medido
+  nada contra nada.
+
 ## 2026-08-21 · Spec LEGALES (ítem 11) — Opus
 
 - **Qué salió bien:** el prompt encuadró el trabajo como **inventario del código, no redacción**, y
