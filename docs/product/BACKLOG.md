@@ -777,6 +777,35 @@ son trabajo acotado con criterio de "listo" objetivo.
       esperado, no un síntoma de que algo se atascó. Y **sube la apuesta del punto 1**: el SEO deja
       de ser un ítem de infraestructura para ser **el único canal de adquisición de la app**.
 
+      **✅ Decisión de Fer sobre los LLM (2026-08-22): se abre el sitio a los crawlers de IA, y
+      se declara por nombre.** La pregunta era anterior a cualquier táctica —¿queremos que un
+      modelo use el catálogo, si responder «andá a X en Palermo» resuelve la consulta **sin**
+      mandarnos tráfico?— y se contestó cuando se vio que **el catálogo no es el activo**: las
+      18.994 fichas son datos de **Overture con licencia abierta**, así que no hay nada
+      exclusivo que regalar; lo propio son los ~3.967 tags de curaduría, el orden de
+      `ORDEN_ORGANICO` y las 46 zonas, y **ninguno es lo que hace que alguien vuelva**. Lo que
+      hace volver es la votación grupal, que un asistente no puede resolver: no tiene a los
+      seis amigos. ⇒ En «bares en Palermo» no hay tráfico que perder (69 fichas en 13 días); en
+      «cómo nos ponemos de acuerdo entre seis» la respuesta correcta **es** mandar a la app.
+      Spec: [`docs/specs/planned/GEO.md`](../specs/planned/GEO.md), que es desde ahora la
+      fuente de verdad y **no se vuelve a discutir acá**.
+
+      **Tres cosas que el triaje encontró y conviene no re-descubrir:**
+      - **`llms.txt` no se hace, y hay número**: el 97% de los publicados recibe **cero
+        requests**; sobre 500 M de visitas de bots de IA en 90 días, **408** fueron a ese
+        archivo; ningún proveedor mayor se comprometió a leerlo y los estudios de correlación
+        no encuentran lift en citas. Gate para reabrir: que OpenAI, Anthropic o Google lo
+        documenten oficialmente.
+      - **Abrir es puerta de ida y vuelta**, y el mecanismo no es `robots.txt`: desde el
+        **17/06/2026** Search Console tiene un opt-out que saca el sitio de AI Overviews, AI
+        Mode y Discover AI —links incluidos— **sin afectar ranking ni snippets**.
+        `Google-Extended` solo gobierna el entrenamiento de Gemini, y `nosnippet` rompe también
+        el snippet normal del buscador.
+      - **GEO acá no es configuración, es que no hay qué citar**: no existe JSON-LD de entidad
+        (`WebSite`/`WebApplication`) en ninguna superficie, el `<h1>` de la home se sortea al
+        azar en cada render, y `/votacion/nueva` **redirige a login** ⇒ para un crawler el
+        único activo no replicable de la app es un redirect. Eso es lo que ataca el spec.
+
       **⚠️ Y por eso el punto 1 NO es "un sitemap".** Dos cosas que el spec tiene que resolver y
       que se vieron al triar, para no re-descubrirlas:
       - **No existe `app/sitemap.ts`.** El `noindex` se sacó el 2026-08-07 (F1), así que hay

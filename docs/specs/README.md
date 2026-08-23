@@ -28,7 +28,11 @@ Paths viejos tras un `git mv` llevan un stub con redirect.
 
 ## 🔵 Planned (`planned/`)
 
-**Vacía.** LEGALES —el último que quedaba— se escribió, se implementó y se cerró el mismo día
+| Spec | Qué es | Estado |
+|------|--------|--------|
+| [GEO](planned/GEO.md) | La postura frente a los crawlers de IA —**abrir, y declararlo por nombre** (decisión de Fer, 2026-08-22)— y, sobre todo, **que exista qué citar**: hoy el JSON-LD habla solo de lugares (no hay `WebSite` ni `WebApplication`), el `<h1>` de la home se sortea al azar en cada render, y el único activo que un modelo no puede replicar —la votación grupal— vive en un renglón de la home con un destino que redirige a login. Crea `/como-funciona`, la primera superficie pública que explica el loop. **Descarta `llms.txt` con números** (el 97% de los publicados recibe cero requests). | 🔵 Planned — escrito 2026-08-22, sin código |
+
+Antes de GEO la tabla estaba **vacía**: LEGALES —el último que quedaba— se escribió, se implementó y se cerró el mismo día
 (2026-08-21), así que pasó de acá a `done/` sin escala real en `active/`.
 
 _(La carpeta tiene además stubs de redirect de specs ya movidos: la cola de v2 está completa,

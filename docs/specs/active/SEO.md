@@ -321,6 +321,14 @@ tabla no crea que el QA fueron 21 casos.
 - **`FICHA`** — la decisión 14 es su decisión 16 aplicada al JSON-LD. Mismo ToS, misma trampa.
 - **`BUSQUEDA`** — la decisión 10 declara que su URL de estado (`/?z=…&t=…`) **no es** la URL
   canónica de cara a Google. Las dos conviven: una es estado de app, la otra es landing.
+- **`GEO`** ([`planned/GEO.md`](../planned/GEO.md), 2026-08-22) — la postura frente a los
+  crawlers de IA (**abrir y declararlo**) y la superficie que hoy no existe: entidad
+  estructurada + `/como-funciona`. **No reabre nada de acá** —sitemap, umbral, 301 landings,
+  piso y slug diferido quedan igual—, pero **le suma un instrumento a F3**: desde junio 2026
+  Search Console tiene un **reporte de rendimiento de IA generativa** (impresiones por página,
+  país, dispositivo y fecha, **sin clics y sin queries**). ⚠️ Al leer F3, mirarlo junto al
+  reporte normal, y complementarlo con los **referrers** de `chatgpt.com`, `perplexity.ai`,
+  `claude.ai` y `gemini.google.com` en Vercel Analytics — que es lo único que da clics.
 - **`TITULARIDAD` / `AUTH`** — una ficha reclamada gana contenido de dueño ⇒ cruza el umbral del
   sitemap sola. Hoy son 2 lugares.
 
