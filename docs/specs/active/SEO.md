@@ -8,8 +8,10 @@ QA **APROBADO** — **301 URLs recorridas con 0 no-200**, sitemap en **1.427** (
 typecheck limpio, **888 tests**, `next build` en frío verde en **41 s** con las 301 saliendo `●` (SSG)
 y `security-review` con **0 HIGH / 0 MEDIUM**. De paso se cerraron en vivo los tres de F1 que habían
 quedado en código (`SEO-06`, `SEO-07`, `SEO-08`) y el preview de WhatsApp de `/votacion/[token]`
-quedó intacto. · **F3** (medición en Search Console, 60 días después) **pendiente** — es lo único
-que falta para cerrar el spec, y no tiene código
+quedó intacto. · **F3** — **paso 14 ✅ 2026-08-23**: la propiedad `adondesalimos.com.ar` dada de alta en
+Google Search Console (tipo **Dominio**, verificada por TXT en Cloudflare) y el sitemap
+enviado y aceptado, con **1.431 URLs** servidas en 200/`application/xml`. **Falta el paso 15**
+(la lectura), que vence **a los 60 días de F2** ⇒ desde el **2026-10-20**. No tiene código
 **Prioridad:** **Alta** — el 2026-08-21 Fer decidió **no hacer difusión activa** (BACKLOG § Cola
 post-v2, ítem 10). Con esa decisión el SEO deja de ser infraestructura y pasa a ser **la única
 forma en que un usuario nuevo puede llegar a la app**. Los 9 ítems del backlog gateados por
@@ -190,7 +192,15 @@ Todo reversible, sin migraciones, sin cambios de URL. Es lo que hace que F2 sea 
 
 ### F3 — Medición (sin código)
 
-14. Alta de `adondesalimos.com.ar` en Google Search Console, envío del sitemap.
+14. ~~Alta de `adondesalimos.com.ar` en Google Search Console, envío del sitemap.~~
+    **✅ 2026-08-23.** Propiedad de tipo **Dominio** (no de prefijo): cubre `www`, sin `www`,
+    `http`/`https` y los subdominios —`fotos.adondesalimos.com.ar` incluido— en una sola, a
+    cambio de verificar por DNS. El TXT se agregó en **Cloudflare**, que es donde vive la zona
+    (`DEPLOY` decisión 1), **sin tocar** `send.*` ni `resend._domainkey.*`.
+    ⚠️ **En una propiedad de Dominio el sitemap se envía con la URL absoluta**
+    (`https://adondesalimos.com.ar/sitemap.xml`): con el nombre pelado Search Console responde
+    *«Dirección de sitemap no válida»*, porque sin prefijo fijo no sabe qué host es. Costó un
+    rebote; queda escrito para el próximo que dé de alta una propiedad acá.
 15. **A los 60 días de F2**: páginas indexadas vs enviadas, impresiones y clics por tipo de
     página (zona vs ficha), y las queries reales. De ahí salen los tres gates de la decisión 15.
 
@@ -253,7 +263,7 @@ Todo reversible, sin migraciones, sin cambios de URL. Es lo que hace que F2 sea 
 
 **F3 — medición**
 
-- [ ] La propiedad está dada de alta en Search Console y el sitemap enviado, con la fecha anotada.
+- [x] La propiedad está dada de alta en Search Console y el sitemap enviado, con la fecha anotada. **✅ 2026-08-23** — sitemap aceptado («Se ha enviado el sitemap correctamente»), 1.431 URLs.
 - [ ] A los 60 días: la lectura queda escrita en el BACKLOG con los tres gates de la decisión 15
       resueltos (se abren o se cierran con número, no con impresión).
 

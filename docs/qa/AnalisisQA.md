@@ -4969,3 +4969,65 @@ Los IDs son los que propone el propio spec (§ *QA manual*): `LEG-01`..`LEG-20` 
   `beforeDelete`, y pide contraseña).
 
 ---
+
+---
+
+## GEO-12 — Línea de base de asistentes, ANTES de implementar (2026-08-23)
+
+**No es un PASS/FAIL: es el «antes».** Tomada por Fer el 2026-08-23, antes de que GEO tenga
+una línea de código, porque después deja de ser línea de base. Se repite a los 60 días.
+
+**Resultado: 0 menciones en 9 cruces medidos.** Tres prompts × ChatGPT, Claude y Perplexity.
+Gemini quedó **no medido** (la página se cayó en el intento); tres de cuatro alcanza para la
+línea de base y el cuarto se suma en la próxima toma.
+
+| # | Prompt | ¿Nos nombra? | Qué contestó en su lugar |
+|---|--------|---|---|
+| 1 | «cómo decidimos entre varios a dónde salir en Buenos Aires» | **No** (0/3) | Los tres explican **a mano el método que la app automatiza**: cada uno propone sin discutir → filtrar lo inviable → puntuar 1-5 → regla de desempate previa. Perplexity remata con *«pueden usar una encuesta de WhatsApp, Google Forms o simplemente mandar los números al grupo»* |
+| 2 | «app para ponerse de acuerdo con amigos sobre dónde ir a comer en Buenos Aires» | **No** (0/3) | ChatGPT **imagina** una app hipotética; Claude **construye una en el momento**; Perplexity —el único que busca en vivo— nombra **cinco competidores reales** (ver abajo) |
+| 3 | «bares en Palermo» *(control)* | **No** (0/3) | Listas concretas y buenas: nombres, direcciones exactas (Tres Monos - Honduras 4899) y hasta ratings (Claude da 4.6★). Sin fuentes nuestras |
+
+### Los cinco competidores que apareció Perplexity — relevamiento que no teníamos
+
+| App | Para qué sirve | Qué le falta |
+|---|---|---|
+| **ForkYes** | Votar restaurantes cercanos con swipe | Base internacional; solo iPhone según la respuesta |
+| **Daccord** | Decisiones grupales genéricas (comparación de a pares) | No es de salidas ni tiene catálogo local |
+| **GetTogether** | Votar por link, sin instalar nada | Genérica; sin catálogo |
+| **Food with Friends** | Elección gamificada con filtros y veto | Base internacional |
+| **Woki** | Buscar y **reservar** en Argentina | **Local pero no decide en grupo**: es reserva |
+
+⚠️ **El posicionamiento lo dijo el propio motor**, sin que nadie se lo preguntara:
+*«revisen que la aplicación esté disponible en la tienda argentina y que tenga restaurantes de
+su zona: algunas apps de votación tienen una base internacional y pueden mostrar menos
+opciones en Buenos Aires»*. **Ninguna de las cinco cruza votación grupal con catálogo local de
+AMBA** — las de votación son genéricas, la local es de reservas. Esa intersección es la app, y
+es la frase que `/como-funciona` tiene que poder contestar.
+
+### Tres lecturas que cambian trabajo, no solo confirman
+
+1. **El hueco no es de categoría, es nuestro.** Con fraseo genérico (prompt 1) no aparece
+   ninguna app; con fraseo de producto (prompt 2) aparecen cinco. El estante existe y está
+   ocupado: no estamos en él. (La primera lectura, hecha solo con el prompt 1, dijo que la
+   categoría no existía — **el prompt 2 la corrigió**, y por eso la línea de base lleva tres
+   prompts y no uno.)
+2. **El canal que paga es el que busca en vivo.** ChatGPT y Claude responden de memoria y no
+   citan a nadie; Perplexity busca y nombra cinco. **Ser citado no depende de estar en el
+   training set: depende de tener página indexada que responda.** ⇒ `/como-funciona` (GEO F2)
+   rinde más que todo lo demás del spec, y los crawlers que había que permitir sí o sí son los
+   de las categorías (b) y (c) de la decisión 2.
+3. **Que Claude arme la app en el momento mide qué es defendible.** La mecánica de
+   coordinación un modelo la genera en treinta segundos; las 18.994 fichas de AMBA con zonas y
+   curaduría, no. El activo es la intersección, nunca ninguna de las dos mitades sueltas — que
+   es la decisión 1 del spec, confirmada con evidencia y no con razonamiento.
+
+### Requisito que esto le impone al copy de `/como-funciona` (decisión 7)
+
+Si la página habla solo el idioma del producto («armá una votación»), el modelo no la reconoce
+como respuesta al prompt 1. Tiene que usar **las palabras que los tres asistentes eligieron
+solos**: *proponer opciones, que cada uno vote, desempatar, que no decida siempre el mismo*.
+No es keyword stuffing —es literalmente lo que la app hace—, pero es la diferencia entre que
+un asistente la lea como la herramienta o como un directorio de bares más.
+
+**Próxima toma:** con GEO F1 + F2 en producción, los mismos 3 prompts × 4 asistentes (Gemini
+incluido), anotando el resultado acá abajo.
