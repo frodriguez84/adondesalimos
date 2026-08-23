@@ -24,6 +24,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: `${APP_URL}/`, changeFrequency: 'daily', priority: 1 },
+    // La página que explica el loop de decisión grupal (GEO, decisiones 7 y 9).
+    // Estática y escrita a mano, así que `monthly` es honesto: cambia cuando
+    // cambia el producto, no cuando cambia el catálogo.
+    { url: `${APP_URL}/como-funciona`, changeFrequency: 'monthly', priority: 0.6 },
     // La letra chica (LEGALES, F0): el índice y sus cuatro documentos. Van al
     // sitemap porque son páginas públicas y estáticas, y porque `/legales/baja`
     // tiene que ser encontrable — la Resolución 424/2020 la pide accesible.

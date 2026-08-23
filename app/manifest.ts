@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next'
 
+import { DESCRIPCION, MARCA } from '@/lib/seo/textos'
+
 /**
  * Manifest de la app instalable (PULIDO_BETA F4, decisión 9).
  *
@@ -16,9 +18,11 @@ import type { MetadataRoute } from 'next'
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: '¿A dónde salimos?',
+    // Nombre y bajada salen de `lib/seo/textos.ts` (GEO F1): eran dos de las
+    // copias literales que el JSON-LD de la entidad iba a multiplicar.
+    name: MARCA,
     short_name: 'A dónde salimos',
-    description: 'Decidí a dónde salir esta noche sin dar mil vueltas.',
+    description: DESCRIPCION,
     lang: 'es-AR',
     start_url: '/',
     display: 'standalone',

@@ -37,6 +37,13 @@ export default function SalirLayout({ children }: { children: React.ReactNode })
         <Link href="/legales/baja" className="underline underline-offset-4">
           Cancelar suscripción o cuenta
         </Link>
+        <span aria-hidden>·</span>
+        {/* GEO, F2 punto 8. Estas 301 páginas son las que un crawler recorre de
+            verdad, así que este es el link interno que le da peso a
+            `/como-funciona` — el del footer de la home es uno solo. */}
+        <Link href="/como-funciona" className="underline underline-offset-4">
+          Cómo funciona
+        </Link>
       </footer>
     </main>
   )

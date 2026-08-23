@@ -1,5 +1,7 @@
 import { ImageResponse } from 'next/og'
 
+import { DESCRIPCION } from '@/lib/seo/textos'
+
 /**
  * La tarjeta que dibuja WhatsApp antes de que alguien abra un link nuestro
  * (INVITACION, decisión 2 — `PBETA-R2-02`).
@@ -93,7 +95,10 @@ export function GET() {
           </div>
         </div>
         <div style={{ display: 'flex', fontSize: 34, color: TEXTO, opacity: 0.75 }}>
-          Decidí a dónde salir esta noche sin dar mil vueltas.
+          {/* La bajada sale del dueño único (`lib/seo/textos.ts`) desde GEO F1: era
+              una de las tres copias literales de la misma frase, y el JSON-LD de la
+              entidad iba a ser la cuarta. Los colores siguen a mano: eso es paleta. */}
+          {DESCRIPCION}
         </div>
       </div>
     ),

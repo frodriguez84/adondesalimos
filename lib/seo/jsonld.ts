@@ -1,5 +1,6 @@
 import { APP_URL } from '@/lib/app-url'
 import { urlAbsolutaDeLugar } from '@/lib/lugar/url'
+import { DESCRIPCION, MARCA } from '@/lib/seo/textos'
 
 /**
  * JSON-LD de las páginas de `/salir` + **el serializador seguro que usa todo el
@@ -86,5 +87,69 @@ export function itemListJsonLd(
       name: l.name,
       url: urlAbsolutaDeLugar(l.id),
     })),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// La entidad del sitio (GEO, decisión 6)
+// ---------------------------------------------------------------------------
+
+/**
+ * `WebSite` + `WebApplication` de la home — **qué es `adondesalimos.com.ar`**.
+ *
+ * Es el agujero más barato de tapar y el más caro de no tener: hasta GEO las tres
+ * superficies con JSON-LD hablaban **de lugares** (`LocalBusiness`, `ItemList`,
+ * `BreadcrumbList`) y no había una sola entidad que dijera qué es el sitio. Un
+ * asistente lee esto **antes que el `<h1>`** — que además rota entre cuatro
+ * ocasiones en cada render y por decisión de producto no se toca (decisión 8).
+ *
+ * Van las dos y no una: `WebSite` es la publicación (lo que un buscador entiende
+ * como "el sitio") y `WebApplication` es lo que la app **hace**, que es donde
+ * cuelgan `applicationCategory` y `areaServed`. Se emiten en un `@graph` con
+ * `@id`, así el `isPartOf` las ata en vez de dejar dos entidades sueltas
+ * compitiendo por ser el sitio.
+ *
+ * ⚠️ **Cero datos de Google y cero `aggregateRating`** — misma regla de ToS que la
+ * ficha (FICHA decisión 16 = SEO decisión 14): el JSON-LD es contenido cacheado
+ * por terceros, así que un dato de Google acá es un dato persistido. Y un rating
+ * agregado, encima, sería inventado: no tenemos reseñas propias. Hay un test que
+ * falla si alguna de esas claves aparece.
+ *
+ * El nombre y la bajada salen de `lib/seo/textos.ts`, que es su dueño único: si
+ * salieran de literales de acá serían la cuarta copia de la misma frase.
+ */
+export function sitioJsonLd(): Record<string, unknown> {
+  const sitio = `${APP_URL}/#sitio`
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': sitio,
+        name: MARCA,
+        url: `${APP_URL}/`,
+        description: DESCRIPCION,
+        inLanguage: 'es-AR',
+      },
+      {
+        '@type': 'WebApplication',
+        '@id': `${APP_URL}/#app`,
+        name: MARCA,
+        url: `${APP_URL}/`,
+        description: DESCRIPCION,
+        inLanguage: 'es-AR',
+        isPartOf: { '@id': sitio },
+        applicationCategory: 'LifestyleApplication',
+        operatingSystem: 'Web',
+        // El alcance real, y es la mitad del posicionamiento: las apps de
+        // votación que un asistente nombra hoy son de base internacional, y lo
+        // que no cruzan es justamente el catálogo local (decisión 12).
+        areaServed: {
+          '@type': 'Place',
+          name: 'Área Metropolitana de Buenos Aires, Argentina',
+        },
+      },
+    ],
   }
 }

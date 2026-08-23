@@ -5,7 +5,7 @@ import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
 import { MarcadorNavegacion } from '@/components/navegacion/marcador-navegacion'
 import { AvisoProvider } from '@/components/ui/aviso'
 import { APP_URL } from '@/lib/app-url'
-import { MARCA } from '@/lib/seo/textos'
+import { DESCRIPCION, MARCA } from '@/lib/seo/textos'
 import './globals.css'
 
 const inter = Inter({
@@ -16,8 +16,10 @@ const inter = Inter({
 // El nombre de la app tenía dos copias literales —acá y en el `<title>` de la
 // ficha— y F2 iba a ser la tercera (las 301 páginas de `/salir` cierran su título
 // igual). Se unifica en `lib/seo/textos.ts` antes de crearla, no después.
+//
+// La descripción hizo el mismo camino en GEO F1, por el mismo motivo: el JSON-LD
+// de la entidad (`sitioJsonLd`) habría sido su segunda copia literal.
 const TITULO = MARCA
-const DESCRIPCION = 'Decidí a dónde salir esta noche sin dar mil vueltas.'
 
 export const metadata: Metadata = {
   // De dónde cuelga la URL **absoluta** del `og:image`. La base tiene dueño

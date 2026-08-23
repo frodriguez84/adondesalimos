@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { breadcrumbJsonLd, itemListJsonLd, serializarJsonLd, type Miga } from '../jsonld'
+import { APP_URL } from '@/lib/app-url'
+
+import {
+  breadcrumbJsonLd,
+  itemListJsonLd,
+  serializarJsonLd,
+  sitioJsonLd,
+  type Miga,
+} from '../jsonld'
+import { DESCRIPCION, MARCA } from '../textos'
 
 /**
  * Dos regresiones distintas sobre el mismo archivo:
@@ -125,5 +134,65 @@ describe('itemListJsonLd', () => {
   it('un nombre hostil sale escapado por el mismo serializador', () => {
     const salida = serializarJsonLd(itemListJsonLd([{ id: lugares[0].id, name: '</script>' }]))
     expect(salida).not.toContain('<')
+  })
+})
+
+/**
+ * La entidad del sitio (GEO, decisión 6). Dos regresiones:
+ *
+ *  1. **Que exista y esté completa.** Es lo único que le dice a un asistente qué
+ *     es `adondesalimos.com.ar`: el `<h1>` de la home rota entre cuatro ocasiones
+ *     en cada render, así que si esto se rompe no queda nada estable que leer.
+ *  2. **El mismo ToS de Google que la ficha**, más el `aggregateRating` — que acá
+ *     ni siquiera sería de Google: sería inventado, porque no tenemos reseñas
+ *     propias. Un rating falso en JSON-LD es motivo de acción manual.
+ */
+describe('sitioJsonLd — la entidad de la app', () => {
+  const tipos = (ld: Record<string, unknown>) =>
+    (ld['@graph'] as Record<string, unknown>[]).map((n) => n['@type'])
+
+  const nodo = (ld: Record<string, unknown>, tipo: string) =>
+    (ld['@graph'] as Record<string, unknown>[]).find((n) => n['@type'] === tipo)!
+
+  it('emite WebSite y WebApplication en el mismo grafo', () => {
+    expect(tipos(sitioJsonLd())).toEqual(['WebSite', 'WebApplication'])
+  })
+
+  it('las dos entidades llevan name, url, description e inLanguage', () => {
+    const ld = sitioJsonLd()
+    for (const tipo of ['WebSite', 'WebApplication']) {
+      const n = nodo(ld, tipo)
+      expect(n.name, tipo).toBe(MARCA)
+      expect(n.description, tipo).toBe(DESCRIPCION)
+      expect(n.inLanguage, tipo).toBe('es-AR')
+      expect(n.url, tipo).toBe(`${APP_URL}/`)
+    }
+  })
+
+  // El alcance es la mitad del posicionamiento (decisión 12): lo que las apps de
+  // votación internacionales no cruzan es justamente el catálogo local.
+  it('declara el área servida y la categoría en la WebApplication', () => {
+    const app = nodo(sitioJsonLd(), 'WebApplication')
+    expect(app.applicationCategory).toBe('LifestyleApplication')
+    expect((app.areaServed as Record<string, unknown>).name).toContain('Buenos Aires')
+  })
+
+  it('el WebApplication cuelga del WebSite por @id, no queda suelto', () => {
+    const ld = sitioJsonLd()
+    const app = nodo(ld, 'WebApplication')
+    expect((app.isPartOf as Record<string, unknown>)['@id']).toBe(nodo(ld, 'WebSite')['@id'])
+  })
+
+  it('no emite aggregateRating ni ninguna clave con dato de Google', () => {
+    const claves = clavesDe(sitioJsonLd())
+    for (const prohibida of CLAVES_PROHIBIDAS) {
+      expect(claves, `clave prohibida en la entidad del sitio: ${prohibida}`).not.toContain(
+        prohibida,
+      )
+    }
+  })
+
+  it('sale por el mismo serializador que todo lo demás', () => {
+    expect(serializarJsonLd(sitioJsonLd())).not.toContain('<')
   })
 })

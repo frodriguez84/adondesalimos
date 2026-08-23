@@ -19,6 +19,22 @@ import { TIPO } from '@/lib/db/taxonomy'
 export const MARCA = '¿A dónde salimos?'
 
 /**
+ * Qué hace la app, en una línea — la `<meta description>` del layout y, desde
+ * GEO, también la `description` de la entidad estructurada de la home.
+ *
+ * Vivía como literal en `app/layout.tsx` y el JSON-LD de `sitioJsonLd()` iba a ser
+ * la **segunda copia**: se muda acá *antes* de crearla, no después. Es el mismo
+ * movimiento que hizo SEO F2 con `MARCA`, y por el mismo motivo — dos copias de la
+ * identidad del sitio driftean y la que quede vieja miente.
+ *
+ * ⚠️ Que esté en este archivo **no** la convierte en copy de `/salir`: la regla de
+ * "cero prosa generada" de acá abajo es sobre **los lugares del catálogo**. Ésta es
+ * una frase sobre el producto propio, escrita a mano, y es exactamente la clase de
+ * texto que un sitio debe tener (GEO, decisión 7).
+ */
+export const DESCRIPCION = 'Decidí a dónde salir esta noche sin dar mil vueltas.'
+
+/**
  * Plural de cada Tipo, escrito a mano — **son diez y es data, no prosa**.
  *
  * Existe porque `lib/db/taxonomy.ts` guarda el singular («Bar», «Cervecería»),

@@ -1,6 +1,10 @@
 # Spec: GEO — que un asistente sepa que existimos, y tenga qué citar
 
-**Estado:** 🔵 Planned — en diseño (escrito 2026-08-22)
+**Estado:** 🟢 Activo — **F1 ✅ 2026-08-23** (robots por agente + `DESCRIPCION` con dueño único +
+`sitioJsonLd`) · **F2 ✅ 2026-08-23** (`/como-funciona`, estática, en el sitemap y linkeada desde las
+301 landings) · **F3 pendiente**, vence junto con `SEO` F3 el 2026-10-20.
+QA `/qa-spec` **APROBADO** — 16/16 criterios de F1 + F2, incluidos los dos en vivo
+(`docs/qa/AnalisisQA.md` § *QA /qa-spec — GEO F1 + F2*). Escrito el 2026-08-22.
 **Prioridad:** **Media-alta** — es la extensión natural del único canal de adquisición
 (`SEO`), pero **no lo reemplaza ni lo bloquea**: las 301 landings y el sitemap ya están en
 línea y son lo que rinde primero. Esto suma una superficie que hoy no existe.
@@ -118,7 +122,15 @@ este spec no puede romper (`CLAUDE.md` § *Una regla, un dueño*):
 | La URL base absoluta | `lib/app-url.ts` | Nada. Se consume |
 | El copy de las páginas SEO | `lib/seo/textos.ts` (`MARCA`) | El nombre y la descripción de la entidad salen de ahí, no de un literal nuevo |
 
-⚠️ **La descripción de la app está hoy en `app/layout.tsx` como literal** (`const DESCRIPCION
+⚠️ **Eran TRES copias, no una — enmienda del 2026-08-23, al implementar.** El inventario de
+arriba miró `app/layout.tsx` y se quedó corto: el mismo literal estaba además en
+`app/manifest.ts` (la `description` de la app instalable) y en `app/og/route.tsx` (la bajada que
+dibuja la tarjeta de WhatsApp), o sea que la entidad habría sido **la cuarta**. Las tres se
+mudaron a `lib/seo/textos.ts` (`DESCRIPCION`), que además pasó a ser el dueño de `MARCA` en el
+manifest. Lo destapó el criterio del DoD, que está escrito **como un `grep`** y no como una
+afirmación: «la descripción tiene dueño único» se habría dado por cumplido moviendo una sola.
+
+⚠️ **La descripción de la app estaba en `app/layout.tsx` como literal** (`const DESCRIPCION
 = 'Decidí a dónde salir esta noche sin dar mil vueltas.'`). El JSON-LD de la decisión 6 sería
 **la segunda copia** ⇒ se mueve a `lib/seo/textos.ts` junto a `MARCA` antes de crearla, no
 después. Es el mismo movimiento que hizo `SEO` F2 con el nombre de la marca.
@@ -161,38 +173,39 @@ después. Es el mismo movimiento que hizo `SEO` F2 con el nombre de la marca.
 
 **F1**
 
-- [ ] `GET /robots.txt` en producción nombra explícitamente los agentes de la decisión 2 y
+- [x] `GET /robots.txt` en producción nombra explícitamente los agentes de la decisión 2 y
       **ninguno** queda con `Disallow` sobre `/`.
-- [ ] `/api/` y `/admin` siguen bloqueados para **todos** los agentes, incluidos los nuevos
+- [x] `/api/` y `/admin` siguen bloqueados para **todos** los agentes, incluidos los nuevos
       (verificable leyendo el `robots.txt` servido, no el código).
-- [ ] `grep -rn "Decidí a dónde salir esta noche" app lib` devuelve **1 sola** ocurrencia, en
+- [x] `grep -rn "Decidí a dónde salir esta noche" app lib` devuelve **1 sola** ocurrencia, en
       `lib/seo/textos.ts`.
-- [ ] La home emite un `<script type="application/ld+json">` con `@type` `WebSite` y
+- [x] La home emite un `<script type="application/ld+json">` con `@type` `WebSite` y
       `WebApplication`, con `name`, `url`, `description`, `inLanguage` y `areaServed`.
-- [ ] Ese JSON-LD **no** contiene `aggregateRating`, ni horarios, rating, precio o imagen de
+- [x] Ese JSON-LD **no** contiene `aggregateRating`, ni horarios, rating, precio o imagen de
       Google. **Hay un test que falla si alguna de esas claves aparece.**
-- [ ] El JSON-LD nuevo se serializa con `serializarJsonLd`:
+- [x] El JSON-LD nuevo se serializa con `serializarJsonLd`:
       `grep -rn "JSON.stringify" app lib components` no muestra ninguna ocurrencia nueva
       dentro de un `dangerouslySetInnerHTML`.
-- [ ] **No existe** `app/llms.txt` ni ruta que lo sirva (decisión 3).
+- [x] **No existe** `app/llms.txt` ni ruta que lo sirva (decisión 3).
 
 **F2**
 
-- [ ] `GET /como-funciona` devuelve 200 y su HTML **del server** —verificado con
+- [x] `GET /como-funciona` devuelve 200 y su HTML **del server** —verificado con
       `curl | grep`, no en pantalla— contiene la explicación del loop de votación y los links
       a `/salir/…` y `/votacion/nueva`.
-- [ ] La ruta sale **estática** en `next build` (`○`, no `ƒ`), y no importa `headers`,
+- [x] La ruta sale **estática** en `next build` (`○`, no `ƒ`), y no importa `headers`,
       `cookies` ni `auth`: `grep -n "headers\|cookies\|getSession" app/como-funciona/page.tsx`
       devuelve **0**.
-- [ ] `/sitemap.xml` incluye `/como-funciona` y la URL responde 200.
-- [ ] `canonical` de `/como-funciona` apunta a sí misma, absoluta, con la base de
+- [x] `/sitemap.xml` incluye `/como-funciona` y la URL responde 200.
+- [x] `canonical` de `/como-funciona` apunta a sí misma, absoluta, con la base de
       `lib/app-url.ts`.
-- [ ] Si la página declara `openGraph`, el preview conserva la imagen de `app/og/route.tsx`
+- [x] Si la página declara `openGraph`, el preview conserva la imagen de `app/og/route.tsx`
       (no se perdió al declararlo).
-- [ ] Hay al menos un link interno a `/como-funciona` desde una página indexada.
-- [ ] Copy en argentino rioplatense; cero texto generado por LLM sobre lugares del catálogo.
-- [ ] 390×844 sin desbordes horizontales.
-- [ ] `npm run typecheck`, los tests y `next build` en verde, **con el dev server parado**.
+- [x] Hay al menos un link interno a `/como-funciona` desde una página indexada.
+- [x] Copy en argentino rioplatense; cero texto generado por LLM sobre lugares del catálogo.
+      Usa las cuatro frases de la decisión 11 y **lo aprobó Fer el 2026-08-23**.
+- [x] 390×844 sin desbordes horizontales. Verificado con Playwright en vivo (`GEO-QA-15`).
+- [x] `npm run typecheck`, los tests y `next build` en verde, **con el dev server parado**.
 
 **F3**
 

@@ -755,8 +755,29 @@ son trabajo acotado con criterio de "listo" objetivo.
          pagando su prerrequisito, `lib/lugar/url.ts`.
          **F1 ✅** (cimientos + sitemap + eje de `noindex` + JSON-LD): 861 tests, build verde,
          `/sitemap.xml` estático con **1.126 URLs** y cruce contra `publishedWhere` con **diff = 0**
-         (`docs/qa/AnalisisQA.md` § *SEO F1*). **F2** (las ~301 páginas de zona, que es lo que
-         rinde) y **F3** (medición en Search Console) pendientes.
+         (`docs/qa/AnalisisQA.md` § *SEO F1*). **F2 ✅ 2026-08-21** (los 46 hubs + 255 landings,
+         estáticas con ISR; alta en Search Console y sitemap enviado el 2026-08-23). **F3**
+         (medición) **pendiente: vence el 2026-10-20**.
+         → **✅ Y encima se implementó `GEO` F1 + F2 (2026-08-23)**, la extensión del mismo canal
+         hacia los asistentes: [`docs/specs/active/GEO.md`](../specs/active/GEO.md). El
+         `robots.txt` **nombra a los 12 crawlers de IA** en tres grupos (entrenamiento · índice de
+         respuesta · fetch por usuario) y los permite a los tres —decisión de Fer del 2026-08-22,
+         con su fundamento: el catálogo base es de Overture y no hay nada exclusivo que regalar—;
+         la home emite `WebSite` + `WebApplication` (antes el JSON-LD hablaba **solo de lugares**);
+         y nació **`/como-funciona`**, estática, en el sitemap y linkeada desde las 301 landings.
+         **`llms.txt` se descartó con números** (el 97% de los publicados recibe cero requests) y
+         el gate para reabrirlo no es una fecha: que OpenAI, Anthropic o Google lo documenten.
+         ⚠️ **La medición de GEO se lee JUNTO con la de `SEO` F3, el 2026-10-20**, y son dos
+         lecturas distintas: el **reporte de IA generativa** de Search Console da impresiones
+         **sin clics y sin queries** (sirve para saber si aparecemos, no para ROI), y el
+         complemento que sí da clics son los **referrers** `chatgpt.com` / `perplexity.ai` /
+         `claude.ai` / `gemini.google.com` en Vercel Analytics. En la misma pasada va el volumen de
+         hits por user-agent de IA sobre `/lugar/[id]`, para saber si el costo de invocaciones de
+         la decisión 5 es real o teórico. **Nada de GEO se declara ganado sin eso.**
+         📊 **Línea de base tomada ANTES de tocar código** (2026-08-23, `docs/qa/AnalisisQA.md`
+         § *GEO-12*): **0 menciones en 9 cruces**, y de paso destapó **cinco competidores**
+         nombrables (ForkYes, Daccord, GetTogether, Food with Friends, Woki) — ninguno cruza
+         votación grupal × catálogo local de AMBA.
          ⚠️ **El triaje encontró un quinto agujero que no estaba en la lista**: la app no tenía
          **ni una** ruta con `noindex`, y eso incluía **`/votacion/[token]`** —un token privado que
          se comparte por WhatsApp—. Cerrado en F1.

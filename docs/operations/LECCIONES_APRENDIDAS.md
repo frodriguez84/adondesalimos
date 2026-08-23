@@ -5,6 +5,41 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Nombrar a un crawler en `robots.txt` le abre lo que el bloque `*` tenía cerrado (2026-08-23 · GEO F1)
+
+**Qué pasó.** GEO F1 pedía «declarar por nombre» a los doce crawlers de IA. La forma obvia de
+escribirlo —el bloque `*` que ya existía con sus `Disallow`, más un bloque nuevo por categoría
+con `Allow: /`— **habría desbloqueado `/api/` y `/admin` justo para los agentes que se acababan
+de nombrar**, que es exactamente lo contrario de lo que la decisión quería.
+
+El motivo es del formato, no del código: en `robots.txt` un agente busca el grupo **más
+específico** que matchee su nombre y, si lo encuentra, **ignora el bloque `*` entero**. No hay
+herencia. Un grupo nombrado que no repite las exclusiones no las tiene.
+
+**Por qué no es un detalle.** Los dos `Disallow` de este sitio no son cosméticos: `/api/`
+existe para que un crawler no dispare el enriquecimiento pago de Google al indexar (FICHA,
+decisión 16). O sea que el modo de falla era «la factura de Google sube porque abrimos el
+sitio a la IA», con la causa a tres capas de distancia del síntoma. Y **no avisa**: el
+`robots.txt` generado se ve perfectamente razonable, el build pasa, los tests pasan. La única
+forma de verlo es leer el archivo **servido** con la regla del formato en la cabeza.
+
+**Qué se hizo.** Las exclusiones son una constante única (`RUTAS_EXCLUIDAS` en
+`lib/seo/robots.ts`) y `app/robots.ts` arma los cuatro grupos con un helper que la aplica a
+todos. No se puede agregar un grupo sin sus `Disallow` sin salirse del helper a propósito.
+
+**La regla, para la próxima.**
+
+1. **Todo grupo nombrado repite las exclusiones del `*`.** Si alguna vez difieren, que sea una
+   decisión escrita, no un olvido.
+2. **El criterio del DoD se verifica sobre el archivo servido, no sobre el código.** Acá el
+   spec ya lo pedía así («verificable leyendo el `robots.txt` servido») y fue lo que lo cazó:
+   el build deja el archivo en `.next/server/app/robots.txt.body` y se lee con un `cat`, sin
+   levantar nada.
+3. **Vale para cualquier formato con precedencia por especificidad**, no solo para
+   `robots.txt`: el bloque más específico no *extiende* al general, lo *reemplaza*.
+
+---
+
 ## Un DoD escrito como grep se dispara contra sus propios comentarios (2026-08-21 · LEGALES)
 
 **Qué pasó.** Tres criterios del DoD estaban escritos como greps, y estaba bien que lo estuvieran:

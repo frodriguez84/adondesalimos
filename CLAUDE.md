@@ -44,6 +44,7 @@ app/
   page.tsx            home = búsqueda (server component, lee searchParams)
   layout.tsx          root layout (tema ámbar único, sin toggle)
   legales/            atribución de fuentes (Overture + Google)
+  como-funciona/      la página que explica el loop de votación (GEO F2) — ESTÁTICA
   salir/[zona]/       las 301 landings SEO (F2) — ESTÁTICAS con ISR diaria, ver Notas
   lugar/[id]/         ficha del lugar (FICHA) — server component + generateMetadata
   mis-lugares/        lo guardado (FAVORITOS F2) — server + client, patrón de /mis-votaciones
@@ -238,7 +239,9 @@ Cicatrices reales — gotchas que sorprenden:
   `revalidate = 86400` + `dynamicParams = false` (SEO, decisión 5). Agregar `headers()`, `cookies()`
   o `auth.api.getSession` en `app/salir/**` —o en cualquier componente que rendericen— convierte 301
   landings en 301 funciones serverless, y en Vercel Hobby **cada visita del crawler pasa a gastar
-  cuota**. No tira error: el build simplemente las marca `ƒ` en vez de `○`. Por eso `ListaLugares`
+  cuota**. Desde GEO F2 la trampa alcanza también a **`app/como-funciona`** (decisión 9) y, vía
+  `components/legales/ui.tsx`, a `/legales` y sus cuatro documentos: son las tres familias de
+  páginas estáticas del repo y ninguna puede leer sesión, headers ni cookies. No tira error: el build simplemente las marca `ƒ` en vez de `○`. Por eso `ListaLugares`
   **no lleva el botón de guardar** aunque use la misma `PlaceCard` que el listado. Corolario: el
   `next build` **ahora necesita la base** —arma los combos con una query— y si `DATABASE_URL` no
   resuelve, el build falla. Es lo correcto: mejor no deployar que deployar 301 páginas rotas.
@@ -563,7 +566,16 @@ decide los combos, y la llaman `generateStaticParams` **y** el sitemap — si di
 promete a Google URLs que dan 404), `lib/seo/robots.ts` (qué se le dice a un crawler: son **dos**
 valores y la diferencia importa — lo privado corta el recorrido, lo público-no-canónico lo deja
 seguir), `lib/seo/jsonld.ts` (`serializarJsonLd` — **el escape de `<`**, ver § *Notas importantes*)
-y `lib/seo/textos.ts` (el copy de las 301 landings, que es plantilla sobre datos y nunca prosa).
+y `lib/seo/textos.ts` (el copy de las 301 landings, que es plantilla sobre datos y nunca prosa —
+y desde GEO también `DESCRIPCION`, la frase que dice qué hace la app: estaba literal en **tres**
+archivos, `layout`, `manifest` y la tarjeta de `og`, y el JSON-LD de la entidad iba a ser la cuarta).
+
+**GEO no sumó dueños nuevos: le agregó reglas a los que ya estaban**, que era la condición del
+spec. `lib/seo/robots.ts` pasó a llevar también **la postura frente a los crawlers de IA** (los
+tres grupos de agentes y `RUTAS_EXCLUIDAS`) y `lib/seo/jsonld.ts` la entidad del sitio
+(`sitioJsonLd`), con el serializador de siempre. ⚠️ La trampa del `robots.txt`: un agente que
+encuentra su nombre **ignora el bloque `*` entero**, así que un grupo nombrado que no repite los
+`Disallow` *abre* `/api/` en vez de dejarlo cerrado — y no avisa.
 
 - Antes de escribir una regla, **buscá si ya tiene dueño** — se reusa o se extiende, no se clona.
 - Si aparece una **segunda implementación** de la misma regla, no es un detalle: es el cleanup de

@@ -5031,3 +5031,49 @@ un asistente la lea como la herramienta o como un directorio de bares más.
 
 **Próxima toma:** con GEO F1 + F2 en producción, los mismos 3 prompts × 4 asistentes (Gemini
 incluido), anotando el resultado acá abajo.
+
+---
+
+## QA /qa-spec — GEO F1 + F2 (2026-08-23)
+
+**Veredicto:** **APROBADO**
+**Verificación técnica:** typecheck ✅ · tests 894/894 ✅ · build ✅ (con el dev server parado)
+**Método:** checkers independientes (Explore / haiku, read-only) contra el DoD de
+`docs/specs/active/GEO.md`. El gate técnico lo corrió la sesión; la evidencia de robots, sitemap
+y HTML servido sale de los archivos **prerenderizados por el build** (`.next/server/app/…`), no
+del código. El QA **en vivo** se corrió con Playwright contra `https://adondesalimos.ngrok.app`
+(dev server levantado por Fer) y el copy lo aprobó Fer en la misma sesión.
+
+**Los dos criterios que no se verifican leyendo código quedaron cerrados en la misma sesión:** el
+render 390×844 con Playwright y el copy con la aprobación de Fer. F3 no se verifica: es medición
+sin código y vence junto con `SEO` F3 el 2026-10-20.
+
+| ID | Criterio | Resultado | Evidencia / Gap |
+|----|----------|-----------|-----------------|
+| GEO-QA-01 | `robots.txt` nombra los 12 agentes de la decisión 2 y ninguno queda con `Disallow: /` | ✅ PASS | `.next/server/app/robots.txt.body`: 4 grupos, los 12 agentes con `Allow: /`. Origen: `lib/seo/robots.ts` (`CRAWLERS_ENTRENAMIENTO` 6 · `CRAWLERS_INDICE` 3 · `CRAWLERS_FETCH_USUARIO` 3) + `app/robots.ts` |
+| GEO-QA-02 | `/api/` y `/admin` bloqueados para **todos** los agentes, los nuevos incluidos (sobre el archivo servido) | ✅ PASS | Los 4 grupos repiten `Disallow: /api/` + `Disallow: /admin`. Es la trampa del formato: un agente que encuentra su nombre **ignora el bloque `*` entero**, así que sin repetirlas nombrar habría *abierto* `/api/`. La constante única es `RUTAS_EXCLUIDAS` (`lib/seo/robots.ts:107`) |
+| GEO-QA-03 | `grep -rn "Decidí a dónde salir esta noche" app lib` = **1 sola** ocurrencia, en `lib/seo/textos.ts` | ✅ PASS | 1 ocurrencia, `lib/seo/textos.ts:35`. ⚠️ El spec inventarió **una** copia (`app/layout.tsx`) y había **tres**: aparecieron `app/manifest.ts:20` y `app/og/route.tsx:96`, las dos mudadas al mismo dueño |
+| GEO-QA-04 | La home emite `<script type="application/ld+json">` con `WebSite` + `WebApplication`, con `name`, `url`, `description`, `inLanguage` y `areaServed` | ✅ PASS | `sitioJsonLd()` en `lib/seo/jsonld.ts:121-155` (un `@graph` con las dos entidades atadas por `isPartOf`), emitido en `app/page.tsx:148` |
+| GEO-QA-05 | Ese JSON-LD no lleva `aggregateRating` ni ninguna clave con dato de Google, **y hay un test que falla si aparece** | ✅ PASS | `lib/seo/__tests__/jsonld.test.ts:150-198` — el describe nuevo reusa la misma lista `CLAVES_PROHIBIDAS` de la ficha (14 claves) sobre `sitioJsonLd()`. 17 tests en el archivo, verdes |
+| GEO-QA-06 | El JSON-LD nuevo se serializa con `serializarJsonLd`; ningún `JSON.stringify` nuevo dentro de un `dangerouslySetInnerHTML` | ✅ PASS | 7 `dangerouslySetInnerHTML` en el repo, los 7 pasan por `serializarJsonLd` (el de la ficha vía `jsonLdSerializado`). Cero `JSON.stringify` a pelo |
+| GEO-QA-07 | **No existe** `app/llms.txt` ni ruta que lo sirva (decisión 3) | ✅ PASS | Sin coincidencias en `app/`, `public/` ni route handlers. Es el resultado esperado, no un olvido |
+| GEO-QA-08 | `/como-funciona` y su HTML **del server** explican el loop y linkean `/salir/…` y `/votacion/nueva` | ✅ PASS | `.next/server/app/como-funciona.html`: los 4 pasos («Proponé las opciones» · «Mandá el link al grupo» · «Que cada uno vote la suya» · «Cerrá y que quede dicho»), **46** hrefs distintos a `/salir/…` y 1 a `/votacion/nueva` |
+| GEO-QA-09 | La ruta sale **estática** (`○`, no `ƒ`) y no importa `headers`, `cookies` ni `auth` | ✅ PASS | Salida de `next build`: `○ /como-funciona`. `grep -n "headers\|cookies\|getSession" app/como-funciona/page.tsx` = **0**, y los dos componentes que renderiza (`BrandHeader`, `ExploraPorBarrio`) son puros — `ExploraPorBarrio` lee el canon, no la base |
+| GEO-QA-10 | `/sitemap.xml` incluye `/como-funciona` | ✅ PASS | `.next/server/app/sitemap.xml.body` línea 9; origen `app/sitemap.ts:30`. El **200 de la URL** queda para el QA en vivo |
+| GEO-QA-11 | `canonical` absoluto, a sí misma, con la base de `lib/app-url.ts` | ✅ PASS | `app/como-funciona/page.tsx` → el `canonical` de `alternates` se arma con `APP_URL`; el HTML servido trae `<link rel="canonical" href="…/como-funciona"/>` |
+| GEO-QA-12 | Declara `openGraph` y **conserva** la imagen del padre (cicatriz `PBETA-R2-02`) | ✅ PASS | Hereda con `const { openGraph } = await parent` → `images: openGraph?.images`. El HTML servido trae `<meta property="og:image" content="…/og"/>`, o sea `app/og/route.tsx` sigue siendo el único que la define |
+| GEO-QA-13 | Al menos un link interno desde una página indexada | ✅ PASS | Tres orígenes: `app/page.tsx:231` (estado vacío, renglón subordinado), `app/page.tsx:285` (footer de la home) y `app/salir/layout.tsx` (footer de **las 301 landings**, que es el que le da peso real) |
+| GEO-QA-14 | Copy en argentino rioplatense; cero texto generado por LLM sobre lugares del catálogo | ✅ PASS | El texto **no nombra ni un lugar del catálogo** —es prosa sobre el producto propio, que es lo que la decisión 7 distingue de la decisión 6 de `SEO`— y usa las cuatro frases medidas en `GEO-12` (*proponer opciones · que cada uno vote · desempatar · que no decida siempre el mismo*). Los números (2-5 opciones, 72 h) salen de `lib/votaciones/constantes.ts`, no de literales. **Aprobado por Fer el 2026-08-23** |
+| GEO-QA-15 | 390×844 sin desbordes horizontales | ✅ PASS | Playwright en vivo: `scrollWidth` = `clientWidth` = **375** (el viewport quedó aún más angosto que 390, o sea que el test corrió más exigente) y **0 elementos** con `right` fuera del ancho. Idem `/` y `/salir/palermo-soho`. La única entrada de consola en rojo es el `404` de `/llms.txt` que disparó el propio QA. ⚠️ El círculo con «N» del screenshot es el overlay de dev de Next (`nextjs-portal`), no un elemento de la página |
+| GEO-QA-16 | `npm run typecheck`, tests y `next build` en verde **con el dev server parado** | ✅ PASS | typecheck limpio · 894/894 en 79 archivos · build completo (46 hubs + 255 combos siguen `●`, y las rutas de sesión siguen `ƒ` — no se estatizó ni se dinamizó nada de rebote) |
+| GEO-QA-17 | F3 — la lectura del reporte de IA generativa y de los referrers queda escrita en el BACKLOG con fecha | ⏳ No implementado | Es medición sin código y **vence junto con `SEO` F3** (2026-10-20). No se verifica ahora |
+
+### Lo que este QA encontró y el spec no había visto
+
+**La descripción de la app tenía tres copias, no una.** El spec inventarió el literal de
+`app/layout.tsx` y dijo «el JSON-LD sería la segunda». Al correr el grep del DoD aparecieron
+`app/manifest.ts` y `app/og/route.tsx` — o sea que la entidad habría sido **la cuarta**. Es
+justamente el modo de falla que la regla *una regla, un dueño* previene, y lo destapó **un
+criterio escrito como `grep`**: un DoD redactado como «la descripción tiene dueño único» se
+habría dado por cumplido con mover una sola copia. Mismo hallazgo, misma causa, que el DoD-grep
+de `ADMIN_USUARIOS`.

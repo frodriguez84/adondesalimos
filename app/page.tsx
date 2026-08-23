@@ -24,6 +24,7 @@ import {
   searchPlaces,
   type SearchedPlace,
 } from '@/lib/search/query'
+import { serializarJsonLd, sitioJsonLd } from '@/lib/seo/jsonld'
 import { ROBOTS_RESULTADOS } from '@/lib/seo/robots'
 
 /**
@@ -128,6 +129,25 @@ export default async function Home({
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-8">
+      {/* Qué es este sitio, en JSON-LD (GEO, decisión 6). Hasta acá las tres
+          superficies con datos estructurados hablaban **de lugares** y ninguna
+          decía qué es la app — y el `<h1>` no puede decirlo, porque rota entre
+          cuatro ocasiones en cada render (decisión 8, producto, no se toca).
+
+          Va sin condición: es la identidad del sitio, no el contenido de esta
+          pantalla. Con búsqueda activa la home es `noindex` (canibaliza a
+          `/salir`) y ahí no rinde nada, pero tampoco molesta — y un `if` sería
+          una regla más para mantener a cambio de 400 bytes.
+
+          ⚠️ `serializarJsonLd` y no `JSON.stringify`: es el dueño único del
+          escape de `<` (`lib/seo/jsonld.ts`). Acá el contenido es nuestro y no
+          de terceros, pero la regla no admite excepciones por caso — dos
+          caminos de serialización es como uno queda sin el `replace`. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializarJsonLd(sitioJsonLd()) }}
+      />
+
       <header className="flex items-center justify-between gap-3">
         <BrandHeader />
         <AccountMenu user={session?.user ? { name: session.user.name ?? null, email: session.user.email } : null} />
@@ -200,6 +220,18 @@ export default async function Home({
               </span>
             </Link>
           </nav>
+          {/* GEO, F2 punto 8. Deliberadamente **no** es una tercera fila del
+              `<nav>` de arriba: HOME_ENTRADAS (decisión 2) fijó que las entradas
+              de la home son dos —votación y chat— y sumar una acá diluiría
+              justamente eso. Esto es subordinado y de texto: el que ya sabe qué
+              hace la app no lo mira, y el que llegó sin entender tiene dónde ir.
+              El link "de peso" para el crawler es el del footer, que además lo
+              renderizan las 301 páginas de `/salir`. */}
+          <p className="text-xs text-muted-foreground">
+            <Link href="/como-funciona" className="underline underline-offset-4">
+              Cómo funciona lo de decidir en grupo
+            </Link>
+          </p>
         </section>
       )}
 
@@ -245,6 +277,13 @@ export default async function Home({
             estáticas en 301 funciones serverless **sin tirar un solo error**. */}
         <Link href="/legales/baja" className="underline underline-offset-4">
           Cancelar suscripción o cuenta
+        </Link>
+        <span aria-hidden>·</span>
+        {/* GEO, F2 punto 8. Va acá y no como tercera entrada de la home: sin un
+            link interno la página existe para el sitemap y para nadie más, y el
+            footer es lo único que renderizan las 301 landings de `/salir`. */}
+        <Link href="/como-funciona" className="underline underline-offset-4">
+          Cómo funciona
         </Link>
       </footer>
     </main>

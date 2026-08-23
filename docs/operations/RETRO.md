@@ -37,6 +37,30 @@ se justifica cuando se estrenan patrones nuevos (pasó el 2026-07-30, primera se
 
 ---
 
+## 2026-08-23 · GEO F1 + F2 — la declaración, la entidad y `/como-funciona` — Opus
+
+- **Qué salió bien: los criterios del DoD escritos como `grep` y como salida de build cazaron
+  las dos cosas que la lectura no veía.** El grep de la descripción destapó que el literal estaba
+  en **tres** archivos y no en uno —el spec había inventariado `app/layout.tsx` y se le habían
+  pasado `app/manifest.ts` y la bajada de `app/og/route.tsx`—, o sea que el JSON-LD de la entidad
+  iba a ser la cuarta copia. Y el criterio *«sale `○`, no `ƒ`»* se verifica mirando la salida de
+  `next build`, no el código. Un DoD escrito como afirmación («la descripción tiene dueño único»,
+  «la página es estática») se habría dado por cumplido en los dos casos.
+- **Qué frenó: la trampa del `robots.txt` casi entra, y no la traía el spec.** «Declarar por
+  nombre» escrito de la forma obvia —el bloque `*` que ya estaba, más un grupo nuevo con
+  `Allow: /`— **desbloquea `/api/` y `/admin` justo para los agentes que se acaban de nombrar**,
+  porque un agente que encuentra su nombre ignora el bloque `*` entero. El modo de falla era «la
+  factura de Google sube porque abrimos el sitio a la IA», y no avisa: el archivo se ve razonable
+  y el build pasa. Lo que lo evitó fue que el DoD pedía verificar sobre **el `robots.txt` servido**
+  y no sobre el código. Quedó en `docs/operations/LECCIONES_APRENDIDAS.md` y en `lib/seo/robots.ts`.
+- **Qué cambiar: nada del método.** Los dos hallazgos son el mismo hábito ya escrito —el criterio
+  se verifica sobre el artefacto, no sobre el código que lo produce— funcionando dos veces en una
+  sesión. No hace falta regla nueva. Lo único que se ajustó fue el flujo del copy: el borrador
+  salió de esta sesión y Fer lo aprobó entero, así que **el «copy escrito por Claude para tachar»
+  costó una vuelta, no dos** — vale repetirlo antes que frenar la implementación esperando texto.
+
+---
+
 ## 2026-08-22/23 · GEO — la postura frente a los LLM + spec + línea de base — Fable
 
 - **Qué salió bien: la pregunta de producto fue primero y ahorró el trabajo entero.** El prompt
