@@ -4394,6 +4394,34 @@ vuelta (copy y un número), sin schema, datos ni settings. El registro va acá y
 | CODE-01 | El motor no se tocó (los dos hallazgos son UI) | ✅ PASS | `git status`: `app/page.tsx`, `components/search/{results-list,results-summary,search-shell,zone-sheet}.tsx`, `lib/search/resumen.ts` + su test. **`lib/search/query.ts` no aparece en el diff** |
 | CODE-02 | El copy del conteo tiene un dueño único | ✅ PASS | `lib/search/resumen.ts` (`contarLugares`) lo usan el renglón, el cierre del techo y el «Ver N lugares» de los dos sheets. Antes el plural y el formato es-AR vivían inline en `BotonAplicar`; era una segunda implementación esperando a driftear |
 
+### Enmienda 2026-08-23 — la aclaración cambió de texto (pedido de Fer)
+
+`ZONA-01`, `ZONA-03` y `RESP-01` siguen en PASS, pero **con otra frase**. La de agosto era
+*«Incluye lo que está a la vuelta, hasta 400 m del borde.»* y ahora dice **«Si una card dice otro
+barrio, está a 400 m o menos.»**. La decisión 1 de arriba (un renglón arriba de la lista, no card
+por card) **no se toca**; lo que cambió es qué dice ese renglón.
+
+**Por qué.** La versión vieja describía el **mecanismo** —un borde, un buffer— y nunca nombraba lo
+que la persona tiene delante, que es una card diciendo **otro barrio**. Y «el borde» es vocabulario
+nuestro: es el del polígono de la zona, y nadie piensa su barrio como un polígono. El renglón
+existe por `R1-03`, o sea exactamente por esa confusión, así que no nombrarla era el agujero.
+
+**Arranca con «Si» por dos motivos medidos, no por estilo:**
+
+1. **No afirma de más.** «Alguna card dice otro barrio» sería falso cuando todos los resultados
+   caen en el polígono exacto. La condicional explica qué pasa *cuando* la hay.
+2. **Entra en un renglón.** Medido con la fuente real del elemento (Inter 12 px, `text-xs`):
+   **291 px** contra los ~358 disponibles en 390. La primera redacción aprobada —*«Alguna card
+   puede decir el barrio de al lado: está a 400 m o menos.»*— pedía **385 px** y envolvía a **dos**
+   renglones, arriba del listado, en la pantalla más vista y en las 301 landings de `/salir`. La
+   versión final es **16 px más corta que la original de agosto**, así que no hay teléfono donde
+   empeore.
+
+**Verificado en vivo** (Playwright, 375 px reales de viewport): alto = **16 px** = 1 renglón, sin
+desborde, en los **dos** consumidores — `/?z=palermo-soho` (listado) y `/salir/palermo-soho` (una
+de las 301). El dueño único sigue siendo `lib/search/resumen.ts`, y el test que fija el literal
+se movió con él.
+
 ### Lo que el QA en vivo dejó a la vista (y no era el hallazgo)
 
 **El síntoma original de `R1-03` ya no se reproduce en la primera pantalla, pero el problema sí

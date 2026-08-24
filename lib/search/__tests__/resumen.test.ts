@@ -19,7 +19,7 @@ describe('resumirBusqueda', () => {
   it('con una zona nombra la zona y explica el buffer (PBETA-R1-03)', () => {
     const r = resumirBusqueda({ total: 1095, zonas: ['Palermo Soho'], gps: false })
     expect(r.titulo).toBe('1.095 lugares en Palermo Soho')
-    expect(r.aclaracion).toBe('Incluye lo que está a la vuelta, hasta 400 m del borde.')
+    expect(r.aclaracion).toBe('Si una card dice otro barrio, está a 400 m o menos.')
   })
 
   it('con varias zonas no las enumera: el chip de arriba ya dice cuáles son', () => {

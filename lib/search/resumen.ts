@@ -28,6 +28,22 @@ export type ResumenBusqueda = {
    * Renglón chico que explica el buffer de 400 m. **Null cuando no aplica**: sin
    * zona elegida y en GPS no hay borde de zona del que hablar, y un aviso que no
    * viene al caso es ruido en la pantalla más vista.
+   *
+   * ⚠️ **Nombra el síntoma, no el mecanismo, y eso es la frase entera** (reescrita
+   * el 2026-08-23, pedido de Fer). La versión anterior —*«Incluye lo que está a la
+   * vuelta, hasta 400 m del borde»*— describía el buffer y nunca mencionaba lo que
+   * la persona tiene delante: una card que dice **otro barrio**. Y «el borde» es
+   * vocabulario nuestro, el del polígono de la zona; nadie piensa su barrio así.
+   * Si alguna vez alguien la quiere "más precisa", va a querer volver al
+   * mecanismo — el porqué de que no está acá.
+   *
+   * Y **arranca con «Si» por dos motivos, no por estilo**: (a) no afirma que haya
+   * cards de otro barrio —puede que todos los resultados caigan en el polígono
+   * exacto—, explica qué pasa cuando la hay; (b) entra en **un** renglón. Medido
+   * con la fuente real: esta versión pide 291 px y la variante afirmativa larga
+   * pedía 385, contra los ~358 disponibles en 390 px. Al reescribirla, medir —
+   * este renglón va arriba del listado en la pantalla más vista y en las 301
+   * landings de `/salir`.
    */
   aclaracion: string | null
 }
@@ -63,6 +79,6 @@ export function resumirBusqueda({
 
   return {
     titulo: `${cuantos} en ${donde}`,
-    aclaracion: 'Incluye lo que está a la vuelta, hasta 400 m del borde.',
+    aclaracion: 'Si una card dice otro barrio, está a 400 m o menos.',
   }
 }
