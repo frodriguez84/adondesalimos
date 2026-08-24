@@ -65,7 +65,8 @@ lib/
                       catálogo publicado), settings (app_settings en runtime),
                       taxonomy, chips
   search/             motor (query), params, card helpers, impresiones, catálogo
-  lugar/              ficha: query (getPlaceDetail) + ficha.ts (helpers puros)
+  lugar/              ficha: query (getPlaceDetail), ficha.ts (helpers puros),
+                      migas.ts (el breadcrumb y su invariante)
   favoritos/          planes (dueño único del cupo de listas), acciones, query,
                       validacion
   seo/                paginas (qué páginas SEO existen), robots, jsonld (el escape de
@@ -268,12 +269,21 @@ Cicatrices reales — gotchas que sorprenden:
   o el link compartido vuelve a verse pelado. Ya mordió en la ficha (`PBETA-R2-02`) y por eso las dos
   rutas de `/salir` la heredan. **Nadie escribe `/og` a mano**: `app/og/route.tsx` es el único archivo
   que define esa imagen.
+- **En un `BreadcrumbList`, `item` es obligatorio en TODOS los escalones menos el último — y un
+  escalón del medio sin `item` invalida el breadcrumb entero.** Mordió el 2026-08-24 en el **11,8%
+  de las fichas** (2.250 de 18.993) y el único síntoma fue un mail de Search Console: el HTML es
+  válido, el JSON es válido y los 894 tests estaban en verde. El invariante —*ninguna miga que no
+  sea la última puede quedar sin `path`*— lo sostiene **`migasDeFicha` (`lib/lugar/migas.ts`)**,
+  que es el único constructor de migas con escalones condicionales; `breadcrumbJsonLd` no lo puede
+  arreglar, porque omitir `item` es justo lo que la última miga necesita. Una lista nueva con migas
+  opcionales hace lo mismo: **si un escalón del medio no linkea, no se emite**. Ver
+  `docs/qa/AnalisisQA.md` § *SEO-BC-01*.
 - **El breadcrumb de la ficha cierra en el NOMBRE DEL LUGAR, y esa cuarta miga no es adorno.**
   `components/shared/breadcrumb.tsx` nunca linkea la última miga —es la página actual—, así que sin
   ella el escalón de Tipo quedaba último y el link a `/salir/<zona>/<tipo>` que pide la decisión 13
-  no existía. Y el Tipo se linkea **solo si `existePaginaZonaTipo` da true**: un bar de un barrio
-  donde los bares no llegan al piso de 10 no tiene página, y linkearla sería mandar al usuario y al
-  crawler a un 404. El visible y el `BreadcrumbList` salen de **la misma lista de migas** a propósito.
+  no existía. Y el Tipo **solo aparece si linkea** —`existePaginaZonaTipo`—: un bar de un barrio
+  donde los bares no llegan al piso de 10 no tiene página, linkearla sería mandar al usuario y al
+  crawler a un 404, y **emitirla sin link rompía el `BreadcrumbList` entero** (punto de arriba).
 - **El dev server lo levanta el usuario**, nunca Claude: `npm run dev` en el **puerto 5178**.
   Se accede por `https://adondesalimos.ngrok.app`, no `localhost`. El MCP de Playwright
   (`.mcp.json`, gitignoreado) verifica el render en vivo que el checker read-only no ve.

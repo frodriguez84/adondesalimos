@@ -92,9 +92,16 @@ describe('breadcrumbJsonLd', () => {
     expect(items[1].item).toMatch(/^https?:\/\/.+\/salir\/palermo-soho$/)
   })
 
-  // Un escalón sin página propia —el Tipo de una ficha cuyo combo no llega al
-  // piso— NO puede emitir un `item`: sería ofrecerle a Google una URL que da 404.
-  it('omite `item` cuando la miga no tiene path', () => {
+  // La ÚLTIMA miga es la página actual y no se linkea a sí misma: omitir `item`
+  // ahí es lo que Google espera («if the breadcrumb is the last item… `item` is
+  // not required»), y usa la URL de la página.
+  //
+  // ⚠️ Este comportamiento es correcto y **no** hay que "arreglarlo", pero decía
+  // de más: el comentario viejo lo justificaba con el escalón de Tipo de una ficha
+  // sin página de combo, que **no es el último**, y un escalón del medio sin `item`
+  // invalida el `BreadcrumbList` entero (Search Console, 2026-08-24). Quien sostiene
+  // ese invariante es `migasDeFicha` (`lib/lugar/ficha.ts`), no esta función.
+  it('omite `item` cuando la miga no tiene path (la última, que es la página actual)', () => {
     const items = (breadcrumbJsonLd(migas) as Record<string, unknown>)
       .itemListElement as Record<string, unknown>[]
     expect(items[2]).not.toHaveProperty('item')

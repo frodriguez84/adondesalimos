@@ -5,6 +5,66 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un test puede fijar una salida inválida, y el comentario que lo justifica es la evidencia (2026-08-24 · SEO / Search Console)
+
+**Qué pasó.** Search Console avisó por mail que **2.250 de las 18.993 fichas publicadas (11,8%)**
+tenían el `BreadcrumbList` inválido: *«Falta el campo "item" (en "itemListElement")»*. Google exige
+`item` en todos los escalones **salvo el último** —ahí usa la URL de la página—. El escalón de Tipo
+se emitía siempre pero solo linkea si el combo zona × tipo tiene página propia, y con el Nombre
+cerrando la ruta, ese Tipo sin link quedaba **en el medio**. Un escalón del medio sin `item` no
+invalida esa miga: invalida **el breadcrumb entero**, y la página deja de salir en resultados
+enriquecidos.
+
+**Lo incómodo: había un test verde que fijaba exactamente ese comportamiento.**
+
+```
+// Un escalón sin página propia —el Tipo de una ficha cuyo combo no llega al
+// piso— NO puede emitir un `item`: sería ofrecerle a Google una URL que da 404.
+it('omite `item` cuando la miga no tiene path', ...)
+```
+
+La primera mitad del comentario es verdadera (linkear a un 404 es peor) y la segunda es un salto:
+de *"no puede llevar item"* se concluyó *"entonces se emite sin item"*, cuando la salida correcta
+era **no emitir el escalón**. El comportamiento de la función está bien —la última miga lo
+necesita—; lo que estaba mal era **quién armaba la lista**. Y el comentario, al justificar la
+omisión con un caso que **no es el último escalón**, dejó escrito el error con todas las letras
+durante tres semanas sin que nadie lo leyera como un bug.
+
+**Por qué no lo agarró nada de lo que teníamos.** El gate no falla: typecheck, 894 tests y build en
+verde, porque el HTML es válido y el JSON es válido — lo inválido es **semántico y del lado de
+Google**. Y no había dónde ponerle un test aunque se hubiera sospechado: la lista de migas se
+armaba **inline en `app/lugar/[id]/page.tsx`**, y un server component con `await getPlaceDetail` no
+se testea sin montar medio Next. La regla existía, no tenía dueño.
+
+**Qué se hizo.** La construcción se extrajo a `migasDeFicha` (`lib/lugar/migas.ts`) con el
+invariante escrito —*ninguna miga que no sea la última puede quedar sin `path`*— y un test que
+barre las 8 combinaciones. Los dos comentarios que bendecían la omisión quedaron corregidos, en
+`lib/seo/jsonld.ts` y en el test.
+
+**Y una segunda mordida en el mismo arreglo, que vale igual:** poner el helper en
+`lib/lugar/ficha.ts` —el módulo "puro" obvio— **rompió el build**, porque ese archivo lo importa
+`components/lugar/ficha-google.tsx`, que es `'use client'`, y el helper necesita `lib/seo/paginas`,
+que arrastra `lib/db` → `postgres` → `fs`/`net`. El error (*Module not found: Can't resolve 'fs'*)
+apuntaba a `page.tsx`, que no era el culpable. **"Puro" no es lo mismo que "server-safe": un
+módulo que un `'use client'` importa no puede tocar el dueño de una query, aunque solo le pida un
+string builder.**
+
+**Las reglas, para la próxima.**
+
+1. **Una regla condicional que se arma inline en un page component no tiene dónde tener un test.**
+   Si hay un `if` que decide qué se emite, se extrae a un módulo y se testea el invariante — no el
+   caso feliz.
+2. **Cuando un test fija una salida que consume un tercero (Google, un cliente, un webhook), el
+   comentario tiene que citar la regla del tercero, no razonarla.** Acá la doc de Google dice
+   textual *«If the breadcrumb is the last item in the breadcrumb trail, `item` is not required»*;
+   con esa frase al lado del test, el salto lógico no sobrevivía. Es la misma lección del
+   2026-08-22 —el dato del proveedor se busca antes de afirmarlo— y esta vez el que afirmó de más
+   fue un comentario de test.
+3. **Antes de agregarle un import a un módulo "puro", mirar quién lo importa.** Un `grep` del
+   nombre del archivo con `head -1` de cada resultado alcanza para ver si alguno es `'use client'`.
+
+---
+
 ## Nombrar a un crawler en `robots.txt` le abre lo que el bloque `*` tenía cerrado (2026-08-23 · GEO F1)
 
 **Qué pasó.** GEO F1 pedía «declarar por nombre» a los doce crawlers de IA. La forma obvia de

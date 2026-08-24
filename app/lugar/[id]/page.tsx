@@ -25,10 +25,11 @@ import {
   type RedPlataforma,
 } from '@/lib/lugar/ficha'
 import { jsonLdSerializado } from '@/lib/lugar/jsonld'
+import { migasDeFicha } from '@/lib/lugar/migas'
 import { getPlaceDetail } from '@/lib/lugar/query'
 import { Breadcrumb } from '@/components/shared/breadcrumb'
 import { breadcrumbJsonLd, serializarJsonLd, type Miga } from '@/lib/seo/jsonld'
-import { existePaginaZonaTipo, urlDeZona, urlDeZonaTipo } from '@/lib/seo/paginas'
+import { existePaginaZonaTipo } from '@/lib/seo/paginas'
 import { MARCA } from '@/lib/seo/textos'
 
 /**
@@ -117,29 +118,18 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
       : Promise.resolve(false),
   ])
 
-  const migas: Miga[] = [
-    { name: 'Inicio', path: '/' },
-    ...(place.zoneSlug && place.zone
-      ? [{ name: place.zone, path: urlDeZona(place.zoneSlug) }]
-      : []),
-    ...(tipoTag
-      ? [
-          {
-            name: tipoTag.name,
-            path:
-              tipoConPagina && place.zoneSlug
-                ? urlDeZonaTipo(place.zoneSlug, tipoTag.slug)
-                : null,
-          },
-        ]
-      : []),
-    // El lugar cierra la ruta. **No es adorno**: sin él la última miga sería el
-    // Tipo, y `Breadcrumb` nunca linkea la última —es la página actual—, así que
-    // el link a `/salir/<zona>/<tipo>` que pide la decisión 13 no existiría. De
-    // paso el `BreadcrumbList` termina donde termina la navegación de verdad, que
-    // es lo que Google espera de un breadcrumb.
-    { name: place.name, path: null },
-  ]
+  // La lista la arma `migasDeFicha` (`lib/lugar/ficha.ts`) y no este archivo,
+  // porque tiene un invariante que hay que poder testear: **ninguna miga que no
+  // sea la última puede quedar sin `path`**. Google exige `item` en todos los
+  // escalones salvo el último, y un escalón del medio sin él invalida el
+  // `BreadcrumbList` entero — es lo que Search Console reportó el 2026-08-24 sobre
+  // el 11,8% de las fichas. El porqué completo vive en el helper.
+  const migas: Miga[] = migasDeFicha({
+    zona: place.zoneSlug && place.zone ? { name: place.zone, slug: place.zoneSlug } : null,
+    tipo: tipoTag,
+    tipoConPagina,
+    nombre: place.name,
+  })
   // F2: junto al estado vienen las listas visibles, para el sheet de destino
   // (decisión 8) — la misma resolución sirve para las dos cosas.
   const favoritos = session?.user

@@ -41,9 +41,22 @@ export function serializarJsonLd(valor: unknown): string {
  * la misma lista o dejan de coincidir.
  *
  * `path` es relativo (acá se vuelve absoluto) y **puede ser `null`**: el escalón
- * actual no se linkea a sí mismo, y en la ficha el escalón de Tipo puede no tener
- * página propia —un bar de un barrio donde los bares no llegan al piso—. En los
- * dos casos se muestra como texto y el JSON-LD omite `item`, que es válido.
+ * actual no se linkea a sí mismo. Cuando es `null`, el JSON-LD omite `item`.
+ *
+ * ⚠️ **Y ahí está la trampa: omitir `item` SOLO es válido en la ÚLTIMA miga.**
+ * Google lo exige en todos los demás escalones («If the breadcrumb is the last
+ * item in the breadcrumb trail, `item` is not required» — y para el último usa la
+ * URL de la página). Un escalón del **medio** sin `item` no invalida esa miga:
+ * invalida **el `BreadcrumbList` entero**, y la página deja de salir en resultados
+ * enriquecidos, sin más síntoma que un mail de Search Console. Pasó de verdad el
+ * 2026-08-24, en el 11,8% de las fichas.
+ *
+ * Esta función **no lo puede arreglar** —omitir `item` es justo lo que la última
+ * miga necesita—, así que **el invariante lo sostiene quien arma la lista**: ver
+ * `migasDeFicha` en `lib/lugar/ficha.ts`, que es el único constructor de migas con
+ * escalones opcionales y tiene el test que lo fija. Una lista nueva con migas
+ * condicionales tiene que hacer lo mismo: si un escalón del medio no linkea, no se
+ * emite.
  */
 export type Miga = { name: string; path: string | null }
 

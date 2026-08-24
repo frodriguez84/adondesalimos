@@ -5105,3 +5105,72 @@ justamente el modo de falla que la regla *una regla, un dueño* previene, y lo d
 criterio escrito como `grep`**: un DoD redactado como «la descripción tiene dueño único» se
 habría dado por cumplido con mover una sola copia. Mismo hallazgo, misma causa, que el DoD-grep
 de `ADMIN_USUARIOS`.
+
+---
+
+## Bug de producción — `SEO-BC-01`: `BreadcrumbList` inválido en el 11,8% de las fichas (2026-08-24)
+
+**Cómo apareció.** Mail de Search Console: *«Se detectaron Datos estructurados de Rutas de
+exploración problemas en adondesalimos.com.ar»* → **Falta el campo "item" (en "itemListElement")**,
+clasificado como **problema crítico** («impiden que tu página o tu función aparezcan en los
+resultados de la Búsqueda»). No lo encontró ningún gate nuestro: typecheck, 894 tests y build
+estaban en verde, porque el HTML es válido y el JSON es válido — lo inválido es **semántico y del
+lado de Google**.
+
+**La regla, citada de la doc de Google** (verificada, no razonada):
+*«If the breadcrumb is the last item in the breadcrumb trail, `item` is not required»* — y
+*«If `item` isn't included for the last item, Google uses the URL of the containing page»*. O sea:
+`item` es **obligatorio en todos los escalones menos el último**.
+
+**Qué pasaba.** El breadcrumb de la ficha es `Inicio › <Zona> › <Tipo> › <Nombre>`. El Tipo se
+emitía **siempre**, pero solo linkea si el combo zona × tipo tiene página propia
+(`existePaginaZonaTipo`) — y no linkea nunca si el lugar no tiene zona primaria. Con el Nombre
+cerrando la ruta, ese Tipo sin link quedaba **en el medio**, sin `item`. Y un escalón del medio sin
+`item` **invalida el `BreadcrumbList` entero**, no solo esa miga.
+
+Reproducido en producción con `curl` sobre `/lugar/3240bc07-…` (Baum Ranelagh, Berazategui):
+
+```
+1 Inicio        item ✅
+2 Berazategui   item ✅
+3 Cervecería    item ❌  ← del medio: invalida todo
+4 Baum Ranelagh item ❌  ← última: acá sí es opcional
+```
+
+**Alcance, medido en producción** (read-only contra `PROD_DATABASE_URL`, reusando `publishedWhere`
+y `paginasDeZonaTipo` — no un `count` propio, que mediría otra cosa):
+
+| | Fichas | |
+|---|---|---|
+| Publicadas | 18.993 | |
+| Con `BreadcrumbList` inválido | **2.250** | **11,8%** |
+| └ Tipo **sin zona primaria** (sin zona no hay combo posible) | 1.890 | el grueso |
+| └ Tipo con zona, pero el combo no llega al piso de 10 | 360 | |
+| De las 1.123 que ofrece el sitemap | 20 | 1,8% |
+
+⚠️ Google ve **muchas más que las 20 del sitemap**: ninguna ficha lleva `noindex` (decisión 7 de
+`SEO`), así que las 2.250 son crawleables.
+
+**El arreglo** (decidido con Fer): si el Tipo no linkea, **no es un escalón** — se saca de las
+**dos** mitades, visible y estructurada. No se pierde información: el tipo del lugar ya sale en los
+chips del encabezado (14 veces en el HTML de la ficha que disparó el aviso), y ese escalón era
+texto inerte. Sacarlo solo del JSON-LD habría dejado el estructurado sin un escalón que sí se ve,
+que es lo que Google llama *structured data engañoso* y lo que `lib/seo/jsonld.ts` declaró que no
+se hace.
+
+La construcción se extrajo de `app/lugar/[id]/page.tsx` a **`migasDeFicha`** (`lib/lugar/migas.ts`),
+que ahora es el dueño del invariante: *ninguna miga que no sea la última puede quedar sin `path`*.
+Antes se armaba inline en un server component, donde **no había dónde ponerle un test**.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| SEO-BC-01 | Las 5 fichas del sitemap que Search Console marcó ya no dejan un `ListItem` del medio sin `item` | ✅ PASS | Corriendo la cadena real (`getPlaceDetail` → `existePaginaZonaTipo` → `migasDeFicha` → `breadcrumbJsonLd`) contra **los datos de producción**: Baum Ranelagh, Santa Birra, BIN 4 VINOLOGY, El Galpón De Tacuara y Cerveceria Mk Fari → las 5 quedan `Inicio › <Zona> › <Nombre>`, con `item` en los dos primeros |
+| SEO-BC-02 | El invariante se sostiene en **las 8 combinaciones** de (zona · tipo · combo con página) | ✅ PASS | `lib/lugar/__tests__/migas.test.ts` — barrido exhaustivo, + un test que pasa la salida por `breadcrumbJsonLd` y verifica que ningún `ListItem` salvo el último omita `item` |
+| SEO-BC-03 | Cuando el combo **sí** tiene página, el escalón de Tipo sigue linkeado (no se rompió la decisión 13 de `SEO`) | ✅ PASS | `migasDeFicha({zona: palermo-soho, tipo: bar, tipoConPagina: true})` → `Inicio › Palermo Soho › Bares › Don Julio` con `/salir/palermo-soho/bar`. Es el link que sube de la ficha a la landing |
+| SEO-BC-04 | Ningún otro breadcrumb del sitio tiene el mismo problema | ✅ PASS | Las listas de `/salir/[zona]` y `/salir/[zona]/[tipo]` son **fijas**, sin escalones condicionales, y su única miga sin `path` es la última. La ficha era el único constructor con condicionales |
+| SEO-BC-05 | Gate técnico | ✅ PASS | typecheck · **900 tests** (80 archivos, +6) · build 322 páginas, con el dev server parado |
+
+**Pendiente de Fer, después del deploy:** en Search Console, entrar al informe de *Rutas de
+exploración* y tocar **«Validar corrección»**. Google recrawlea y cierra el problema solo si el
+arreglo está en línea; hasta entonces el aviso sigue abierto aunque el código esté bien.
+
