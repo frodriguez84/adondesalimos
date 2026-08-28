@@ -5,6 +5,70 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Un A/B en un entorno que no tiene la causa da un falso negativo, y casi tira el arreglo (2026-08-28 · build de Vercel)
+
+**Qué pasó.** Los deploys pasaron de **27 s a ~14 m 38 s** el 2026-08-21, el día que entró
+`feat(SEO): F2 — las 301 páginas de zona`. El diagnóstico apuntó a `lib/db/index.ts`: `max: 1` es
+lo correcto para el runtime serverless, pero `next build` **también corre con
+`NODE_ENV=production`** y tomaba la misma rama, así que las 301 landings prerenderizaban ~1.500
+queries **haciendo cola por una sola conexión**, y encima cruzando de la región de build a la base
+en São Paulo. El arreglo: distinguir el build con `NEXT_PHASE` y darle `max: 4`.
+
+**Lo incómodo: el A/B local dijo que el arreglo no servía.**
+
+| Pool | Build local |
+|------|-------------|
+| `max: 1` | **24,2 s** |
+| `max: 4` | **24,4 s** |
+
+Cero diferencia. Leído solo, ese número dice «no sirve, no lo commitees». **En Vercel el mismo
+cambio bajó de 14 m 38 s a 4 m 21 s** — un 70%, diez minutos por deploy.
+
+**Por qué la medición mentía.** El arreglo ataca **serialización de latencia**: 1.500 round-trips
+de ~120 ms que no se solapan. La base de dev está en `localhost:5439` y cada query vuelve en ~1 ms,
+así que **el costo que el arreglo elimina no existe en local**. No es que el arreglo no sirviera:
+es que el banco de pruebas no contenía la causa. La medición no era negativa, era **vacía**.
+
+**La regla.** Antes de creerle a una medición que da «sin efecto», preguntarse una cosa: **¿el
+entorno donde medí contiene la variable que el cambio ataca?** Si no la contiene, el resultado no
+dice nada —ni a favor ni en contra— y la conclusión honesta es *«no medí»*, no *«no sirve»*. Vale
+al revés también: un entorno que **exagera** la variable da un falso positivo igual de convincente.
+Casos típicos acá: latencia a la base (dev es local, prod cruza el hemisferio), tamaño del
+catálogo, caché frío vs caliente, y cualquier cosa que dependa de la región.
+
+**Y de paso, una trampa de pools.** El primer intento fue `max: 10` y **tumbó el build local** con
+`FATAL: sorry, too many clients already`. El techo real de conexiones es **`workers × max`, no
+`max`**: Next prerenderiza en **11 workers** y cada uno arma su propio pool ⇒ 110 contra las 97
+usables de un Postgres con `max_connections = 100`. Un pool «por proceso» se multiplica por la
+cantidad de procesos, y el número que parece conservador puede no serlo. El detalle vive en el
+comentario de `lib/db/index.ts`, que es donde alguien va a estar parado el día que quiera subirlo.
+
+**Qué salió bien.** Correr `next build` en local **antes** de deployar: cazó el `too many clients`
+en 17 segundos. Si eso hubiera ido directo a Vercel, el build fallaba allá y el diagnóstico costaba
+un ciclo entero de push → esperar → leer log.
+
+---
+
+## Un pipe se traga el código de salida, y el build «verde» estaba roto (2026-08-28 · build de Vercel)
+
+**Qué pasó.** El primer build de verificación se corrió como `npm run build 2>&1 | tail -45`. El
+build **falló** (`Next.js build worker exited with code: 1`), pero la tarea reportó **exit code 0**
+y, leído por arriba, parecía un build exitoso.
+
+**Por qué.** El estado de salida de una tubería es el del **último** comando, no el del primero.
+`tail` terminó bien, así que el pipeline terminó bien — sin importar que `next build` se hubiera
+caído. Es comportamiento estándar de POSIX, no una rareza del entorno.
+
+**La regla.** **Cuando un comando importante pasa por un pipe, el código de salida no es evidencia:
+hay que leer la salida.** Si el resultado se va a reportar como «verde», mirar el texto —`✓`,
+`Error`, el conteo de tests— y no el número. Las alternativas, si hace falta el código real:
+`set -o pipefail` en bash, o correr el comando sin pipe y filtrar después sobre el archivo de
+salida. Vale igual para `npm test | tail`, `tsc | head` y cualquier gate encadenado.
+
+**Lo que estuvo en juego.** Reportar un build verde que estaba roto y commitear sobre eso. Se
+evitó porque se leyó la salida completa, no porque el código de salida avisara — no iba a avisar.
+
+---
 ## Un test puede fijar una salida inválida, y el comentario que lo justifica es la evidencia (2026-08-24 · SEO / Search Console)
 
 **Qué pasó.** Search Console avisó por mail que **2.250 de las 18.993 fichas publicadas (11,8%)**
