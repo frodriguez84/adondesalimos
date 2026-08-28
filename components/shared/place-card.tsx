@@ -54,7 +54,7 @@ function PlaceCard({
     <div
       data-slot="place-card"
       className={cn(
-        'relative rounded-xl border border-border bg-card text-card-foreground transition-colors hover:border-muted-foreground/50',
+        'group relative overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg',
         // Borde propio del destaque: se distingue del orgánico sin ser otra card.
         destacado && 'border-primary/60 hover:border-primary',
         className,
@@ -68,7 +68,7 @@ function PlaceCard({
 
       <Link
         href={urlDeLugar(id)}
-        className={cn('flex flex-col gap-2 p-4 outline-none', accion && 'pr-14')}
+        className={cn('flex flex-col gap-3 p-5 outline-none', accion && 'pr-14')}
       >
         {destacado && (
           <span className="inline-flex w-fit items-center rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">

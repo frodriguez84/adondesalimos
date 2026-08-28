@@ -50,7 +50,7 @@ export function RotatingHeadline() {
   const frase = FRASES[Math.floor(Math.random() * FRASES.length)]
 
   return (
-    <h1 className="bg-gradient-to-r from-[#FF2D75] via-[#FF8A00] to-[#FFD400] bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+    <h1 className="max-w-xs text-4xl font-extrabold tracking-tight text-primary sm:text-5xl">
       {frase}
     </h1>
   )

@@ -610,3 +610,13 @@ encuentra su nombre **ignora el bloque `*` entero**, así que un grupo nombrado 
 | Redes de seguridad (backup, consistency, borrados) | `docs/operations/REDES-DE-SEGURIDAD.md` |
 | Operar la app en producción (qué mirar y cada cuánto) | `docs/operations/OPERAR-EN-PRODUCCION.md` |
 | Checklist de cierre de un spec (9 pasos) | `docs/specs/README.md` § *Al cerrar un spec* |
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

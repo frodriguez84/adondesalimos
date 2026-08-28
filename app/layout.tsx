@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ReanudarGuardado } from '@/components/favoritos/reanudar-guardado'
+import { MobileNav } from '@/components/shared/mobile-nav'
 import { MarcadorNavegacion } from '@/components/navegacion/marcador-navegacion'
 import { AvisoProvider } from '@/components/ui/aviso'
 import { APP_URL } from '@/lib/app-url'
@@ -78,6 +79,7 @@ export default function RootLayout({
               (NAVEGACION, decisión 6). */}
           <MarcadorNavegacion />
           {children}
+          <MobileNav />
         </AvisoProvider>
         {/* Web Analytics de Vercel (prendido desde el panel el 2026-08-14). Cuenta
             visitas y páginas vistas **sin cookies**: no hay banner que poner y no

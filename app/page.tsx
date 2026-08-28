@@ -128,7 +128,7 @@ export default async function Home({
       : { guardados: [] as string[], listas: [] as ListaDestino[] }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-6 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 px-4 py-6 sm:py-8">
       {/* Qué es este sitio, en JSON-LD (GEO, decisión 6). Hasta acá las tres
           superficies con datos estructurados hablaban **de lugares** y ninguna
           decía qué es la app — y el `<h1>` no puede decirlo, porque rota entre
@@ -192,8 +192,7 @@ export default async function Home({
               sostiene. «Jugar» es el paraguas que sí aguanta (135). Al sumar una
               actividad a esta lista: mirá el conteo primero. */}
           <p className="text-base text-muted-foreground">
-            Buscá dónde comer, tomar algo, bailar, ver un show o jugar. Por barrio y por ganas, en
-            dos toques.
+Descubrí qué hacer en el momento que quieras. Buscá dónde comer, tomar algo, bailar, ver un show o jugar.
           </p>
           <nav className="mt-1 flex flex-col">
             <Link
@@ -232,6 +231,37 @@ export default async function Home({
               Cómo funciona lo de decidir en grupo
             </Link>
           </p>
+        </section>
+      )}
+
+      {!tieneBusqueda(params) && (
+        <section aria-labelledby="inspiracion-heading" className="flex flex-col gap-3 rounded-2xl border border-border bg-card/70 p-4 shadow-sm">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary">Para cualquier momento</p>
+              <h2 id="inspiracion-heading" className="mt-1 text-xl font-semibold tracking-tight text-card-foreground">
+                ¿Qué te gustaría hacer?
+              </h2>
+            </div>
+            <span className="text-xs text-muted-foreground">Explorá</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ['Comer rico', 'Restaurantes y cafés'],
+              ['Tomar algo', 'Bares y terrazas'],
+              ['Ver un show', 'Música y cultura'],
+              ['Jugar', 'Planes para compartir'],
+            ].map(([titulo, detalle]) => (
+              <Link
+                key={titulo}
+                href={`/?q=${encodeURIComponent(titulo)}`}
+                className="group flex min-h-24 flex-col justify-between rounded-xl border border-border bg-background/60 p-3 transition-colors hover:border-primary/60 hover:bg-secondary"
+              >
+                <span className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary">{titulo}</span>
+                <span className="text-xs leading-5 text-muted-foreground">{detalle}</span>
+              </Link>
+            ))}
+          </div>
         </section>
       )}
 

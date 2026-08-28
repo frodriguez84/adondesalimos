@@ -18,7 +18,7 @@ import { reservarEnvio, type EmailSku } from './cupo'
  * embudo, "¿podemos mandar este mail?" se pregunta una vez y la responde su dueño
  * (`lib/email/cupo.ts`).
  */
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 const FROM = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev'
 const BRAND = '¿A dónde salimos?'
@@ -72,6 +72,10 @@ async function enviar(args: {
   bodyHtml: string
 }): Promise<void> {
   const { sku, to, subject, title, bodyHtml } = args
+
+  if (!resend) {
+    throw new Error('RESEND_API_KEY no está configurada para enviar correos')
+  }
 
   await reservarEnvio(to, sku)
 
