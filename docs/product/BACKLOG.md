@@ -1660,6 +1660,30 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       **medir un recorrido real** con `history.length` en vivo y ver cuántas entradas son (A) y
       cuántas (B).
 
+- [ ] **¿La fila de chips de Ocasión se lee como el atajo principal de la home?** — anotado
+      2026-08-28. **No es un pedido de usuario ni un bug: es lo único que vale la pena de un
+      rediseño automático** (v0 de Vercel, rama `v0/adondesalimos-80b6e1e5`, **descartada sin
+      mergear**). v0 metió arriba de `SearchShell` un bloque «¿Qué te gustaría hacer?» con 4
+      tarjetas grandes —Comer rico · Tomar algo · Ver un show · Jugar—.
+      **El bloque se descartó entero**, por tres motivos: **(a)** linkeaba a `/?q=<texto>`, y `q` es
+      **match por nombre de lugar** (`lib/search/nombre.ts`) ⇒ los 4 botones daban listados vacíos;
+      **(b)** es una **tercera entrada** en la home, contra HOME_ENTRADAS decisión 2 —que degradó el
+      link a `/como-funciona` a texto de 12 px justamente para no serlo—; **(c)** duplica la fila de
+      chips que está 40 px más abajo (`OccasionChipsRow`, `search-shell.tsx:273`) y **no puede hacer
+      lo que ella hace**: rotar por día/hora, respetar el piso de resultados y saber cuál está
+      pintado. Una segunda superficie para la misma regla driftea, y la que quede vieja miente.
+      💡 **Lo que queda en pie es la pregunta.** Si a una herramienta que solo mira la pantalla le
+      pareció que faltaba un «elegí por ganas» visible, puede que la fila actual no se lea como el
+      atajo que es. **Y eso se mide, no se diseña**: antes de tocar un píxel, ver qué proporción de
+      las búsquedas arranca por chip vs. por zona vs. por texto.
+      ⚠️ **Si la respuesta fuera «no se leen», el arreglo es hacer más visible la fila que ya
+      existe** —tamaño, contraste, un rótulo— **nunca agregar una segunda superficie**.
+      📌 Del mismo ejercicio, para cualquier herramienta externa que intente buildear este repo:
+      **el `next build` necesita `DATABASE_URL`** (las 301 landings arman los combos con una query
+      real, SEO F2). Sin ella, `postgres()` cae al default `localhost:5432` y el build muere con
+      `ECONNREFUSED` en `/salir/[zona]/[tipo]`. **No es un bug del código** — es la nota que ya está
+      en `CLAUDE.md` § Notas importantes, vista desde afuera.
+
 ## Mejoras futuras (fuera de v1)
 
 ### Deuda técnica señalada, no tocada
