@@ -1684,6 +1684,33 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
       `ECONNREFUSED` en `/salir/[zona]/[tipo]`. **No es un bug del código** — es la nota que ya está
       en `CLAUDE.md` § Notas importantes, vista desde afuera.
 
+- [ ] **¿La home está cargada? — dos pantallas superpuestas, y el dato que lo decide llega el
+      2026-09-11.** Planteado por Fer el 2026-08-28 (*"siento que la home está muy cargada"*),
+      a raíz del rediseño de v0 que se descartó (ítem de arriba). **No se tocó nada: se decidió
+      esperar el dato.**
+      **Lo que hay, contado** — en estado vacío, antes de la primera card, la home tiene 10
+      elementos en **dos voces distintas**: el **hero** le habla al que llega por primera vez (H1
+      rotativo · bajada · las dos entradas de HOME_ENTRADAS · el link a `/como-funciona`) y la
+      **herramienta** le habla al que ya sabe (zona · buscador · chips de Ocasión · Filtros/Mapa ·
+      chips activos). Ninguno sobra por sí solo —cada uno tiene una decisión escrita atrás—, pero
+      los dos bloques compiten por el tope de la pantalla, siempre, para todos.
+      💡 **El código ya sabe que el hero es descartable**: está envuelto en `!tieneBusqueda(params)`.
+      Lo que falla es **la condición**: colapsa cuando hay búsqueda en la URL, no cuando el que
+      llega ya conoce la app. Consecuencia: **el usuario recurrente ve el onboarding completo todas
+      las veces** — y el recurrente que más entra es Fer, que es de donde sale la sensación.
+      ⚠️ **Por eso la sensación es real y sesgada a la vez.** Con el uso medido (69 fichas en 13
+      días, ver § *Uso real*), es probable que casi toda visita sea una **primera** visita: ahí el
+      hero está haciendo exactamente su trabajo y recortarlo sería optimizar para un solo usuario.
+      🗓️ **Disparador: revisar Vercel Analytics (ya prendido, sin tocar código) a partir del
+      2026-09-11** y responder **una** pregunta: *¿qué proporción de visitas son recurrentes?*
+      - Si la repetición es marginal ⇒ **no se toca nada** y este ítem se cierra.
+      - Si hay repetición real ⇒ la movida es de una línea y reversible: **que el hero colapse a
+        partir de la segunda visita**, no a partir de la primera búsqueda. La home ya es dinámica
+        (lee `session`), así que no hay conflicto con la regla de las páginas estáticas.
+      ✂️ **Único recorte que se haría sin dato, si molesta antes**: el link *«Cómo funciona lo de
+      decidir en grupo»* — ya está en 12 px a propósito porque su público real son los crawlers, y
+      el link que le importa a Google vive en el footer de las 301 landings.
+
 ## Mejoras futuras (fuera de v1)
 
 ### Deuda técnica señalada, no tocada
