@@ -54,7 +54,7 @@ function PlaceCard({
     <div
       data-slot="place-card"
       className={cn(
-        'group relative overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg',
+        'group relative overflow-hidden rounded-3xl border border-border/70 bg-card text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-xl',
         // Borde propio del destaque: se distingue del orgánico sin ser otra card.
         destacado && 'border-primary/60 hover:border-primary',
         className,

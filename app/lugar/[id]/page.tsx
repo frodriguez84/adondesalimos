@@ -148,7 +148,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
   const web = place.website
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-5 px-4 pb-28 pt-4">
+    <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 px-4 pb-28 pt-5 sm:px-6">
       {/* JSON-LD (SEO, decisión 14): **solo datos propios**. Lo arma
           `lib/lugar/jsonld.ts`, que es función pura para que el test de regresión
           de ToS pueda fallar si alguien le agrega una clave de Google.

@@ -204,7 +204,7 @@ export function ResultsList({
   }
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-4">
       {destacados.map((place) => (
         <PlaceCard
           key={`destacado-${place.id}`}
