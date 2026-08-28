@@ -1715,6 +1715,28 @@ decidir el dueño de "otorgar cortesía"). **Ninguna de las dos se abre hasta qu
 
 ### Deuda técnica señalada, no tocada
 
+- [ ] **Quedan dos palancas para el tiempo de build, ya diagnosticadas — no re-analizar, ejecutar.**
+      Anotado 2026-08-28, después de bajar los deploys de **14 m 38 s a 4 m 21 s** con el pool del
+      build (`36a6448`, ver `lib/db/index.ts` y `docs/operations/LECCIONES_APRENDIDAS.md`).
+      **Se decidió parar en 4 minutos a propósito**: es un tiempo vivible y lo que queda tiene
+      rendimiento decreciente. Esto queda anotado para que la próxima sesión **no repita el
+      análisis**.
+      **Contexto medido:** antes de `feat(SEO): F2` (2026-08-21) los builds eran de **27 s**; las
+      301 landings de `/salir` prerenderizan ~**1.500 queries** y ese es todo el delta. Hoy van de a
+      4 en paralelo, pero siguen cruzando de la región de build a la base en São Paulo.
+      **Palanca 2 — región de build (0 código).** `vercel.json` fija `regions: ["gru1"]`, pero **eso
+      es el runtime**: el build corre en la región por defecto de Vercel. Si el plan permite fijar la
+      región de build, cada query pasa de ~120 ms a ~2 ms. Es la grande de las dos y no toca el repo.
+      **Palanca 3 — `React.cache` (2-3 archivos).** `countPlaces` y `paginasDeZonaTipo` corren **dos
+      veces por página**: una en `generateMetadata` y otra en el componente, sin dedupe entre las
+      dos. Memoizarlas saca ~⅓ de las queries. `React.cache` ya es el único dedupe sancionado en el
+      proyecto (ver la disciplina de costos de Google en `CLAUDE.md`).
+      🗓️ **Disparador: que un deploy vuelva a superar los ~8 minutos** (el doble de hoy). Va a pasar
+      solo, sin que nadie toque nada: `seo.sitemap_min_tags` vive en `app_settings` justamente para
+      que las páginas crezcan sin deploy a medida que avanza la curaduría, y cada combo nuevo suma
+      ~5 queries. Cuando pase, **abrir primero el desglose por fases del log de build** —dice en 30
+      segundos dónde se van los minutos— y recién ahí elegir palanca.
+
 - [ ] **Dos módulos no coinciden en qué es «una zona»: uno mira `zones.active` y el otro no.**
       `paginasDeZonaTipo` (`lib/seo/paginas.ts`) exige `zones.active = true`; `zonaPrimariaDeLugar`
       (`lib/lugar/query.ts`) no filtra por eso, y el `generateStaticParams` de `/salir/[zona]` sale
