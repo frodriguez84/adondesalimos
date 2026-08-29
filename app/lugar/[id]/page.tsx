@@ -351,7 +351,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
             footer, y muchas visitas van a entrar por un link compartido, no por la home. */}
         <Link href="/legales" className="inline-flex items-center gap-1 underline underline-offset-4">
           <Info className="size-3" />
-          Estamos en beta
+          Cómo armamos el catálogo
         </Link>
         <Link href="/legales/atribucion" className="inline-flex items-center gap-1 underline underline-offset-4">
           <Clock className="size-3" />

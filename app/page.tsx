@@ -260,7 +260,7 @@ export default async function Home({
           se queda: linkear las fuentes es condición de la licencia, no decoración. */}
       <footer className="mt-auto flex flex-wrap items-center gap-x-2 pt-4 text-xs text-muted-foreground">
         <Link href="/legales" className="font-medium underline underline-offset-4">
-          Estamos en beta
+          Cómo armamos el catálogo
         </Link>
         <span aria-hidden>·</span>
         <span>

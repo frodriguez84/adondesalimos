@@ -365,9 +365,9 @@ export function SearchShell({
                 // banner en la home.
                 nota={
                   <>
-                    Puede que exista y todavía no lo tengamos etiquetado —{' '}
+                    Puede que exista y todavía no lo tengamos etiquetado.{' '}
                     <Link href="/legales" className="underline underline-offset-4">
-                      estamos en beta
+                      Cómo armamos el catálogo
                     </Link>
                     .
                   </>

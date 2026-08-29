@@ -195,7 +195,7 @@ export function SuscripcionPanel({
                   Todavía no abrimos los pagos.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Estamos en beta. {PITCH_BETA[tipo]} Te avisamos apenas se pueda.
+                  {PITCH_BETA[tipo]} Te avisamos apenas se pueda.
                 </p>
               </div>
               <button

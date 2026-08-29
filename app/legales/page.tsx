@@ -6,7 +6,7 @@ import { MailContacto, Seccion } from '@/components/legales/ui'
 export const metadata: Metadata = {
   title: 'La letra chica — ¿A dónde salimos?',
   description:
-    'El aviso de beta, los términos, la política de privacidad, las fuentes del catálogo y cómo darte de baja.',
+    'Cómo armamos el catálogo, los términos, la política de privacidad, las fuentes de los datos y cómo darte de baja.',
 }
 
 /**
@@ -64,7 +64,7 @@ export default function LegalesPage() {
       {/* Aviso de beta (DEPLOY, decisión 21). Va al tope: es lo que viene a leer
           quien llegó desde el rótulo del footer o desde un resultado flaco. Es
           expectativa, no escudo legal — nada de "no nos hacemos responsables". */}
-      <Seccion titulo="Estamos en beta">
+      <Seccion titulo="Cómo armamos el catálogo">
         <p>La app recién arranca y se nota. Te contamos qué esperar, así no te comés un chasco.</p>
         <p>
           <strong className="text-foreground">El catálogo sale de datos públicos.</strong> Los

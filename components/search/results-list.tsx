@@ -278,7 +278,7 @@ export function ResultsList({
             <p className="mt-1 text-xs">
               Puede haber más: los filtros finos todavía no cubren todo el catálogo.{' '}
               <Link href="/legales" className="underline underline-offset-4">
-                Estamos en beta
+                Cómo lo armamos
               </Link>
               .
             </p>

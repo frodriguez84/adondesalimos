@@ -80,7 +80,7 @@ export default function TerminosPage() {
       <Seccion titulo="Qué podés esperar, y qué no">
         <p>
           <strong className="text-foreground">
-            La app está en beta y el catálogo puede tener errores.
+            El catálogo puede tener errores.
           </strong>{' '}
           Los lugares salen de datos abiertos que no controlamos: puede haber negocios que ya
           cerraron, direcciones viejas, horarios desactualizados o lugares que directamente no
