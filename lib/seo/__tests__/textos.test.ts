@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { CONTACTO } from '@/lib/contacto'
 import { TIPO } from '@/lib/db/taxonomy'
 import {
+  DESCRIPCION,
+  DOMINIO_PUBLICO,
   MARCA,
   PLURAL_TIPO,
   bajadaDeZona,
@@ -118,5 +121,35 @@ describe('descripciones — distintas entre sí, y sin una palabra inventada', (
   it('entran en el snippet', () => {
     expect(descripcionDeZona(1707, 'Botánico y Alto Palermo', ['patio-gastronomico', 'teatro-espacio-cultural', 'centro-entretenimiento', 'bar']).length).toBeLessThanOrEqual(200)
     expect(descripcionDeZonaTipo(142, 'teatro-espacio-cultural', 'Villa Devoto y Villa del Parque').length).toBeLessThanOrEqual(200)
+  })
+})
+
+/**
+ * El dominio se muestra escrito en la tarjeta de WhatsApp, así que un typo ahí no
+ * es cosmético: manda a la gente a otro lado. Y no es teórico —`adondesalimos.app`
+ * existe, **no es nuestro** (`lib/curation/fetch-sitio.ts`) y llegó a escribirse en
+ * una propuesta de esta misma pieza el 2026-08-29—.
+ *
+ * Atarlo al mail de contacto es lo que hace que un typo falle: son dos constantes
+ * en dos módulos distintos que **tienen que** compartir el dominio.
+ */
+describe('DOMINIO_PUBLICO — la marca, no el entorno', () => {
+  it('coincide con el dominio del mail de contacto', () => {
+    expect(CONTACTO.endsWith(`@${DOMINIO_PUBLICO}`)).toBe(true)
+  })
+
+  it('es un host pelado: sin protocolo, sin barra, sin puerto', () => {
+    expect(DOMINIO_PUBLICO).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/)
+  })
+})
+
+/**
+ * La bajada entra en UNA línea de la OG a cuerpo 38 (~780 px de ancho útil). Una
+ * más larga rompe en dos y empuja el wordmark — se probó y se ve. El techo es
+ * generoso a propósito: marca el límite, no la redacción.
+ */
+describe('DESCRIPCION — entra en la tarjeta', () => {
+  it('no pasa de 50 caracteres', () => {
+    expect(DESCRIPCION.length).toBeLessThanOrEqual(50)
   })
 })

@@ -19,6 +19,21 @@ import { TIPO } from '@/lib/db/taxonomy'
 export const MARCA = '¿A dónde salimos?'
 
 /**
+ * El dominio como **marca**, para mostrarlo escrito (hoy: la tarjeta de WhatsApp).
+ *
+ * ⚠️ **No sale de `APP_URL`, y no es un descuido.** `lib/app-url.ts` responde
+ * "¿dónde corre esto?" —`localhost:5178` en dev, el túnel de ngrok, la URL efímera
+ * de un preview de Vercel—; esta constante responde "¿cómo se llama el sitio?", que
+ * es lo mismo en todos los entornos. Derivarla de `APP_URL` se probó el 2026-08-29
+ * y el build local escupió `adondesalimos.ngrok.app` en la tarjeta.
+ *
+ * Escribirlo a mano tiene su propio riesgo —`adondesalimos.app` **es de otro**, ver
+ * `lib/curation/fetch-sitio.ts`— así que hay un test que lo cruza contra el dominio
+ * de `CONTACTO` (`lib/contacto.ts`): un typo acá rompe la suite.
+ */
+export const DOMINIO_PUBLICO = 'adondesalimos.com.ar'
+
+/**
  * Qué hace la app, en una línea — la `<meta description>` del layout y, desde
  * GEO, también la `description` de la entidad estructurada de la home.
  *
@@ -31,8 +46,18 @@ export const MARCA = '¿A dónde salimos?'
  * "cero prosa generada" de acá abajo es sobre **los lugares del catálogo**. Ésta es
  * una frase sobre el producto propio, escrita a mano, y es exactamente la clase de
  * texto que un sitio debe tener (GEO, decisión 7).
+ *
+ * ⚠️ **Cambiarla toca cinco superficies**, no solo la tarjeta de WhatsApp: la
+ * `meta description` del sitio, el `og:description`, el manifest de la app
+ * instalada y dos veces el JSON-LD de la entidad. Es lo que Google muestra debajo
+ * del título.
+ *
+ * Decía «Decidí a dónde salir **esta noche**…» hasta el 2026-08-29: se sacó porque
+ * la app sirve para cualquier momento del día y la frase se estaba auto-limitando a
+ * uno solo (decisión de Fer). Entra en **una línea** en la OG a cuerpo 38 — una más
+ * larga rompe en dos y empuja el wordmark; se probó y se ve.
  */
-export const DESCRIPCION = 'Decidí a dónde salir esta noche sin dar mil vueltas.'
+export const DESCRIPCION = 'Decidí a dónde salir sin dar mil vueltas.'
 
 /**
  * Plural de cada Tipo, escrito a mano — **son diez y es data, no prosa**.

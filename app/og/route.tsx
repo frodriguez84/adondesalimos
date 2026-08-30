@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { ImageResponse } from 'next/og'
 
-import { DESCRIPCION } from '@/lib/seo/textos'
+import { DESCRIPCION, DOMINIO_PUBLICO } from '@/lib/seo/textos'
 
 /**
  * La tarjeta que dibuja WhatsApp antes de que alguien abra un link nuestro
@@ -44,13 +47,34 @@ const TEXTO = '#F5F5F5'
 const NARANJA = '#FF8A00'
 
 /**
+ * ⚠️ **Sin esto, `fontWeight` no existe** (hallazgo del 2026-08-29). `ImageResponse`
+ * sin la opción `fonts` cae a la única fuente que trae `@vercel/og` —Geist
+ * Regular— y **descarta los pesos en silencio**: el wordmark pedía 800 y se
+ * renderizaba en normal. No falla, no avisa; solo se ve flojo.
+ *
+ * Los `.woff` viven al lado de este archivo y **son WOFF, no WOFF2**: Satori no lee
+ * WOFF2, que es justo lo que baja `next/font`. Se regeneran desde Google Fonts
+ * (`@fontsource/inter`), así que el binario no es un callejón sin salida.
+ *
+ * `readFileSync` desde `process.cwd()` es seguro **porque esta ruta es
+ * `force-static`**: corre en build, donde el árbol del proyecto está entero. Si
+ * alguna vez deja de ser estática, esto necesita `outputFileTracingIncludes`.
+ */
+const fuente = (archivo: string) => readFileSync(join(process.cwd(), 'app/og', archivo))
+
+const FUENTES = [
+  { name: 'Inter', data: fuente('Inter-Regular.woff'), weight: 400 as const, style: 'normal' as const },
+  { name: 'Inter', data: fuente('Inter-ExtraBold.woff'), weight: 800 as const, style: 'normal' as const },
+]
+
+/**
  * El pin del wordmark (`components/shared/wordmark.tsx`), como data-URI. Va de
  * imagen y no de SVG inline porque es la vía que el renderer de `next/og`
  * soporta sin sorpresas; el `path` y el gradiente son los mismos de la marca, y
  * el centro calado se rellena con el fondo, igual que en la app.
  */
-const PIN = `data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="180" height="240">
+const pin = (alto: number) => `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="${(alto * 24) / 32}" height="${alto}">
     <defs>
       <linearGradient id="p" x1="12" y1="0" x2="12" y2="32" gradientUnits="userSpaceOnUse">
         <stop offset="0" stop-color="#FF2D75"/>
@@ -63,6 +87,18 @@ const PIN = `data:image/svg+xml,${encodeURIComponent(
   </svg>`,
 )}`
 
+/**
+ * **La opacidad del pin de fondo es el número delicado de esta pieza** (elegido con
+ * Fer el 2026-08-29, comparando los tres renders). Sobre un fondo tan oscuro, el
+ * gradiente atenuado pierde el rosa y el amarillo: al ~20% no se lee como pin sino
+ * como una mancha parda, que fue justo el motivo por el que se descartó una
+ * composición anterior. A 0,38 el gradiente vuelve. **O es sutil o es protagonista;
+ * el medio es tierra de nadie.**
+ *
+ * Va a la **derecha**: el texto ocupa la mitad izquierda, así que ahí no compite.
+ */
+const OPACIDAD_PIN = 0.38
+
 export function GET() {
   return new ImageResponse(
     (
@@ -72,36 +108,64 @@ export function GET() {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 36,
+          justifyContent: 'space-between',
+          padding: 76,
+          position: 'relative',
+          overflow: 'hidden',
           background: FONDO,
+          fontFamily: 'Inter',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+        <div style={{ position: 'absolute', display: 'flex', right: -120, top: -110 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={PIN} width={90} height={120} alt="" />
+          <img src={pin(860)} width={645} height={860} alt="" style={{ opacity: OPACIDAD_PIN }} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={pin(64)} width={48} height={64} alt="" />
+          <div style={{ display: 'flex', fontSize: 30, fontWeight: 800, color: TEXTO, opacity: 0.75 }}>
+            {DOMINIO_PUBLICO}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            fontSize: 122,
+            fontWeight: 800,
+            letterSpacing: -5,
+            lineHeight: 0.98,
+            textTransform: 'uppercase',
+          }}
+        >
+          <span style={{ color: TEXTO }}>¿A dónde</span>
+          <span style={{ color: NARANJA }}>salimos?</span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+          {/* La barra firma con el gradiente de la marca sin pelearle al wordmark. */}
           <div
             style={{
               display: 'flex',
-              fontSize: 88,
-              fontWeight: 800,
-              letterSpacing: -2,
-              textTransform: 'uppercase',
+              height: 8,
+              width: 260,
+              borderRadius: 4,
+              background: 'linear-gradient(90deg,#FF2D75,#FF8A00,#FFD400)',
             }}
-          >
-            <span style={{ color: TEXTO }}>¿A dónde&nbsp;</span>
-            <span style={{ color: NARANJA }}>salimos?</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', fontSize: 34, color: TEXTO, opacity: 0.75 }}>
+          />
           {/* La bajada sale del dueño único (`lib/seo/textos.ts`) desde GEO F1: era
               una de las tres copias literales de la misma frase, y el JSON-LD de la
-              entidad iba a ser la cuarta. Los colores siguen a mano: eso es paleta. */}
-          {DESCRIPCION}
+              entidad iba a ser la cuarta. Los colores siguen a mano: eso es paleta.
+              Entra en UNA línea a este cuerpo — una más larga empuja el wordmark y
+              desbalancea la pieza. */}
+          <div style={{ display: 'flex', fontSize: 38, color: TEXTO, opacity: 0.72 }}>
+            {DESCRIPCION}
+          </div>
         </div>
       </div>
     ),
-    SIZE,
+    { ...SIZE, fonts: FUENTES },
   )
 }

@@ -5,6 +5,48 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Antes de rediseñar algo que «se ve feo», mirá el artefacto renderizado: puede estar roto, no mal diseñado (2026-08-29 · OG)
+
+**Qué pasó.** La imagen Open Graph parecía «simplona» y la conversación arrancó como un rediseño.
+Extraerla del build (`.next/server/app/og.body` es el PNG ya generado) mostró otra cosa: el
+wordmark venía renderizando en peso **normal** cuando el código pedía 800. `ImageResponse` sin la
+opción `fonts` cae a la única fuente que trae `@vercel/og` —Geist Regular— y **descarta los pesos
+en silencio**. Ningún error, ningún warning, build verde. El código decía una cosa y el píxel otra.
+
+**La lección de método:** un artefacto visual generado por código tiene **dos** fuentes de verdad
+—el código y el resultado— y solo la segunda cuenta. Leer el JSX y opinar del diseño es opinar de
+una intención, no de lo que la gente ve. En este repo el resultado está a un `cp` de distancia
+porque la ruta es `force-static`; no hay excusa para no mirarlo.
+
+**Corolario, y es el que más duele:** una idea de diseño se puede descartar por un número mal
+elegido. Una composición con el pin de marca de agua se descartó por «mancha parda». Al pedido de
+Fer de recuperarla, comparar tres opacidades (10% · 22% · 38%) mostró que el problema era la
+**opacidad intermedia**: sobre un fondo muy oscuro el gradiente atenuado pierde los extremos del
+espectro y queda pardo. A 0,38 el gradiente vuelve. **O es sutil o es protagonista; el medio es
+tierra de nadie** — y el juicio «no funciona» se había comido la idea entera en vez del parámetro.
+
+**Y una trampa de «una regla, un dueño» aplicada de más.** El dominio de la tarjeta se escribió
+primero a mano (mal: `adondesalimos.app` **es de otro**, y el repo ya lo tenía anotado en
+`lib/curation/fetch-sitio.ts`) y después se derivó de `APP_URL` invocando el dueño único. El build
+mostró el resultado: `adondesalimos.ngrok.app`. **Que dos valores coincidan en producción no los
+convierte en la misma regla**: `APP_URL` responde *«¿dónde corre esto?»* —y cambia por entorno, que
+es su razón de ser— mientras que el dominio de la marca responde *«¿cómo se llama el sitio?»*, que
+es igual en todos. Derivar uno del otro le pasa la volatilidad del entorno a un dato que no la
+tiene.
+
+**Qué hacer distinto:**
+
+1. **Ante «esto se ve mal», abrir el artefacto renderizado antes que el código.** Vale para
+   imágenes generadas, PDFs, mails y gráficos: lo que se juzga es la salida.
+2. **Antes de descartar una dirección de diseño, aislar el parámetro sospechoso y barrer 3
+   valores.** Es barato —tres renders— y evita tirar la idea junto con el número.
+3. **Un dueño único se comparte por *pregunta*, no por *valor que hoy coincide*.** Si dos
+   constantes pueden divergir legítimamente en algún entorno, son dos reglas. Cuando igual
+   conviene atarlas, el instrumento es un **test que las cruce** (acá: el dominio contra el de
+   `CONTACTO`), no un `import`.
+
+---
+
 ## Una promesa de venta sin dueño único no diverge mintiendo: diverge omitiendo lo que limita (2026-08-29 · MONETIZACION)
 
 **Qué pasó.** «Qué incluye cada plan» estaba escrito a mano en tres lugares —panel de venta,

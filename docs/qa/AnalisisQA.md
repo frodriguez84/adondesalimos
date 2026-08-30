@@ -5253,3 +5253,60 @@ historial; y los IDs `PBETA-*` / el spec `PULIDO_BETA`, que son nombres propios.
 `INVITACION_BETA` a la constante del cobro apagado, **reintroduciendo el vocabulario retirado en el
 mismo commit que lo limpiaba**. Quedó `INVITACION_APAGADO`, que además alinea con `cobroApagado()`.
 Un término que se retira sigue vivo mientras nadie audite los nombres, no solo el copy.
+
+---
+
+## Fix — la OG renderizaba con la fuente equivocada (SEO / INVITACION, 2026-08-29)
+
+**Disparador:** Fer preguntó si la imagen Open Graph no era «medio simplona». Antes de rediseñar
+nada se extrajo la pieza real del build (`.next/server/app/og.body`) y se la miró.
+
+**El hallazgo: no era estética, era un bug mudo.** `app/og/route.tsx` declaraba
+`fontWeight: 800` y `letterSpacing: -2`, pero llamaba a `new ImageResponse(jsx, SIZE)` **sin la
+opción `fonts`**. Satori cae entonces a la única fuente que trae `@vercel/og` —**Geist
+Regular**— y **descarta los pesos**. No falla, no advierte, no rompe el build: el wordmark, que
+es el 60% de la pieza, se venía renderizando en peso normal desde el día 1.
+
+**El pin de fondo: se había descartado por el número equivocado.** Una composición con el pin
+de marca de agua se descartó por verse como «una mancha parda». Comparando tres renders
+(10% · 22% · 38%) quedó claro que el problema era **la opacidad intermedia**, no la idea: sobre
+`#0D0D1F` el gradiente atenuado pierde el rosa y el amarillo. A 0,38 vuelve a leerse como pin.
+**O es sutil o es protagonista; el medio es tierra de nadie.** Va a la derecha, donde no compite
+con el texto (en la versión descartada estaba detrás de él).
+
+**El dominio: dos errores encadenados, los dos atrapados antes de producción.**
+1. La propuesta escribía `adondesalimos.app` — un dominio que **no es nuestro**, y que
+   `lib/curation/fetch-sitio.ts` ya tenía anotado como ajeno.
+2. Al corregirlo, se derivó de `APP_URL` por la regla de dueño único. **También estaba mal, y el
+   build lo mostró**: escupió `adondesalimos.ngrok.app`. `lib/app-url.ts` responde *«¿dónde corre
+   esto?»* (localhost, el túnel, el preview de Vercel); el dominio de la tarjeta es *«¿cómo se
+   llama el sitio?»*. Son dos preguntas distintas y una no deriva de la otra — en un preview de
+   Vercel la tarjeta habría mostrado la URL efímera del deploy.
+
+Quedó como `DOMINIO_PUBLICO` en `lib/seo/textos.ts`, junto a `MARCA`, que es donde vive la
+identidad del sitio. Y **atado por test al dominio de `CONTACTO`**: son dos constantes en dos
+módulos que tienen que compartir dominio, así que un typo rompe la suite.
+
+**La bajada perdió «esta noche»** (decisión de Fer): la app sirve para cualquier momento del día
+y la frase se auto-limitaba a uno. `DESCRIPCION` alimenta **cinco superficies** —`meta
+description`, `og:description`, el manifest y dos veces el JSON-LD—, así que el cambio no era solo
+de la tarjeta. Se descartó una versión más larga y descriptiva («Bares, cafés y restaurantes del
+AMBA…») porque **rompe en dos líneas y empuja el wordmark**; hay un test de largo que lo fija.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| OG-01 | El wordmark renderiza en el peso que el código pide | ✅ PASS | `fonts` con Inter 400/800 en WOFF (Satori **no lee WOFF2**, que es lo que baja `next/font`). Verificado sobre el PNG del build, no sobre el código |
+| OG-02 | `/og` **sigue estática** — cero costo por preview | ✅ PASS | Build: `○ /og`. Es lo que permite el `readFileSync` desde `process.cwd()`: corre en build, con el árbol entero |
+| OG-03 | El dominio de la tarjeta es el real | ✅ PASS | `DOMINIO_PUBLICO` = `adondesalimos.com.ar`, verificado en el PNG del build (antes decía `adondesalimos.ngrok.app`) |
+| OG-04 | Un typo en el dominio rompe la suite | ✅ PASS | `lib/seo/__tests__/textos.test.ts` — cruza contra `CONTACTO`, y exige host pelado (sin protocolo, barra ni puerto) |
+| OG-05 | La bajada entra en una línea | ✅ PASS | Test de largo ≤ 50; la actual son 41 caracteres. La descartada, 58 |
+| OG-06 | Gate técnico | ✅ PASS | typecheck · **907 tests** (81 archivos, +3) · build verde, 322 páginas |
+
+**Pendiente, como paso aparte:** la OG **con datos de la votación** («Fernando quiere decidir a
+dónde salir · 4 lugares · votá hasta las 23:00»). El texto del preview de una votación **ya es
+dinámico** —`og:title` sale de `tituloDePagina()` y la `description` lista las opciones
+(`app/votacion/[token]/page.tsx`)—; lo único genérico que queda es la imagen. Tres cosas a
+resolver antes: pasa a generarse **por request** (hoy es `force-static`), el nombre de pila queda
+**cacheado en CDN de terceros** (WhatsApp), y `RUTAS_EXCLUIDAS` del `robots.txt` es
+`['/api/', '/admin']` — una ruta `/og/votacion/...` **no estaría cubierta**, y el `robots` de la
+página no la alcanza porque es una ruta propia.
