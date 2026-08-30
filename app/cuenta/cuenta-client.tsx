@@ -6,6 +6,7 @@ import { authClient } from '@/lib/auth/client'
 import { SuscripcionPanel } from '@/components/billing/suscripcion-panel'
 import { BrandHeader } from '@/components/shared/brand-header'
 import { PasswordInput } from '@/components/ui/password-input'
+import type { CuposDelPlan } from '@/lib/billing/beneficios'
 import type { EstadoSuscripcion } from '@/lib/billing/estado'
 
 type Props = {
@@ -14,9 +15,17 @@ type Props = {
   precioB2cArs: number
   /** Ya dejó la señal del premium (DEPLOY, decisión 6). */
   interesRegistrado?: boolean
+  /** Cupos de runtime para el copy de beneficios; los resuelve la page. */
+  cupos?: CuposDelPlan
 }
 
-export function CuentaClient({ user, suscripcion, precioB2cArs, interesRegistrado }: Props) {
+export function CuentaClient({
+  user,
+  suscripcion,
+  precioB2cArs,
+  interesRegistrado,
+  cupos,
+}: Props) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-8 px-4 py-8">
       <BrandHeader />
@@ -35,6 +44,7 @@ export function CuentaClient({ user, suscripcion, precioB2cArs, interesRegistrad
         precioArs={precioB2cArs}
         email={user.email}
         interesRegistrado={interesRegistrado}
+        cupos={cupos}
       />
       <PasswordSection />
       <DangerZone />

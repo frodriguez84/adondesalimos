@@ -3,6 +3,8 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { getPrecioB2cArs } from '@/lib/billing/settings'
+import { getChatQuotaPremium } from '@/lib/ai/settings'
+import { getMaxListasPremium } from '@/lib/favoritos/planes'
 import { estadoSuscripcionB2C } from '@/lib/billing/estado'
 import { cobroApagado } from '@/lib/billing/apagado'
 import { tieneInteres } from '@/lib/billing/interes'
@@ -30,12 +32,17 @@ export default async function CuentaPage() {
   const session = await auth.api.getSession({ headers: await headers() }).catch(() => null)
   if (!session?.user) redirect('/login?callbackUrl=/cuenta')
 
-  const [suscripcion, precioB2c, interesRegistrado] = await Promise.all([
+  // Los cupos van al copy de beneficios (`lib/billing/beneficios.ts`): el panel es
+  // cliente, así que los números de `app_settings` bajan como props. Se leen de sus
+  // dueños —nadie reimplementa la clave—, y esta ruta ya es `force-dynamic`.
+  const [suscripcion, precioB2c, interesRegistrado, chatMensual, listas] = await Promise.all([
     estadoSuscripcionB2C(session.user.id),
     getPrecioB2cArs(),
     // Solo hace falta con el cobro apagado (DEPLOY, decisión 6); con el cobro
     // prendido el panel ni lo mira, así que no se paga la query.
     cobroApagado() ? tieneInteres(session.user.id) : Promise.resolve(false),
+    getChatQuotaPremium(),
+    getMaxListasPremium(),
   ])
 
   return (
@@ -44,6 +51,7 @@ export default async function CuentaPage() {
       suscripcion={suscripcion}
       precioB2cArs={precioB2c}
       interesRegistrado={interesRegistrado}
+      cupos={{ chatMensual, listas }}
     />
   )
 }

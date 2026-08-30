@@ -248,8 +248,9 @@ Cicatrices reales — gotchas que sorprenden:
   resuelve, el build falla. Es lo correcto: mejor no deployar que deployar 301 páginas rotas.
 - **`/legales` es un ÍNDICE y la atribución vive aparte, en `/legales/atribucion` — y cuál link va a
   cuál NO se adivina por el archivo** (LEGALES, decisiones 2 y 5). Son **9 links en 6 archivos** y se
-  reparten **5 de beta contra 4 de licencia**: los de `results-list.tsx` y `search-shell.tsx`
-  *parecen* atribución por vivir en la búsqueda y son el aviso de beta. Los 4 que existen **porque
+  reparten **5 de catálogo contra 4 de licencia**: los de `results-list.tsx` y `search-shell.tsx`
+  *parecen* atribución por vivir en la búsqueda y son el rótulo del catálogo («Cómo lo armamos»).
+  Los 4 que existen **porque
   una licencia lo exige** —las dos mitades «Overture Maps y Google» de los footers, el «Fuentes y
   atribución» de la ficha y el del bloque de Google en `ficha-google.tsx`— apuntan a
   `/legales/atribucion`; **a dos clicks del índice ya no cumplen**, que es justo lo que la
@@ -563,7 +564,12 @@ listas puede tener alguien y cuáles ve — bajar de plan **oculta, no borra**),
 (`partesEnAR`: el día y la hora en AR se computan **una vez**, no por feature), `lib/navegacion/volver.ts`
 (¿el «Volver» de una pantalla hace `back` o sube a la home? — nadie llama `router.back()` suelto) ,
 `lib/geo/amba.ts` (el rectángulo de AMBA: qué se importa y hasta dónde llega el pin de un alta —
-**sin imports**, para que el script de import no arrastre `lib/claims`) y `lib/contacto.ts` (el mail
+**sin imports**, para que el script de import no arrastre `lib/claims`), `lib/billing/beneficios.ts`
+(**qué incluye cada plan**: estaba a mano en el panel de venta, los términos y en ningún lado del
+checkout, y divergió por **omisión** —el pitch prometía el chat sin decir que tiene cupo—. Cada línea
+tiene que poder señalar su gate. `beneficiosDe(tipo, cupos?)` **sin cupos degrada** a la redacción
+sin números, que es lo que deja a `/legales/**` estático sin quedar con un cupo viejo) y
+`lib/contacto.ts` (el mail
 de contacto — dejó de ser un dato de pie de página cuando la política de privacidad lo declaró **el
 canal para ejercer los derechos de la Ley 25.326**: ahí una copia vieja no es un typo, es una
 promesa rota).

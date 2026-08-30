@@ -7,7 +7,7 @@ import { BrandHeader } from '@/components/shared/brand-header'
  * ancho y el pie estén escritos **una vez** para las 301 páginas y no dos veces
  * —una en el hub de zona y otra en el combo—, que es como empiezan a divergir.
  *
- * El pie repite el aviso de beta y la atribución de fuentes de la home: linkear
+ * El pie repite el rótulo del catálogo y la atribución de fuentes de la home: linkear
  * Overture y Google **es condición de la licencia**, no decoración, y estas
  * páginas listan justamente sus datos. Además son links internos más, que es lo
  * que la decisión 13 anda buscando.

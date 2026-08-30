@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckoutModal } from '@/components/billing/checkout-modal'
 import { cobroApagado } from '@/lib/billing/apagado'
+import { beneficiosDe, INVITACION, INVITACION_APAGADO, type CuposDelPlan } from '@/lib/billing/beneficios'
 import type { EstadoSuscripcion } from '@/lib/billing/estado'
 import type { TipoSuscripcion } from '@/lib/billing/types'
 
@@ -16,10 +17,14 @@ import type { TipoSuscripcion } from '@/lib/billing/types'
  * alta a mano con un UPDATE): no hay nada que cancelar ni fecha que mostrar, así que no
  * se pinta el botón —el endpoint devolvería 404— y el copy manda a escribirnos.
  *
+ * **Qué incluye el plan no se escribe acá**: la lista sale de `beneficiosDe`
+ * (`lib/billing/beneficios.ts`), que es su dueño único. Estaba a mano en esta
+ * pantalla, en los términos y en ningún lado del checkout, y divergió.
+ *
  * **Con el cobro apagado** (DEPLOY, decisión 6) el estado free cambia: en vez del
  * pitch + "Suscribirme por $X/mes" —que llevaría al Brick a degradar con
- * "Configuración de pago incompleta", copy de desarrollador— muestra el mensaje de
- * beta y registra el interés. El interruptor es la ausencia de la key de MP
+ * "Configuración de pago incompleta", copy de desarrollador— avisa que los pagos
+ * todavía no abrieron y registra el interés. El interruptor es la ausencia de la key de MP
  * (`cobroApagado`), así que en dev no cambia nada.
  */
 
@@ -34,6 +39,12 @@ interface Props {
   email: string
   /** Resuelto server-side: el confirmado sobrevive al reload. */
   interesRegistrado?: boolean
+  /**
+   * Cupos de runtime para el copy de beneficios (`lib/billing/beneficios.ts`). Solo
+   * los pasa B2C —es el único plan cuyos beneficios llevan número—; sin ellos la
+   * lista degrada a la redacción sin cifras.
+   */
+  cupos?: CuposDelPlan
 }
 
 const pesos = new Intl.NumberFormat('es-AR', {
@@ -49,12 +60,6 @@ const TITULO: Record<TipoSuscripcion, string> = {
   b2b: 'Plan del lugar',
 }
 
-/** Copy de la beta (DEPLOY, § El premium apagado): dice primero que no se puede pagar. */
-const PITCH_BETA: Record<TipoSuscripcion, string> = {
-  b2c: 'El premium está por salir: votaciones ilimitadas, historial y que la IA te arme la shortlist.',
-  b2b: 'El plan del lugar está por salir: descripción, carta, novedades, hasta 15 fotos y el destaque en las búsquedas.',
-}
-
 /** Copy del premium de cortesía: activo por un UPDATE a mano, sin fila que cancelar. */
 const CORTESIA: Record<TipoSuscripcion, string> = {
   b2c: 'Te activamos el Premium nosotros: no vence ni se cobra.',
@@ -68,6 +73,7 @@ export function SuscripcionPanel({
   precioArs,
   email,
   interesRegistrado = false,
+  cupos,
 }: Props) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
@@ -190,13 +196,13 @@ export function SuscripcionPanel({
             </p>
           ) : (
             <>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-2">
                 <p className="text-sm font-semibold text-foreground">
                   Todavía no abrimos los pagos.
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {PITCH_BETA[tipo]} Te avisamos apenas se pueda.
-                </p>
+                <p className="text-sm text-muted-foreground">{INVITACION_APAGADO[tipo]}</p>
+                <ListaBeneficios tipo={tipo} cupos={cupos} />
+                <p className="text-sm text-muted-foreground">Te avisamos apenas se pueda.</p>
               </div>
               <button
                 type="button"
@@ -211,11 +217,8 @@ export function SuscripcionPanel({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">
-            {tipo === 'b2b'
-              ? 'Activá el plan del lugar para desbloquear descripción, carta, novedades, hasta 15 fotos y el destaque en las búsquedas.'
-              : 'Pasate a Premium para votaciones ilimitadas, historial y que la IA te arme la shortlist.'}
-          </p>
+          <p className="text-sm text-muted-foreground">{INVITACION[tipo]}</p>
+          <ListaBeneficios tipo={tipo} cupos={cupos} />
           <button
             type="button"
             onClick={() => setAbierto(true)}
@@ -236,8 +239,26 @@ export function SuscripcionPanel({
           tipo={tipo}
           placeId={placeId}
           amountArs={precioArs}
+          cupos={cupos}
         />
       )}
     </section>
+  )
+}
+
+/**
+ * Qué incluye el plan. El texto no vive acá —viene de `beneficiosDe`— para que la
+ * pantalla de venta, el checkout y los términos no puedan volver a divergir.
+ */
+function ListaBeneficios({ tipo, cupos }: { tipo: TipoSuscripcion; cupos?: CuposDelPlan }) {
+  return (
+    <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+      {beneficiosDe(tipo, cupos).map((beneficio) => (
+        <li key={beneficio} className="flex gap-2">
+          <span aria-hidden className="text-primary">✓</span>
+          <span>{beneficio}</span>
+        </li>
+      ))}
+    </ul>
   )
 }

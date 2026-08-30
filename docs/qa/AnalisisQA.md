@@ -5174,3 +5174,82 @@ Antes se armaba inline en un server component, donde **no había dónde ponerle 
 exploración* y tocar **«Validar corrección»**. Google recrawlea y cierra el problema solo si el
 arreglo está en línea; hasta entonces el aviso sigue abierto aunque el código esté bien.
 
+
+---
+
+## Fix — «Qué incluye cada plan» sin dueño único (MONETIZACION, 2026-08-29)
+
+**Disparador:** el 2026-08-29 se abrieron los pagos reales y empezaba una campaña. Fer
+preguntó si se explica bien qué obtiene el que paga. Se explicaba en **tres lugares, escritos
+a mano**, y ya habían divergido.
+
+**El hallazgo no fue falsedad, fue omisión asimétrica.** Ninguna de las tres afirmaciones
+mentía —se verificaron todas contra su gate—, pero **el texto de venta omitía justo lo que
+limita** (el cupo del chat) y lo que sí lo decía eran los términos, que nadie lee para decidir
+una compra. El checkout, la última pantalla antes de la tarjeta, era la que **menos**
+información tenía: precio y nada más. Riesgo concreto: comprar Premium por el chat, chocar el
+cupo a mitad de mes y sentirse engañado ⇒ reclamo o contracargo.
+
+| Beneficio | Panel de venta | Términos | Checkout |
+|---|---|---|---|
+| Votaciones ilimitadas | ✅ | ❌ | ❌ |
+| Chat IA | «que la IA te arme la shortlist» | «con **cupo mensual**» | ❌ |
+| Listas de favoritos | ❌ | ✅ «más listas» | ❌ |
+| Historial | ✅ | ❌ | ❌ |
+| **Estadísticas del lugar** (B2B) | ❌ | ❌ | ❌ |
+
+**Dos cosas que el inventario de gates corrigió sobre la lectura inicial:**
+
+1. **El «destaque en las búsquedas» del pitch B2B es cierto** y casi se saca por error. No
+   viene del orden orgánico —`ownerRank` (`lib/search/query.ts`) mira `source='owner'` o
+   `publish_override`, **no** el plan— sino de **`buscarDestacados`**, un bloque aparte de hasta
+   3 lugares arriba de la primera página cuyos candidatos son `owner_plan='paid'`. Son dos
+   mecanismos distintos con nombres parecidos; confundirlos habría borrado una promesa válida.
+2. **Había un cuarto beneficio B2B que no se vendía en ningún lado**: el desglose de
+   estadísticas (`desgloseEstadisticas`, `lib/negocio/query.ts` — devuelve `null` con
+   `owner_plan='free'`). Se estaba regalando sin contarlo. Fer decidió sumarlo.
+
+**El arreglo:** `lib/billing/beneficios.ts` es el **dueño único**. Cada línea puede señalar su
+gate (mismo criterio de redacción que los T&C). El cap de fotos sale de `CAP_FOTOS`, no de un
+literal. Las tres superficies lo consumen, el checkout incluido.
+
+**Los cupos como número, sin romper lo estático.** `beneficiosDe(tipo, cupos?)` recibe los
+valores de `app_settings` (`ai.chat_quota_premium`, `favoritos.max_listas_premium`) y **sin
+ellos degrada** a «con cupo mensual» / «más listas». Por eso `/legales/terminos` —que es
+estático y no puede leer la base sin volverse serverless— lo llama sin cupos y no puede quedar
+con un número viejo. Los números los resuelve `app/cuenta/page.tsx`, que ya es `force-dynamic`,
+y bajan como props hasta el checkout.
+
+**`PITCH_BETA` quedó muerto al abrir los pagos** (solo se renderizaba con `cobroApagado()`). No
+se borró: ese es el kill switch si MP falla, y ese día la pantalla tiene que seguir diciendo la
+verdad. Ahora consume el mismo módulo, así que no puede volver a driftear.
+
+| ID | Criterio | Resultado | Evidencia |
+|----|----------|-----------|-----------|
+| MONE-PLAN-01 | Las tres superficies leen la lista del dueño único; cero copias a mano | ✅ PASS | `grep -rn PITCH_BETA` → sin resultados; panel, checkout y términos llaman `beneficiosDe` |
+| MONE-PLAN-02 | El checkout dice qué se compra, no solo el precio | ✅ PASS | `components/billing/checkout-modal.tsx` — lista bajo el monto, en estado `form` |
+| MONE-PLAN-03 | El cupo del chat se dice con número donde hay runtime | ✅ PASS | `/cuenta` pasa `getChatQuotaPremium()` (hoy **30**) y `getMaxListasPremium()` (sin fila ⇒ default **10**) |
+| MONE-PLAN-04 | Sin cupos no se inventan números (la trampa de `/legales/**` estático) | ✅ PASS | `lib/billing/__tests__/beneficios.test.ts` — assert de que ningún beneficio sin cupos matchea `/\d/` |
+| MONE-PLAN-05 | «Votaciones ilimitadas» se queda: es cierto | ✅ PASS | `lib/votaciones/acciones.ts:83` — el gate «1 activa» corre solo con `plan !== 'premium'` |
+| MONE-PLAN-06 | El cap de fotos no está hardcodeado en el copy | ✅ PASS | `beneficiosDe('b2b')` interpola `CAP_FOTOS.paid` (`lib/negocio/contenido.ts`) |
+| MONE-PLAN-07 | `/legales/terminos` **sigue estática** después del cambio | ✅ PASS | Build: `○ /legales/terminos` (no `ƒ`). Era el riesgo del cambio — leer `app_settings` ahí la habría vuelto serverless |
+| MONE-PLAN-08 | Gate técnico | ✅ PASS | typecheck · **904 tests** (81 archivos, +4) · build verde, **322 páginas** |
+
+### Nota — el vocabulario de «beta» no se había ido del todo (mismo día)
+
+Fer señaló que «beta» se había retirado en la sesión anterior. **El copy de cara al usuario sí**
+—dice «Cómo armamos el catálogo» / «Cómo lo armamos»—, pero **quedaron 9 comentarios** llamándolo
+todavía «el aviso de beta» (`app/legales/page.tsx`, `app/page.tsx`, `app/lugar/[id]/page.tsx`,
+`app/salir/layout.tsx`, `components/search/results-list.tsx`, `components/search/search-shell.tsx`,
+`lib/claims/declaracion.ts`) y el renglón de `CLAUDE.md` § *Notas importantes* («5 de beta contra 4
+de licencia» ⇒ ahora «5 de catálogo»). Se alinearon todos, manteniendo la cita a **DEPLOY decisión
+21**, que es trazabilidad histórica y no cambia de nombre.
+
+**Dos que se dejaron a propósito:** `app/robots.ts:28` narra un período fechado y real («el
+`noindex` temporal de la beta vivió acá entre el 2026-08-07 y…») — reescribirlo falsearía el
+historial; y los IDs `PBETA-*` / el spec `PULIDO_BETA`, que son nombres propios.
+
+⚠️ Y una cicatriz de esta misma sesión: al escribir el módulo nuevo se había llamado
+`INVITACION_BETA` a la constante del cobro apagado, **reintroduciendo el vocabulario retirado en el
+mismo commit que lo limpiaba**. Quedó `INVITACION_APAGADO`, que además alinea con `cobroApagado()`.
+Un término que se retira sigue vivo mientras nadie audite los nombres, no solo el copy.

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { beneficiosDe, type CuposDelPlan } from '@/lib/billing/beneficios'
 import type { TipoSuscripcion } from '@/lib/billing/types'
 
 /**
@@ -11,6 +12,11 @@ import type { TipoSuscripcion } from '@/lib/billing/types'
  * Payment Brick (tokeniza la tarjeta en el sitio con la clave pública) y manda el
  * token a `/api/billing/checkout`. El monto lo fija el server desde DB; acá se
  * muestra y se manda como `amount` para la validación de la decisión 27.
+ *
+ * **Qué se está comprando también se dice acá** y no solo en el panel de atrás: es
+ * la última pantalla antes de poner la tarjeta y era la que menos información tenía
+ * de las tres. La lista es la de `beneficiosDe` (`lib/billing/beneficios.ts`), la
+ * misma del panel y de los términos.
  */
 
 type EstadoCheckout = 'form' | 'submitting' | 'success' | 'error'
@@ -23,6 +29,8 @@ interface Props {
   placeId?: string
   /** Monto vigente en ARS que muestra el Brick (viene del server / DB). */
   amountArs: number
+  /** Cupos de runtime para el copy de beneficios (los pasa el panel). */
+  cupos?: CuposDelPlan
   onSuccess?: () => void
 }
 
@@ -72,7 +80,15 @@ const pesos = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 0,
 })
 
-export function CheckoutModal({ open, onClose, tipo, placeId, amountArs, onSuccess }: Props) {
+export function CheckoutModal({
+  open,
+  onClose,
+  tipo,
+  placeId,
+  amountArs,
+  cupos,
+  onSuccess,
+}: Props) {
   const router = useRouter()
   const [state, setState] = useState<EstadoCheckout>('form')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -204,6 +220,18 @@ export function CheckoutModal({ open, onClose, tipo, placeId, amountArs, onSucce
                 : `${pesos.format(amountArs)} por mes. Podés cancelar cuando quieras.`}
           </p>
         </div>
+
+        {/* Qué se está comprando, en la última pantalla antes de la tarjeta. */}
+        {state === 'form' && (
+          <ul className="flex flex-col gap-1.5 rounded-xl bg-secondary/50 px-4 py-3 text-sm text-muted-foreground">
+            {beneficiosDe(tipo, cupos).map((beneficio) => (
+              <li key={beneficio} className="flex gap-2">
+                <span aria-hidden className="text-primary">✓</span>
+                <span>{beneficio}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         {state === 'error' && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

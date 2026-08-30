@@ -271,7 +271,7 @@ export function ResultsList({
       {agotado && (
         <div className="py-3 text-center text-sm text-muted-foreground">
           <p>Eso es todo lo que tenemos por acá.</p>
-          {/* Aviso de beta (DEPLOY, decisión 21). Solo con la lista agotada: si
+          {/* Rótulo del catálogo (DEPLOY, decisión 21). Solo con la lista agotada: si
               todavía queda scroll por delante no hay frustración que atender, y
               el renglón sería ruido. */}
           {flaco && (

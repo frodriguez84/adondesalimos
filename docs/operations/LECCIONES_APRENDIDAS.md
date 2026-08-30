@@ -5,6 +5,44 @@ Qué salió mal, por qué, y qué hacer distinto. No es un registro de bugs (eso
 
 ---
 
+## Una promesa de venta sin dueño único no diverge mintiendo: diverge omitiendo lo que limita (2026-08-29 · MONETIZACION)
+
+**Qué pasó.** «Qué incluye cada plan» estaba escrito a mano en tres lugares —panel de venta,
+términos, y por omisión el checkout— y para cuando se abrieron los pagos reales ya no coincidían.
+Lo contraintuitivo es que **ninguna de las tres afirmaciones era falsa**: cada una se pudo señalar
+contra su gate en el código. El drift fue **por omisión, y asimétrica**: el texto de venta omitía
+justo lo que limita (que el chat premium tiene cupo mensual), y el único texto que sí lo decía
+eran los términos, que nadie lee para decidir una compra.
+
+**Por qué importa la asimetría.** Un checklist de veracidad —«¿esta frase es cierta?»— da verde en
+las tres y no detecta nada. La pregunta que sí encuentra el problema es al revés: **«¿qué gate
+existe en el código que este texto no nombra?»**. Se contesta inventariando los gates primero y
+usando el texto como la variable, no al revés. Fue lo que destapó un cuarto beneficio B2B que
+**no se vendía en ningún lado** (el desglose de estadísticas, gateado por `owner_plan='paid'`):
+se estaba regalando sin contarlo.
+
+**La otra trampa: dos mecanismos con nombre parecido, y casi se borra una promesa válida.** El
+pitch B2B prometía «el destaque en las búsquedas». Buscar «destaque» en el orden llevó a
+`ownerRank` (`lib/search/query.ts`), que mira `source='owner'` o `publish_override` y **no** el
+plan — de donde salía la conclusión de que la promesa era falsa. Es el mecanismo equivocado: el
+destaque pago es **`buscarDestacados`**, un bloque aparte de hasta 3 lugares arriba de la primera
+página, cuyos candidatos sí son `owner_plan='paid'`. La promesa era cierta.
+
+**Qué hacer distinto:**
+
+1. **Antes de declarar falsa una promesa de producto, encontrar el gate que la haría verdadera** —
+   no solo el que la desmiente. Un nombre parecido en el módulo equivocado alcanza para borrar una
+   feature real que alguien está pagando.
+2. **Un texto que le promete algo al usuario es una regla de negocio y necesita dueño único**,
+   igual que el cupo o la visibilidad. La lista de beneficios vive en `lib/billing/beneficios.ts`.
+3. **Un dueño único puede tener dos redacciones sin ser dos copias.** `beneficiosDe(tipo, cupos?)`
+   dice el número cuando quien lo llama es dinámico y degrada a «con cupo mensual» cuando no —así
+   `/legales/**` sigue estático (no puede leer `app_settings` sin volverse serverless) **y** no
+   puede quedar con un número viejo. La alternativa —hardcodear el cupo en los términos— es
+   exactamente cómo empezó el drift.
+
+---
+
 ## Un A/B en un entorno que no tiene la causa da un falso negativo, y casi tira el arreglo (2026-08-28 · build de Vercel)
 
 **Qué pasó.** Los deploys pasaron de **27 s a ~14 m 38 s** el 2026-08-21, el día que entró

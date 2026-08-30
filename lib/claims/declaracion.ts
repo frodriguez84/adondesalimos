@@ -11,7 +11,7 @@
  * (decisión 4). Y la consecuencia enumera lo que de verdad pasa —se da de baja
  * el reclamo, se pierde la cuenta, queda registrado—, sin decir que reclamar en
  * falso sea un delito: no lo es por sí solo, y el que sabe lo detecta (cicatriz
- * del aviso de beta, DEPLOY decisión 21). Lo que sostiene revocar es que la
+ * del rótulo del catálogo, DEPLOY decisión 21). Lo que sostiene revocar es que la
  * persona **afirmó algo concreto**.
  */
 

@@ -256,7 +256,7 @@ export default async function Home({
           píxeles de posición en el HTML que a un crawler no le cambian nada. */}
       {!tieneBusqueda(params) && <ExploraPorBarrio />}
 
-      {/* El rótulo del aviso de beta (DEPLOY, decisión 21) va acá, y la atribución
+      {/* El rótulo del catálogo (DEPLOY, decisión 21) va acá, y la atribución
           se queda: linkear las fuentes es condición de la licencia, no decoración. */}
       <footer className="mt-auto flex flex-wrap items-center gap-x-2 pt-4 text-xs text-muted-foreground">
         <Link href="/legales" className="font-medium underline underline-offset-4">

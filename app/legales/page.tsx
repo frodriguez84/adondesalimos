@@ -17,7 +17,7 @@ export const metadata: Metadata = {
  * `sitemap.xml`: convertirla en índice no cuesta un solo salto de URL, y esa es
  * exactamente la razón de haber elegido esto sobre mover todo a `/atribucion`.
  *
- * El aviso de beta se queda **acá arriba** y no en una URL propia: no es un documento
+ * El rótulo del catálogo se queda **acá arriba** y no en una URL propia: no es un documento
  * legal, pero es lo que viene a leer quien tocó el rótulo del footer, y darle página
  * aparte agregaría un click para no ganar nada.
  *
@@ -61,7 +61,7 @@ export default function LegalesPage() {
         </p>
       </header>
 
-      {/* Aviso de beta (DEPLOY, decisión 21). Va al tope: es lo que viene a leer
+      {/* Rótulo del catálogo (DEPLOY, decisión 21). Va al tope: es lo que viene a leer
           quien llegó desde el rótulo del footer o desde un resultado flaco. Es
           expectativa, no escudo legal — nada de "no nos hacemos responsables". */}
       <Seccion titulo="Cómo armamos el catálogo">

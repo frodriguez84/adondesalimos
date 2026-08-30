@@ -360,7 +360,7 @@ export function SearchShell({
                     ? 'Sacá alguno de los chips de arriba o ampliá la zona.'
                     : 'Probá ampliando la zona.'
                 }
-                // Aviso de beta (DEPLOY, decisión 21): el momento en que alguien
+                // Rótulo del catálogo (DEPLOY, decisión 21): el momento en que alguien
                 // piensa "esto no busca bien" es mirando una pantalla vacía, no un
                 // banner en la home.
                 nota={
@@ -543,7 +543,7 @@ function Vacio({
 }: {
   titulo: string
   detalle: string
-  /** Renglón extra, más chico: hoy solo el aviso de beta (DEPLOY, decisión 21). */
+  /** Renglón extra, más chico: hoy solo el rótulo del catálogo (DEPLOY, decisión 21). */
   nota?: React.ReactNode
 }) {
   return (

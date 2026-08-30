@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { Documento, Externo, MailContacto, Seccion } from '@/components/legales/ui'
+import { beneficiosDe } from '@/lib/billing/beneficios'
 
 export const metadata: Metadata = {
   title: 'Términos y condiciones — ¿A dónde salimos?',
@@ -16,6 +17,12 @@ export const metadata: Metadata = {
  * razonablemente y es muchísimo mejor que nada, pero **no garantiza cumplimiento**. El
  * aviso vive acá, en el código, y **no de cara al usuario**: un documento que arranca
  * dudando de sí mismo no sirve para nada.
+ *
+ * La lista de § Planes pagos **no se escribe acá**: sale de `beneficiosDe`
+ * (`lib/billing/beneficios.ts`), el dueño único de qué incluye cada plan. Se la llama
+ * **sin cupos** a propósito — esta página es estática y leer `app_settings` la
+ * convertiría en función serverless (CLAUDE.md § Notas importantes); sin números el
+ * texto dice "con cupo mensual" y "más listas", que es la misma promesa y no vence.
  *
  * Lo que reemplaza al abogado es el criterio de redacción de la decisión 3: **cada
  * cláusula tiene que poder señalar una fila del § Inventario del spec**. Si no se puede
@@ -205,9 +212,22 @@ export default function TerminosPage() {
 
       <Seccion titulo="Planes pagos">
         <p>
-          Hay funciones que se pagan: el asistente de chat con cupo mensual, más listas de lugares
-          guardados y, para dueños, más fotos y los campos de descripción, carta y novedades.
+          Hay funciones que se pagan. Con el{' '}
+          <strong className="text-foreground">Premium</strong> de una cuenta:
         </p>
+        <ul className="ml-4 list-disc space-y-1">
+          {beneficiosDe('b2c').map((beneficio) => (
+            <li key={beneficio}>{beneficio}</li>
+          ))}
+        </ul>
+        <p>
+          Y con el <strong className="text-foreground">plan de un lugar</strong>, para su dueño:
+        </p>
+        <ul className="ml-4 list-disc space-y-1">
+          {beneficiosDe('b2b').map((beneficio) => (
+            <li key={beneficio}>{beneficio}</li>
+          ))}
+        </ul>
         <p>
           Las suscripciones son{' '}
           <strong className="text-foreground">mensuales y se renuevan solas</strong> hasta que las

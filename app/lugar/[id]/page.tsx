@@ -347,7 +347,7 @@ export default async function LugarPage({ params }: { params: Promise<{ id: stri
             ¿Sos el dueño? Reclamá esta ficha
           </Link>
         )}
-        {/* Aviso de beta (DEPLOY, decisión 21): la ficha es la otra superficie con
+        {/* Rótulo del catálogo (DEPLOY, decisión 21): la ficha es la otra superficie con
             footer, y muchas visitas van a entrar por un link compartido, no por la home. */}
         <Link href="/legales" className="inline-flex items-center gap-1 underline underline-offset-4">
           <Info className="size-3" />
